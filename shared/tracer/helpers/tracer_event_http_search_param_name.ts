@@ -39,6 +39,9 @@ type TracerEventHttpSearchParamNameMap = {
     // notification banner at the top of the page. So the user can dismiss the
     // notification without opening the inbox again.
     inbox: true;
+    // If the `file=:fileId-:attachmentTarget` search param is set then we open the
+    // file viewer for the user.
+    file: true;
     // `variant` and `width` are used by our file endpoint to select which file
     // variant to return and to resize the file to a specific size.
     variant: true;
@@ -55,6 +58,7 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     comment: true,
     comments: true,
     inbox: true,
+    file: true,
     variant: true,
     width: true,
 };
@@ -86,6 +90,7 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "comment",
         "comments",
         "inbox",
+        "file",
     ]),
     EdgeService: new Set(["variant", "width"]),
     FileUploadService: new Set(["variant", "width"]),

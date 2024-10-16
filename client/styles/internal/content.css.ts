@@ -1058,6 +1058,18 @@ globalStyle(fileClassName, {
     isolation: "isolate",
 });
 
+export const fileViewerClassName = style({
+    selectors: {
+        [`${fileClassName}&`]: {
+            minWidth: "none",
+            minHeight: "none",
+            maxHeight: "none",
+            borderRadius: 0,
+            cursor: "inherit",
+        },
+    },
+});
+
 export const fileNearBlackClassName = style({
     selectors: {
         [`${darkColorSchemeSelector} &`]: {
@@ -1214,7 +1226,7 @@ const darkFileBorderColor = Color.rgb(
 //
 // We use `&::before` to avoid competing with the `&::after` selector for
 // `selectionFileClassNameByColor`.
-globalStyle(`${fileClassName}::before`, {
+globalStyle(`${fileClassName}:not(${fileViewerClassName})::before`, {
     content: '""',
     zIndex: "20",
     position: "absolute",

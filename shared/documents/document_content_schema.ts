@@ -7,19 +7,16 @@ import {
     contentBaseProsemirrorSchemaSpec,
     createListItemParseRule,
     createProsemirrorSchemaSpec,
-    paragraphParseRulePriority,
-    paragraphParseRules,
     toDebugStringWithIndent,
 } from "~/shared/content/content_schema.js";
-import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
+import {
+    contentStructuralProsemirrorNodeSpecs,
+    createContentFileFloatProsemirrorNodeSpecs,
+    createContentFileProsemirrorNodeSpecs,
+} from "~/shared/content/content_schema_extra.js";
 import {
     checkListItemCheckedClassName,
     commentClassName,
-    fileClassName,
-    fileFloatClassName,
-    fileFloatLeftClassName,
-    fileFloatRightClassName,
-    fileRowClassName,
     highlightClassNameByColor,
     listItemClassName,
     listItemIndentationVar,
@@ -28,7 +25,7 @@ import {
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -36,6 +33,9 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
     nodes: {
         ...contentBaseProsemirrorSchemaSpec.nodes,
         ...contentStructuralProsemirrorNodeSpecs,
+        // Allow comments on files.
+        ...createContentFileProsemirrorNodeSpecs({fileMarks: "comment"}),
+        ...createContentFileFloatProsemirrorNodeSpecs({fileMarks: "comment"}),
 
         /**
          * List some things in either a complete or incomplete state. Modern
@@ -110,188 +110,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 })(),
             ],
             toDebugString: toDebugStringWithIndent,
-        },
-
-        /**
-         * Renders one or more files in content in a horizontal row. When the user
-         * first adds a file to a document it'll be in a `fileRow`. A single, centered,
-         * file is a `fileRow`.
-         *
-         * Up to three files may be rendered horizontally next to each other. File rows
-         * may be stacked vertically to create an image gallery. All images in a file
-         * row have the same height and we try our best to fill the entire width of the
-         * document with each file row. See `layoutContentFileRow()` for more
-         * information on how we layout a file row.
-         */
-        fileRow: {
-            group: "block",
-            content: "file{1,3}",
-            defining: true,
-            isolating: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
-            selectable: false,
-            // Allow comments on files. Comments should never appear on `fileRow`. Only on
-            // `file`. We validate this is the case in
-            //
-            // TODO(calebmer, #files): When we define this in `content_schema.ts` this
-            // `marks` definition should stay only in `document_content_schema.ts`.
-            marks: "comment",
-            toDOM: () => ["div", {class: fileRowClassName}, 0],
-            // A `<div>` or `<p>` with a direct child that has a `data-cy-tmp-file`
-            // attribute is parsed as a `fileRow`.
-            //
-            // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-            // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-            // `transformPastedDOM` converts those elements into a `<div>` with a
-            // `data-cy-tmp-file` attribute.
-            parseDOM: paragraphParseRules.map(paragraphParseRule => ({
-                ...paragraphParseRule,
-                // Make sure this is higher priority than our paragraph `div` parse rule.
-                priority: paragraphParseRule.priority + 50,
-                getAttrs: node => {
-                    if (!(node instanceof HTMLElement)) return false;
-                    if (!node.querySelector(":scope > [data-cy-tmp-file]")) return false;
-                    return {};
-                },
-            })),
-        },
-
-        /**
-         * Renders a single file floating to the left or right. Text will wrap around
-         * the floating file. A useful rendering mode for files when you're writing
-         * prose. You can put your file to the side of your text where it will
-         * supplements the document's content instead of interrupting it.
-         *
-         * Keyboard navigation and selection of floated files can be non-intuitive at
-         * times. Floated files usually exist in the document at their top edge.
-         * However, if there would be multiple conflicting floats at a given X position
-         * than they're cleared with the CSS `clear: both`. So a float may be visually
-         * pushed down the page by another float. This means a floating file can be in
-         * a completely different position visually than it is in the document.
-         * Changing keyboard navigation and selection interactions so they match the
-         * visual position of the file would be a difficult, maybe impossible, task. So
-         * we accept the user can get into some weird states with floating files and
-         * leave them to it.
-         */
-        // TODO(calebmer, #files): Floats shouldn't be allowed in `MessageContent`.
-        // Only file rows should be allowed in `MessageContent`.
-        fileFloat: {
-            group: "block",
-            content: "file",
-            defining: true,
-            isolating: true,
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
-            selectable: false,
-            // Allow comments on files. Comments should never appear on `fileRow`. Only on
-            // `file`. We validate this is the case in
-            //
-            // TODO(calebmer, #files): When we define this in `content_schema.ts` this
-            // `marks` definition should stay only in `document_content_schema.ts`.
-            marks: "comment",
-            attrs: {
-                direction: {
-                    schema: Schema.enum(["left", "right"]),
-                },
-            },
-            toDOM: node => [
-                "div",
-                {
-                    class: `${fileFloatClassName} ${
-                        node.attrs.direction === "left"
-                            ? fileFloatLeftClassName
-                            : fileFloatRightClassName
-                    }`,
-                },
-                0,
-            ],
-            parseDOM: [
-                {
-                    // A `<div>` with a style attribute including `float: left` or `float: right`
-                    // and at least one child that has a `data-cy-tmp-file` attribute is parsed as
-                    // a `fileFloat`.
-                    //
-                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-                    // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-                    // `transformPastedDOM` converts those elements into a `<div>` with a
-                    // `data-cy-tmp-file` attribute.
-                    tag: "div[style*=float]",
-                    // Make sure this is higher priority than our paragraph `div` parse rule. Also
-                    // our `fileRow` `div` parse rule.
-                    priority: paragraphParseRulePriority + 100,
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return false;
-
-                        if (node.style.float !== "left" && node.style.float !== "right")
-                            return false;
-
-                        for (const childNode of node.childNodes) {
-                            if (
-                                childNode instanceof HTMLElement &&
-                                childNode.tagName === "DIV" &&
-                                childNode.hasAttribute("data-cy-tmp-file")
-                            ) {
-                                return {direction: node.style.float};
-                            }
-                        }
-
-                        return false;
-                    },
-                },
-            ],
-        },
-
-        /**
-         * A file attached to our content. Files can be images, videos, documents
-         * (e.g. PDFs or Microsoft Word docs), audio, code, and more.
-         *
-         * Files are never directly embedded in content. Instead they must be wrapped
-         * in some container. For example, `fileRow`. The `file` node is responsible
-         * for rendering file content whereas the container is responsible for figuring
-         * out how to lay out the file.
-         */
-        file: {
-            defining: true,
-            isolating: true,
-            selectable: true,
-            // Allow comments on files.
-            //
-            // TODO(calebmer, #files): When we define this in `content_schema.ts` this
-            // `marks` definition should stay only in `document_content_schema.ts`.
-            marks: "comment",
-            attrs: {
-                // `fileId` is nullable so the `file` node is generatable. Otherwise
-                // ProseMirror complains that `fileRow` can't be generated because it requires
-                // at least one file node. `fileId: null` files will always render with an
-                // error. You should always provide a `FileId`.
-                fileId: {
-                    schema: Schema.id<FileId>().nullable(),
-                    default: null,
-                },
-            },
-            toDOM: () => ["div", {class: fileClassName}],
-            parseDOM: [
-                {
-                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-                    // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-                    // `transformPastedDOM` converts those elements into a `<div>` with a
-                    // `data-cy-tmp-file` attribute.
-                    tag: "div[data-cy-tmp-file]",
-                    // Make sure this is higher priority than our paragraph `div` parse rule.
-                    priority: paragraphParseRulePriority + 50,
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return false;
-                        const fileId = node.getAttribute("data-cy-tmp-file");
-                        if (fileId === null) return false;
-                        if (fileId === "null") return {fileId: null};
-                        if (!isId<FileId>(fileId)) return false;
-                        return {fileId};
-                    },
-                },
-            ],
         },
     },
     marks: {

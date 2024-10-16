@@ -112,6 +112,8 @@ globalStyle(darkColorSchemeSelector, {
 });
 
 export const invertSelectionColorsClassName = style({});
+export const invertLightSelectionColorsClassName = style({});
+export const invertDarkSelectionColorsClassName = style({});
 
 /**
  * Constant colors don't change based on whether we are in light mode or dark

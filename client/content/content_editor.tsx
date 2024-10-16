@@ -110,7 +110,7 @@ import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
@@ -746,6 +746,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     \* ========================================================================== */
 
     const context = useAppContextIfExists();
+    const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
     const reporter = useReporter();
     const isMobile = useIsMobile();
@@ -799,6 +800,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const withMobileLayoutRef = useRef(withMobileLayout);
     const canPrimaryInputHoverRef = useRef(canPrimaryInputHover);
     const isDualModalityRef = useRef(isDualModality);
+    const rootNavigateRef = useRef(rootNavigate);
     const navigateRef = useRef(navigate);
     const reporterRef = useRef(reporter);
     const contextRef = useRef(context);
@@ -812,6 +814,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         withMobileLayoutRef.current = withMobileLayout;
         canPrimaryInputHoverRef.current = canPrimaryInputHover;
         isDualModalityRef.current = isDualModality;
+        rootNavigateRef.current = rootNavigate;
         navigateRef.current = navigate;
         reporterRef.current = reporter;
         contextRef.current = context;
@@ -1255,6 +1258,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             }),
             file: createContentEditorFileNodeViewConstructor({
+                rootNavigate: (...args) => (rootNavigateRef as any).current(...args),
                 getLayoutScreenWidth: getFileLayoutScreenWidth,
                 getContext: () => assertExists(contextRef.current),
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,

@@ -112,7 +112,7 @@ test("will refresh signed URL when it's about to expire", async () => {
                             type: "Image",
                             isProcessing: false,
                             ok: true,
-                            size: {width: 1200, height: 1200, scale: 1},
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
                             placeholder: fileImagePreviewPlaceholder,
                         },
                     }),

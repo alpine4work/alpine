@@ -19,6 +19,7 @@ ts_project(
         "//:node_modules/color",
         "//:node_modules/fuse.js",
         "//:node_modules/phosphor-react",
+        "//:node_modules/pretty-bytes",
         "//:node_modules/prosemirror-collab",
         "//:node_modules/prosemirror-commands",
         "//:node_modules/prosemirror-history",

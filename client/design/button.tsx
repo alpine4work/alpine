@@ -39,6 +39,7 @@ import {
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
@@ -378,127 +379,170 @@ function Button(
         </span>
     ) : null;
 
-    const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
-        quiet: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        quieter: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-60",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        quietest: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-50",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-on": !isDisabled
-            ? {
-                  backgroundColor: isPressed ? "grey-10" : "grey-5",
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-off": !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-50",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-above-grey-5-dark-background": !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? {light: "grey-10", dark: "grey-20"}
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? {light: "grey-5", dark: "grey-10"}
-                      : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        neutral: !isDisabled
-            ? {
-                  backgroundColor: "grey-90",
-                  color: "grey-0",
-              }
-            : {
-                  backgroundColor: "grey-5",
-                  color: "grey-30",
-              },
-        "neutral-disabled": {
-            backgroundColor: "grey-5",
-            color: "grey-30",
-        },
-        accent: !isDisabled
-            ? {
-                  backgroundColor: accentThemeBackgroundColor,
-                  color: accentThemeForegroundColor,
-              }
-            : {
-                  backgroundColor: "grey-5",
-                  color: "grey-30",
-              },
+    let styles: Sprinkles;
+    let isQuietVariant = false;
+
+    switch (variant) {
+        case "quiet": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quieter": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-60",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quietest": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-on": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-10" : "grey-5",
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-off": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-above-grey-5-dark-background": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? {light: "grey-10", dark: "grey-20"}
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? {light: "grey-5", dark: "grey-10"}
+                          : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "neutral": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: {light: "grey-90", dark: "grey-100"},
+                      color: "grey-0",
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "neutral-disabled": {
+            styles = {
+                backgroundColor: "grey-5",
+                color: "grey-30",
+            };
+            break;
+        }
+        case "accent": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: accentThemeBackgroundColor,
+                      color: accentThemeForegroundColor,
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                  };
+            break;
+        }
         // We have the accent styles even when the button is disabled. Disabling makes
         // the button not clickable or focusable but does not visually change the
         // button. Useful for buttons we really want to accent.
-        "accent-even-when-disabled": {
-            backgroundColor: accentThemeBackgroundColor,
-            color: accentThemeForegroundColor,
-        },
-        outline: !isDisabled
-            ? {
-                  backgroundColor: isPressed ? "grey-10" : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-    };
-
-    const isQuietVariant =
-        variant === "quiet" ||
-        variant === "quieter" ||
-        variant === "quiet-on" ||
-        variant === "quiet-off" ||
-        variant === "quiet-above-grey-5-dark-background";
+        case "accent-even-when-disabled": {
+            styles = {
+                backgroundColor: accentThemeBackgroundColor,
+                color: accentThemeForegroundColor,
+            };
+            break;
+        }
+        case "outline": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-10" : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        default:
+            throw exhaustive(variant);
+    }
 
     const isOutlineVariant = variant === "outline";
 
@@ -583,7 +627,7 @@ function Button(
                 },
                 <span
                     className={sprinkles({
-                        ...stylesByVariant[variant],
+                        ...styles,
                         position: "relative",
                         overflow: "hidden",
                         display: "flex",

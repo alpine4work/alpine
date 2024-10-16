@@ -233,6 +233,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
                 const isTextSelectionDisabled =
                     selection &&
+                    event.target instanceof Node &&
+                    selection.containsNode(event.target) &&
                     selection.anchorNode instanceof Element &&
                     selection.anchorNode === selection.focusNode
                         ? (getComputedStyle(selection.anchorNode).userSelect ||
@@ -309,7 +311,10 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                     // If user is right-clicking in the margins of some selectable text (e.g. a
                     // document) don't give them an option to copy. If the right click on a word
                     // then we'll select a word and let them copy.
-                    (selection && selection.anchorOffset !== selection.focusOffset)
+                    (selection &&
+                        event.target instanceof Node &&
+                        selection.containsNode(event.target) &&
+                        selection.anchorOffset !== selection.focusOffset)
                 ) {
                     actions.unshift([
                         {

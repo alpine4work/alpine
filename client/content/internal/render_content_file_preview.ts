@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import Color from "color";
 import {Node} from "prosemirror-model";
+import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     ContentFileLayout,
@@ -13,6 +14,7 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
     ContentReferences,
@@ -21,7 +23,10 @@ import {
 } from "~/shared/content/content_references.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {InternalError} from "~/shared/error/error.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    FileAttachmentTarget,
+    serializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
 import {getFileContentTypePreferredExtension} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -536,7 +541,7 @@ function actuallyRenderFileImagePreviewContent({
     return imageHtml;
 }
 
-function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePreviewPlaceholder) {
+export function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePreviewPlaceholder) {
     const pixelGrid = placeholder.get();
     const pixelWidth = pixelGrid[0].length;
     const pixelHeight = pixelGrid.length;
@@ -579,7 +584,7 @@ function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePreviewPl
     return {isNearBlack, isNearWhite, hasTransparentBackground};
 }
 
-function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
+export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
     const pixelGrid = placeholder.get();
     const pixelGridWidth = pixelGrid[0].length;
     const pixelGridHeight = pixelGrid.length;
@@ -636,6 +641,7 @@ export function addContentFilePreviewBehavior(
         expirationTimers,
         isOurEditorUploading,
         isEditorInitialAppRender,
+        rootNavigate,
         onUpdate,
         onSignedUrlRefresh,
         onShiftMouseDown,
@@ -649,6 +655,7 @@ export function addContentFilePreviewBehavior(
         expirationTimers: ContentFilePreviewExpirationTimers;
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
         isEditorInitialAppRender: boolean;
+        rootNavigate: NavigateFunction;
         onUpdate: (file: FileModel, signedUrlSearch: string) => void;
         onSignedUrlRefresh: (fileId: FileId, signedUrlSearch: string) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
@@ -846,7 +853,41 @@ export function addContentFilePreviewBehavior(
         longPressTimeout = null;
     };
 
-    const handlePointerUp = resetPointerState;
+    const handlePointerUp = () => {
+        const wasLongPress = longPressTimeout === null;
+        resetPointerState();
+        if (wasLongPress) return;
+        if (!reference) return;
+
+        ContentFileViewerModal.handoffFileReference(reference);
+
+        rootNavigate(location => {
+            const searchParams = new URLSearchParams(location.search);
+
+            searchParams.set(
+                "file",
+                // Space separator was chosen since it's encoded as a `+` which looks nice in
+                // the URL.
+                `${reference.file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
+            );
+
+            return [
+                {...location, search: searchParams.toString()},
+                {
+                    replace: true,
+                    // Don't fetch route data from the server. We don't need any new route data.
+                    //
+                    // NOTE(calebmer, 2024-10-15): I just realized, instead of adding this private
+                    // API with a patch it might be better to add the `shouldRevalidate` function to
+                    // every route, look for specific changes, and ignore everything else. Like the
+                    // `s.$spaceId.tsx` revalidation function which only returns true if the
+                    // `SpaceId` changes.
+                    unstable_shouldRevalidate: false,
+                },
+            ];
+        });
+    };
+
     const handlePointerLeave = resetPointerState;
     const handlePointerCancel = resetPointerState;
     const handleParentScrollWhenPointerDownAndOver = resetPointerState;
@@ -967,18 +1008,11 @@ export function addContentFilePreviewBehavior(
                     onPress: () => {
                         if (!reference) return;
 
-                        const downloadLinkElement = document.createElement("a");
-
-                        downloadLinkElement.setAttribute(
-                            "download",
-                            `${getFileContentTypeNoun(
-                                reference.file.contentType,
-                            )}.${getFileContentTypePreferredExtension(reference.file.contentType)}`,
-                        );
-
-                        downloadLinkElement.href = `/files/${spaceId}/${reference.file.id}${reference.signedUrlSearch}`;
-
-                        downloadLinkElement.click();
+                        handleDownloadContentFile({
+                            spaceId,
+                            file: reference.file,
+                            signedUrlSearch: reference.signedUrlSearch,
+                        });
                     },
                 },
             ],
@@ -1222,4 +1256,27 @@ export async function handleCopyContentFile(
                 : {}),
         }),
     ]);
+}
+
+export function handleDownloadContentFile({
+    spaceId,
+    file,
+    signedUrlSearch,
+}: {
+    spaceId: SpaceId;
+    file: FileModel;
+    signedUrlSearch: string;
+}) {
+    const downloadLinkElement = document.createElement("a");
+
+    downloadLinkElement.setAttribute(
+        "download",
+        `${getFileContentTypeNoun(file.contentType)}.${getFileContentTypePreferredExtension(
+            file.contentType,
+        )}`,
+    );
+
+    downloadLinkElement.href = `/files/${spaceId}/${file.id}${signedUrlSearch}`;
+
+    downloadLinkElement.click();
 }

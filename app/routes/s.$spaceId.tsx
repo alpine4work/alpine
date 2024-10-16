@@ -22,6 +22,7 @@ import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicat
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context_provider.js";
+import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
@@ -69,12 +70,17 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {UnknownError} from "~/shared/error/error.js";
+import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
@@ -700,6 +706,94 @@ function SpaceLayoutRouteInner({
         [],
     );
 
+    const modals = [];
+    let hasAddedSearchModal = false;
+    let hasAddedContentFileViewerModal = false;
+
+    // Add modals to the DOM in the order they appear in `searchParams`. So if the
+    // search modal was opened before the file viewer modal then the search modal
+    // should render underneath the file viewer modal. If the search modal was
+    // opened after the file viewer modal then the search modal should render on
+    // top of the file viewer modal.
+    for (const [searchParamName, searchParamValue] of searchParams) {
+        switch (searchParamName) {
+            case "search": {
+                if (isMobile) continue;
+                if (isInitialAppRender) continue;
+
+                if (hasAddedSearchModal) continue;
+                hasAddedSearchModal = true;
+
+                modals.push(
+                    <ModalErrorBoundary key={searchParamName} type="search" error={error}>
+                        <SearchModal
+                            onClose={handleSearchModalClose}
+                            pushPeekStack={handleSearchModalPushPeekStack}
+                            debugOptions={
+                                debugOptions.isDebugModeEnabled ? debugOptions.options : null
+                            }
+                        />
+                    </ModalErrorBoundary>,
+                );
+                break;
+            }
+            case "file": {
+                if (isMobile) continue;
+                if (isInitialAppRender) continue;
+
+                if (hasAddedContentFileViewerModal) continue;
+                hasAddedContentFileViewerModal = true;
+
+                const [fileId = "", fileAttachmentTargetString = ""] = searchParamValue.split(
+                    " ",
+                    2,
+                );
+
+                if (!isId<FileId>(fileId)) continue;
+
+                let fileAttachmentTarget;
+                try {
+                    fileAttachmentTarget = deserializeFileAttachmentTargetString(
+                        fileAttachmentTargetString,
+                    );
+                } catch {
+                    // Ignore formatting errors.
+                    continue;
+                }
+
+                modals.push(
+                    <ModalErrorBoundary
+                        key={`${searchParamName}-${fileId}`}
+                        type="file"
+                        error={error}
+                    >
+                        <ContentFileViewerModal
+                            fileId={fileId}
+                            attachmentTarget={fileAttachmentTarget}
+                            onClose={() => {
+                                setSearchParams(
+                                    oldSearchParams => {
+                                        const newSearchParams = new URLSearchParams(
+                                            oldSearchParams,
+                                        );
+                                        newSearchParams.delete("file");
+                                        return newSearchParams;
+                                    },
+                                    {
+                                        replace: true,
+                                        // Don't fetch route data from the server. We don't need any new route data.
+                                        unstable_shouldRevalidate: false,
+                                    },
+                                );
+                            }}
+                        />
+                    </ModalErrorBoundary>,
+                );
+                break;
+            }
+        }
+    }
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -762,19 +856,7 @@ function SpaceLayoutRouteInner({
                         <PeekStackContextProvider ref={peekStackRef}>
                             {nodes}
                         </PeekStackContextProvider>
-                        {!isMobile && !isInitialAppRender && searchParams.has("search") && (
-                            <SearchModalErrorBoundary onClose={handleSearchModalClose}>
-                                <SearchModal
-                                    onClose={handleSearchModalClose}
-                                    pushPeekStack={handleSearchModalPushPeekStack}
-                                    debugOptions={
-                                        debugOptions.isDebugModeEnabled
-                                            ? debugOptions.options
-                                            : null
-                                    }
-                                />
-                            </SearchModalErrorBoundary>
-                        )}
+                        {modals}
                         {isMobile && !clientInfo.isNativeMobile && (
                             <SpaceLayoutWebMobileTabBar initialInbox={initialInbox} />
                         )}
@@ -905,6 +987,8 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
     }
 }
 
+let modalErrorBoundaryTypesByError: WeakMap<object, Set<string>> | null = null;
+
 /**
  * Protect against infinite error loops with `<SearchModal>`. If
  * `<SearchModal>` errs on initial render while rendering we'll re-render at
@@ -913,16 +997,33 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
  * this error boundary if `<SearchModal>` errs, we make sure not to render it
  * again by clearing `search` from the URL.
  */
-class SearchModalErrorBoundary extends Component<{
-    onClose: () => void;
+class ModalErrorBoundary extends Component<{
+    type: string;
+    error: unknown;
     children: ReactNode;
 }> {
     public override componentDidCatch(error: unknown) {
-        this.props.onClose();
+        if (!isObject(error)) error = new UnknownError(String(error));
+
+        modalErrorBoundaryTypesByError ??= new WeakMap();
+
+        getOrSetDefaultMapValue(
+            modalErrorBoundaryTypesByError,
+            error as object,
+            () => new Set(),
+        ).add(this.props.type);
+
         throw error;
     }
 
     public override render() {
+        if (
+            isObject(this.props.error) &&
+            modalErrorBoundaryTypesByError?.get(this.props.error)?.has(this.props.type)
+        ) {
+            return null;
+        }
+
         return this.props.children;
     }
 }

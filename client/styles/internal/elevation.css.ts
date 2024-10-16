@@ -100,6 +100,22 @@ export const elevation = {
             },
         ],
     }),
+    "elevation-20-above-content-file-viewer-modal": createElevation({
+        lightBorderColor: null,
+        darkBorderColor: null,
+        shadows: [
+            {
+                shadow: "0px 4px 8px -2px",
+                lightColor: "rgb(18 18 20 / 0.12)",
+                darkColor: "rgb(0 0 0 / 0.15)",
+            },
+            {
+                shadow: "0px 2px 4px -2px",
+                lightColor: "rgb(18 18 20 / 0.06)",
+                darkColor: "rgb(0 0 0 / 0.09)",
+            },
+        ],
+    }),
     "elevation-30": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-80",
@@ -194,8 +210,8 @@ function createElevation({
     isBorderOutset,
     shadows,
 }: {
-    lightBorderColor: `rgb(${string})` | "grey-10";
-    darkBorderColor: "grey-70" | "grey-80" | "grey-90";
+    lightBorderColor: `rgb(${string})` | "grey-10" | null;
+    darkBorderColor: "grey-70" | "grey-80" | "grey-90" | null;
     isBorderOutset?: boolean;
     shadows: Array<{shadow: string; lightColor: string; darkColor: string}>;
 }) {
@@ -209,19 +225,23 @@ function createElevation({
     // the box.
     const borderInset = !isBorderOutset && lightBorderColor === "grey-10" ? "inset " : "";
 
-    if (lightBorderColor === "grey-10") {
-        lightBoxShadows.push(`${borderInset}0 0 0 1px ${colors[lightBorderColor]}`);
-    } else {
-        lightBoxShadows.push(`${borderInset}0 0 0 1px ${lightBorderColor}`);
+    if (lightBorderColor !== null) {
+        if (lightBorderColor === "grey-10") {
+            lightBoxShadows.push(`${borderInset}0 0 0 1px ${colors[lightBorderColor]}`);
+        } else {
+            lightBoxShadows.push(`${borderInset}0 0 0 1px ${lightBorderColor}`);
+        }
     }
 
-    darkBoxShadows.push(`${borderInset}0 0 0 1px ${colors[darkBorderColor]}`);
-    darkElevated1BoxShadows.push(
-        `${borderInset}0 0 0 1px ${colors[`${darkBorderColor}-elevated-1`]}`,
-    );
-    darkElevated2BoxShadows.push(
-        `${borderInset}0 0 0 1px ${colors[`${darkBorderColor}-elevated-2`]}`,
-    );
+    if (darkBorderColor !== null) {
+        darkBoxShadows.push(`${borderInset}0 0 0 1px ${colors[darkBorderColor]}`);
+        darkElevated1BoxShadows.push(
+            `${borderInset}0 0 0 1px ${colors[`${darkBorderColor}-elevated-1`]}`,
+        );
+        darkElevated2BoxShadows.push(
+            `${borderInset}0 0 0 1px ${colors[`${darkBorderColor}-elevated-2`]}`,
+        );
+    }
 
     for (const {shadow, lightColor, darkColor} of shadows) {
         lightBoxShadows.push(`${shadow} ${lightColor}`);

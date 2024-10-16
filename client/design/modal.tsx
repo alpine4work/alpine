@@ -12,6 +12,7 @@ import {
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
+import {Color} from "~/shared/design/colors.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -33,11 +34,14 @@ export function Modal({
     maxWidth = defaultModalMaxWidth,
     height = "auto",
     maxHeight = "full",
+    margin = "5",
     borderRadius = "1.5",
+    backgroundColor = "grey-0",
     withoutOpenAnimation,
     withoutCloseAnimation,
     withoutCloseButton,
     withoutCloseInteractions,
+    withoutElevatedGrey,
 }: {
     /**
      * The contents of the modal. If the contents are too big for the screen then
@@ -86,7 +90,23 @@ export function Modal({
      */
     maxHeight?: Spacing | RemLength | "full";
 
+    /**
+     * How much margin is there around the modal when its width and height are
+     * `full`. Default is `5`.
+     */
+    margin?: "5" | "6" | "7" | "8";
+
+    /**
+     * Border radius for the modal content.
+     */
     borderRadius?: "1.5" | "2";
+
+    /**
+     * Background color for the modal content.
+     */
+    backgroundColor?:
+        | (Color & `grey-${number}`)
+        | {light: Color & `grey-${number}`; dark: Color & `grey-${number}`};
 
     /**
      * The modal will never animate when opening if set to true. Otherwise we fade
@@ -114,6 +134,13 @@ export function Modal({
      * Defaults to false. Automatically sets `withoutCloseButton` to true.
      */
     withoutCloseInteractions?: boolean;
+
+    /**
+     * Don't use an elevated grey color scheme for the modal. By default for
+     * elements with a higher elevation we use a slightly lighter color scheme in
+     * dark mode to make it appear closer to the user.
+     */
+    withoutElevatedGrey?: boolean;
 } & (
     | {
           /**
@@ -181,7 +208,7 @@ export function Modal({
             display="flex"
             justifyContent="center"
             alignItems="center"
-            padding="5"
+            padding={margin}
             style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
             overflow="hidden"
         >
@@ -225,13 +252,13 @@ export function Modal({
                             aria-labelledby={ariaLabelledBy}
                             aria-describedby={ariaDescribedBy}
                             className={classNames(
-                                greyElevated1ClassName,
+                                !withoutElevatedGrey && greyElevated1ClassName,
                                 sprinkles({
                                     position: "relative",
                                     zIndex: "0",
                                     width: "full",
                                     height,
-                                    backgroundColor: "grey-0",
+                                    backgroundColor,
                                     boxShadow: "elevation-40",
                                     borderRadius,
                                     display: "flex",

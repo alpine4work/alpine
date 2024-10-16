@@ -21,6 +21,7 @@ import {
     getIsMobileWithoutListening,
     subscribeToIsMobileChange,
 } from "~/client/remix/use_is_mobile.js";
+import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -48,6 +49,7 @@ let scheduledFileSignedUrlRefreshActionsByView:
     | undefined;
 
 export function createContentEditorFileNodeViewConstructor({
+    rootNavigate,
     getLayoutScreenWidth,
     getContext,
     getSpaceId,
@@ -57,6 +59,7 @@ export function createContentEditorFileNodeViewConstructor({
     isOurEditorUploading,
     draggingFileRef,
 }: {
+    rootNavigate: NavigateFunction;
     getLayoutScreenWidth: () => number;
     getContext: () => AppContext;
     getSpaceId: () => SpaceId;
@@ -141,6 +144,7 @@ export function createContentEditorFileNodeViewConstructor({
                     // `FileUploadService` will push us updates immediately when they're available.
                     isOurEditorUploading,
                     isEditorInitialAppRender: false,
+                    rootNavigate,
                     onUpdate: (file, signedUrlSearch) => {
                         view.dispatch(
                             updateContentEditorReferences(view.state.tr, {

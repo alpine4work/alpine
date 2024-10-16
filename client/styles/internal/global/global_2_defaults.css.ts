@@ -8,7 +8,11 @@
 import {globalStyle} from "@vanilla-extract/css";
 import {
     colorSchemeVars,
+    darkColorSchemeSelector,
+    invertDarkSelectionColorsClassName,
+    invertLightSelectionColorsClassName,
     invertSelectionColorsClassName,
+    lightColorSchemeSelector,
 } from "~/client/styles/internal/color_scheme.css.js";
 import {fontSizes, fontStyles} from "~/client/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/client/styles/internal/input_placeholder.css.js";
@@ -83,5 +87,15 @@ globalStyle("::selection", {
 
 globalStyle(
     `${invertSelectionColorsClassName}::selection, ${invertSelectionColorsClassName} ::selection`,
+    {background: colorSchemeVars["theme-selection-inverted"]},
+);
+
+globalStyle(
+    `${lightColorSchemeSelector} ${invertLightSelectionColorsClassName}::selection, ${lightColorSchemeSelector} ${invertLightSelectionColorsClassName} ::selection`,
+    {background: colorSchemeVars["theme-selection-inverted"]},
+);
+
+globalStyle(
+    `${darkColorSchemeSelector} ${invertDarkSelectionColorsClassName}::selection, ${darkColorSchemeSelector} ${invertDarkSelectionColorsClassName} ::selection`,
     {background: colorSchemeVars["theme-selection-inverted"]},
 );

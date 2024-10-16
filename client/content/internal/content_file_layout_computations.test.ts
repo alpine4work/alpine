@@ -37,7 +37,7 @@ const file1 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 3992, height: 2992, scale: 1},
+        size: {width: 3992, height: 2992, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -52,7 +52,7 @@ const file2 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 8064, height: 6048, scale: 1},
+        size: {width: 8064, height: 6048, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -67,7 +67,7 @@ const file3 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 5339, height: 7118, scale: 1},
+        size: {width: 5339, height: 7118, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -83,7 +83,7 @@ const file4 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 828, height: 1792, scale: 1},
+        size: {width: 828, height: 1792, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -99,7 +99,7 @@ const file5 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 4096, height: 1716, scale: 1},
+        size: {width: 4096, height: 1716, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -115,7 +115,7 @@ const file6 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 1716, height: 4096, scale: 1},
+        size: {width: 1716, height: 4096, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -130,7 +130,7 @@ const file7 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 64, height: 64, scale: 1},
+        size: {width: 64, height: 64, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -145,7 +145,7 @@ const file8 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 200, height: 2000, scale: 1},
+        size: {width: 200, height: 2000, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -160,7 +160,7 @@ const file9 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 2000, height: 200, scale: 1},
+        size: {width: 2000, height: 200, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -175,7 +175,7 @@ const file10 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 1000, height: 10000, scale: 1},
+        size: {width: 1000, height: 10000, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -190,7 +190,7 @@ const file11 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 10000, height: 1000, scale: 1},
+        size: {width: 10000, height: 1000, scale: 1, hasAlpha: false},
         placeholder: fileImagePreviewPlaceholder,
     },
 });

@@ -37,7 +37,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
@@ -254,6 +254,8 @@ export function ContentView({
         "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
     );
 
+    const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
     const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
     const isInitialAppRender = useIsInitialAppRender();
@@ -577,8 +579,6 @@ export function ContentView({
     ]);
 
     const {html, codeBlockDecorations} = useStore(htmlStore);
-
-    const navigate = useNavigate();
 
     const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
         readonly key: Id;
@@ -940,6 +940,7 @@ export function ContentView({
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                         isOurEditorUploading: false,
                         isEditorInitialAppRender,
+                        rootNavigate,
                         onUpdate: (file, signedUrlSearch) => {
                             setUpdatedContentReferencesFileById(fileById => {
                                 return mergeContentReferencesFileById(
@@ -989,6 +990,7 @@ export function ContentView({
         fileAttachmentTarget,
         filePreviewExpirationTimers,
         isEditorInitialAppRender,
+        rootNavigate,
     ]);
 
     // Watch all parent elements of our content editor for scroll events. When a
