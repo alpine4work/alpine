@@ -1,12 +1,21 @@
-import {Memo, ReactNode, createContext, useContext, useEffect, useMemo, useRef} from "react";
+import {Location, Router} from "@remix-run/router";
 import {
+    ContextType,
+    Memo,
+    MutableRefObject,
+    ReactNode,
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+} from "react";
+import {
+    UNSAFE_DataRouterContext as DataRouterContext,
     NavigateOptions,
-    NavigateFunction as OriginalNavigateFunction,
+    UNSAFE_RouteContext as RouteContext,
     To,
     useLocation,
-    // This is the file which implements our `useNavigate()` wrapper.
-    // eslint-disable-next-line no-restricted-imports
-    useNavigate as useOriginalNavigate,
 } from "react-router-dom";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
@@ -14,6 +23,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 /**
@@ -32,11 +43,19 @@ import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.
  * indicators (e.g. an `<IconButton>`) we still recommend awaiting the promise.
  * To show an inline loading indicator before we show a full screen loading
  * indicator.
+ *
+ * We also provide a functional `navigate(location => newLocation)` API that's
+ * not available in Remix which is useful in some contexts.
  */
 export interface NavigateFunction {
     (to: To, options?: NavigateOptions & {stopPropagation?: boolean}): SafeFloatingPromise<void>;
     (delta: number): SafeFloatingPromise<void>;
+    (updater: NavigateFunctionUpdater): SafeFloatingPromise<void>;
 }
+
+type NavigateFunctionUpdater = (
+    location: Location,
+) => To | number | [to: To, options?: NavigateOptions & {stopPropagation?: boolean}] | void;
 
 export type OnNavigateFunction = (
     to: To,
@@ -54,44 +73,49 @@ function unsupportedNavigateForTest(): never {
     );
 }
 
-function useOriginalNavigateWithJestFallback() {
-    try {
-        return useOriginalNavigate();
-    } catch (error) {
-        if (
-            import.meta.jest &&
-            error instanceof Error &&
-            error.message.includes(
-                "useNavigate() may be used only in the context of a <Router> component",
-            )
-        ) {
-            return unsupportedNavigateForTest;
-        }
-        throw error;
-    }
-}
-
+// Originally forked from `react-router`'s `useNavigateStable()` hook and then
+// we added our features on top:
+// https://github.com/remix-run/react-router/blob/aef5c4a617756e6fcc493de17b4be9997a5a19c8/packages/react-router/lib/hooks.tsx#L1064-L1095
 function createNavigateFunction(
-    originalNavigate: OriginalNavigateFunction,
-    waitForNextNavigation: (() => Promise<void>) | undefined,
-    onNavigate: OnNavigateFunction | undefined,
-) {
-    return ((to: To | number, options?: NavigateOptions & {stopPropagation?: boolean}) => {
-        if (waitForNextNavigation === undefined) return unsupportedNavigateForTest();
+    context: NavigationContext | null,
+    withoutPropagation: boolean = false,
+): NavigateFunction {
+    return function navigate(
+        to: To | number | NavigateFunctionUpdater,
+        options?: NavigateOptions & {stopPropagation?: boolean},
+    ): SafeFloatingPromise<void> {
+        if (context === null) return unsupportedNavigateForTest();
+
+        const {
+            router,
+            routeContextRef: {current: routeContext},
+            waitForNextNavigation,
+            onNavigate,
+        } = context;
+
+        if (typeof to === "function") {
+            const result = to(router.state.location);
+            if (!result) return Promise.resolve() as SafeFloatingPromise<void>;
+            return Array.isArray(result) ? navigate(...result) : navigate(result);
+        }
 
         if (typeof to === "number") {
-            originalNavigate(to);
-            return waitForNextNavigation();
+            void router.navigate(to);
+            return waitForNextNavigation() as SafeFloatingPromise<void>;
         }
 
-        if (!options?.stopPropagation) {
+        const routeId = assertExists(
+            routeContext.matches[routeContext.matches.length - 1]?.route.id,
+        );
+
+        if (!withoutPropagation && !options?.stopPropagation) {
             const result = onNavigate?.(to, options);
-            if (result?.preventDefault) return result.promise;
+            if (result?.preventDefault) return result.promise as SafeFloatingPromise<void>;
         }
 
-        originalNavigate(to, options);
-        return waitForNextNavigation();
-    }) as NavigateFunction;
+        void router.navigate(to, {fromRouteId: routeId, ...options});
+        return waitForNextNavigation() as SafeFloatingPromise<void>;
+    };
 }
 
 /**
@@ -105,10 +129,6 @@ function createNavigateFunction(
  * [1]: https://reactrouter.com/en/main/hooks/use-navigate
  */
 export function useNavigate(): Memo<NavigateFunction> {
-    // The navigation function changes when we're in a peek. Since a peek uses a
-    // different `react-router` context.
-    const originalNavigate = useOriginalNavigateWithJestFallback();
-
     const context = useContext(NavigationContext);
 
     // Throw if we don't have our parent context unless we're in tests. In unit
@@ -120,15 +140,7 @@ export function useNavigate(): Memo<NavigateFunction> {
         );
     }
 
-    return useMemo(
-        () =>
-            createNavigateFunction(
-                originalNavigate,
-                context?.waitForNextNavigation,
-                context?.onNavigate,
-            ),
-        [context, originalNavigate],
-    );
+    return useMemo(() => createNavigateFunction(context), [context]);
 }
 
 /**
@@ -148,19 +160,25 @@ export function useRootNavigate(): Memo<NavigateFunction> {
         );
     }
 
-    return useMemo(
-        () =>
-            createNavigateFunction(
-                context?.rootOriginalNavigate ?? unsupportedNavigateForTest,
-                context?.waitForNextNavigation,
-                undefined,
-            ),
-        [context],
-    );
+    return useMemo(() => {
+        let rootContext = context;
+        while (rootContext?.parent) {
+            rootContext = rootContext.parent;
+        }
+
+        return createNavigateFunction(
+            rootContext,
+            // Don't call `onNavigate`. The root navigation function skips any event
+            // handlers added with `<NavigationEventContextProvider>`.
+            true,
+        );
+    }, [context]);
 }
 
 type NavigationContext = {
-    readonly rootOriginalNavigate: OriginalNavigateFunction;
+    readonly parent: NavigationContext | null;
+    readonly router: Router;
+    readonly routeContextRef: MutableRefObject<ContextType<typeof RouteContext>>;
     readonly waitForNextNavigation: () => Promise<void>;
     readonly onNavigate: OnNavigateFunction | undefined;
 };
@@ -175,8 +193,17 @@ const NavigationContext = createContext<NavigationContext | null>(null);
  * their own react routers).
  */
 export function NavigationContextProvider({children}: {children?: ReactNode}) {
+    const routeContext = useContext(RouteContext);
+    assert(routeContext.isDataRoute);
+
+    const router = assertExists(useContext(DataRouterContext)?.router);
+
+    const routeContextRef = useRef(routeContext);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        routeContextRef.current = routeContext;
+    });
+
     const parentContext = useContext(NavigationContext);
-    const originalNavigate = useOriginalNavigate();
     const location = useLocation();
     const isMounted = useIsMounted();
 
@@ -233,11 +260,13 @@ export function NavigationContextProvider({children}: {children?: ReactNode}) {
         <NavigationContext.Provider
             value={useMemo(
                 () => ({
-                    rootOriginalNavigate: parentContext?.rootOriginalNavigate ?? originalNavigate,
+                    parent: parentContext,
+                    router,
+                    routeContextRef,
                     waitForNextNavigation,
                     onNavigate: parentContext?.onNavigate,
                 }),
-                [originalNavigate, parentContext, waitForNextNavigation],
+                [parentContext, router, waitForNextNavigation],
             )}
         >
             {children}
