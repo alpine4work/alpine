@@ -1090,6 +1090,8 @@ export const fileTransparentBackgroundClassName = style({});
 
 export const loadedFileImagePreviewClassName = style({});
 
+export const loadedFileImageAnimationDurationMs = 250;
+
 export const fileImagePreviewContentClassName = style({
     zIndex: "0",
     position: "absolute",
@@ -1097,7 +1099,7 @@ export const fileImagePreviewContentClassName = style({
     // than `fileMinSize`.
     top: "50%",
     left: "50%",
-    transform: `translate(-50%, -50%)`,
+    transform: "translate(-50%, -50%)",
     width: "100%",
     height: "100%",
     objectPosition: "center top",
@@ -1114,7 +1116,7 @@ export const fileImagePreviewContentClassName = style({
             // We only add `transition` when the loaded class name has been added. This way
             // we animate from unloaded -> loaded but not from loaded -> unloaded (which
             // happens when the file source is replaced).
-            transition: "opacity 250ms ease-in-out",
+            transition: `opacity ${loadedFileImageAnimationDurationMs}ms ease-in-out`,
         },
     },
 });
@@ -1147,7 +1149,7 @@ export const fileImagePreviewPlaceholderClassName = style({
             // We only add `transition` when the loaded class name has been added. This way
             // we animate from unloaded -> loaded but not from loaded -> unloaded (which
             // happens when the file source is replaced).
-            transition: "opacity 250ms ease-in-out",
+            transition: `opacity ${loadedFileImageAnimationDurationMs}ms ease-in-out`,
         },
     },
 });

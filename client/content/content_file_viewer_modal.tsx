@@ -4,7 +4,7 @@ import classNames from "classnames";
 import {DownloadSimple, MagnifyingGlassMinus, MagnifyingGlassPlus, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {
@@ -44,6 +44,7 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -155,8 +156,10 @@ function ContentFileViewerModalInner({
 
     const [zoomLevel, setZoomLevel] = useState(initialZoomLevel);
 
-    // Use an exponential scaling function for zoom. Each additional zoom needs to reveal more detail than the last.
+    // Use an exponential scaling function for zoom. Each additional zoom needs to
+    // reveal more detail than the last.
     const zoomScale = 2 ** zoomLevel;
+    const maxZoomScale = 2 ** maxZoomLevel;
 
     const zoomIn = () => {
         setZoomLevel(zoomLevel => clamp(minZoomLevel, zoomLevel + 1, maxZoomLevel));
@@ -296,6 +299,7 @@ function ContentFileViewerModalInner({
                                 viewerSize={viewerSize}
                                 expirationTimers={expirationTimers}
                                 zoomScale={zoomScale}
+                                maxZoomScale={maxZoomScale}
                             />
                         )}
                     </Box>
@@ -317,6 +321,7 @@ function ContentFileViewer(props: {
     viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
     zoomScale: number;
+    maxZoomScale: number;
 }) {
     switch (props.file.contentType) {
         case "application/octet-stream": {
@@ -415,6 +420,7 @@ function ContentFileImageViewer({
     viewerSize,
     expirationTimers,
     zoomScale,
+    maxZoomScale,
 }: {
     file: FileModel;
     signedUrlSearch: string;
@@ -423,6 +429,7 @@ function ContentFileImageViewer({
     viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
     zoomScale: number;
+    maxZoomScale: number;
 }) {
     assert(file.preview?.type === "Image");
 
@@ -444,6 +451,7 @@ function ContentFileImageViewer({
             viewerSize={viewerSize}
             expirationTimers={expirationTimers}
             zoomScale={zoomScale}
+            maxZoomScale={maxZoomScale}
         />
     );
 }
@@ -457,6 +465,7 @@ function ContentFileImageViewerInner({
     viewerSize,
     expirationTimers,
     zoomScale,
+    maxZoomScale,
 }: {
     file: FileModel;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
@@ -466,6 +475,7 @@ function ContentFileImageViewerInner({
     viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
     zoomScale: number;
+    maxZoomScale: number;
 }) {
     const remPx = useRemPx();
     const {space} = useSpaceContext();
@@ -475,6 +485,21 @@ function ContentFileImageViewerInner({
     const imageContentRef = useRef<HTMLImageElement>(null);
 
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(false);
+
+    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
+
+    useEffect(() => {
+        if (isLoaded && !isLoadedAndAnimated) {
+            const timeout = createTimeout(() => {
+                setIsLoadedAndAnimated(true);
+                // Multiply duration by 2 for good measure.
+            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
+            return () => {
+                timeout.clear();
+            };
+        }
+    }, [isLoaded, isLoadedAndAnimated]);
 
     const fileAspectRatio = fileSize.width / fileSize.height;
 
@@ -500,6 +525,8 @@ function ContentFileImageViewerInner({
 
     const scaledFileWidth = fileSize.width * fileScale * zoomScale;
     const scaledFileHeight = fileSize.height * fileScale * zoomScale;
+    const maxScaledFileWidth = fileSize.width * fileScale * maxZoomScale;
+    const maxScaledFileHeight = fileSize.height * fileScale * maxZoomScale;
 
     const adjustments = useMemo(
         () => getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder),
@@ -585,6 +612,7 @@ function ContentFileImageViewerInner({
         lastScrollLeftPercentRef.current =
             (containerElement.scrollLeft + containerElement.clientWidth / 2) /
             containerElement.scrollWidth;
+
         lastScrollTopPercentRef.current =
             (containerElement.scrollTop + containerElement.clientHeight / 2) /
             containerElement.scrollHeight;
@@ -601,11 +629,32 @@ function ContentFileImageViewerInner({
 
         containerElement.scrollLeft =
             lastScrollLeftPercentRef.current * containerElement.scrollWidth -
-            containerElement.clientHeight / 2;
+            containerElement.clientWidth / 2;
+
         containerElement.scrollTop =
             lastScrollTopPercentRef.current * containerElement.scrollHeight -
             containerElement.clientHeight / 2;
     }, [zoomScale]);
+
+    const imageContentStyle: CSSProperties = {
+        // My theory here is we'll get better zoom performance if we render the image
+        // at it's maximum size then scale down since the browser prepares the image at
+        // its maximum size. There's no evidence to support this theory.
+        width: maxScaledFileWidth,
+        height: maxScaledFileHeight,
+        maxWidth: "none",
+        // Override positioning in `fileImagePreviewContentClassName`.
+        top: "0",
+        left: "0",
+        // When the user zooms all the way in we want to show them the image's pixels
+        // instead of some interpolation.
+        imageRendering: scaledFileWidth > fileSize.width ? "pixelated" : "auto",
+        // Use `transform: scale()` to GPU accelerate zooming. `will-change: transform`
+        // improves zooming performance in Chrome.
+        transformOrigin: "top left",
+        transform: `scale(${zoomScale / maxZoomScale})`,
+        willChange: "transform",
+    };
 
     return (
         <Box
@@ -624,6 +673,7 @@ function ContentFileImageViewerInner({
                 lastScrollLeftPercentRef.current =
                     (containerElement.scrollLeft + containerElement.clientWidth / 2) /
                     containerElement.scrollWidth;
+
                 lastScrollTopPercentRef.current =
                     (containerElement.scrollTop + containerElement.clientHeight / 2) /
                     containerElement.scrollHeight;
@@ -669,20 +719,32 @@ function ContentFileImageViewerInner({
                             )}
                             style={{width: scaledFileWidth, height: scaledFileHeight}}
                         >
-                            <img
-                                className={contentStyles.fileImagePreviewPlaceholderClassName}
-                                style={{width: scaledFileWidth, height: scaledFileHeight}}
-                                aria-hidden={true}
-                                src={useMemo(
-                                    () =>
-                                        convertSvgToDataUrl(
-                                            renderFileImagePreviewPlaceholder(
-                                                filePreviewPlaceholder,
-                                            ),
-                                        ),
-                                    [filePreviewPlaceholder],
-                                )}
-                            />
+                            {useMemo(
+                                () =>
+                                    !isLoadedAndAnimated && (
+                                        <img
+                                            className={
+                                                contentStyles.fileImagePreviewPlaceholderClassName
+                                            }
+                                            style={{
+                                                width: scaledFileWidth,
+                                                height: scaledFileHeight,
+                                            }}
+                                            aria-hidden={true}
+                                            src={convertSvgToDataUrl(
+                                                renderFileImagePreviewPlaceholder(
+                                                    filePreviewPlaceholder,
+                                                ),
+                                            )}
+                                        />
+                                    ),
+                                [
+                                    filePreviewPlaceholder,
+                                    isLoadedAndAnimated,
+                                    scaledFileHeight,
+                                    scaledFileWidth,
+                                ],
+                            )}
                             {!isSignedUrlSearchExpired &&
                                 (file.alternative
                                     ? !file.alternative.isProcessing && (
@@ -691,18 +753,7 @@ function ContentFileImageViewerInner({
                                               className={
                                                   contentStyles.fileImagePreviewContentClassName
                                               }
-                                              style={{
-                                                  width: scaledFileWidth,
-                                                  height: scaledFileHeight,
-                                                  // When we start zooming, use a faster image rendering method. This
-                                                  // also improves what the user sees when they zoom all the way in.
-                                                  // The user will see individual pixels of the image instead of some
-                                                  // interpolation.
-                                                  imageRendering:
-                                                      scaledFileWidth > fileSize.width
-                                                          ? "pixelated"
-                                                          : "auto",
-                                              }}
+                                              style={imageContentStyle}
                                               src={`/files/${space.id}/${
                                                   file.id
                                               }${signedUrlSearch}&variant=${
@@ -719,18 +770,7 @@ function ContentFileImageViewerInner({
                                               className={
                                                   contentStyles.fileImagePreviewContentClassName
                                               }
-                                              style={{
-                                                  width: scaledFileWidth,
-                                                  height: scaledFileHeight,
-                                                  // When we start zooming, use a faster image rendering method. This
-                                                  // also improves what the user sees when they zoom all the way in.
-                                                  // The user will see individual pixels of the image instead of some
-                                                  // interpolation.
-                                                  imageRendering:
-                                                      scaledFileWidth > fileSize.width
-                                                          ? "pixelated"
-                                                          : "auto",
-                                              }}
+                                              style={imageContentStyle}
                                               src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
                                               onLoad={handleContentLoad}
                                           />
