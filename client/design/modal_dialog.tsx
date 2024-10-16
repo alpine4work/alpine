@@ -1,10 +1,11 @@
 import {useEffect, useId, useRef} from "react";
-import {AppContext, useAppContext} from "~/client/context/app_context.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {
     ErrorDisplayMessageRenderer,
     defaultErrorDisplayMessage,
 } from "~/client/design/error_display_message_renderer.js";
+import {ModalDialogProps} from "~/client/design/modal_dialog_props.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -16,7 +17,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
  * Present information to the user, blocking their experience, and ask them to
@@ -39,23 +39,6 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 // since we should never server-side render `<ModalDialog>`.
 const ActualModalDialog = NativeMobileBridge ? ModalDialogNativeMobile : ModalDialog;
 export {ActualModalDialog as ModalDialog};
-
-export type ModalDialogProps = {
-    readonly title: string;
-    readonly description:
-        | string
-        | {readonly type: "Error"; readonly error: unknown; readonly reportingContext?: AppContext};
-    readonly primaryButtonLabel: string;
-    readonly isPrimaryButtonDisabled?: boolean;
-    readonly primaryButtonPressErrorTitle?: string;
-    readonly onPrimaryButtonPress?: () => MaybePromise<void>;
-    readonly cancelButtonLabel?: string;
-    readonly cancelButtonPressErrorTitle?: string;
-    readonly onCancelButtonPress?: () => MaybePromise<void>;
-    readonly shouldHideCancelButton?: boolean;
-    readonly onClose: () => void;
-    readonly withoutCloseInteractions?: boolean;
-};
 
 function ModalDialog({
     title,
