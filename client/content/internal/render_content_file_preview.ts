@@ -780,6 +780,7 @@ export function addContentFilePreviewBehavior(
 
     let isPointerDownAndOver = false;
     let longPressTimeout: Timeout | null = null;
+    let isLongPress = false;
 
     const handlePointerDown = (event: PointerEvent) => {
         isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
@@ -800,6 +801,7 @@ export function addContentFilePreviewBehavior(
 
         longPressTimeout?.clear();
         longPressTimeout = null;
+        isLongPress = false;
 
         // By default, the browser will focus our `[contenteditable=true]` element on
         // `pointerdown`. We don't want this behavior but we can't call
@@ -831,6 +833,7 @@ export function addContentFilePreviewBehavior(
             // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
             longPressTimeout = createTimeout(() => {
                 longPressTimeout = null;
+                isLongPress = true;
                 onLongPress();
             }, 500);
         }
@@ -851,10 +854,11 @@ export function addContentFilePreviewBehavior(
 
         longPressTimeout?.clear();
         longPressTimeout = null;
+        isLongPress = false;
     };
 
     const handlePointerUp = () => {
-        const wasLongPress = longPressTimeout === null;
+        const wasLongPress = isLongPress;
         resetPointerState();
         if (wasLongPress) return;
         if (!reference) return;
