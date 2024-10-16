@@ -47,6 +47,7 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     input: Input | null,
     {
         keepPreviousData,
+        initialOutput,
     }: {
         /**
          * When the input changes, continue returning the previous data until we've
@@ -61,6 +62,14 @@ export function useLazyLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
+
+        /**
+         * Initial data to return from this hook. If provided then on initial mount we
+         * won't call `fetcher` and will instead use the data from this object. The
+         * data from this object will be placed in the cache so may be seen by other
+         * `useSwr()` hooks observing the same key.
+         */
+        initialOutput?: Output | null;
     } = {},
 ): {
     isLoading: boolean;
@@ -85,7 +94,13 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     const {isLoading, isValidating, data} = useSwr(
         inputString !== null ? `${rpc.name}:${inputString}` : null,
         fetcher,
-        {keepPreviousData: keepPreviousData && input !== null},
+        {
+            keepPreviousData: keepPreviousData && input !== null,
+            initialData: useMemo(
+                () => (initialOutput ? {...initialOutput, input} : null),
+                [initialOutput, input],
+            ),
+        },
     );
 
     return {

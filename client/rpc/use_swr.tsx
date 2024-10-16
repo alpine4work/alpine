@@ -1,9 +1,11 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -460,6 +462,7 @@ export function useSwr(
     {
         keepPreviousData = false,
         dedupingInterval = 2 * 1000,
+        initialData: initialDataFromProps = null,
     }: {
         /**
          * By default, when the key changes we throw away old data from the last key.
@@ -477,12 +480,26 @@ export function useSwr(
          * the existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
+
+        /**
+         * Initial data to return from this hook. If provided then on initial mount we
+         * won't call `fetcher` and will instead use the data from this object. The
+         * data from this object will be placed in the cache so may be seen by other
+         * `useSwr()` hooks observing the same key.
+         */
+        initialData?: object | null;
     } = {},
 ): SwrCacheEntryResult {
     const cache = useGlobalContext(SwrCacheContext);
 
     const entryStackStore = key !== null ? cache.getEntryStack(key) : undefinedStore;
     const entryStack = useStore(entryStackStore) ?? null;
+
+    const [initial, setInitial] = useState(
+        key !== null && initialDataFromProps !== null
+            ? {key, data: initialDataFromProps, hasMountedRef: {current: false}}
+            : null,
+    );
 
     useEffect(() => {
         if (key === null) return;
@@ -496,13 +513,33 @@ export function useSwr(
     // When `key` changes, revalidate it once.
     const hasRevalidatedKeyRef = useRef<string | null>(null);
     useEffect(() => {
+        const isInitialMount = initial !== null && !initial.hasMountedRef.current;
+        if (initial !== null) initial.hasMountedRef.current = true;
+
         if (hasRevalidatedKeyRef.current === key) return;
         hasRevalidatedKeyRef.current = key;
 
         if (key === null) return;
 
-        cache.revalidateEntry(key, fetcher, {dedupingInterval});
-    }, [cache, dedupingInterval, fetcher, key]);
+        if (!isInitialMount || key !== initial.key) {
+            cache.revalidateEntry(key, fetcher, {dedupingInterval});
+        } else {
+            let isCancelled = false;
+
+            // Wait a microtask before putting our initial data in the cache. So if there
+            // are two `useSwr()` hooks looking at the same key no matter what order the
+            // hooks are mounted in we'll send a network request if one of the hooks
+            // doesn't have `initialData`.
+            scheduleMicrotask(() => {
+                if (isCancelled) return;
+                cache.revalidateEntry(key, () => Promise.resolve(initial.data), {dedupingInterval});
+            });
+
+            return () => {
+                isCancelled = true;
+            };
+        }
+    }, [cache, dedupingInterval, fetcher, initial, key]);
 
     // Revalidate whenever the browser activates (e.g. the window was hidden then
     // made visible again).
@@ -547,7 +584,27 @@ export function useSwr(
         useStore(historyStack ?? entryStack) ??
         (key === null ? disabledSwrCacheEntryResult : pendingSwrCacheEntryResult);
 
-    return entryResult;
+    if (
+        initial !== null &&
+        initial.key !== key &&
+        // Don't reset initial state when `keepPreviousData` is true until we've
+        // finished loading the data for the next key.
+        (!keepPreviousData || !entryResult.isValidating || !entryResult.isLoading)
+    ) {
+        setInitial(null);
+    }
+
+    return useMemo(() => {
+        if (
+            entryResult.data === null &&
+            initial !== null &&
+            (key === initial.key || keepPreviousData)
+        ) {
+            return {...entryResult, data: initial.data};
+        }
+
+        return entryResult;
+    }, [entryResult, initial, keepPreviousData, key]);
 }
 
 let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
