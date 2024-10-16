@@ -1,4 +1,4 @@
-import {createVar, globalStyle, keyframes, style} from "@vanilla-extract/css";
+import {createVar, globalStyle, keyframes} from "@vanilla-extract/css";
 import {
     CssVarFunction,
     darkColorSchemeSelector,
@@ -16,20 +16,6 @@ globalStyle(":root", {
 globalStyle(darkColorSchemeSelector, {
     vars: {
         [modalUnderlayOpacityVar]: "0.6",
-    },
-});
-
-export const modalDarkerUnderlayClassName = style({});
-
-globalStyle(`:root ${modalDarkerUnderlayClassName}`, {
-    vars: {
-        [modalUnderlayOpacityVar]: "0.8",
-    },
-});
-
-globalStyle(`${darkColorSchemeSelector} ${modalDarkerUnderlayClassName}`, {
-    vars: {
-        [modalUnderlayOpacityVar]: "0.9",
     },
 });
 

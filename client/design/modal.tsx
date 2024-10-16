@@ -1,11 +1,20 @@
 import classNames from "classnames";
 import {X} from "phosphor-react";
-import {ReactNode} from "react";
+import {ReactNode, useEffect, useState} from "react";
+import {FocusScope} from "react-aria";
+import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {ModalContainer} from "~/client/design/modal_container.js";
-import {greyElevated1ClassName, sprinkles} from "~/client/styles/styles.js";
+import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {
+    GlobalKeyDownEvent,
+    GlobalKeyDownEventModal,
+} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
 
@@ -16,11 +25,19 @@ export const defaultModalMaxWidth: Spacing = "128";
  * Has an underlay which when clicked will close the modal.
  */
 export function Modal({
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    children,
+    onClose: onCloseWithoutAnimationFromProps,
+    "aria-describedby": ariaDescribedBy,
     maxWidth = defaultModalMaxWidth,
     height = "auto",
     maxHeight = "full",
     borderRadius = "1.5",
-    ...props
+    withoutOpenAnimation,
+    withoutCloseAnimation,
+    withoutCloseButton,
+    withoutCloseInteractions,
 }: {
     /**
      * The contents of the modal. If the contents are too big for the screen then
@@ -69,9 +86,6 @@ export function Modal({
      */
     maxHeight?: Spacing | RemLength | "full";
 
-    /**
-     * Border radius for the modal content.
-     */
     borderRadius?: "1.5" | "2";
 
     /**
@@ -119,59 +133,175 @@ export function Modal({
           "aria-label"?: undefined;
       }
 )) {
-    return (
-        <ModalContainer
-            {...props}
-            className={classNames(
-                greyElevated1ClassName,
-                sprinkles({
-                    position: "relative",
-                    zIndex: "0",
-                    width: "full",
-                    height,
-                    backgroundColor: "grey-0",
-                    boxShadow: "elevation-40",
-                    borderRadius,
-                    display: "flex",
-                    overflow: "hidden",
-                }),
-            )}
-            style={{
-                maxWidth:
-                    maxWidth === "full"
-                        ? "100%"
-                        : isRemLength(maxWidth)
-                        ? maxWidth
-                        : spacing[maxWidth],
-                maxHeight:
-                    maxHeight === "full"
-                        ? "100%"
-                        : isRemLength(maxHeight)
-                        ? maxHeight
-                        : spacing[maxHeight],
-            }}
+    const portalElement = assertExists(
+        useOverlayRootPortalElement(),
+        "Can not render modal before portal element is available",
+    );
+    const [isFadingOut, setIsFadingOut] = useState(false);
+
+    const onCloseWithoutAnimation = useEvent(onCloseWithoutAnimationFromProps);
+    useEffect(() => {
+        if (!isFadingOut) return;
+
+        let resetTimeout: Timeout | null = null;
+
+        const timeout = createTimeout(() => {
+            onCloseWithoutAnimation();
+
+            // If the `onClose()` callback doesn't actually close the modal after 1s, then
+            // the modal component is still mounted so should be made visible again.
+            //
+            // We wait 1s since sometimes there's a small asynchronous delay between the
+            // `onClose()` prop and the React render which actually closes the modal.
+            resetTimeout = createTimeout(() => {
+                setIsFadingOut(false);
+            }, 1000);
+        }, modalStyles.modalFadeOutDuration);
+
+        return () => {
+            timeout.clear();
+            resetTimeout?.clear();
+        };
+    }, [isFadingOut, onCloseWithoutAnimation]);
+
+    const onCloseWithAnimation = () => {
+        if (!withoutCloseAnimation) {
+            setIsFadingOut(true);
+        } else {
+            onCloseWithoutAnimation();
+        }
+    };
+
+    return createPortal(
+        <Box
+            position="fixed"
+            // Render over other overlays.
+            zIndex="80"
+            inset="0"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            padding="5"
+            style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
+            overflow="hidden"
         >
-            {!props.withoutCloseInteractions && !props.withoutCloseButton
-                ? props.children
-                : state => (
-                      <>
-                          {typeof props.children === "function"
-                              ? props.children(state)
-                              : props.children}
-                          <Box position="absolute" top="1.5" right="1.5">
-                              <IconButton
-                                  size="xs"
-                                  description="Close"
-                                  withoutTooltip={true}
-                                  // Our animation principle is to respond to user input immediately
-                                  // without animation.
-                                  onPress={state.onCloseWithoutAnimation}
-                              >
-                                  <X />
-                              </IconButton>
-                          </Box>
-                      </>
-                  )}
-        </ModalContainer>
+            <Box
+                position="absolute"
+                inset="0"
+                zIndex="-10"
+                backgroundColor="grey-100-const"
+                style={{
+                    opacity: modalStyles.modalUnderlayOpacityVar,
+                    animation: !withoutOpenAnimation
+                        ? modalStyles.modalUnderlayFadeInAnimation
+                        : undefined,
+                }}
+                // If the underlay is clicked, we close the modal. This element is not
+                // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
+                // to close the modal.
+                onPointerDown={!withoutCloseInteractions ? onCloseWithAnimation : undefined}
+            />
+            <FocusScope restoreFocus contain>
+                <GlobalKeyDownEventModal>
+                    <GlobalKeyDownEvent
+                        onGlobalKeyDown={event => {
+                            if (!withoutCloseInteractions && event.key === "Escape") {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                onCloseWithoutAnimation();
+                            }
+                        }}
+                    >
+                        <section
+                            role="alertdialog"
+                            // It's important the modal is focusable for `<FocusScope contain>`. That way
+                            // when you click out of a focusable element in the modal, focus goes to this
+                            // element instead of `document.body`. If `<FocusScope contain>` sees focus on
+                            // `document.body` then it will move focus right back to the element that was
+                            // blurred which is not what the user wants.
+                            tabIndex={-1}
+                            aria-modal="true"
+                            aria-label={ariaLabel}
+                            aria-labelledby={ariaLabelledBy}
+                            aria-describedby={ariaDescribedBy}
+                            className={classNames(
+                                greyElevated1ClassName,
+                                sprinkles({
+                                    position: "relative",
+                                    zIndex: "0",
+                                    width: "full",
+                                    height,
+                                    backgroundColor: "grey-0",
+                                    boxShadow: "elevation-40",
+                                    borderRadius,
+                                    display: "flex",
+                                    overflow: "hidden",
+                                }),
+                            )}
+                            style={{
+                                maxWidth:
+                                    maxWidth === "full"
+                                        ? "100%"
+                                        : isRemLength(maxWidth)
+                                        ? maxWidth
+                                        : spacing[maxWidth],
+                                maxHeight:
+                                    maxHeight === "full"
+                                        ? "100%"
+                                        : isRemLength(maxHeight)
+                                        ? maxHeight
+                                        : spacing[maxHeight],
+                                animation: !withoutOpenAnimation
+                                    ? modalStyles.modalOverlayFadeInAnimation
+                                    : undefined,
+                            }}
+                        >
+                            <Box
+                                width="full"
+                                maxHeight="full"
+                                overflow="hidden"
+                                style={{
+                                    animation: isFadingOut
+                                        ? modalStyles.modalContentFadeOutAnimation
+                                        : !withoutOpenAnimation
+                                        ? modalStyles.modalContentFadeInAnimation
+                                        : undefined,
+                                }}
+                            >
+                                <OverlayScopeContextProvider
+                                // Render an overlay scope so any initially mounted overlays get the same
+                                // opacity/scale animations as the modal content.
+                                //
+                                // `<FocusRing>` is a common example of an initially mounted overlay when we
+                                // auto-focus some content in the modal.
+                                >
+                                    {typeof children === "function"
+                                        ? children({
+                                              onCloseWithAnimation,
+                                              onCloseWithoutAnimation,
+                                          })
+                                        : children}
+                                    {!withoutCloseInteractions && !withoutCloseButton && (
+                                        <Box position="absolute" top="1.5" right="1.5">
+                                            <IconButton
+                                                size="xs"
+                                                description="Close"
+                                                withoutTooltip={true}
+                                                // Our animation principle is to respond to user input immediately
+                                                // without animation.
+                                                onPress={onCloseWithoutAnimation}
+                                            >
+                                                <X />
+                                            </IconButton>
+                                        </Box>
+                                    )}
+                                </OverlayScopeContextProvider>
+                            </Box>
+                        </section>
+                    </GlobalKeyDownEvent>
+                </GlobalKeyDownEventModal>
+            </FocusScope>
+        </Box>,
+        portalElement,
     );
 }
