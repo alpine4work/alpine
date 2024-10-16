@@ -11,7 +11,7 @@ import {
     GlobalKeyDownEventModal,
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
+import {Sprinkles, greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
 import {Color} from "~/shared/design/colors.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -104,9 +104,7 @@ export function Modal({
     /**
      * Background color for the modal content.
      */
-    backgroundColor?:
-        | (Color & `grey-${number}`)
-        | {light: Color & `grey-${number}`; dark: Color & `grey-${number}`};
+    backgroundColor?: Sprinkles["backgroundColor"];
 
     /**
      * The modal will never animate when opening if set to true. Otherwise we fade

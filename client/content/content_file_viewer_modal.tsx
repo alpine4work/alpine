@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/alt-text */
 
 import classNames from "classnames";
-import {DownloadSimple, X} from "phosphor-react";
+import {DownloadSimple, MagnifyingGlassMinus, MagnifyingGlassPlus, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -19,10 +19,14 @@ import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {Modal} from "~/client/design/modal.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -34,7 +38,7 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
-import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -46,8 +50,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
+
+// TODO(calebmer, #files): Mobile file viewer?
 
 let handoffContentFileReferencesByFileId: Map<
     FileId,
@@ -103,6 +110,9 @@ export function ContentFileViewerModal({
         },
         {
             initialOutput: handoffFileReference?.file.id === fileId ? handoffFileReference : null,
+            // File data is immutable after it finishes loading. Don't automatically
+            // revalidate whenever the browser becomes visible after being hidden.
+            withoutAutomaticRevalidation: true,
         },
     );
 
@@ -131,10 +141,30 @@ function ContentFileViewerModalInner({
     attachmentTarget: FileAttachmentTarget;
     onClose: () => void;
 }) {
+    const {isAppleDevice} = useClientInfo();
     const {space} = useSpaceContext();
 
     const [viewerRef, viewerSize] = useResizeObserver();
     const [expirationTimers] = useState(() => new ContentFilePreviewExpirationTimers());
+
+    const fileSize = getFilePreviewSize(file);
+
+    const initialZoomLevel = 0;
+    const minZoomLevel = -3;
+    const maxZoomLevel = 7;
+
+    const [zoomLevel, setZoomLevel] = useState(initialZoomLevel);
+
+    // Use an exponential scaling function for zoom. Each additional zoom needs to reveal more detail than the last.
+    const zoomScale = 2 ** zoomLevel;
+
+    const zoomIn = () => {
+        setZoomLevel(zoomLevel => clamp(minZoomLevel, zoomLevel + 1, maxZoomLevel));
+    };
+
+    const zoomOut = () => {
+        setZoomLevel(zoomLevel => clamp(minZoomLevel, zoomLevel - 1, maxZoomLevel));
+    };
 
     return (
         <Modal
@@ -150,7 +180,7 @@ function ContentFileViewerModalInner({
             // 1. To bring focus to the content
             // 2. So content that's transparent and uses white or black is visible whether
             //    we're in light mode or dark mode
-            backgroundColor={{light: "grey-60", dark: "grey-10"}}
+            backgroundColor="grey-content-file-viewer-modal"
             // As a fullscreen modal that almost completely covers the content below, we
             // don't benefit from using lighter grey colors in dark mode. Use the standard
             // dark mode shades in our content file viewer modal.
@@ -159,84 +189,118 @@ function ContentFileViewerModalInner({
             withoutCloseButton
             onClose={onClose}
         >
-            <Box
-                width="full"
-                height="full"
-                display="flex"
-                flexDirection="column"
-                overflow="hidden"
-                // By default use white for text. Make sure to invert our selection color in
-                // light mode since the default light mode selection color doesn't look good
-                // with white text.
-                color="grey-0-const"
-                className={invertLightSelectionColorsClassName}
+            <GlobalKeyDownEvent
+                onGlobalKeyDown={event => {
+                    if (event.key === "=" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        zoomIn();
+                    }
+
+                    if (event.key === "-" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        zoomOut();
+                    }
+
+                    if (event.key === "0" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setZoomLevel(initialZoomLevel);
+                    }
+                }}
             >
                 <Box
-                    flexShrink="0"
                     width="full"
-                    height="12"
-                    padding="2.5"
+                    height="full"
                     display="flex"
-                    alignItems="center"
+                    flexDirection="column"
+                    overflow="hidden"
+                    // By default use white for text. Make sure to invert our selection color in
+                    // light mode since the default light mode selection color doesn't look good
+                    // with white text.
+                    color="grey-0-const"
+                    className={invertLightSelectionColorsClassName}
                 >
                     <Box
-                        paddingLeft="2"
-                        color={{light: "grey-20-const", dark: "grey-30-const"}}
-                        userSelect="text"
+                        flexShrink="0"
+                        height="12"
+                        padding="2.5"
+                        display="flex"
+                        alignItems="center"
                     >
-                        {getFileContentTypeName(file.contentType)} -{" "}
-                        {prettyBytes(file.contentLength)}
-                    </Box>
-                    <Box flexGrow="1" />
-                    <Box display="flex" alignItems="center" gap="2.5">
-                        <Button
-                            variant="neutral"
-                            icon={<DownloadSimple />}
-                            iconGap="1.5"
-                            onPress={() => {
-                                handleDownloadContentFile({
-                                    spaceId: space.id,
-                                    file,
-                                    signedUrlSearch,
-                                });
-                            }}
-                        >
-                            Download
-                        </Button>
-                        <IconButton
-                            variant="quiet-above-content-file-viewer-modal"
-                            description="Close"
-                            withoutTooltip
-                            onPress={onClose}
-                        >
-                            <X />
-                        </IconButton>
-                    </Box>
-                </Box>
-                <Box ref={viewerRef} flexGrow="1" overflow="hidden" position="relative">
-                    {viewerSize && (
                         <Box
-                            position="absolute"
-                            style={{
-                                top: `calc(50% - ${subtractRemLengths(
-                                    spacing[contentFileViewerMarginBottom],
-                                    spacing[contentFileViewerMarginTop],
-                                )})`,
-                                left: "50%",
-                                transform: "translate(-50%, -50%)",
-                            }}
+                            width="64"
+                            paddingLeft="2"
+                            color={{light: "grey-20-const", dark: "grey-30-const"}}
+                            userSelect="text"
                         >
+                            {getFileContentTypeName(file.contentType)} -{" "}
+                            {prettyBytes(file.contentLength)}
+                        </Box>
+                        <Box flexGrow="1" />
+                        <Box display="flex" justifyContent="flex-end" alignItems="center" gap="2.5">
+                            <IconButton
+                                variant="quiet-above-content-file-viewer-modal"
+                                description="Zoom in"
+                                tooltipPlacement="bottom"
+                                keyboardShortcutHint={isAppleDevice ? "⌘+=" : "Ctrl+="}
+                                isDisabled={zoomLevel >= maxZoomLevel}
+                                onPress={zoomIn}
+                            >
+                                <MagnifyingGlassPlus />
+                            </IconButton>
+                            <IconButton
+                                variant="quiet-above-content-file-viewer-modal"
+                                description="Zoom out"
+                                tooltipPlacement="bottom"
+                                keyboardShortcutHint={isAppleDevice ? "⌘+-" : "Ctrl+-"}
+                                isDisabled={zoomLevel <= minZoomLevel}
+                                onPress={zoomOut}
+                            >
+                                <MagnifyingGlassMinus />
+                            </IconButton>
+                            <Box paddingLeft="1">
+                                <Button
+                                    variant="neutral"
+                                    icon={<DownloadSimple />}
+                                    iconGap="1.5"
+                                    onPress={() => {
+                                        handleDownloadContentFile({
+                                            spaceId: space.id,
+                                            file,
+                                            signedUrlSearch,
+                                        });
+                                    }}
+                                >
+                                    Download
+                                </Button>
+                            </Box>
+                            <IconButton
+                                variant="quiet-above-content-file-viewer-modal"
+                                description="Close"
+                                withoutTooltip
+                                onPress={onClose}
+                            >
+                                <X />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                    <Box ref={viewerRef} flexGrow="1" overflow="hidden" position="relative">
+                        {viewerSize && (
                             <ContentFileViewer
                                 file={file}
                                 signedUrlSearch={signedUrlSearch}
                                 attachmentTarget={attachmentTarget}
+                                fileSize={fileSize}
                                 viewerSize={viewerSize}
                                 expirationTimers={expirationTimers}
+                                zoomScale={zoomScale}
                             />
-                        </Box>
-                    )}
+                        )}
+                    </Box>
                 </Box>
-            </Box>
+            </GlobalKeyDownEvent>
         </Modal>
     );
 }
@@ -249,8 +313,10 @@ function ContentFileViewer(props: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    fileSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
+    zoomScale: number;
 }) {
     switch (props.file.contentType) {
         case "application/octet-stream": {
@@ -345,14 +411,18 @@ function ContentFileImageViewer({
     file,
     signedUrlSearch,
     attachmentTarget,
+    fileSize,
     viewerSize,
     expirationTimers,
+    zoomScale,
 }: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    fileSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
+    zoomScale: number;
 }) {
     assert(file.preview?.type === "Image");
 
@@ -370,8 +440,10 @@ function ContentFileImageViewer({
             filePreviewPlaceholder={file.preview.placeholder}
             signedUrlSearch={signedUrlSearch}
             attachmentTarget={attachmentTarget}
+            fileSize={fileSize}
             viewerSize={viewerSize}
             expirationTimers={expirationTimers}
+            zoomScale={zoomScale}
         />
     );
 }
@@ -381,25 +453,29 @@ function ContentFileImageViewerInner({
     filePreviewPlaceholder,
     signedUrlSearch,
     attachmentTarget,
+    fileSize,
     viewerSize,
     expirationTimers,
+    zoomScale,
 }: {
     file: FileModel;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    fileSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
+    zoomScale: number;
 }) {
     const remPx = useRemPx();
     const {space} = useSpaceContext();
 
-    const ref = useRef<HTMLDivElement>(null);
-    const contentRef = useRef<HTMLImageElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const imageRef = useRef<HTMLDivElement>(null);
+    const imageContentRef = useRef<HTMLImageElement>(null);
 
     const [isLoaded, setIsLoaded] = useState(false);
 
-    const fileSize = getFilePreviewSize(file);
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;
@@ -422,6 +498,9 @@ function ContentFileImageViewerInner({
         fileScale = resizedFileHeight / fileSize.height;
     }
 
+    const scaledFileWidth = fileSize.width * fileScale * zoomScale;
+    const scaledFileHeight = fileSize.height * fileScale * zoomScale;
+
     const adjustments = useMemo(
         () => getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder),
         [filePreviewPlaceholder],
@@ -432,7 +511,7 @@ function ContentFileImageViewerInner({
     );
 
     const handleContentLoad = useCallback(() => {
-        const contentElement = assertExists(contentRef.current);
+        const contentElement = assertExists(imageContentRef.current);
 
         setIsLoaded(
             contentElement.complete &&
@@ -444,123 +523,222 @@ function ContentFileImageViewerInner({
         );
     }, []);
 
-    const contentNode = useMemo(
-        () =>
-            !isSignedUrlSearchExpired &&
-            (file.alternative
-                ? !file.alternative.isProcessing && (
-                      <img
-                          ref={contentRef}
-                          className={contentStyles.fileImagePreviewContentClassName}
-                          src={`/files/${space.id}/${file.id}${signedUrlSearch}&variant=${
-                              file.alternative.isImagePreviewContent ? "preview" : "alternative"
-                          }`}
-                          onLoad={handleContentLoad}
-                      />
-                  )
-                : !file.isUploading && (
-                      <img
-                          ref={contentRef}
-                          className={contentStyles.fileImagePreviewContentClassName}
-                          src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
-                          onLoad={handleContentLoad}
-                      />
-                  )),
-        [
-            file.alternative,
-            file.id,
-            file.isUploading,
-            handleContentLoad,
-            isSignedUrlSearchExpired,
-            signedUrlSearch,
-            space.id,
-        ],
-    );
-
     useEffect(() => {
-        if (!contentNode) return;
+        if (isSignedUrlSearchExpired) return;
+        if (file.alternative && file.alternative.isProcessing) return;
+        if (!file.alternative && file.isUploading) return;
 
         // In case the file synchronously loaded run our load event handler.
         handleContentLoad();
-    }, [contentNode, handleContentLoad]);
+    }, [file.alternative, file.isUploading, handleContentLoad, isSignedUrlSearchExpired]);
+
+    const contextMenuActions: Array<Array<MenuAction>> = [
+        [
+            {
+                label: `Copy ${getFileContentTypeNoun(file.contentType)}`,
+                pressErrorTitle: `Couldn’t copy ${getFileContentTypeNoun(file.contentType)}`,
+                onPress: async () => {
+                    const element = assertExists(imageRef.current);
+
+                    // Create a temporary schema we can use for constructing a `file` node we
+                    // can copy.
+                    const schema = new ProsemirrorSchema({
+                        nodes: {
+                            ...contentBaseProsemirrorSchemaSpec.nodes,
+                            ...createContentFileProsemirrorNodeSpecs({}),
+                        },
+                        marks: contentBaseProsemirrorSchemaSpec.marks,
+                    });
+
+                    await handleCopyContentFile(element, {
+                        spaceId: space.id,
+                        node: schema.node("file", {fileId: file.id}),
+                        references: {
+                            ...emptyContentReferences,
+                            fileById: new Map([[file.id, {file, signedUrlSearch}]]),
+                        },
+                        attachmentTarget,
+                    });
+                },
+            },
+            {
+                label: `Download ${getFileContentTypeNoun(file.contentType)}`,
+                onPress: () => {
+                    handleDownloadContentFile({
+                        spaceId: space.id,
+                        file,
+                        signedUrlSearch,
+                    });
+                },
+            },
+        ],
+    ];
+
+    const lastScrollLeftPercentRef = useRef(0);
+    const lastScrollTopPercentRef = useRef(0);
+    const lastZoomScaleRef = useRef(zoomScale);
+
+    // Initialize our last scroll position refs.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const containerElement = assertExists(containerRef.current);
+
+        lastScrollLeftPercentRef.current =
+            (containerElement.scrollLeft + containerElement.clientWidth / 2) /
+            containerElement.scrollWidth;
+        lastScrollTopPercentRef.current =
+            (containerElement.scrollTop + containerElement.clientHeight / 2) /
+            containerElement.scrollHeight;
+    }, []);
+
+    // Whenever the zoom changes, we want to adjust our `scrollTop` and
+    // `scrollLeft` so that the center of our image stays in the same place as it
+    // was before the zoom.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastZoomScaleRef.current === zoomScale) return;
+        lastZoomScaleRef.current = zoomScale;
+
+        const containerElement = assertExists(containerRef.current);
+
+        containerElement.scrollLeft =
+            lastScrollLeftPercentRef.current * containerElement.scrollWidth -
+            containerElement.clientHeight / 2;
+        containerElement.scrollTop =
+            lastScrollTopPercentRef.current * containerElement.scrollHeight -
+            containerElement.clientHeight / 2;
+    }, [zoomScale]);
 
     return (
-        <ContextMenuActions
-            actions={[
-                [
-                    {
-                        label: `Copy ${getFileContentTypeNoun(file.contentType)}`,
-                        pressErrorTitle: `Couldn’t copy ${getFileContentTypeNoun(
-                            file.contentType,
-                        )}`,
-                        onPress: async () => {
-                            const element = assertExists(ref.current);
+        <Box
+            ref={containerRef}
+            width="full"
+            height="full"
+            overflow="auto"
+            // We don't have support for horizontal scrollbars at the moment. So we choose
+            // to disable scrollbars entirely for now in the file viewer.
+            //
+            // TODO(calebmer): Implement horizontal scrollbars and use them here.
+            data-scrollbar="false"
+            onScroll={event => {
+                const containerElement = event.currentTarget;
 
-                            // Create a temporary schema we can use for constructing a `file` node we
-                            // can copy.
-                            const schema = new ProsemirrorSchema({
-                                nodes: {
-                                    ...contentBaseProsemirrorSchemaSpec.nodes,
-                                    ...createContentFileProsemirrorNodeSpecs({}),
-                                },
-                                marks: contentBaseProsemirrorSchemaSpec.marks,
-                            });
-
-                            await handleCopyContentFile(element, {
-                                spaceId: space.id,
-                                node: schema.node("file", {fileId: file.id}),
-                                references: {
-                                    ...emptyContentReferences,
-                                    fileById: new Map([[file.id, {file, signedUrlSearch}]]),
-                                },
-                                attachmentTarget,
-                            });
-                        },
-                    },
-                    {
-                        label: `Download ${getFileContentTypeNoun(file.contentType)}`,
-                        onPress: () => {
-                            handleDownloadContentFile({
-                                spaceId: space.id,
-                                file,
-                                signedUrlSearch,
-                            });
-                        },
-                    },
-                ],
-            ]}
+                lastScrollLeftPercentRef.current =
+                    (containerElement.scrollLeft + containerElement.clientWidth / 2) /
+                    containerElement.scrollWidth;
+                lastScrollTopPercentRef.current =
+                    (containerElement.scrollTop + containerElement.clientHeight / 2) /
+                    containerElement.scrollHeight;
+            }}
         >
-            <div
-                ref={ref}
-                className={classNames(
-                    fileClassName,
-                    isLoaded && contentStyles.loadedFileImagePreviewClassName,
-                    contentStyles.fileViewerClassName,
-                    sprinkles({
-                        boxShadow: !adjustments.hasTransparentBackground
-                            ? "elevation-20-above-content-file-viewer-modal"
-                            : undefined,
-                    }),
-                )}
+            <Box
+                position="relative"
+                paddingX={contentFileViewerMarginX}
+                paddingTop={contentFileViewerMarginTop}
+                paddingBottom={contentFileViewerMarginBottom}
                 style={{
-                    width: fileSize.width,
-                    height: fileSize.height,
-                    transform: `scale(${fileScale})`,
+                    width: "min-content",
+                    height: "min-content",
+                    left: Math.max(
+                        0,
+                        viewerSize.width / 2 - (scaledFileWidth + viewerMarginXPx * 2) / 2,
+                    ),
+                    top: Math.max(
+                        0,
+                        viewerSize.height / 2 -
+                            (scaledFileHeight + viewerMarginTopPx + viewerMarginBottomPx) / 2,
+                    ),
                 }}
             >
-                <img
-                    className={contentStyles.fileImagePreviewPlaceholderClassName}
-                    aria-hidden={true}
-                    src={useMemo(
-                        () =>
-                            convertSvgToDataUrl(
-                                renderFileImagePreviewPlaceholder(filePreviewPlaceholder),
-                            ),
-                        [filePreviewPlaceholder],
-                    )}
-                />
-                {contentNode}
-            </div>
-        </ContextMenuActions>
+                <ContextMenuActions actions={contextMenuActions}>
+                    <Box
+                        style={{
+                            width: scaledFileWidth,
+                            height: scaledFileHeight,
+                        }}
+                    >
+                        <div
+                            ref={imageRef}
+                            className={classNames(
+                                fileClassName,
+                                isLoaded && contentStyles.loadedFileImagePreviewClassName,
+                                contentStyles.fileViewerClassName,
+                                sprinkles({
+                                    boxShadow: !adjustments.hasTransparentBackground
+                                        ? "elevation-20-above-content-file-viewer-modal"
+                                        : undefined,
+                                }),
+                            )}
+                            style={{width: scaledFileWidth, height: scaledFileHeight}}
+                        >
+                            <img
+                                className={contentStyles.fileImagePreviewPlaceholderClassName}
+                                style={{width: scaledFileWidth, height: scaledFileHeight}}
+                                aria-hidden={true}
+                                src={useMemo(
+                                    () =>
+                                        convertSvgToDataUrl(
+                                            renderFileImagePreviewPlaceholder(
+                                                filePreviewPlaceholder,
+                                            ),
+                                        ),
+                                    [filePreviewPlaceholder],
+                                )}
+                            />
+                            {!isSignedUrlSearchExpired &&
+                                (file.alternative
+                                    ? !file.alternative.isProcessing && (
+                                          <img
+                                              ref={imageContentRef}
+                                              className={
+                                                  contentStyles.fileImagePreviewContentClassName
+                                              }
+                                              style={{
+                                                  width: scaledFileWidth,
+                                                  height: scaledFileHeight,
+                                                  // When we start zooming, use a faster image rendering method. This
+                                                  // also improves what the user sees when they zoom all the way in.
+                                                  // The user will see individual pixels of the image instead of some
+                                                  // interpolation.
+                                                  imageRendering:
+                                                      scaledFileWidth > fileSize.width
+                                                          ? "pixelated"
+                                                          : "auto",
+                                              }}
+                                              src={`/files/${space.id}/${
+                                                  file.id
+                                              }${signedUrlSearch}&variant=${
+                                                  file.alternative.isImagePreviewContent
+                                                      ? "preview"
+                                                      : "alternative"
+                                              }`}
+                                              onLoad={handleContentLoad}
+                                          />
+                                      )
+                                    : !file.isUploading && (
+                                          <img
+                                              ref={imageContentRef}
+                                              className={
+                                                  contentStyles.fileImagePreviewContentClassName
+                                              }
+                                              style={{
+                                                  width: scaledFileWidth,
+                                                  height: scaledFileHeight,
+                                                  // When we start zooming, use a faster image rendering method. This
+                                                  // also improves what the user sees when they zoom all the way in.
+                                                  // The user will see individual pixels of the image instead of some
+                                                  // interpolation.
+                                                  imageRendering:
+                                                      scaledFileWidth > fileSize.width
+                                                          ? "pixelated"
+                                                          : "auto",
+                                              }}
+                                              src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
+                                              onLoad={handleContentLoad}
+                                          />
+                                      ))}
+                        </div>
+                    </Box>
+                </ContextMenuActions>
+            </Box>
+        </Box>
     );
 }

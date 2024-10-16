@@ -420,9 +420,9 @@ function IconButton(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? {light: "grey-80", dark: "grey-30"}
+                          ? {light: "grey-50-const", dark: "grey-60-const"}
                           : isHoveredOrTriggeredOverlayOpen
-                          ? {light: "grey-70", dark: "grey-20"}
+                          ? {light: "grey-60-const", dark: "grey-70-const"}
                           : undefined,
                       color: isPressed ? "grey-0-const" : "grey-10-const",
                   }

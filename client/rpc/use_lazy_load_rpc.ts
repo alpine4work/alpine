@@ -47,6 +47,7 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     input: Input | null,
     {
         keepPreviousData,
+        withoutAutomaticRevalidation,
         initialOutput,
     }: {
         /**
@@ -62,6 +63,13 @@ export function useLazyLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
+
+        /**
+         * Disable revalidating the entry on browser activation (e.g. when the browser
+         * window becomes visible after being hidden). Useful for immutable data you
+         * know won't change over time.
+         */
+        withoutAutomaticRevalidation?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
@@ -96,6 +104,7 @@ export function useLazyLoadRpc<Input, Output extends {}>(
         fetcher,
         {
             keepPreviousData: keepPreviousData && input !== null,
+            withoutAutomaticRevalidation,
             initialData: useMemo(
                 () => (initialOutput ? {...initialOutput, input} : null),
                 [initialOutput, input],

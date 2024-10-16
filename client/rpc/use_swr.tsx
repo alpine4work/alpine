@@ -462,6 +462,7 @@ export function useSwr(
     {
         keepPreviousData = false,
         dedupingInterval = 2 * 1000,
+        withoutAutomaticRevalidation,
         initialData: initialDataFromProps = null,
     }: {
         /**
@@ -480,6 +481,13 @@ export function useSwr(
          * the existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
+
+        /**
+         * Disable revalidating the entry on browser activation (e.g. when the browser
+         * window becomes visible after being hidden). Useful for immutable data you
+         * know won't change over time.
+         */
+        withoutAutomaticRevalidation?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
@@ -546,10 +554,12 @@ export function useSwr(
     useEffect(() => {
         if (key === null) return;
 
+        if (withoutAutomaticRevalidation) return;
+
         return cache.subscribeToBrowserActivated(() => {
             cache.revalidateEntry(key, fetcher, {dedupingInterval});
         });
-    }, [cache, dedupingInterval, fetcher, key]);
+    }, [cache, dedupingInterval, fetcher, key, withoutAutomaticRevalidation]);
 
     const [originalHistoryStack, setHistoryStack] = useState<SwrCacheEntryHistoryStack | null>(() =>
         keepPreviousData && key !== null

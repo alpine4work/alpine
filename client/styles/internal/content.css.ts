@@ -1061,8 +1061,8 @@ globalStyle(fileClassName, {
 export const fileViewerClassName = style({
     selectors: {
         [`${fileClassName}&`]: {
-            minWidth: "none",
-            minHeight: "none",
+            minWidth: "auto",
+            minHeight: "auto",
             maxHeight: "none",
             borderRadius: 0,
             cursor: "inherit",
