@@ -31,6 +31,7 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,
@@ -419,6 +420,7 @@ function Tooltip(
     const overlayRef = useRef<OverlayRef>(null);
 
     const isMounted = useIsMounted();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
 
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -645,6 +647,9 @@ function Tooltip(
             const tooltipElement = tooltipRef.current;
 
             function handleMouseEnter(event: MouseEvent) {
+                // Ignore `mouseenter` events emulated by iOS.
+                if (!canPrimaryInputHover) return;
+
                 if (event.target !== targetElement) return;
 
                 // If there is a visible tooltip that will fade out soon, cancel the fade out
@@ -673,6 +678,9 @@ function Tooltip(
             }
 
             function handleMouseLeave(event: MouseEvent) {
+                // Ignore `mouseleave` events emulated by iOS.
+                if (!canPrimaryInputHover) return;
+
                 if (event.target !== targetElement) return;
 
                 const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {

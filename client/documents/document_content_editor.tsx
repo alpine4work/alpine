@@ -1525,24 +1525,37 @@ export function DocumentContentEditor({
                     iconSize: "4",
                     icon: <Image />,
                     onPress: () => {
-                        const inputElement = document.createElement("input");
-                        inputElement.type = "file";
-                        inputElement.multiple = true;
+                        const editorContainerElement = assertExists(editorContainerRef.current);
 
-                        inputElement.accept = getFileInputAcceptAttribute(
+                        const temporaryInputElement = document.createElement("input");
+                        temporaryInputElement.type = "file";
+                        temporaryInputElement.multiple = true;
+                        temporaryInputElement.style.width = "0";
+                        temporaryInputElement.style.height = "0";
+                        temporaryInputElement.style.margin = "0";
+                        temporaryInputElement.style.padding = "0";
+                        temporaryInputElement.style.border = "0";
+                        temporaryInputElement.style.opacity = "0";
+                        temporaryInputElement.style.position = "fixed";
+                        temporaryInputElement.style.top = "0px";
+
+                        temporaryInputElement.accept = getFileInputAcceptAttribute(
                             getFileImageContentTypes(),
                         );
 
-                        inputElement.addEventListener("change", () => {
-                            if (!inputElement.files) return;
+                        temporaryInputElement.addEventListener("change", () => {
+                            temporaryInputElement.remove();
 
-                            const files = Array.from(inputElement.files);
+                            if (!temporaryInputElement.files) return;
+
+                            const files = Array.from(temporaryInputElement.files);
                             if (files.length === 0) return;
 
                             editorRef.current?.insertFiles(files);
                         });
 
-                        inputElement.click();
+                        editorContainerElement.appendChild(temporaryInputElement);
+                        temporaryInputElement.click();
                     },
                 },
                 {
@@ -1550,24 +1563,37 @@ export function DocumentContentEditor({
                     iconSize: "4",
                     icon: <VideoIcon />,
                     onPress: () => {
-                        const inputElement = document.createElement("input");
-                        inputElement.type = "file";
-                        inputElement.multiple = true;
+                        const editorContainerElement = assertExists(editorContainerRef.current);
 
-                        inputElement.accept = getFileInputAcceptAttribute(
+                        const temporaryInputElement = document.createElement("input");
+                        temporaryInputElement.type = "file";
+                        temporaryInputElement.multiple = true;
+                        temporaryInputElement.style.width = "0";
+                        temporaryInputElement.style.height = "0";
+                        temporaryInputElement.style.margin = "0";
+                        temporaryInputElement.style.padding = "0";
+                        temporaryInputElement.style.border = "0";
+                        temporaryInputElement.style.opacity = "0";
+                        temporaryInputElement.style.position = "fixed";
+                        temporaryInputElement.style.top = "0px";
+
+                        temporaryInputElement.accept = getFileInputAcceptAttribute(
                             getFileVideoContentTypes(),
                         );
 
-                        inputElement.addEventListener("change", () => {
-                            if (!inputElement.files) return;
+                        temporaryInputElement.addEventListener("change", () => {
+                            temporaryInputElement.remove();
 
-                            const files = Array.from(inputElement.files);
+                            if (!temporaryInputElement.files) return;
+
+                            const files = Array.from(temporaryInputElement.files);
                             if (files.length === 0) return;
 
                             editorRef.current?.insertFiles(files);
                         });
 
-                        inputElement.click();
+                        editorContainerElement.appendChild(temporaryInputElement);
+                        temporaryInputElement.click();
                     },
                 },
                 {
@@ -1575,24 +1601,37 @@ export function DocumentContentEditor({
                     iconSize: "4",
                     icon: <WaveformIcon />,
                     onPress: () => {
-                        const inputElement = document.createElement("input");
-                        inputElement.type = "file";
-                        inputElement.multiple = true;
+                        const editorContainerElement = assertExists(editorContainerRef.current);
 
-                        inputElement.accept = getFileInputAcceptAttribute(
+                        const temporaryInputElement = document.createElement("input");
+                        temporaryInputElement.type = "file";
+                        temporaryInputElement.multiple = true;
+                        temporaryInputElement.style.width = "0";
+                        temporaryInputElement.style.height = "0";
+                        temporaryInputElement.style.margin = "0";
+                        temporaryInputElement.style.padding = "0";
+                        temporaryInputElement.style.border = "0";
+                        temporaryInputElement.style.opacity = "0";
+                        temporaryInputElement.style.position = "fixed";
+                        temporaryInputElement.style.top = "0px";
+
+                        temporaryInputElement.accept = getFileInputAcceptAttribute(
                             getFileAudioContentTypes(),
                         );
 
-                        inputElement.addEventListener("change", () => {
-                            if (!inputElement.files) return;
+                        temporaryInputElement.addEventListener("change", () => {
+                            temporaryInputElement.remove();
 
-                            const files = Array.from(inputElement.files);
+                            if (!temporaryInputElement.files) return;
+
+                            const files = Array.from(temporaryInputElement.files);
                             if (files.length === 0) return;
 
                             editorRef.current?.insertFiles(files);
                         });
 
-                        inputElement.click();
+                        editorContainerElement.appendChild(temporaryInputElement);
+                        temporaryInputElement.click();
                     },
                 },
                 {
@@ -1600,20 +1639,33 @@ export function DocumentContentEditor({
                     iconSize: "4",
                     icon: <File />,
                     onPress: () => {
-                        const inputElement = document.createElement("input");
-                        inputElement.type = "file";
-                        inputElement.multiple = true;
+                        const editorContainerElement = assertExists(editorContainerRef.current);
 
-                        inputElement.addEventListener("change", () => {
-                            if (!inputElement.files) return;
+                        const temporaryInputElement = document.createElement("input");
+                        temporaryInputElement.type = "file";
+                        temporaryInputElement.multiple = true;
+                        temporaryInputElement.style.width = "0";
+                        temporaryInputElement.style.height = "0";
+                        temporaryInputElement.style.margin = "0";
+                        temporaryInputElement.style.padding = "0";
+                        temporaryInputElement.style.border = "0";
+                        temporaryInputElement.style.opacity = "0";
+                        temporaryInputElement.style.position = "fixed";
+                        temporaryInputElement.style.top = "0px";
 
-                            const files = Array.from(inputElement.files);
+                        temporaryInputElement.addEventListener("change", () => {
+                            temporaryInputElement.remove();
+
+                            if (!temporaryInputElement.files) return;
+
+                            const files = Array.from(temporaryInputElement.files);
                             if (files.length === 0) return;
 
                             editorRef.current?.insertFiles(files);
                         });
 
-                        inputElement.click();
+                        editorContainerElement.appendChild(temporaryInputElement);
+                        temporaryInputElement.click();
                     },
                 },
             ],

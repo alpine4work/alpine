@@ -56,6 +56,7 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 
 // TODO(calebmer, #files): Mobile file viewer?
+// TODO(calebmer, #files): Polling while loading and refresh on expiration.
 
 let handoffContentFileReferencesByFileId: Map<
     FileId,
@@ -145,7 +146,11 @@ function ContentFileViewerModalInner({
     const {isAppleDevice} = useClientInfo();
     const {space} = useSpaceContext();
 
-    const [viewerRef, viewerSize] = useResizeObserver();
+    const [viewerRef, viewerSize] = useResizeObserver({
+        // Don't use the `getBoundingClientRect` method because the dimensions will be
+        // affected by the modal's fade in animation which scales the modal element.
+        method: "clientWidthAndHeight",
+    });
     const [expirationTimers] = useState(() => new ContentFilePreviewExpirationTimers());
 
     const fileSize = getFilePreviewSize(file);
@@ -731,6 +736,7 @@ function ContentFileImageViewerInner({
                                                 height: scaledFileHeight,
                                             }}
                                             aria-hidden={true}
+                                            draggable={false}
                                             src={convertSvgToDataUrl(
                                                 renderFileImagePreviewPlaceholder(
                                                     filePreviewPlaceholder,
@@ -754,6 +760,9 @@ function ContentFileImageViewerInner({
                                                   contentStyles.fileImagePreviewContentClassName
                                               }
                                               style={imageContentStyle}
+                                              // TODO(calebmer): Support drag events with the same code we use for content
+                                              // previews.
+                                              draggable={false}
                                               src={`/files/${space.id}/${
                                                   file.id
                                               }${signedUrlSearch}&variant=${
@@ -771,6 +780,9 @@ function ContentFileImageViewerInner({
                                                   contentStyles.fileImagePreviewContentClassName
                                               }
                                               style={imageContentStyle}
+                                              // TODO(calebmer): Support drag events with the same code we use for content
+                                              // previews.
+                                              draggable={false}
                                               src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
                                               onLoad={handleContentLoad}
                                           />

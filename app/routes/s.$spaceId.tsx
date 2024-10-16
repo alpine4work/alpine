@@ -340,16 +340,26 @@ function SpaceLayoutRouteInner({
         [setSearchParams],
     );
 
-    // If we switch to mobile then clear the `search` URL parameter since mobile
-    // can't render the search modal.
+    // If we switch to mobile then clear the `search` and `file` URL parameters
+    // since mobile can't render the search modal or file modal.
     useEffect(() => {
         if (!isMobile) return;
 
-        const searchQueryText = searchParams.get("search");
-        if (searchQueryText === null) return;
+        if (searchParams.get("search") === null && searchParams.get("file") === null) return;
 
-        setSearchQueryText(null);
-    }, [dataRouterStateContext.matches, isMobile, searchParams, setSearchQueryText]);
+        setSearchParams(
+            oldSearchParams => {
+                const newSearchParams = new URLSearchParams(oldSearchParams);
+                newSearchParams.delete("search");
+                newSearchParams.delete("file");
+                return newSearchParams;
+            },
+            {
+                replace: true,
+                unstable_shouldRevalidate: false,
+            },
+        );
+    }, [isMobile, searchParams, setSearchParams]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",

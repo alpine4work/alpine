@@ -2858,7 +2858,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                     // If there's a focused element this tap dismisses the focus. It doesn't make
                     // the editor editable.
-                    if (document.activeElement && document.activeElement !== document.body) return;
+                    if (
+                        (document.activeElement && document.activeElement !== document.body) ||
+                        view.state.selection instanceof NodeSelection
+                    ) {
+                        return;
+                    }
 
                     let isTargetInteractive = false;
                     if (event.target instanceof HTMLElement && view.dom.contains(event.target)) {
@@ -2868,6 +2873,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             if (
                                 element.classList.contains(linkClassName) ||
                                 element.classList.contains(commentClassName) ||
+                                element.classList.contains(fileClassName) ||
                                 // Includes the language picker button and the copy code button.
                                 element.classList.contains(contentStyles.codeBlockToolbarClassName)
                             ) {
@@ -2929,10 +2935,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                             flushSync(() => setIsFocused(true));
                             view.focus();
 
+                            const $pos = view.state.doc.resolve(posResult.pos);
                             view.dispatch(
-                                view.state.tr.setSelection(
-                                    new TextSelection(view.state.doc.resolve(posResult.pos)),
-                                ),
+                                view.state.tr.setSelection(TextSelection.between($pos, $pos)),
                             );
                         },
                         cancel: () => {

@@ -1104,7 +1104,7 @@ export const fileImagePreviewContentClassName = style({
     height: "100%",
     objectPosition: "center top",
     objectFit: "cover",
-    // Images need to be selectable so we get the browser's selection highlight
+    // Images need to be selectable so we get Chrome's selection highlight
     // effect.
     userSelect: "text",
     // Start at opacity 0. We'll animate to opacity 1 when
@@ -1117,6 +1117,12 @@ export const fileImagePreviewContentClassName = style({
             // we animate from unloaded -> loaded but not from loaded -> unloaded (which
             // happens when the file source is replaced).
             transition: `opacity ${loadedFileImageAnimationDurationMs}ms ease-in-out`,
+        },
+        // Turn off selection on mobile. Specifically for mobile Safari where allowing
+        // text selection for images leads us to some weird states where Safari renders
+        // a text selection in addition to our ProseMirror `NodeSelection`.
+        [`${mobilePlatformSelector} &`]: {
+            userSelect: "none",
         },
     },
 });

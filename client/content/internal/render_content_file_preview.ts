@@ -14,6 +14,7 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
@@ -791,7 +792,9 @@ export function addContentFilePreviewBehavior(
             // let's start our `pointerdown` event by setting `element.draggable = true`.
             //
             // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
-            element.draggable = true;
+            if (!getIsMobileWithoutListening()) {
+                element.draggable = true;
+            }
 
             element.classList.add(contentStyles.pressedFileClassName);
         } else {
@@ -803,20 +806,28 @@ export function addContentFilePreviewBehavior(
         longPressTimeout = null;
         isLongPress = false;
 
-        // By default, the browser will focus our `[contenteditable=true]` element on
-        // `pointerdown`. We don't want this behavior but we can't call
-        // `event.preventDefault()` since that'll also cancel the browser's ability to
-        // drag our file. So instead, wait an animation frame and blur if the browser
-        // focused our `[contenteditable=true]` element if it was unfocused when the
-        // `pointerdown` ocurred.
-        const docElement = element.closest<HTMLElement>(`.${contentStyles.docClassName}`);
-        if (docElement) {
-            const wasFocused = docElement === document.activeElement;
-            if (!wasFocused) {
-                requestAnimationFrame(() => {
-                    const isFocused = docElement === document.activeElement;
-                    if (isFocused) docElement.blur();
-                });
+        // Always prevent default on mobile. This will:
+        //
+        // - Prevent the document from focusing (and keyboard from opening)
+        // - Prevent the file from being dragged
+        if (getIsMobileWithoutListening()) {
+            event.preventDefault();
+        } else {
+            // By default, the browser will focus our `[contenteditable=true]` element on
+            // `pointerdown`. We don't want this behavior but we can't call
+            // `event.preventDefault()` since that'll also cancel the browser's ability to
+            // drag our file. So instead, wait an animation frame and blur if the browser
+            // focused our `[contenteditable=true]` element if it was unfocused when the
+            // `pointerdown` ocurred.
+            const docElement = element.closest<HTMLElement>(`.${contentStyles.docClassName}`);
+            if (docElement) {
+                const wasFocused = docElement === document.activeElement;
+                if (!wasFocused) {
+                    requestAnimationFrame(() => {
+                        const isFocused = docElement === document.activeElement;
+                        if (isFocused) docElement.blur();
+                    });
+                }
             }
         }
 
@@ -847,7 +858,8 @@ export function addContentFilePreviewBehavior(
         // is selected, let ProseMirror set `element.draggable = false` instead of us.
         //
         // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
-        if (!element.classList.contains("ProseMirror-selectednode")) element.draggable = false;
+        if (!element.classList.contains("ProseMirror-selectednode") && element.draggable)
+            element.draggable = false;
 
         element.classList.remove(contentStyles.pressedFileClassName);
         element.classList.remove(contentStyles.longPressedFileClassName);
@@ -857,11 +869,29 @@ export function addContentFilePreviewBehavior(
         isLongPress = false;
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (event: PointerEvent) => {
         const wasLongPress = isLongPress;
         resetPointerState();
         if (wasLongPress) return;
         if (!reference) return;
+        const {file, signedUrlSearch} = reference;
+
+        // For now our file viewer is desktop only. Open any tapped files in a new tab.
+        if (getIsMobileWithoutListening()) {
+            event.preventDefault();
+
+            // Noop if the file is still uploading.
+            if (file.isUploading) return;
+
+            window.open(
+                `/files/${spaceId}/${file.id}${signedUrlSearch}`,
+                "_blank",
+                // Important security measure. See:
+                // https://mathiasbynens.github.io/rel-noopener
+                "noopener noreferrer",
+            );
+            return;
+        }
 
         ContentFileViewerModal.handoffFileReference(reference);
 
@@ -872,7 +902,7 @@ export function addContentFilePreviewBehavior(
                 "file",
                 // Space separator was chosen since it's encoded as a `+` which looks nice in
                 // the URL.
-                `${reference.file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
+                `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
             );
 
             return [
@@ -897,6 +927,13 @@ export function addContentFilePreviewBehavior(
     const handleParentScrollWhenPointerDownAndOver = resetPointerState;
 
     const handleDragStart = (event: DragEvent) => {
+        // Don't allow dragging with the web drag API on mobile.
+        if (getIsMobileWithoutListening()) {
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
+
         resetPointerState();
 
         // If we have a browser selection (whether it be `<ContentEditor>` or
@@ -969,11 +1006,24 @@ export function addContentFilePreviewBehavior(
         }
     };
 
+    // Reset pointer state on document selection change before long press. For
+    // example if you double tap on iOS and hold then iOS will select some text.
+    // This should cancel our long press.
+    //
+    // A long press will cause a `selectionchange` event. So after long press
+    // selection change events are fine.
+    const handleDocumentSelectionChange = () => {
+        if (!isLongPress) {
+            resetPointerState();
+        }
+    };
+
     element.addEventListener("pointerdown", handlePointerDown);
     element.addEventListener("pointerup", handlePointerUp);
     element.addEventListener("pointerleave", handlePointerLeave);
     element.addEventListener("pointercancel", handlePointerCancel);
     element.addEventListener("dragstart", handleDragStart);
+    document.addEventListener("selectionchange", handleDocumentSelectionChange);
     addParentScrollWhenPointerDownAndOverListener(
         element,
         handleParentScrollWhenPointerDownAndOver,
@@ -1087,6 +1137,7 @@ export function addContentFilePreviewBehavior(
         element.removeEventListener("pointercancel", handlePointerCancel);
         element.removeEventListener("dragstart", handleDragStart);
         element.removeEventListener("contextmenu", handleContextMenu);
+        document.removeEventListener("selectionchange", handleDocumentSelectionChange);
         removeParentScrollWhenPointerDownAndOverListener(
             element,
             handleParentScrollWhenPointerDownAndOver,

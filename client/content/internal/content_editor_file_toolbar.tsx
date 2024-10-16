@@ -17,9 +17,11 @@ import {ContentEditorFloaterState} from "~/client/content/internal/content_edito
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
@@ -140,6 +142,8 @@ function ContentEditorFileToolbar({
     isDisablingInitialAnimation: boolean;
     onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
 }) {
+    const toolbarRef = useRef<HTMLDivElement>(null);
+
     const selectionRef = useRef<NodeSelection | null>(null);
 
     useEffect(() => {
@@ -172,259 +176,291 @@ function ContentEditorFileToolbar({
         setIsDisablingInitialAnimation(false);
     }, [isDisablingInitialAnimation]);
 
+    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
+
     return (
-        <OverlayAnimated
-            isVisible={isVisible && !isContextMenuOpen}
-            disableAnimation={isDisablingInitialAnimation}
-            placement="top"
-            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
-            // text it'll always be at the beginning of the text. Always make sure the
-            // `<ContentEditor>` has some space above it so the toolbar will never go
-            // offscreen.
-            fallbackPlacements={emptyArray}
-            offset="4"
-            targetElement={targetElement}
-            overlay={
-                <Box
-                    display="flex"
-                    paddingLeft="1"
-                    paddingRight="0.5"
-                    color="grey-100"
-                    backgroundColor="grey-0"
-                    borderRadius="1.5"
-                    boxShadow="elevation-20"
-                    className={greyElevated2ClassName}
-                >
-                    {hasAlignmentButtons && (
-                        <>
-                            <ContentEditorFileToolbarButton
-                                description="Align left"
-                                viewRef={viewRef}
-                                isActive={
-                                    selection.$anchor.parent.type.name === "fileFloat" &&
-                                    selection.$anchor.parent.attrs.direction === "left"
-                                }
-                                command={(state, dispatch) => {
-                                    const {selection} = state;
-
-                                    if (
-                                        !(selection instanceof NodeSelection) ||
-                                        (selection.$anchor.parent.type.name === "fileFloat" &&
-                                            selection.$anchor.parent.attrs.direction === "left")
-                                    ) {
-                                        return false;
-                                    }
-
-                                    if (selection.$anchor.parent.type.name === "fileFloat") {
-                                        dispatch?.(
-                                            state.tr.setNodeAttribute(
-                                                selection.anchor - 1,
-                                                "direction",
-                                                "left",
-                                            ),
-                                        );
-                                    } else if (dispatch) {
-                                        const transaction = state.tr.replace(
-                                            selection.$anchor.before(),
-                                            selection.$anchor.end(),
-                                            new Slice(
-                                                Fragment.from(
-                                                    state.schema.node(
-                                                        "fileFloat",
-                                                        {direction: "left"},
-                                                        [selection.node],
-                                                    ),
-                                                ),
-                                                0,
-                                                0,
-                                            ),
-                                        );
-
-                                        dispatch(
-                                            transaction.setSelection(
-                                                new NodeSelection(
-                                                    transaction.doc.resolve(
-                                                        selection.$anchor.before() + 1,
-                                                    ),
-                                                ),
-                                            ),
-                                        );
-                                    }
-
-                                    return true;
-                                }}
-                            >
-                                <AlignLeftSimple />
-                            </ContentEditorFileToolbarButton>
-                            <ContentEditorFileToolbarButton
-                                description="Align center"
-                                viewRef={viewRef}
-                                isActive={selection.$anchor.parent.type.name === "fileRow"}
-                                command={(state, dispatch) => {
-                                    const {selection} = state;
-
-                                    if (
-                                        !(selection instanceof NodeSelection) ||
-                                        selection.$anchor.parent.type.name === "fileRow"
-                                    ) {
-                                        return false;
-                                    }
-
-                                    if (dispatch) {
-                                        const transaction = state.tr.replace(
-                                            selection.$anchor.before(),
-                                            selection.$anchor.end(),
-                                            new Slice(
-                                                Fragment.from(
-                                                    state.schema.node("fileRow", {}, [
-                                                        selection.node,
-                                                    ]),
-                                                ),
-                                                0,
-                                                0,
-                                            ),
-                                        );
-
-                                        dispatch(
-                                            transaction.setSelection(
-                                                new NodeSelection(
-                                                    transaction.doc.resolve(
-                                                        selection.$anchor.before() + 1,
-                                                    ),
-                                                ),
-                                            ),
-                                        );
-                                    }
-
-                                    return true;
-                                }}
-                            >
-                                <AlignCenterHorizontalSimple />
-                            </ContentEditorFileToolbarButton>
-                            <ContentEditorFileToolbarButton
-                                dividerRight={true}
-                                description="Align right"
-                                viewRef={viewRef}
-                                isActive={
-                                    selection.$anchor.parent.type.name === "fileFloat" &&
-                                    selection.$anchor.parent.attrs.direction !== "left"
-                                }
-                                command={(state, dispatch) => {
-                                    const {selection} = state;
-
-                                    if (
-                                        !(selection instanceof NodeSelection) ||
-                                        (selection.$anchor.parent.type.name === "fileFloat" &&
-                                            selection.$anchor.parent.attrs.direction !== "left")
-                                    ) {
-                                        return false;
-                                    }
-
-                                    if (selection.$anchor.parent.type.name === "fileFloat") {
-                                        dispatch?.(
-                                            state.tr.setNodeAttribute(
-                                                selection.anchor - 1,
-                                                "direction",
-                                                "right",
-                                            ),
-                                        );
-                                    } else if (dispatch) {
-                                        const transaction = state.tr.replace(
-                                            selection.$anchor.before(),
-                                            selection.$anchor.end(),
-                                            new Slice(
-                                                Fragment.from(
-                                                    state.schema.node(
-                                                        "fileFloat",
-                                                        {direction: "right"},
-                                                        [selection.node],
-                                                    ),
-                                                ),
-                                                0,
-                                                0,
-                                            ),
-                                        );
-
-                                        dispatch(
-                                            transaction.setSelection(
-                                                new NodeSelection(
-                                                    transaction.doc.resolve(
-                                                        selection.$anchor.before() + 1,
-                                                    ),
-                                                ),
-                                            ),
-                                        );
-                                    }
-
-                                    return true;
-                                }}
-                            >
-                                <AlignRightSimple />
-                            </ContentEditorFileToolbarButton>
-                        </>
-                    )}
-                    <ContentEditorFileToolbarButton
-                        dividerLeft={hasAlignmentButtons}
-                        description={`Replace ${getFileContentTypeNoun(file?.contentType)}`}
-                        viewRef={viewRef}
-                        isActive={false}
-                        command={() => {
-                            const inputElement = document.createElement("input");
-                            inputElement.type = "file";
-                            inputElement.multiple = false;
-
-                            inputElement.addEventListener("change", () => {
-                                if (!inputElement.files) return;
-
-                                const files = Array.from(inputElement.files);
-                                if (files.length !== 1) return;
-
-                                // If the component unmounted while we were waiting on a selection then don't
-                                // try replacing this file.
-                                if (!selectionRef.current) return;
-
-                                onInsertFiles(selectionRef.current, [files[0]!]);
-                            });
-
-                            inputElement.click();
-
-                            return true;
-                        }}
+        <>
+            <OverlayAnimated
+                isVisible={isVisible && !isContextMenuOpen}
+                disableAnimation={isDisablingInitialAnimation}
+                placement="top"
+                // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+                // text it'll always be at the beginning of the text. Always make sure the
+                // `<ContentEditor>` has some space above it so the toolbar will never go
+                // offscreen.
+                fallbackPlacements={emptyArray}
+                offset="4"
+                targetElement={targetElement}
+                overlay={
+                    <Box
+                        ref={toolbarRef}
+                        display="flex"
+                        paddingLeft="1"
+                        paddingRight="0.5"
+                        color="grey-100"
+                        backgroundColor="grey-0"
+                        borderRadius="1.5"
+                        boxShadow="elevation-20"
+                        className={greyElevated2ClassName}
                     >
-                        <UploadSimple />
-                    </ContentEditorFileToolbarButton>
-                    <ContentEditorFileToolbarButton
-                        dividerRight={!!state.schema.marks.comment}
-                        description={`Delete ${getFileContentTypeNoun(file?.contentType)}`}
-                        viewRef={viewRef}
-                        isActive={false}
-                        command={(state, dispatch) => {
-                            dispatch?.(state.tr.deleteSelection());
-                            return true;
-                        }}
-                    >
-                        <Trash />
-                    </ContentEditorFileToolbarButton>
-                    {state.schema.marks.comment && (
+                        {hasAlignmentButtons && (
+                            <>
+                                <ContentEditorFileToolbarButton
+                                    description="Align left"
+                                    viewRef={viewRef}
+                                    isActive={
+                                        selection.$anchor.parent.type.name === "fileFloat" &&
+                                        selection.$anchor.parent.attrs.direction === "left"
+                                    }
+                                    command={(state, dispatch) => {
+                                        const {selection} = state;
+
+                                        if (
+                                            !(selection instanceof NodeSelection) ||
+                                            (selection.$anchor.parent.type.name === "fileFloat" &&
+                                                selection.$anchor.parent.attrs.direction === "left")
+                                        ) {
+                                            return false;
+                                        }
+
+                                        if (selection.$anchor.parent.type.name === "fileFloat") {
+                                            dispatch?.(
+                                                state.tr.setNodeAttribute(
+                                                    selection.anchor - 1,
+                                                    "direction",
+                                                    "left",
+                                                ),
+                                            );
+                                        } else if (dispatch) {
+                                            const transaction = state.tr.replace(
+                                                selection.$anchor.before(),
+                                                selection.$anchor.end(),
+                                                new Slice(
+                                                    Fragment.from(
+                                                        state.schema.node(
+                                                            "fileFloat",
+                                                            {direction: "left"},
+                                                            [selection.node],
+                                                        ),
+                                                    ),
+                                                    0,
+                                                    0,
+                                                ),
+                                            );
+
+                                            dispatch(
+                                                transaction.setSelection(
+                                                    new NodeSelection(
+                                                        transaction.doc.resolve(
+                                                            selection.$anchor.before() + 1,
+                                                        ),
+                                                    ),
+                                                ),
+                                            );
+                                        }
+
+                                        return true;
+                                    }}
+                                >
+                                    <AlignLeftSimple />
+                                </ContentEditorFileToolbarButton>
+                                <ContentEditorFileToolbarButton
+                                    description="Align center"
+                                    viewRef={viewRef}
+                                    isActive={selection.$anchor.parent.type.name === "fileRow"}
+                                    command={(state, dispatch) => {
+                                        const {selection} = state;
+
+                                        if (
+                                            !(selection instanceof NodeSelection) ||
+                                            selection.$anchor.parent.type.name === "fileRow"
+                                        ) {
+                                            return false;
+                                        }
+
+                                        if (dispatch) {
+                                            const transaction = state.tr.replace(
+                                                selection.$anchor.before(),
+                                                selection.$anchor.end(),
+                                                new Slice(
+                                                    Fragment.from(
+                                                        state.schema.node("fileRow", {}, [
+                                                            selection.node,
+                                                        ]),
+                                                    ),
+                                                    0,
+                                                    0,
+                                                ),
+                                            );
+
+                                            dispatch(
+                                                transaction.setSelection(
+                                                    new NodeSelection(
+                                                        transaction.doc.resolve(
+                                                            selection.$anchor.before() + 1,
+                                                        ),
+                                                    ),
+                                                ),
+                                            );
+                                        }
+
+                                        return true;
+                                    }}
+                                >
+                                    <AlignCenterHorizontalSimple />
+                                </ContentEditorFileToolbarButton>
+                                <ContentEditorFileToolbarButton
+                                    dividerRight={true}
+                                    description="Align right"
+                                    viewRef={viewRef}
+                                    isActive={
+                                        selection.$anchor.parent.type.name === "fileFloat" &&
+                                        selection.$anchor.parent.attrs.direction !== "left"
+                                    }
+                                    command={(state, dispatch) => {
+                                        const {selection} = state;
+
+                                        if (
+                                            !(selection instanceof NodeSelection) ||
+                                            (selection.$anchor.parent.type.name === "fileFloat" &&
+                                                selection.$anchor.parent.attrs.direction !== "left")
+                                        ) {
+                                            return false;
+                                        }
+
+                                        if (selection.$anchor.parent.type.name === "fileFloat") {
+                                            dispatch?.(
+                                                state.tr.setNodeAttribute(
+                                                    selection.anchor - 1,
+                                                    "direction",
+                                                    "right",
+                                                ),
+                                            );
+                                        } else if (dispatch) {
+                                            const transaction = state.tr.replace(
+                                                selection.$anchor.before(),
+                                                selection.$anchor.end(),
+                                                new Slice(
+                                                    Fragment.from(
+                                                        state.schema.node(
+                                                            "fileFloat",
+                                                            {direction: "right"},
+                                                            [selection.node],
+                                                        ),
+                                                    ),
+                                                    0,
+                                                    0,
+                                                ),
+                                            );
+
+                                            dispatch(
+                                                transaction.setSelection(
+                                                    new NodeSelection(
+                                                        transaction.doc.resolve(
+                                                            selection.$anchor.before() + 1,
+                                                        ),
+                                                    ),
+                                                ),
+                                            );
+                                        }
+
+                                        return true;
+                                    }}
+                                >
+                                    <AlignRightSimple />
+                                </ContentEditorFileToolbarButton>
+                            </>
+                        )}
                         <ContentEditorFileToolbarButton
-                            dividerLeft={true}
-                            // Intentionally not rendering keyboard shortcut since "Comment" is the only
-                            // option that supports a keyboard shortcut. Only showing a keyboard shortcut
-                            // on this one button's tooltip would look weird.
-                            description="Comment"
+                            dividerLeft={hasAlignmentButtons}
+                            description={`Replace ${getFileContentTypeNoun(file?.contentType)}`}
                             viewRef={viewRef}
                             isActive={false}
-                            command={(state, dispatch) => {
-                                dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+                            command={() => {
+                                const toolbarElement = assertExists(toolbarRef.current);
+
+                                const temporaryInputElement = document.createElement("input");
+                                temporaryInputElement.type = "file";
+                                temporaryInputElement.multiple = false;
+                                temporaryInputElement.style.width = "0";
+                                temporaryInputElement.style.height = "0";
+                                temporaryInputElement.style.margin = "0";
+                                temporaryInputElement.style.padding = "0";
+                                temporaryInputElement.style.border = "0";
+                                temporaryInputElement.style.opacity = "0";
+                                temporaryInputElement.style.position = "fixed";
+                                temporaryInputElement.style.top = "0px";
+
+                                temporaryInputElement.addEventListener("change", () => {
+                                    temporaryInputElement.remove();
+
+                                    if (!temporaryInputElement.files) return;
+
+                                    const files = Array.from(temporaryInputElement.files);
+                                    if (files.length !== 1) return;
+
+                                    // If the component unmounted while we were waiting on a selection then don't
+                                    // try replacing this file.
+                                    if (!selectionRef.current) return;
+
+                                    onInsertFiles(selectionRef.current, [files[0]!]);
+                                });
+
+                                toolbarElement.appendChild(temporaryInputElement);
+                                temporaryInputElement.click();
+
                                 return true;
                             }}
                         >
-                            <ChatCircleText />
+                            <UploadSimple />
                         </ContentEditorFileToolbarButton>
-                    )}
-                </Box>
-            }
-        />
+                        <ContentEditorFileToolbarButton
+                            dividerRight={!!state.schema.marks.comment}
+                            description={`Delete ${getFileContentTypeNoun(file?.contentType)}`}
+                            viewRef={viewRef}
+                            isActive={false}
+                            command={() => {
+                                setShowDeleteConfirmationDialog(true);
+                                return true;
+                            }}
+                        >
+                            <Trash />
+                        </ContentEditorFileToolbarButton>
+                        {state.schema.marks.comment && (
+                            <ContentEditorFileToolbarButton
+                                dividerLeft={true}
+                                // Intentionally not rendering keyboard shortcut since "Comment" is the only
+                                // option that supports a keyboard shortcut. Only showing a keyboard shortcut
+                                // on this one button's tooltip would look weird.
+                                description="Comment"
+                                viewRef={viewRef}
+                                isActive={false}
+                                command={(state, dispatch) => {
+                                    dispatch?.(
+                                        state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                    );
+                                    return true;
+                                }}
+                            >
+                                <ChatCircleText />
+                            </ContentEditorFileToolbarButton>
+                        )}
+                    </Box>
+                }
+            />
+            {showDeleteConfirmationDialog && (
+                <ModalDialog
+                    title={`Delete ${getFileContentTypeNoun(file?.contentType)}?`}
+                    description="You can undo this change at any time."
+                    onClose={() => setShowDeleteConfirmationDialog(false)}
+                    primaryButtonLabel="Delete"
+                    onPrimaryButtonPress={() => {
+                        const view = assertExists(viewRef.current);
+                        view.dispatch(view.state.tr.deleteSelection());
+                    }}
+                />
+            )}
+        </>
     );
 }
 
@@ -445,6 +481,8 @@ function ContentEditorFileToolbarButton({
     dividerLeft?: boolean;
     dividerRight?: boolean;
 }) {
+    const isMobile = useIsMobile();
+
     const onPress = () => {
         const view = assertExists(viewRef.current);
         command(view.state, view.dispatch.bind(view), view);
@@ -500,7 +538,7 @@ function ContentEditorFileToolbarButton({
                     paddingLeft={dividerLeft ? "1" : undefined}
                 >
                     <Box
-                        padding="1"
+                        padding={isMobile ? "2" : "1"}
                         borderRadius="1"
                         color={isPressed || isActive ? "grey-100" : "grey-70"}
                         backgroundColor={
@@ -516,7 +554,7 @@ function ContentEditorFileToolbarButton({
                         <IconContext.Provider
                             value={{
                                 color: "currentColor",
-                                size: spacing["4"],
+                                size: spacing[isMobile ? "5" : "4"],
                             }}
                         >
                             {children}
