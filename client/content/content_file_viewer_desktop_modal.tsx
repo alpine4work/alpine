@@ -64,8 +64,8 @@ let handoffContentFileReferencesByFileId: Map<
 > | null = null;
 
 /**
- * Handoff some previously loaded data to `<ContentFileViewerModal>` so it
- * doesn't have to fetch data from the server when it mounts.
+ * Handoff some previously loaded data to `<ContentFileDesktopViewerModal>` so
+ * it doesn't have to fetch data from the server when it mounts.
  */
 function handoffContentFileReference(reference: {signedUrlSearch: string; file: FileModel}) {
     handoffContentFileReferencesByFileId ??= new Map();
@@ -88,7 +88,7 @@ function handoffContentFileReference(reference: {signedUrlSearch: string; file: 
     }, 1000);
 }
 
-export function ContentFileViewerModal({
+export function ContentFileDesktopViewerModal({
     fileId,
     attachmentTarget,
     onClose,
@@ -121,7 +121,7 @@ export function ContentFileViewerModal({
     if (fileReferenceResult.output === null) return null;
 
     return (
-        <ContentFileViewerModalInner
+        <ContentFileDesktopViewerModalInner
             file={fileReferenceResult.output.file}
             signedUrlSearch={fileReferenceResult.output.signedUrlSearch}
             attachmentTarget={attachmentTarget}
@@ -130,9 +130,9 @@ export function ContentFileViewerModal({
     );
 }
 
-ContentFileViewerModal.handoffFileReference = handoffContentFileReference;
+ContentFileDesktopViewerModal.handoffFileReference = handoffContentFileReference;
 
-function ContentFileViewerModalInner({
+function ContentFileDesktopViewerModalInner({
     file,
     signedUrlSearch,
     attachmentTarget,
@@ -296,7 +296,7 @@ function ContentFileViewerModalInner({
                     </Box>
                     <Box ref={viewerRef} flexGrow="1" overflow="hidden" position="relative">
                         {viewerSize && (
-                            <ContentFileViewer
+                            <ContentFileDesktopViewer
                                 file={file}
                                 signedUrlSearch={signedUrlSearch}
                                 attachmentTarget={attachmentTarget}
@@ -314,11 +314,11 @@ function ContentFileViewerModalInner({
     );
 }
 
-const contentFileViewerMarginX = "12";
-const contentFileViewerMarginTop = "10";
-const contentFileViewerMarginBottom = contentFileViewerMarginX;
+const contentFileDesktopViewerMarginX = "12";
+const contentFileDesktopViewerMarginTop = "10";
+const contentFileDesktopViewerMarginBottom = contentFileDesktopViewerMarginX;
 
-function ContentFileViewer(props: {
+function ContentFileDesktopViewer(props: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
@@ -344,7 +344,7 @@ function ContentFileViewer(props: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return <ContentFileImageViewer {...props} />;
+            return <ContentFileImageDesktopViewer {...props} />;
         }
         case "application/pdf":
         case "application/msword":
@@ -417,7 +417,7 @@ function ContentFileViewer(props: {
     }
 }
 
-function ContentFileImageViewer({
+function ContentFileImageDesktopViewer({
     file,
     signedUrlSearch,
     attachmentTarget,
@@ -447,7 +447,7 @@ function ContentFileImageViewer({
     }
 
     return (
-        <ContentFileImageViewerInner
+        <ContentFileImageDesktopViewerInner
             file={file}
             filePreviewPlaceholder={file.preview.placeholder}
             signedUrlSearch={signedUrlSearch}
@@ -461,7 +461,7 @@ function ContentFileImageViewer({
     );
 }
 
-function ContentFileImageViewerInner({
+function ContentFileImageDesktopViewerInner({
     file,
     filePreviewPlaceholder,
     signedUrlSearch,
@@ -509,10 +509,13 @@ function ContentFileImageViewerInner({
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;
-    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileViewerMarginX], remPx);
-    const viewerMarginTopPx = convertRemLengthToPx(spacing[contentFileViewerMarginTop], remPx);
+    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileDesktopViewerMarginX], remPx);
+    const viewerMarginTopPx = convertRemLengthToPx(
+        spacing[contentFileDesktopViewerMarginTop],
+        remPx,
+    );
     const viewerMarginBottomPx = convertRemLengthToPx(
-        spacing[contentFileViewerMarginBottom],
+        spacing[contentFileDesktopViewerMarginBottom],
         remPx,
     );
 
@@ -686,9 +689,9 @@ function ContentFileImageViewerInner({
         >
             <Box
                 position="relative"
-                paddingX={contentFileViewerMarginX}
-                paddingTop={contentFileViewerMarginTop}
-                paddingBottom={contentFileViewerMarginBottom}
+                paddingX={contentFileDesktopViewerMarginX}
+                paddingTop={contentFileDesktopViewerMarginTop}
+                paddingBottom={contentFileDesktopViewerMarginBottom}
                 style={{
                     width: "min-content",
                     height: "min-content",

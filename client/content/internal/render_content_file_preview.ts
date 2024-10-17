@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import Color from "color";
 import {Node} from "prosemirror-model";
-import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
+import {ContentFileDesktopViewerModal} from "~/client/content/content_file_viewer_desktop_modal.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     ContentFileLayout,
@@ -869,31 +869,14 @@ export function addContentFilePreviewBehavior(
         isLongPress = false;
     };
 
-    const handlePointerUp = (event: PointerEvent) => {
+    const handlePointerUp = () => {
         const wasLongPress = isLongPress;
         resetPointerState();
         if (wasLongPress) return;
         if (!reference) return;
-        const {file, signedUrlSearch} = reference;
+        const {file} = reference;
 
-        // For now our file viewer is desktop only. Open any tapped files in a new tab.
-        if (getIsMobileWithoutListening()) {
-            event.preventDefault();
-
-            // Noop if the file is still uploading.
-            if (file.isUploading) return;
-
-            window.open(
-                `/files/${spaceId}/${file.id}${signedUrlSearch}`,
-                "_blank",
-                // Important security measure. See:
-                // https://mathiasbynens.github.io/rel-noopener
-                "noopener noreferrer",
-            );
-            return;
-        }
-
-        ContentFileViewerModal.handoffFileReference(reference);
+        ContentFileDesktopViewerModal.handoffFileReference(reference);
 
         rootNavigate(location => {
             const searchParams = new URLSearchParams(location.search);

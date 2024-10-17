@@ -22,7 +22,8 @@ import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicat
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context_provider.js";
-import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
+import {ContentFileMobileViewerDesktop} from "~/client/content/content_file_mobile_viewer_desktop.js";
+import {ContentFileDesktopViewerModal} from "~/client/content/content_file_viewer_desktop_modal.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
@@ -340,26 +341,13 @@ function SpaceLayoutRouteInner({
         [setSearchParams],
     );
 
-    // If we switch to mobile then clear the `search` and `file` URL parameters
-    // since mobile can't render the search modal or file modal.
+    // If we switch to mobile then clear the `search` URL parameter
+    // since mobile can't render the search modal.
     useEffect(() => {
         if (!isMobile) return;
-
-        if (searchParams.get("search") === null && searchParams.get("file") === null) return;
-
-        setSearchParams(
-            oldSearchParams => {
-                const newSearchParams = new URLSearchParams(oldSearchParams);
-                newSearchParams.delete("search");
-                newSearchParams.delete("file");
-                return newSearchParams;
-            },
-            {
-                replace: true,
-                unstable_shouldRevalidate: false,
-            },
-        );
-    }, [isMobile, searchParams, setSearchParams]);
+        if (searchParams.get("search") === null) return;
+        setSearchQueryText(null);
+    }, [isMobile, searchParams, setSearchQueryText]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",
@@ -748,7 +736,6 @@ function SpaceLayoutRouteInner({
                 break;
             }
             case "file": {
-                if (isMobile) continue;
                 if (isInitialAppRender) continue;
 
                 if (hasAddedContentFileViewerModal) continue;
@@ -771,34 +758,46 @@ function SpaceLayoutRouteInner({
                     continue;
                 }
 
-                modals.push(
-                    <ModalErrorBoundary
-                        key={`${searchParamName}-${fileId}`}
-                        type="file"
-                        error={error}
-                    >
-                        <ContentFileViewerModal
-                            fileId={fileId}
-                            attachmentTarget={fileAttachmentTarget}
-                            onClose={() => {
-                                setSearchParams(
-                                    oldSearchParams => {
-                                        const newSearchParams = new URLSearchParams(
-                                            oldSearchParams,
-                                        );
-                                        newSearchParams.delete("file");
-                                        return newSearchParams;
-                                    },
-                                    {
-                                        replace: true,
-                                        // Don't fetch route data from the server. We don't need any new route data.
-                                        unstable_shouldRevalidate: false,
-                                    },
-                                );
-                            }}
-                        />
-                    </ModalErrorBoundary>,
-                );
+                if (isMobile) {
+                    modals.push(
+                        <ModalErrorBoundary
+                            key={`${searchParamName}-${fileId}`}
+                            type="file"
+                            error={error}
+                        >
+                            <ContentFileMobileViewerDesktop />
+                        </ModalErrorBoundary>,
+                    );
+                } else {
+                    modals.push(
+                        <ModalErrorBoundary
+                            key={`${searchParamName}-${fileId}`}
+                            type="file"
+                            error={error}
+                        >
+                            <ContentFileDesktopViewerModal
+                                fileId={fileId}
+                                attachmentTarget={fileAttachmentTarget}
+                                onClose={() => {
+                                    setSearchParams(
+                                        oldSearchParams => {
+                                            const newSearchParams = new URLSearchParams(
+                                                oldSearchParams,
+                                            );
+                                            newSearchParams.delete("file");
+                                            return newSearchParams;
+                                        },
+                                        {
+                                            replace: true,
+                                            // Don't fetch route data from the server. We don't need any new route data.
+                                            unstable_shouldRevalidate: false,
+                                        },
+                                    );
+                                }}
+                            />
+                        </ModalErrorBoundary>,
+                    );
+                }
                 break;
             }
         }
