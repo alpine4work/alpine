@@ -46,6 +46,9 @@ export class HoneycombTracerClient {
      * Sends a single event to Honeycomb. Will group together events which
      * ocurred in a short window of time and send them together in a batch.
      */
+    // TODO(calebmer, #files): Could we detect `sig` from URLs in strings and
+    // sanitize it? We don't want developers to be able to access user files from
+    // looking at logs.
     public sendEvent(event: TracerEvent) {
         // If no event batch is scheduled, then schedule one now.
         if (this._scheduledEventBatch === null) {

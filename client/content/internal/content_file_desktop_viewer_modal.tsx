@@ -4,7 +4,7 @@ import classNames from "classnames";
 import {DownloadSimple, MagnifyingGlassMinus, MagnifyingGlassPlus, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {
@@ -21,13 +21,12 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {Modal} from "~/client/design/modal.js";
+import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentStyles,
@@ -43,104 +42,25 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {FileId} from "~/shared/id/types/id_types.js";
-import {getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
-
-// TODO(calebmer, #files): Mobile file viewer?
-// TODO(calebmer, #files): Polling while loading and refresh on expiration.
-
-let handoffContentFileReferencesByFileId: Map<
-    FileId,
-    Set<{signedUrlSearch: string; file: FileModel}>
-> | null = null;
-
-/**
- * Handoff some previously loaded data to `<ContentFileDesktopViewerModal>` so
- * it doesn't have to fetch data from the server when it mounts.
- */
-function handoffContentFileReference(reference: {signedUrlSearch: string; file: FileModel}) {
-    handoffContentFileReferencesByFileId ??= new Map();
-
-    const handoffContentFileReferences = getOrSetDefaultMapValue(
-        handoffContentFileReferencesByFileId,
-        reference.file.id,
-        () => new Set(),
-    );
-
-    if (handoffContentFileReferences.has(reference)) return;
-
-    handoffContentFileReferences.add(reference);
-
-    setTimeout(() => {
-        handoffContentFileReferences.delete(reference);
-
-        if (handoffContentFileReferences.size === 0)
-            handoffContentFileReferencesByFileId?.delete(reference.file.id);
-    }, 1000);
-}
 
 export function ContentFileDesktopViewerModal({
-    fileId,
-    attachmentTarget,
-    onClose,
-}: {
-    fileId: FileId;
-    attachmentTarget: FileAttachmentTarget;
-    onClose: () => void;
-}) {
-    const {space} = useSpaceContext();
-
-    const handoffFileReference = useConstant(() =>
-        iterableFirst(handoffContentFileReferencesByFileId?.get(fileId) ?? emptyArray),
-    );
-
-    const fileReferenceResult = useLazyLoadRpc(
-        getFileFromAttachment,
-        {
-            spaceId: space.id,
-            fileId,
-            target: attachmentTarget,
-        },
-        {
-            initialOutput: handoffFileReference?.file.id === fileId ? handoffFileReference : null,
-            // File data is immutable after it finishes loading. Don't automatically
-            // revalidate whenever the browser becomes visible after being hidden.
-            withoutAutomaticRevalidation: true,
-        },
-    );
-
-    if (fileReferenceResult.output === null) return null;
-
-    return (
-        <ContentFileDesktopViewerModalInner
-            file={fileReferenceResult.output.file}
-            signedUrlSearch={fileReferenceResult.output.signedUrlSearch}
-            attachmentTarget={attachmentTarget}
-            onClose={onClose}
-        />
-    );
-}
-
-ContentFileDesktopViewerModal.handoffFileReference = handoffContentFileReference;
-
-function ContentFileDesktopViewerModalInner({
     file,
     signedUrlSearch,
     attachmentTarget,
+    expirationTimers,
     onClose,
 }: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    expirationTimers: ContentFilePreviewExpirationTimers;
     onClose: () => void;
 }) {
     const {isAppleDevice} = useClientInfo();
@@ -151,9 +71,6 @@ function ContentFileDesktopViewerModalInner({
         // affected by the modal's fade in animation which scales the modal element.
         method: "clientWidthAndHeight",
     });
-    const [expirationTimers] = useState(() => new ContentFilePreviewExpirationTimers());
-
-    const fileSize = getFilePreviewSize(file);
 
     const initialZoomLevel = 0;
     const minZoomLevel = -3;
@@ -238,7 +155,6 @@ function ContentFileDesktopViewerModalInner({
                         alignItems="center"
                     >
                         <Box
-                            width="64"
                             paddingLeft="2"
                             color={{light: "grey-20-const", dark: "grey-30-const"}}
                             userSelect="text"
@@ -300,7 +216,6 @@ function ContentFileDesktopViewerModalInner({
                                 file={file}
                                 signedUrlSearch={signedUrlSearch}
                                 attachmentTarget={attachmentTarget}
-                                fileSize={fileSize}
                                 viewerSize={viewerSize}
                                 expirationTimers={expirationTimers}
                                 zoomScale={zoomScale}
@@ -322,9 +237,8 @@ function ContentFileDesktopViewer(props: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
-    fileSize: {width: number; height: number};
-    viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
+    viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
 }) {
@@ -421,18 +335,16 @@ function ContentFileImageDesktopViewer({
     file,
     signedUrlSearch,
     attachmentTarget,
-    fileSize,
-    viewerSize,
     expirationTimers,
+    viewerSize,
     zoomScale,
     maxZoomScale,
 }: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
-    fileSize: {width: number; height: number};
-    viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
+    viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
 }) {
@@ -443,6 +355,7 @@ function ContentFileImageDesktopViewer({
         file.preview.placeholder === "Processing" ||
         file.preview.size === "Processing"
     ) {
+        // TODO(calebmer, #files): Implement
         return null;
     }
 
@@ -452,9 +365,8 @@ function ContentFileImageDesktopViewer({
             filePreviewPlaceholder={file.preview.placeholder}
             signedUrlSearch={signedUrlSearch}
             attachmentTarget={attachmentTarget}
-            fileSize={fileSize}
-            viewerSize={viewerSize}
             expirationTimers={expirationTimers}
+            viewerSize={viewerSize}
             zoomScale={zoomScale}
             maxZoomScale={maxZoomScale}
         />
@@ -466,9 +378,8 @@ function ContentFileImageDesktopViewerInner({
     filePreviewPlaceholder,
     signedUrlSearch,
     attachmentTarget,
-    fileSize,
-    viewerSize,
     expirationTimers,
+    viewerSize,
     zoomScale,
     maxZoomScale,
 }: {
@@ -476,9 +387,8 @@ function ContentFileImageDesktopViewerInner({
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
-    fileSize: {width: number; height: number};
-    viewerSize: {width: number; height: number};
     expirationTimers: ContentFilePreviewExpirationTimers;
+    viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
 }) {
@@ -489,23 +399,7 @@ function ContentFileImageDesktopViewerInner({
     const imageRef = useRef<HTMLDivElement>(null);
     const imageContentRef = useRef<HTMLImageElement>(null);
 
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(false);
-
-    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
-
-    useEffect(() => {
-        if (isLoaded && !isLoadedAndAnimated) {
-            const timeout = createTimeout(() => {
-                setIsLoadedAndAnimated(true);
-                // Multiply duration by 2 for good measure.
-            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
-            return () => {
-                timeout.clear();
-            };
-        }
-    }, [isLoaded, isLoadedAndAnimated]);
-
+    const fileSize = getFilePreviewSize(file);
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;
@@ -545,27 +439,46 @@ function ContentFileImageDesktopViewerInner({
         expirationTimers.getExpiredTimerStore(signedUrlSearch),
     );
 
-    const handleContentLoad = useCallback(() => {
-        const contentElement = assertExists(imageContentRef.current);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(false);
 
-        setIsLoaded(
-            contentElement.complete &&
-                // If `naturalWidth` or `naturalHeight` are 0 then that means the image failed
-                // to load. When an image fails to load we want to keep showing the
-                // placeholder.
-                contentElement.naturalWidth !== 0 &&
-                contentElement.naturalHeight !== 0,
-        );
-    }, []);
+    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
+
+    useEffect(() => {
+        if (isLoaded && !isLoadedAndAnimated) {
+            const timeout = createTimeout(() => {
+                setIsLoadedAndAnimated(true);
+                // Multiply duration by 2 for good measure.
+            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
+            return () => {
+                timeout.clear();
+            };
+        }
+    }, [isLoaded, isLoadedAndAnimated]);
 
     useEffect(() => {
         if (isSignedUrlSearchExpired) return;
         if (file.alternative && file.alternative.isProcessing) return;
         if (!file.alternative && file.isUploading) return;
 
-        // In case the file synchronously loaded run our load event handler.
-        handleContentLoad();
-    }, [file.alternative, file.isUploading, handleContentLoad, isSignedUrlSearchExpired]);
+        let hasCleanedUp = false;
+        const contentElement = assertExists(imageContentRef.current);
+
+        isHtmlImageElementLoadedAndDecoded(contentElement).then(
+            () => {
+                if (hasCleanedUp) return;
+                setIsLoaded(true);
+            },
+            error => {
+                if (hasCleanedUp) return;
+                scheduleUncaughtError(error);
+            },
+        );
+
+        return () => {
+            hasCleanedUp = true;
+        };
+    }, [file.alternative, file.isUploading, isSignedUrlSearchExpired]);
 
     const contextMenuActions: Array<Array<MenuAction>> = [
         [
@@ -707,91 +620,78 @@ function ContentFileImageDesktopViewerInner({
                 }}
             >
                 <ContextMenuActions actions={contextMenuActions}>
-                    <Box
-                        style={{
-                            width: scaledFileWidth,
-                            height: scaledFileHeight,
-                        }}
+                    <div
+                        ref={imageRef}
+                        className={classNames(
+                            fileClassName,
+                            isLoaded && contentStyles.loadedFileImagePreviewClassName,
+                            contentStyles.fileViewerClassName,
+                            sprinkles({
+                                boxShadow: !adjustments.hasTransparentBackground
+                                    ? "elevation-20-above-content-file-viewer-modal"
+                                    : undefined,
+                            }),
+                        )}
+                        style={{width: scaledFileWidth, height: scaledFileHeight}}
                     >
-                        <div
-                            ref={imageRef}
-                            className={classNames(
-                                fileClassName,
-                                isLoaded && contentStyles.loadedFileImagePreviewClassName,
-                                contentStyles.fileViewerClassName,
-                                sprinkles({
-                                    boxShadow: !adjustments.hasTransparentBackground
-                                        ? "elevation-20-above-content-file-viewer-modal"
-                                        : undefined,
-                                }),
-                            )}
-                            style={{width: scaledFileWidth, height: scaledFileHeight}}
-                        >
-                            {useMemo(
-                                () =>
-                                    !isLoadedAndAnimated && (
-                                        <img
-                                            className={
-                                                contentStyles.fileImagePreviewPlaceholderClassName
-                                            }
-                                            style={{
-                                                width: scaledFileWidth,
-                                                height: scaledFileHeight,
-                                            }}
-                                            aria-hidden={true}
-                                            draggable={false}
-                                            src={convertSvgToDataUrl(
-                                                renderFileImagePreviewPlaceholder(
-                                                    filePreviewPlaceholder,
-                                                ),
-                                            )}
-                                        />
-                                    ),
-                                [
-                                    filePreviewPlaceholder,
-                                    isLoadedAndAnimated,
-                                    scaledFileHeight,
-                                    scaledFileWidth,
-                                ],
-                            )}
-                            {!isSignedUrlSearchExpired &&
-                                (file.alternative
-                                    ? !file.alternative.isProcessing && (
-                                          <img
-                                              ref={imageContentRef}
-                                              className={
-                                                  contentStyles.fileImagePreviewContentClassName
-                                              }
-                                              style={imageContentStyle}
-                                              // TODO(calebmer): Support drag events with the same code we use for content
-                                              // previews.
-                                              draggable={false}
-                                              src={`/files/${space.id}/${
-                                                  file.id
-                                              }${signedUrlSearch}&variant=${
-                                                  file.alternative.isImagePreviewContent
-                                                      ? "preview"
-                                                      : "alternative"
-                                              }`}
-                                              onLoad={handleContentLoad}
-                                          />
-                                      )
-                                    : !file.isUploading && (
-                                          <img
-                                              ref={imageContentRef}
-                                              className={
-                                                  contentStyles.fileImagePreviewContentClassName
-                                              }
-                                              style={imageContentStyle}
-                                              // TODO(calebmer): Support drag events with the same code we use for content
-                                              // previews.
-                                              draggable={false}
-                                              src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
-                                              onLoad={handleContentLoad}
-                                          />
-                                      ))}
-                        </div>
-                    </Box>
+                        {useMemo(
+                            () =>
+                                !isLoadedAndAnimated && (
+                                    <img
+                                        className={
+                                            contentStyles.fileImagePreviewPlaceholderClassName
+                                        }
+                                        style={{
+                                            width: scaledFileWidth,
+                                            height: scaledFileHeight,
+                                        }}
+                                        aria-hidden={true}
+                                        draggable={false}
+                                        src={convertSvgToDataUrl(
+                                            renderFileImagePreviewPlaceholder(
+                                                filePreviewPlaceholder,
+                                            ),
+                                        )}
+                                    />
+                                ),
+                            [
+                                filePreviewPlaceholder,
+                                isLoadedAndAnimated,
+                                scaledFileHeight,
+                                scaledFileWidth,
+                            ],
+                        )}
+                        {!isSignedUrlSearchExpired &&
+                            (file.alternative
+                                ? !file.alternative.isProcessing && (
+                                      <img
+                                          ref={imageContentRef}
+                                          className={contentStyles.fileImagePreviewContentClassName}
+                                          style={imageContentStyle}
+                                          // TODO(calebmer): Support drag events with the same code we use for content
+                                          // previews.
+                                          draggable={false}
+                                          src={`/files/${space.id}/${
+                                              file.id
+                                          }${signedUrlSearch}&variant=${
+                                              file.alternative.isImagePreviewContent
+                                                  ? "preview"
+                                                  : "alternative"
+                                          }`}
+                                      />
+                                  )
+                                : !file.isUploading && (
+                                      <img
+                                          ref={imageContentRef}
+                                          className={contentStyles.fileImagePreviewContentClassName}
+                                          style={imageContentStyle}
+                                          // TODO(calebmer): Support drag events with the same code we use for content
+                                          // previews.
+                                          draggable={false}
+                                          src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
+                                      />
+                                  ))}
+                    </div>
                 </ContextMenuActions>
             </Box>
         </Box>

@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import Color from "color";
 import {Node} from "prosemirror-model";
-import {ContentFileDesktopViewerModal} from "~/client/content/content_file_viewer_desktop_modal.js";
+import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     ContentFileLayout,
@@ -13,6 +13,7 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
+import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
@@ -267,32 +268,19 @@ export function renderContentFilePreview(
                     reference.file.preview.placeholder,
                 );
 
-                if (adjustments.isNearWhite) {
+                if (
+                    adjustments.isNearWhite ||
+                    adjustments.isNearBlack ||
+                    adjustments.hasTransparentBackground
+                ) {
                     html.setAttribute(
                         "class",
                         classNames(
                             html.getAttribute("class"),
-                            contentStyles.fileNearWhiteClassName,
-                        ),
-                    );
-                }
-
-                if (adjustments.isNearBlack) {
-                    html.setAttribute(
-                        "class",
-                        classNames(
-                            html.getAttribute("class"),
-                            contentStyles.fileNearBlackClassName,
-                        ),
-                    );
-                }
-
-                if (adjustments.hasTransparentBackground) {
-                    html.setAttribute(
-                        "class",
-                        classNames(
-                            html.getAttribute("class"),
-                            contentStyles.fileTransparentBackgroundClassName,
+                            adjustments.isNearWhite && contentStyles.fileNearWhiteClassName,
+                            adjustments.isNearBlack && contentStyles.fileNearBlackClassName,
+                            adjustments.hasTransparentBackground &&
+                                contentStyles.fileTransparentBackgroundClassName,
                         ),
                     );
                 }
@@ -870,13 +858,15 @@ export function addContentFilePreviewBehavior(
     };
 
     const handlePointerUp = () => {
+        const wasPointerDownAndOver = isPointerDownAndOver;
         const wasLongPress = isLongPress;
         resetPointerState();
+        if (!wasPointerDownAndOver) return;
         if (wasLongPress) return;
         if (!reference) return;
         const {file} = reference;
 
-        ContentFileDesktopViewerModal.handoffFileReference(reference);
+        ContentFileViewerModal.handoffFileReference(reference);
 
         rootNavigate(location => {
             const searchParams = new URLSearchParams(location.search);
@@ -1066,49 +1056,39 @@ export function addContentFilePreviewBehavior(
         `.${contentStyles.fileImagePreviewContentClassName}`,
     );
 
-    const handleImagePreviewContentLoad = () => {
-        if (
-            imagePreviewContentElement &&
-            imagePreviewContentElement.complete &&
-            imagePreviewContentElement.naturalWidth !== 0 &&
-            imagePreviewContentElement.naturalHeight !== 0 &&
-            !element.classList.contains(contentStyles.loadedFileImagePreviewClassName)
-        ) {
-            element.classList.add(contentStyles.loadedFileImagePreviewClassName);
-        }
-    };
-
     // Wait until after `isEditorInitialAppRender` to cross fade in our images.
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
     if (!isEditorInitialAppRender && imagePreviewContentElement) {
-        if (
-            imagePreviewContentElement.complete &&
-            // If `naturalWidth` or `naturalHeight` are 0 then that means the image failed
-            // to load. When an image fails to load we want to keep showing the
-            // placeholder.
-            imagePreviewContentElement.naturalWidth !== 0 &&
-            imagePreviewContentElement.naturalHeight !== 0
-        ) {
-            if (!wasEditorInitialAppRender) {
-                handleImagePreviewContentLoad();
-            }
-            // If we're a microtask after `isEditorInitialAppRender` then only add the
-            // loaded image class name after a macrotask (difference between microtask and
-            // macrotask is important here). Since the CSS transition animation won't apply
-            // if we immediately add the loaded class name.
-            else {
-                scheduleMacrotask(() => {
-                    if (hasCleanedUp) return;
-                    handleImagePreviewContentLoad();
-                });
-            }
-        } else {
-            if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
-                element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
-        }
+        const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
 
-        imagePreviewContentElement.addEventListener("load", handleImagePreviewContentLoad);
+        const handleLoad = () => {
+            if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
+                element.classList.add(contentStyles.loadedFileImagePreviewClassName);
+            }
+        };
+
+        loadedPromise.then(
+            () => {
+                if (hasCleanedUp) return;
+
+                if (!wasEditorInitialAppRender) {
+                    handleLoad();
+                }
+                // If we're a microtask after `isEditorInitialAppRender` then only add the
+                // loaded image class name after a macrotask (difference between microtask and
+                // macrotask is important here). Since the CSS transition animation won't apply
+                // if we immediately add the loaded class name.
+                else {
+                    scheduleMacrotask(handleLoad);
+                }
+            },
+            error => {
+                if (hasCleanedUp) return;
+
+                scheduleUncaughtError(error);
+            },
+        );
     }
 
     return () => {
@@ -1134,7 +1114,6 @@ export function addContentFilePreviewBehavior(
         unsubscribeFromRefreshTimer?.();
         unsubscribeFromRefreshTimer = null;
 
-        imagePreviewContentElement?.removeEventListener("load", handleImagePreviewContentLoad);
         if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
             element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
 
@@ -1314,7 +1293,7 @@ export function handleDownloadContentFile({
     downloadLinkElement.click();
 }
 
-function getContentFileDownloadName(file: FileModel) {
+export function getContentFileDownloadName(file: FileModel) {
     return (
         getFileContentTypeNoun(file.contentType) +
         "." +

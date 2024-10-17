@@ -239,7 +239,12 @@ export async function run({
                     //   shouldn't look at an executable's runfiles.
                     // - Ignore `.ts` and `.tsx` source files. Vite builds finished `.js` artifacts.
                     // - Ignore `.map` files. Only refresh on `.js` artifact changes.
-                    ignored: /(^|\/)(node_modules|[^/]*\.runfiles|[^/]*\.tsx?|[^/]*\.map)(\/|$)/,
+                    // - Ignore everything in `admin` directory. This code shouldn't be used in our
+                    //   app at runtime and there may be large artifacts in here.
+                    // - Ignore everything in `native` directory. This is native code and build
+                    //   artifacts and shouldn't include files bundled by Vite.
+                    ignored:
+                        /(^|\/)(node_modules|[^/]*\.runfiles|[^/]*\.tsx?|[^/]*\.map|admin|native)(\/|$)/,
                 },
             },
             optimizeDeps: {

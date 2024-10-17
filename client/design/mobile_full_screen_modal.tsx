@@ -117,6 +117,7 @@ export function MobileFullScreenModal({
     children?:
         | ReactNode
         | ((props: {
+              isAnimating: boolean;
               onCloseWithAnimation: (options?: {withoutFocus?: boolean}) => void;
           }) => ReactNode);
     "data-ownedby"?: string;
@@ -399,7 +400,10 @@ export function MobileFullScreenModal({
                                     data-ownedby={dataOwnedBy}
                                 >
                                     {typeof children === "function"
-                                        ? children({onCloseWithAnimation})
+                                        ? children({
+                                              isAnimating: animation !== null,
+                                              onCloseWithAnimation,
+                                          })
                                         : children}
                                 </Box>
                             )}

@@ -4,8 +4,8 @@ import {
     AlignRightSimple,
     ChatCircleText,
     IconContext,
+    Swap,
     Trash,
-    UploadSimple,
 } from "phosphor-react";
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {Command, EditorState, NodeSelection, Selection} from "prosemirror-state";
@@ -268,6 +268,8 @@ function ContentEditorFileToolbar({
                                     description="Align center"
                                     viewRef={viewRef}
                                     isActive={selection.$anchor.parent.type.name === "fileRow"}
+                                    // TODO(calebmer, #files): For some reason there's a scroll when center align
+                                    // is pressed in the native mobile app.
                                     command={(state, dispatch) => {
                                         const {selection} = state;
 
@@ -412,7 +414,7 @@ function ContentEditorFileToolbar({
                                 return true;
                             }}
                         >
-                            <UploadSimple />
+                            <Swap />
                         </ContentEditorFileToolbarButton>
                         <ContentEditorFileToolbarButton
                             dividerRight={!!state.schema.marks.comment}

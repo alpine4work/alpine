@@ -786,12 +786,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.scrollView.isScrollEnabled = false
         if #available(iOS 17.0, *) { webView.scrollView.allowsKeyboardScrolling = false }
 
-        // Don't detect data in the web view and don't show previews on long press.
-        // This is not standard behavior for iOS native apps (but is a common behavior
-        // in Safari). If we want link preview behavior on long press we should
-        // implement our own logic since we only want external links to get long press
-        // preview treatment.
-        webView.allowsLinkPreview = false
+        // We don't want Safari showing previews of links on long press. Since many
+        // links navigate within the app. However, setting this to false also prevents
+        // Safari's touch callout from opening when long pressing an image. Which we
+        // depend on in `<ContentFileMobileViewerModal>` to allow the user to
+        // download/share an image. They long press. So we need to leave this option on
+        // to allow image touch callouts and find other ways to disable link touch
+        // callouts.
+        webView.allowsLinkPreview = true
 
         // As a final fallback, we set ourselves as the scroll view delegate and reset
         // scroll position to 0 if it ever changes.

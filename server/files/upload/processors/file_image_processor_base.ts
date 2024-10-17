@@ -60,6 +60,8 @@ export async function processFileImagePreviewPlaceholder(
         failOn: "error",
     })
         .timeout({seconds: sharpTimeoutSeconds})
+        // Rotate so that we respect EXIF orientation metadata.
+        .rotate()
         // This method of placeholder generation gives more detail (pixels) to images
         // further away from the aspect ratio 1:1. Ideally we'd have about the same
         // number of pixels no matter the aspect ratio. Unfortunately, at this point we
@@ -185,8 +187,18 @@ export function processImageFile(
         }
 
         return {
-            width: metadata.width,
-            height: metadata.height,
+            width:
+                // Respect EXIF orientation metadata. Based on example from `sharp`.
+                // https://sharp.pixelplumbing.com/api-input#metadata
+                metadata.orientation !== undefined && metadata.orientation >= 5
+                    ? metadata.height
+                    : metadata.width,
+            height:
+                // Respect EXIF orientation metadata. Based on example from `sharp`.
+                // https://sharp.pixelplumbing.com/api-input#metadata
+                metadata.orientation !== undefined && metadata.orientation >= 5
+                    ? metadata.width
+                    : metadata.height,
             scale: 1,
             hasAlpha: metadata.hasAlpha ?? false,
         };
