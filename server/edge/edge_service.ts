@@ -778,6 +778,10 @@ async function handleFileFetch(
         signedUrl.searchParams.delete("width");
         signedUrl.searchParams.delete("variant");
 
+        // Ignore the download name in the URL. This is intercepted by our native apps.
+        // It should be ignored when checking our URL signature.
+        signedUrl.searchParams.delete("download");
+
         const width = widthString !== null ? parseInt(widthString, 10) : null;
         if (width !== null && !isFilePreviewImageResizeWidth(width)) {
             throw new InvalidArgumentError(

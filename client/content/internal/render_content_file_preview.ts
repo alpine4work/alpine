@@ -880,11 +880,20 @@ export function addContentFilePreviewBehavior(
         if (getIsMobileWithoutListening()) {
             event.preventDefault();
 
-            // Noop if the file is still uploading.
+            // Noop if the file is still uploading. We don't want user to see a 404 not
+            // found error.
             if (file.isUploading) return;
 
+            // Our native app should open this in a file viewer. On iOS we use
+            // [`UIDocumentInteractionController`][1]. The `download` search param is used
+            // by our native apps to determine the name of the file in the file viewer and
+            // the type of the file in some cases (using the file extension).
+            //
+            // [1]: https://developer.apple.com/documentation/uikit/uidocumentinteractioncontroller
             window.open(
-                `/files/${spaceId}/${file.id}${signedUrlSearch}`,
+                `/files/${spaceId}/${
+                    file.id
+                }${signedUrlSearch}&download=${getContentFileDownloadName(file)}`,
                 "_blank",
                 // Important security measure. See:
                 // https://mathiasbynens.github.io/rel-noopener
@@ -1324,14 +1333,17 @@ export function handleDownloadContentFile({
 }) {
     const downloadLinkElement = document.createElement("a");
 
-    downloadLinkElement.setAttribute(
-        "download",
-        `${getFileContentTypeNoun(file.contentType)}.${getFileContentTypePreferredExtension(
-            file.contentType,
-        )}`,
-    );
+    downloadLinkElement.setAttribute("download", getContentFileDownloadName(file));
 
     downloadLinkElement.href = `/files/${spaceId}/${file.id}${signedUrlSearch}`;
 
     downloadLinkElement.click();
+}
+
+function getContentFileDownloadName(file: FileModel) {
+    return (
+        getFileContentTypeNoun(file.contentType) +
+        "." +
+        getFileContentTypePreferredExtension(file.contentType)
+    );
 }

@@ -87,7 +87,8 @@ private let tabBarHeight = UITabBarController().tabBar.frame.height
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler, WKScriptMessageHandlerWithReply, WKHTTPCookieStoreObserver,
-    UIViewTreeObserverDelegate, UIScrollViewDelegate, WebInputAccessoryObserverViewDelegate
+    UIViewTreeObserverDelegate, UIScrollViewDelegate, WebInputAccessoryObserverViewDelegate,
+    UIDocumentInteractionControllerDelegate
 {
     #if DEVELOPMENT_RUN_ENVIRONMENT || TEST_RUN_ENVIRONMENT
         // NOTE(calebmer): This variable is from a Swift file generated at build time
@@ -529,6 +530,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         return previousViewController
     }
+
+    private var documentInteractionController: UIDocumentInteractionController?
 
     private var preparingNavigationEntry: WebNavigationEntry?
     private var hasAddedMainScrollViewWhilePreparingNavigation = false
@@ -1055,6 +1058,29 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     ) -> WKWebView? {
         let requestUrl = navigationAction.request.url!
 
+        if webView.url?.host() == requestUrl.host() {
+            if requestUrl.path().starts(with: "/files/") && requestUrl.pathComponents.count == 4 {
+                // TODO(calebmer): Loading indicator and error reporting. Right now if there's
+                // an error nothing happens. If we could pop up a dialog on error that would be
+                // nice.
+                Task {
+                    let url = await downloadFile(requestUrl)
+                    guard let url = url else { return }
+
+                    DispatchQueue.main.async {
+                        let documentInteractionController = UIDocumentInteractionController(
+                            url: url
+                        )
+                        self.documentInteractionController = documentInteractionController
+                        documentInteractionController.delegate = self
+                        documentInteractionController.presentPreview(animated: true)
+                    }
+                }
+
+                return nil
+            }
+        }
+
         // Respond to `window.open()` calls by opening the URL in Safari (or another
         // app that handles the URL).
         //
@@ -1064,6 +1090,100 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         UIApplication.shared.open(requestUrl)
 
         return nil
+    }
+
+    private func downloadFile(_ requestUrl: URL) async -> URL? {
+        guard
+            requestUrl.pathComponents.count == 4 && requestUrl.pathComponents[0] == "/"
+                && requestUrl.pathComponents[1] == "files"
+        else {
+            logger.error(
+                "Can't download invalid file URL: \(requestUrl.absoluteString, privacy: .public)"
+            )
+            return nil
+        }
+
+        let spaceId = requestUrl.pathComponents[2]
+        let fileId = requestUrl.pathComponents[3]
+
+        let requestUrlComponents = URLComponents(url: requestUrl, resolvingAgainstBaseURL: true)
+        let downloadName = requestUrlComponents?.queryItems?
+            .first(where: { $0.name == "download" })?
+            .value
+
+        guard let downloadName = downloadName else {
+            logger.error(
+                "Can't download file URL without download name query item: \(requestUrl.absoluteString, privacy: .public)"
+            )
+            return nil
+        }
+
+        do {
+            let cacheUrl = try FileManager.default.url(
+                for: .cachesDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: false
+            )
+
+            let directoryUrl = cacheUrl.appendingPathComponent("file")
+                .appendingPathComponent(spaceId).appendingPathComponent(fileId)
+
+            try FileManager.default.createDirectory(
+                at: directoryUrl,
+                withIntermediateDirectories: true
+            )
+
+            // NOCOMMIT: Why crash...
+            let url = directoryUrl.appendingPathComponent(downloadName)
+
+            if FileManager().fileExists(atPath: url.path) {
+                logger.info(
+                    "Skipping file download, file already exists at: \(url.absoluteString, privacy: .public)"
+                )
+                return url
+            }
+
+            var request = URLRequest(url: requestUrl)
+            request.httpMethod = "GET"
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let response = response as? HTTPURLResponse else {
+                logger.error(
+                    "Failed request to download file (response is not \"HTTPURLResponse\") from: \(requestUrl.absoluteString, privacy: .public)"
+                )
+                return nil
+            }
+            guard response.statusCode == 200 else {
+                logger.error(
+                    "Failed request to download file (HTTP status code: \(response.statusCode)) from: \(requestUrl.absoluteString, privacy: .public)"
+                )
+                return nil
+            }
+
+            try data.write(to: url)
+
+            logger.info("Downloaded file at: \(url.absoluteString, privacy: .public)")
+            return url
+        } catch {
+            logger.error(
+                "Failed request to download file (code: \(String((error as NSError).code), privacy: .public), \"\(error.localizedDescription, privacy: .public)\") from: \(requestUrl.absoluteString, privacy: .public)"
+            )
+            return nil
+        }
+    }
+
+    func documentInteractionControllerViewControllerForPreview(
+        _ documentInteractionController: UIDocumentInteractionController
+    ) -> UIViewController { return topViewController! }
+
+    func documentInteractionControllerDidEndPreview(
+        _ documentInteractionController: UIDocumentInteractionController
+    ) {
+        if self.documentInteractionController == documentInteractionController {
+            self.documentInteractionController = nil
+        }
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -1127,7 +1247,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
         logger.error(
-            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
+            "Failed navigation (code: \(String((error as NSError).code), privacy: .public), \"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
         )
 
         if webViewHealthState.provisionalNavigation === navigation {
@@ -1139,7 +1259,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
         logger.error(
-            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
+            "Failed navigation (code: \(String((error as NSError).code), privacy: .public), \"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
         )
 
         if webViewHealthState.provisionalNavigation === navigation {
