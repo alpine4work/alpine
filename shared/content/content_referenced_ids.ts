@@ -83,23 +83,26 @@ export function collectContentReferencedIds(
 
     visit({
         visitNode: node => {
-            if (node.type.name === "mention") {
-                const mention: ContentMention = node.attrs.mention;
-                accountIds.add(mention.accountId);
-            }
-
-            if (node.type.name === "file") {
-                const fileId: FileId | null = node.attrs.fileId;
-                if (fileId !== null) {
-                    fileIds.add(fileId);
-                }
-            }
-
             // Intentionally don't return boolean which cancels child visiting.
             extraVisitor.visitNode?.(node);
         },
         visitMark: mark => {
             extraVisitor.visitMark?.(mark);
+        },
+        visitAttr: (attr, value) => {
+            if (attr === "mention") {
+                const mention: ContentMention = value;
+                accountIds.add(mention.accountId);
+            }
+
+            if (attr === "fileId") {
+                const fileId: FileId | null = value;
+                if (fileId !== null) {
+                    fileIds.add(fileId);
+                }
+            }
+
+            extraVisitor.visitAttr?.(attr, value);
         },
     });
 

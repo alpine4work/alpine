@@ -272,6 +272,11 @@ export function createContentEditorFileNodeViewConstructor({
             update: newNode => {
                 if (node.type !== newNode.type) return false;
 
+                // Completely re-create the file node view if the `FileId` changes. Instead of
+                // patching. Patching may show the old file URL for a second before the new one
+                // loads.
+                if (node.attrs.fileId !== newNode.attrs.fileId) return false;
+
                 node = newNode;
                 update();
                 return true;
