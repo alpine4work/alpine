@@ -249,13 +249,19 @@ function ContentEditorFileToolbar({
                                             );
 
                                             dispatch(
-                                                transaction.setSelection(
-                                                    new NodeSelection(
-                                                        transaction.doc.resolve(
-                                                            selection.$anchor.before() + 1,
+                                                transaction
+                                                    .setSelection(
+                                                        new NodeSelection(
+                                                            transaction.doc.resolve(
+                                                                selection.$anchor.before() + 1,
+                                                            ),
                                                         ),
-                                                    ),
-                                                ),
+                                                    )
+                                                    // Scroll into view here is important since otherwise ProseMirror will try to
+                                                    // preserve the scroll position using the NEXT element as a reference. The next
+                                                    // element will likely move when converting a file between floating and center
+                                                    // aligned so we don't want that.
+                                                    .scrollIntoView(),
                                             );
                                         }
 
@@ -268,8 +274,6 @@ function ContentEditorFileToolbar({
                                     description="Align center"
                                     viewRef={viewRef}
                                     isActive={selection.$anchor.parent.type.name === "fileRow"}
-                                    // TODO(calebmer, #files): For some reason there's a scroll when center align
-                                    // is pressed in the native mobile app.
                                     command={(state, dispatch) => {
                                         const {selection} = state;
 
@@ -296,13 +300,19 @@ function ContentEditorFileToolbar({
                                             );
 
                                             dispatch(
-                                                transaction.setSelection(
-                                                    new NodeSelection(
-                                                        transaction.doc.resolve(
-                                                            selection.$anchor.before() + 1,
+                                                transaction
+                                                    .setSelection(
+                                                        new NodeSelection(
+                                                            transaction.doc.resolve(
+                                                                selection.$anchor.before() + 1,
+                                                            ),
                                                         ),
-                                                    ),
-                                                ),
+                                                    )
+                                                    // Scroll into view here is important since otherwise ProseMirror will try to
+                                                    // preserve the scroll position using the NEXT element as a reference. The next
+                                                    // element will likely move when converting a file between floating and center
+                                                    // aligned so we don't want that.
+                                                    .scrollIntoView(),
                                             );
                                         }
 
@@ -356,13 +366,19 @@ function ContentEditorFileToolbar({
                                             );
 
                                             dispatch(
-                                                transaction.setSelection(
-                                                    new NodeSelection(
-                                                        transaction.doc.resolve(
-                                                            selection.$anchor.before() + 1,
+                                                transaction
+                                                    .setSelection(
+                                                        new NodeSelection(
+                                                            transaction.doc.resolve(
+                                                                selection.$anchor.before() + 1,
+                                                            ),
                                                         ),
-                                                    ),
-                                                ),
+                                                    )
+                                                    // Scroll into view here is important since otherwise ProseMirror will try to
+                                                    // preserve the scroll position using the NEXT element as a reference. The next
+                                                    // element will likely move when converting a file between floating and center
+                                                    // aligned so we don't want that.
+                                                    .scrollIntoView(),
                                             );
                                         }
 
