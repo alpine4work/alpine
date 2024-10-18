@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -15,6 +15,8 @@ import {undefinedStore} from "~/shared/store/const_store.js";
 import {createPromiseStore} from "~/shared/store/promise_store.js";
 import {Store} from "~/shared/store/store.js";
 import {StoreMap} from "~/shared/store/store_map.js";
+
+const swrDefaultDedupingIntervalMs = 2 * 1000;
 
 /**
  * Amount of time we wait before expiring an entry from the SWR cache. This may
@@ -180,27 +182,30 @@ class SwrCache {
             entryStack === undefined ||
             entryStack.lastDedupingIntervalExpirationTime <= currentTime
         ) {
-            this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
+            void this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
         }
     }
 
     /**
-     * Always force revalidation of an entry with the provided fetcher function.
+     * Force revalidation of an entry with the provided fetcher function if the
+     * entry is retained. If the entry is not retained then this is a noop.
      */
-    public forceRevalidateEntry(
+    public forceRevalidateEntryAndRetainIfNeeded(
         key: string,
         fetcher: (key: string) => PromiseLike<object>,
         options: {dedupingInterval: number},
-    ) {
+    ): PromiseLike<object> {
         const referenceState = this._referenceStateByKey.get(key);
+
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
-            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+            this.retainEntry(key);
+            this.releaseEntry(key);
         }
 
         const currentTime = Date.now();
         const entryStack = this._entryStackByKey.getSnapshot(key);
 
-        this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
+        return this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
     }
 
     /**
@@ -225,7 +230,7 @@ class SwrCache {
         const entryStack = this._entryStackByKey.getSnapshot(key);
 
         if (entryStack === undefined) {
-            this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
+            void this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
         }
     }
 
@@ -235,7 +240,7 @@ class SwrCache {
         {dedupingInterval}: {dedupingInterval: number},
         currentTime: number,
         entryStack: SwrCacheEntryStack | undefined,
-    ) {
+    ): PromiseLike<object> {
         const dedupingIntervalExpirationTime = currentTime + dedupingInterval;
         const dataPromise = fetcher(key);
         const dataStore = createPromiseStore(dataPromise);
@@ -245,6 +250,8 @@ class SwrCache {
             createSwrCacheEntryStack([{dedupingIntervalExpirationTime, dataStore}]);
 
         this._entryStackByKey.set(key, entryStack);
+
+        return dataPromise;
     }
 }
 
@@ -461,7 +468,7 @@ export function useSwr(
     fetcher: (key: string) => PromiseLike<object>,
     {
         keepPreviousData = false,
-        dedupingInterval = 2 * 1000,
+        dedupingInterval = swrDefaultDedupingIntervalMs,
         withoutAutomaticRevalidation,
         initialData: initialDataFromProps = null,
     }: {
@@ -628,7 +635,7 @@ export function useIdlyPreloadSwr(
     key: string | null,
     fetcher: (key: string) => PromiseLike<object>,
     {
-        dedupingInterval = 2 * 1000,
+        dedupingInterval = swrDefaultDedupingIntervalMs,
     }: {
         dedupingInterval?: number;
     } = {},
@@ -685,4 +692,27 @@ export function useIdlyPreloadSwr(
             }
         });
     }, [cache, dedupingInterval, fetcher, key]);
+}
+
+/**
+ * Returns a function you can use to revalidate any SWR entry. When you call
+ * the revalidation function we'll always send a network request.
+ */
+export function useForceRevalidateSwr() {
+    const cache = useGlobalContext(SwrCacheContext);
+
+    return useCallback(
+        (
+            key: string,
+            fetcher: (key: string) => PromiseLike<object>,
+            {
+                dedupingInterval = swrDefaultDedupingIntervalMs,
+            }: {
+                dedupingInterval?: number;
+            } = {},
+        ): PromiseLike<object> => {
+            return cache.forceRevalidateEntryAndRetainIfNeeded(key, fetcher, {dedupingInterval});
+        },
+        [cache],
+    );
 }

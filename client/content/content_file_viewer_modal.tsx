@@ -1,20 +1,21 @@
-import {useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {ContentFileDesktopViewerModal} from "~/client/content/internal/content_file_desktop_viewer_modal.js";
 import {ContentFileMobileViewerModal} from "~/client/content/internal/content_file_mobile_viewer_modal.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useForceRevalidateRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
-
-// TODO(calebmer, #files): Polling while loading and refresh on expiration.
 
 let handoffContentFileReferencesByFileId: Map<
     FileId,
@@ -55,6 +56,7 @@ export function ContentFileViewerModal({
     attachmentTarget: FileAttachmentTarget;
     onClose: () => void;
 }) {
+    const context = useAppContext();
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
@@ -62,13 +64,18 @@ export function ContentFileViewerModal({
         iterableFirst(handoffContentFileReferencesByFileId?.get(fileId) ?? emptyArray),
     );
 
-    const fileReferenceResult = useLazyLoadRpc(
-        getFileFromAttachment,
-        {
+    const fileFromAttachmentInput = useMemo(
+        () => ({
             spaceId: space.id,
             fileId,
             target: attachmentTarget,
-        },
+        }),
+        [attachmentTarget, fileId, space.id],
+    );
+
+    const fileFromAttachmentOutput = useLazyLoadRpc(
+        getFileFromAttachment,
+        fileFromAttachmentInput,
         {
             initialOutput: handoffFileReference?.file.id === fileId ? handoffFileReference : null,
             // File data is immutable after it finishes loading. Don't automatically
@@ -77,15 +84,115 @@ export function ContentFileViewerModal({
         },
     );
 
+    const forceRevalidateRpc = useForceRevalidateRpc();
+
     const [expirationTimers] = useState(() => new ContentFilePreviewExpirationTimers());
 
-    if (fileReferenceResult.output === null) return null;
+    const isFileLoading: boolean =
+        !!fileFromAttachmentOutput.output?.file && fileFromAttachmentOutput.output.file.isLoading();
+
+    // Poll while the file is loading so when the file finishes loading we can
+    // render it in realtime. Matches the polling behavior in
+    // `addContentFilePreviewBehavior()`. Once the file finishes loading it's
+    // immutable.
+    useEffect(() => {
+        if (!isFileLoading) return;
+
+        let pollCount = 0;
+        let pollErrorCount = 0;
+        let pollTimeout: Timeout | null = null;
+
+        const schedulePoll = () => {
+            assert(pollTimeout === null);
+
+            // Increase the poll duration exponentially until we're polling every ~5s.
+            pollTimeout = createTimeout(poll, 500 + 2 ** Math.min(pollCount, 12));
+        };
+
+        const poll = () => {
+            pollTimeout = null;
+            pollCount++;
+
+            forceRevalidateRpc(getFileFromAttachment, fileFromAttachmentInput).then(
+                ({file: newFile}) => {
+                    if (newFile.isLoading()) {
+                        schedulePoll();
+                    }
+                },
+                error => {
+                    pollErrorCount++;
+
+                    if (pollErrorCount < 3) {
+                        schedulePoll();
+                    } else {
+                        context.tracer
+                            .getRoot()
+                            .logUncaughtException(
+                                "Polling for file that hasn't finished loading failed",
+                                error,
+                            );
+                    }
+                },
+            );
+        };
+
+        schedulePoll();
+
+        return () => {
+            pollTimeout?.clear();
+            pollTimeout = null;
+        };
+    }, [context.tracer, fileFromAttachmentInput, forceRevalidateRpc, isFileLoading]);
+
+    // When the signed URL is about to expire we need to refresh it. This matches
+    // similar logic in `addContentFilePreviewBehavior()` which refreshes the
+    // signed URL when it's about to expire.
+    useEffect(() => {
+        if (!fileFromAttachmentOutput.output?.signedUrlSearch) return;
+
+        const refreshTimerStore = expirationTimers.getRefreshTimerStore(
+            fileFromAttachmentOutput.output.signedUrlSearch,
+        );
+
+        const refresh = () => {
+            // Ignore promise. Results and errors will be handled by the `useLazyLoadRpc()`
+            // hook consuming this data.
+            void forceRevalidateRpc(getFileFromAttachment, fileFromAttachmentInput);
+        };
+
+        let unsubscribeFromRefreshTimer: (() => void) | null = null;
+
+        if (refreshTimerStore.getSnapshot()) {
+            refresh();
+        } else {
+            unsubscribeFromRefreshTimer = refreshTimerStore.subscribe(() => {
+                if (!refreshTimerStore.getSnapshot()) return;
+
+                unsubscribeFromRefreshTimer?.();
+                unsubscribeFromRefreshTimer = null;
+
+                refresh();
+            });
+        }
+
+        return () => {
+            unsubscribeFromRefreshTimer?.();
+            unsubscribeFromRefreshTimer = null;
+        };
+    }, [
+        expirationTimers,
+        fileFromAttachmentInput,
+        fileFromAttachmentOutput.output?.signedUrlSearch,
+        forceRevalidateRpc,
+    ]);
+
+    if (fileFromAttachmentOutput.output === null) return null;
 
     if (isMobile) {
         return (
             <ContentFileMobileViewerModal
-                file={fileReferenceResult.output.file}
-                signedUrlSearch={fileReferenceResult.output.signedUrlSearch}
+                file={fileFromAttachmentOutput.output.file}
+                signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                 attachmentTarget={attachmentTarget}
                 expirationTimers={expirationTimers}
                 onClose={onClose}
@@ -94,8 +201,8 @@ export function ContentFileViewerModal({
     } else {
         return (
             <ContentFileDesktopViewerModal
-                file={fileReferenceResult.output.file}
-                signedUrlSearch={fileReferenceResult.output.signedUrlSearch}
+                file={fileFromAttachmentOutput.output.file}
+                signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                 attachmentTarget={attachmentTarget}
                 expirationTimers={expirationTimers}
                 onClose={onClose}
