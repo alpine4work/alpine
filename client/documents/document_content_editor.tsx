@@ -13,6 +13,7 @@ import {
     ListChecks,
     ListNumbers,
     Minus,
+    Plus,
     SpinnerGap,
     TextHOne,
     TextHThree,
@@ -22,6 +23,7 @@ import {
 import {TextSelection} from "prosemirror-state";
 import {
     Memo,
+    ReactNode,
     Ref,
     RefObject,
     useCallback,
@@ -40,20 +42,25 @@ import {
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {useContentEditorLoadingIndicator} from "~/client/content/use_content_editor_loading_indicator.js";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction, MenuChildrenAction} from "~/client/design/menu.js";
+import {MenuAction, MenuChildrenAction, MenuStandardAction} from "~/client/design/menu.js";
 import {
+    MobileFullScreenModal,
     mobileFullScreenModalAnimationDurationLongMs,
     mobileFullScreenModalAnimationDurationMs,
     mobileFullScreenModalAnimationEasingParsedCubicBezier,
     useIsBehindMobileFullScreenModal,
 } from "~/client/design/mobile_full_screen_modal.js";
+import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
@@ -136,23 +143,23 @@ import {
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
-    FileContentType,
-    fileAdditionalContentTypesAndExtensionsByContentType,
     getFileAudioContentTypes,
-    getFileContentTypePreferredExtension,
     getFileImageContentTypes,
     getFileVideoContentTypes,
 } from "~/shared/files/file_content_type.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -1500,237 +1507,288 @@ export function DocumentContentEditor({
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
+    const [showMobileInsertMenu, setShowMobileInsertMenu] = useState(false);
+
+    const insertMenuActions: Array<
+        Array<{
+            label: string;
+            iconSize: "4";
+            icon: ReactNode;
+            onPress: (options?: {onClose?: () => SafeFloatingPromise<void>}) => void;
+        }>
+    > = [
+        [
+            {
+                label: "Image",
+                iconSize: "4",
+                icon: <Image />,
+                onPress: options => {
+                    selectFiles(assertExists(editorContainerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileImageContentTypes(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+
+                            const insert = () => editorRef.current?.insertFiles(files);
+
+                            if (!options?.onClose) {
+                                insert();
+                            } else {
+                                options?.onClose().finally(insert);
+                            }
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            {
+                label: "Video",
+                iconSize: "4",
+                icon: <VideoIcon />,
+                onPress: options => {
+                    selectFiles(assertExists(editorContainerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileVideoContentTypes(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+
+                            const insert = () => editorRef.current?.insertFiles(files);
+
+                            if (!options?.onClose) {
+                                insert();
+                            } else {
+                                options?.onClose().finally(insert);
+                            }
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            {
+                label: "Audio",
+                iconSize: "4",
+                icon: <WaveformIcon />,
+                onPress: options => {
+                    selectFiles(assertExists(editorContainerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileAudioContentTypes(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+
+                            const insert = () => editorRef.current?.insertFiles(files);
+
+                            if (!options?.onClose) {
+                                insert();
+                            } else {
+                                options?.onClose().finally(insert);
+                            }
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+            {
+                label: "File",
+                iconSize: "4",
+                icon: <File />,
+                onPress: options => {
+                    selectFiles(assertExists(editorContainerRef.current), {
+                        multiple: true,
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+
+                            const insert = () => editorRef.current?.insertFiles(files);
+
+                            if (!options?.onClose) {
+                                insert();
+                            } else {
+                                options?.onClose().finally(insert);
+                            }
+                        })
+                        .catch(scheduleUncaughtError);
+                },
+            },
+        ],
+        // Don't include list and heading in mobile insert menu since it's redundant
+        // with the styles substitute menu. Instead the mobile insert menu should focus
+        // on files and other uncommon types.
+        ...(!isMobile
+            ? cast<
+                  Array<
+                      Array<{
+                          label: string;
+                          iconSize: "4";
+                          icon: ReactNode;
+                          onPress: (options?: {onClose?: () => SafeFloatingPromise<void>}) => void;
+                      }>
+                  >
+              >([
+                  [
+                      {
+                          label: "Bullet list",
+                          iconSize: "4",
+                          icon: <ListBullets />,
+                          onPress: options => {
+                              const insert = () => editorRef.current?.insertUnorderedListItem();
+
+                              if (!options?.onClose) {
+                                  insert();
+                              } else {
+                                  options?.onClose().finally(insert);
+                              }
+                          },
+                      },
+                      {
+                          label: "Number list",
+                          iconSize: "4",
+                          icon: <ListNumbers />,
+                          onPress: options => {
+                              const insert = () => editorRef.current?.insertOrderedListItem();
+
+                              if (!options?.onClose) {
+                                  insert();
+                              } else {
+                                  options?.onClose().finally(insert);
+                              }
+                          },
+                      },
+                      {
+                          label: "Check list",
+                          iconSize: "4",
+                          icon: <ListChecks />,
+                          onPress: options => {
+                              const insert = () => editorRef.current?.insertCheckListItem();
+
+                              if (!options?.onClose) {
+                                  insert();
+                              } else {
+                                  options?.onClose().finally(insert);
+                              }
+                          },
+                      },
+                  ],
+                  [
+                      {
+                          label: "Heading 1",
+                          iconSize: "4",
+                          icon: <TextHOne />,
+                          onPress: options => {
+                              const insert = () => editorRef.current?.insertHeading(1);
+
+                              if (!options?.onClose) {
+                                  insert();
+                              } else {
+                                  options?.onClose().finally(insert);
+                              }
+                          },
+                      },
+                      {
+                          label: "Heading 2",
+                          iconSize: "4",
+                          icon: <TextHTwo />,
+                          onPress: options => {
+                              const insert = () => editorRef.current?.insertHeading(2);
+
+                              if (!options?.onClose) {
+                                  insert();
+                              } else {
+                                  options?.onClose().finally(insert);
+                              }
+                          },
+                      },
+                      {
+                          label: "Heading 3",
+                          iconSize: "4",
+                          icon: <TextHThree />,
+                          onPress: options => {
+                              const insert = () => editorRef.current?.insertHeading(3);
+
+                              if (!options?.onClose) {
+                                  insert();
+                              } else {
+                                  options?.onClose().finally(insert);
+                              }
+                          },
+                      },
+                  ],
+              ])
+            : []),
+        [
+            {
+                label: "Divider",
+                iconSize: "4",
+                icon: <Minus />,
+                onPress: options => {
+                    const insert = () => editorRef.current?.insertDivider();
+
+                    if (!options?.onClose) {
+                        insert();
+                    } else {
+                        options?.onClose().finally(insert);
+                    }
+                },
+            },
+            {
+                label: "Quote block",
+                iconSize: "4",
+                icon: <QuoteBlockIcon />,
+                onPress: options => {
+                    const insert = () => editorRef.current?.insertQuoteBlock();
+
+                    if (!options?.onClose) {
+                        insert();
+                    } else {
+                        options?.onClose().finally(insert);
+                    }
+                },
+            },
+            {
+                label: "Code block",
+                iconSize: "4",
+                icon: <CodeBlockIcon />,
+                onPress: options => {
+                    const insert = () => editorRef.current?.insertCodeBlock();
+
+                    if (!options?.onClose) {
+                        insert();
+                    } else {
+                        options?.onClose().finally(insert);
+                    }
+                },
+            },
+        ],
+    ];
+
+    const insertMenuMobileAction: MenuStandardAction | null = isMobile
+        ? {
+              label: "Insert",
+              icon: <Plus />,
+              iconPlacement: "end",
+              onPress: () => setShowMobileInsertMenu(true),
+          }
+        : null;
+
     // TODO(calebmer, #files): Insert menu should be available on right click in
     // task notes and posts too.
-    //
-    // TODO(calebmer, #files): Mobile version of insert menu.
-    const insertMenuAction: MenuChildrenAction = {
-        hasChildren: true,
-        key: "insert",
-        label: "Insert",
-        // This is a large menu since because:
-        //
-        // 1. If your mouse leaves the menu it closes
-        // 2. There are a lot of options so it takes some precision for the user to find
-        //    the right one
-        //
-        // So there's a risk of the mouse "slipping". Leaving the area while trying to
-        // make a selection causing the insert menu to close. By making the menu larger
-        // there's less risk of slipping.
-        size: "lg",
-        actions: [
-            [
-                {
-                    label: "Image",
-                    iconSize: "4",
-                    icon: <Image />,
-                    onPress: () => {
-                        const editorContainerElement = assertExists(editorContainerRef.current);
-
-                        const temporaryInputElement = document.createElement("input");
-                        temporaryInputElement.type = "file";
-                        temporaryInputElement.multiple = true;
-                        temporaryInputElement.style.width = "0";
-                        temporaryInputElement.style.height = "0";
-                        temporaryInputElement.style.margin = "0";
-                        temporaryInputElement.style.padding = "0";
-                        temporaryInputElement.style.border = "0";
-                        temporaryInputElement.style.opacity = "0";
-                        temporaryInputElement.style.position = "fixed";
-                        temporaryInputElement.style.top = "0px";
-
-                        temporaryInputElement.accept = getFileInputAcceptAttribute(
-                            getFileImageContentTypes(),
-                        );
-
-                        temporaryInputElement.addEventListener("change", () => {
-                            temporaryInputElement.remove();
-
-                            if (!temporaryInputElement.files) return;
-
-                            const files = Array.from(temporaryInputElement.files);
-                            if (files.length === 0) return;
-
-                            editorRef.current?.insertFiles(files);
-                        });
-
-                        editorContainerElement.appendChild(temporaryInputElement);
-                        temporaryInputElement.click();
-                    },
-                },
-                {
-                    label: "Video",
-                    iconSize: "4",
-                    icon: <VideoIcon />,
-                    onPress: () => {
-                        const editorContainerElement = assertExists(editorContainerRef.current);
-
-                        const temporaryInputElement = document.createElement("input");
-                        temporaryInputElement.type = "file";
-                        temporaryInputElement.multiple = true;
-                        temporaryInputElement.style.width = "0";
-                        temporaryInputElement.style.height = "0";
-                        temporaryInputElement.style.margin = "0";
-                        temporaryInputElement.style.padding = "0";
-                        temporaryInputElement.style.border = "0";
-                        temporaryInputElement.style.opacity = "0";
-                        temporaryInputElement.style.position = "fixed";
-                        temporaryInputElement.style.top = "0px";
-
-                        temporaryInputElement.accept = getFileInputAcceptAttribute(
-                            getFileVideoContentTypes(),
-                        );
-
-                        temporaryInputElement.addEventListener("change", () => {
-                            temporaryInputElement.remove();
-
-                            if (!temporaryInputElement.files) return;
-
-                            const files = Array.from(temporaryInputElement.files);
-                            if (files.length === 0) return;
-
-                            editorRef.current?.insertFiles(files);
-                        });
-
-                        editorContainerElement.appendChild(temporaryInputElement);
-                        temporaryInputElement.click();
-                    },
-                },
-                {
-                    label: "Audio",
-                    iconSize: "4",
-                    icon: <WaveformIcon />,
-                    onPress: () => {
-                        const editorContainerElement = assertExists(editorContainerRef.current);
-
-                        const temporaryInputElement = document.createElement("input");
-                        temporaryInputElement.type = "file";
-                        temporaryInputElement.multiple = true;
-                        temporaryInputElement.style.width = "0";
-                        temporaryInputElement.style.height = "0";
-                        temporaryInputElement.style.margin = "0";
-                        temporaryInputElement.style.padding = "0";
-                        temporaryInputElement.style.border = "0";
-                        temporaryInputElement.style.opacity = "0";
-                        temporaryInputElement.style.position = "fixed";
-                        temporaryInputElement.style.top = "0px";
-
-                        temporaryInputElement.accept = getFileInputAcceptAttribute(
-                            getFileAudioContentTypes(),
-                        );
-
-                        temporaryInputElement.addEventListener("change", () => {
-                            temporaryInputElement.remove();
-
-                            if (!temporaryInputElement.files) return;
-
-                            const files = Array.from(temporaryInputElement.files);
-                            if (files.length === 0) return;
-
-                            editorRef.current?.insertFiles(files);
-                        });
-
-                        editorContainerElement.appendChild(temporaryInputElement);
-                        temporaryInputElement.click();
-                    },
-                },
-                {
-                    label: "File",
-                    iconSize: "4",
-                    icon: <File />,
-                    onPress: () => {
-                        const editorContainerElement = assertExists(editorContainerRef.current);
-
-                        const temporaryInputElement = document.createElement("input");
-                        temporaryInputElement.type = "file";
-                        temporaryInputElement.multiple = true;
-                        temporaryInputElement.style.width = "0";
-                        temporaryInputElement.style.height = "0";
-                        temporaryInputElement.style.margin = "0";
-                        temporaryInputElement.style.padding = "0";
-                        temporaryInputElement.style.border = "0";
-                        temporaryInputElement.style.opacity = "0";
-                        temporaryInputElement.style.position = "fixed";
-                        temporaryInputElement.style.top = "0px";
-
-                        temporaryInputElement.addEventListener("change", () => {
-                            temporaryInputElement.remove();
-
-                            if (!temporaryInputElement.files) return;
-
-                            const files = Array.from(temporaryInputElement.files);
-                            if (files.length === 0) return;
-
-                            editorRef.current?.insertFiles(files);
-                        });
-
-                        editorContainerElement.appendChild(temporaryInputElement);
-                        temporaryInputElement.click();
-                    },
-                },
-            ],
-            [
-                {
-                    label: "Bullet list",
-                    iconSize: "4",
-                    icon: <ListBullets />,
-                    onPress: () => assertExists(editorRef.current).insertUnorderedListItem(),
-                },
-                {
-                    label: "Number list",
-                    iconSize: "4",
-                    icon: <ListNumbers />,
-                    onPress: () => assertExists(editorRef.current).insertOrderedListItem(),
-                },
-                {
-                    label: "Check list",
-                    iconSize: "4",
-                    icon: <ListChecks />,
-                    onPress: () => assertExists(editorRef.current).insertCheckListItem(),
-                },
-            ],
-            [
-                {
-                    label: "Heading 1",
-                    iconSize: "4",
-                    icon: <TextHOne />,
-                    onPress: () => assertExists(editorRef.current).insertHeading(1),
-                },
-                {
-                    label: "Heading 2",
-                    iconSize: "4",
-                    icon: <TextHTwo />,
-                    onPress: () => assertExists(editorRef.current).insertHeading(2),
-                },
-                {
-                    label: "Heading 3",
-                    iconSize: "4",
-                    icon: <TextHThree />,
-                    onPress: () => assertExists(editorRef.current).insertHeading(3),
-                },
-            ],
-            [
-                {
-                    label: "Divider",
-                    iconSize: "4",
-                    icon: <Minus />,
-                    onPress: () => assertExists(editorRef.current).insertDivider(),
-                },
-                {
-                    label: "Quote",
-                    iconSize: "4",
-                    icon: <QuoteBlockIcon />,
-                    onPress: () => assertExists(editorRef.current).insertQuoteBlock(),
-                },
-                {
-                    label: "Code",
-                    iconSize: "4",
-                    icon: <CodeBlockIcon />,
-                    onPress: () => assertExists(editorRef.current).insertCodeBlock(),
-                },
-            ],
-        ],
-    };
+    const insertMenuDesktopAction: MenuChildrenAction | null = !isMobile
+        ? {
+              hasChildren: true,
+              key: "insert",
+              label: "Insert",
+              // This is a large menu since because:
+              //
+              // 1. If your mouse leaves the menu it closes
+              // 2. There are a lot of options so it takes some precision for the user to find
+              //    the right one
+              //
+              // So there's a risk of the mouse "slipping". Leaving the area while trying to
+              // make a selection causing the insert menu to close. By making the menu larger
+              // there's less risk of slipping.
+              size: "lg",
+              actions: insertMenuActions,
+          }
+        : null;
 
     const contextMenuActionsWithoutInsert: Array<Array<MenuAction>> = [
         [
@@ -1754,7 +1812,7 @@ export function DocumentContentEditor({
 
         // It's good for the insert menu action to be the last action since the hover
         // triangle blocks any items below.
-        [insertMenuAction],
+        ...(insertMenuDesktopAction ? [[insertMenuDesktopAction]] : []),
     ];
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
@@ -1827,6 +1885,22 @@ export function DocumentContentEditor({
             ];
         }, [isFocusWithinNavigationBarInsertMenu, phantomSelections, selection]);
 
+    const insertMenuNavigationBarDesktopAction: MenuChildrenAction | null = insertMenuDesktopAction
+        ? {
+              ...insertMenuDesktopAction,
+              hasChildren: true,
+              placement: "left",
+              onOpenChange: (isOpen: boolean) => {
+                  insertMenuDesktopAction.onOpenChange?.(isOpen);
+                  if (!isOpen) setIsFocusWithinNavigationBarInsertMenu(false);
+              },
+              onFocusWithinChange: (isFocusWithin: boolean) => {
+                  insertMenuDesktopAction.onFocusWithinChange?.(isFocusWithin);
+                  if (isFocusWithin) setIsFocusWithinNavigationBarInsertMenu(true);
+              },
+          }
+        : null;
+
     const {loadingIndicator, onLoadingIndicator} = useContentEditorLoadingIndicator(isSaving);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
@@ -1867,21 +1941,11 @@ export function DocumentContentEditor({
 
             // It's good for the insert menu action to be the last action since the hover
             // triangle blocks any items below.
-            [
-                {
-                    ...insertMenuAction,
-                    hasChildren: true,
-                    placement: "left",
-                    onOpenChange: isOpen => {
-                        insertMenuAction.onOpenChange?.(isOpen);
-                        if (!isOpen) setIsFocusWithinNavigationBarInsertMenu(false);
-                    },
-                    onFocusWithinChange: isFocusWithin => {
-                        insertMenuAction.onFocusWithinChange?.(isFocusWithin);
-                        if (isFocusWithin) setIsFocusWithinNavigationBarInsertMenu(true);
-                    },
-                },
-            ],
+            ...(insertMenuNavigationBarDesktopAction
+                ? [[insertMenuNavigationBarDesktopAction]]
+                : []),
+
+            ...(insertMenuMobileAction ? [[insertMenuMobileAction]] : []),
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
@@ -2327,6 +2391,67 @@ export function DocumentContentEditor({
                             />
                         ),
                     [activeCommentThreadId, editorContainerId],
+                )}
+                {showMobileInsertMenu && (
+                    <MobileFullScreenModal onClose={() => setShowMobileInsertMenu(false)}>
+                        {({onCloseWithAnimation}) => (
+                            <Box width="full">
+                                <Box paddingTop="safe-area-inset" />
+                                <Box
+                                    height={navigationBarHeight}
+                                    paddingX="3"
+                                    display="flex"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                >
+                                    <Box
+                                        flexGrow="1"
+                                        display="flex"
+                                        justifyContent="flex-start"
+                                        style={{flexBasis: spacing["10"]}}
+                                    >
+                                        <Button
+                                            // Not focusable since we want to return focus to the underlying content editor
+                                            // when the button is pressed. The button itself should not be focused. If you
+                                            // have a keyboard you can use keyboard shortcuts instead of tabbing into these
+                                            // buttons.
+                                            isFocusable={false}
+                                            paddingX="2"
+                                            fontSize="100"
+                                            pressErrorTitle="Couldn’t cancel"
+                                            onPress={() => onCloseWithAnimation()}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </Box>
+                                    <Box fontSize="100" fontStyle="semi-bold">
+                                        Insert
+                                    </Box>
+                                    <Box
+                                        flexGrow="1"
+                                        display="flex"
+                                        justifyContent="flex-end"
+                                        style={{flexBasis: spacing["10"]}}
+                                    />
+                                </Box>
+                                <Box paddingX={screenPaddingX}>
+                                    {insertMenuActions.map((actions, i1) =>
+                                        actions.map((action, i2) => (
+                                            <MobileSettingsRow
+                                                key={action.label}
+                                                withBorderTop={i1 === 0 && i2 === 0}
+                                                icon={action.icon}
+                                                label={action.label}
+                                                onPress={() => {
+                                                    action.onPress({onClose: onCloseWithAnimation});
+                                                }}
+                                            />
+                                        )),
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
+                    </MobileFullScreenModal>
                 )}
             </Box>
         </ContextMenuActions>
@@ -2774,31 +2899,4 @@ function DocumentContentEditorSidebar({
             </Box>
         </GlobalKeyDownEvent>
     );
-}
-
-function getFileInputAcceptAttribute(contentTypes: ReadonlyArray<FileContentType>): string {
-    const items: Array<string> = [];
-
-    for (const contentType of contentTypes) {
-        const additionalContentTypesAndExtensions =
-            fileAdditionalContentTypesAndExtensionsByContentType[contentType];
-
-        items.push(contentType);
-
-        if (additionalContentTypesAndExtensions?.contentTypes) {
-            for (const additionalContentType of additionalContentTypesAndExtensions.contentTypes) {
-                items.push(additionalContentType);
-            }
-        }
-
-        items.push(`.${getFileContentTypePreferredExtension(contentType)}`);
-
-        if (additionalContentTypesAndExtensions?.extensions) {
-            for (const additionalExtension of additionalContentTypesAndExtensions?.extensions) {
-                items.push(`.${additionalExtension}`);
-            }
-        }
-    }
-
-    return items.join(",");
 }

@@ -15,6 +15,7 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -31,6 +32,7 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -404,35 +406,19 @@ function ContentEditorFileToolbar({
                             command={() => {
                                 const toolbarElement = assertExists(toolbarRef.current);
 
-                                const temporaryInputElement = document.createElement("input");
-                                temporaryInputElement.type = "file";
-                                temporaryInputElement.multiple = false;
-                                temporaryInputElement.style.width = "0";
-                                temporaryInputElement.style.height = "0";
-                                temporaryInputElement.style.margin = "0";
-                                temporaryInputElement.style.padding = "0";
-                                temporaryInputElement.style.border = "0";
-                                temporaryInputElement.style.opacity = "0";
-                                temporaryInputElement.style.position = "fixed";
-                                temporaryInputElement.style.top = "0px";
+                                selectFiles(toolbarElement, {
+                                    multiple: false,
+                                })
+                                    .then(files => {
+                                        if (files.length !== 1) return;
 
-                                temporaryInputElement.addEventListener("change", () => {
-                                    temporaryInputElement.remove();
+                                        // If the component unmounted while we were waiting on a selection then don't
+                                        // try replacing this file.
+                                        if (!selectionRef.current) return;
 
-                                    if (!temporaryInputElement.files) return;
-
-                                    const files = Array.from(temporaryInputElement.files);
-                                    if (files.length !== 1) return;
-
-                                    // If the component unmounted while we were waiting on a selection then don't
-                                    // try replacing this file.
-                                    if (!selectionRef.current) return;
-
-                                    onInsertFiles(selectionRef.current, [files[0]!]);
-                                });
-
-                                toolbarElement.appendChild(temporaryInputElement);
-                                temporaryInputElement.click();
+                                        onInsertFiles(selectionRef.current, [files[0]!]);
+                                    })
+                                    .catch(scheduleUncaughtError);
 
                                 return true;
                             }}

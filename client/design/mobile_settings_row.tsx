@@ -6,6 +6,8 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function MobileSettingsRow({
     isSelected = false,
@@ -21,8 +23,8 @@ export function MobileSettingsRow({
     icon?: ReactNode;
     iconPlacement?: "leading" | "trailing";
     label: ReactNode;
-    pressErrorTitle: string;
-    onPress: () => Promise<void>;
+    pressErrorTitle?: string;
+    onPress: () => MaybePromise<void>;
     withBorderTop?: boolean;
     withoutBorderBottom?: boolean;
 }) {
@@ -32,22 +34,42 @@ export function MobileSettingsRow({
     const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     const {isPressed, pressProps} = usePress({
-        onPress: () => {
-            setIsPending(true);
+        onPress: event => {
+            const defaultPressErrorTitle =
+                event.pointerType === "touch"
+                    ? "The setting you tapped didn’t work"
+                    : "The setting you clicked didn’t work";
 
-            // Wrap in an async function so if `onPress` throws synchronously we get a
-            // rejected promise that we handle below.
-            const promise = (async () => await onPress())();
+            let promise;
+            try {
+                promise = onPress?.();
+            } catch (error) {
+                reporter.displayError(pressErrorTitle ?? defaultPressErrorTitle, error);
+                return;
+            }
 
-            promise.then(
-                () => {
-                    setIsPending(false);
-                },
-                error => {
-                    setIsPending(false);
-                    reporter.displayError(pressErrorTitle, error);
-                },
-            );
+            // If the press returns a promise:
+            //
+            // - Show a loading spinner after a short delay
+            // - Show a toast if there was an error
+            if (promise instanceof Promise) {
+                setIsPending(true);
+
+                assert(
+                    pressErrorTitle,
+                    "If `onPress` returns a promise then the `pressErrorTitle` prop is required",
+                );
+
+                promise.then(
+                    () => {
+                        setIsPending(false);
+                    },
+                    error => {
+                        setIsPending(false);
+                        reporter.displayError(pressErrorTitle, error);
+                    },
+                );
+            }
         },
     });
 

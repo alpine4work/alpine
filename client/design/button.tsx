@@ -169,7 +169,12 @@ function Button(
         fontSize?: "50" | "75" | "100";
 
         /**
-         * Amount of border radius to apply to the left of the button. Defaults to
+         * Amount of border radius to use. Defaults to `1`.
+         */
+        borderRadius?: "1" | "1.5" | "2";
+
+        /**
+         * Amount of border radius to apply to the right of the button. Defaults to
          * `1`. Only really used to remove border radius.
          */
         borderRightRadius?: "1" | "none";
@@ -230,7 +235,8 @@ function Button(
         height = "7",
         iconGap = "1",
         fontSize = "75",
-        borderRightRadius = "1",
+        borderRadius = "1",
+        borderRightRadius,
         flexShrink = "0",
         isTabbable = true,
         isFocusable = true,
@@ -638,8 +644,8 @@ function Button(
                         width: fullWidth ? "full" : undefined,
                         paddingX,
                         fontSize,
-                        borderLeftRadius: "1",
-                        borderRightRadius,
+                        borderLeftRadius: borderRadius,
+                        borderRightRadius: borderRightRadius ?? borderRadius,
                     })}
                     style={{
                         // Use a box-shadow for drawing the border so it doesn't affect layout.

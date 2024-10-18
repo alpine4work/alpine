@@ -12,7 +12,7 @@ import {
     TextItalic,
     TextOutdent,
 } from "phosphor-react";
-import {Command, EditorState, TextSelection} from "prosemirror-state";
+import {Command, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
@@ -64,7 +64,12 @@ export function ContentEditorMobileKeyboardToolbar({
     onCommentInputOpen,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView | null>;
+    viewRef: RefObject<
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
+    >;
     isFocused: boolean;
     openCommentThread: ((commentThreadId: DocumentCommentThreadId) => Promise<void>) | undefined;
     onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
