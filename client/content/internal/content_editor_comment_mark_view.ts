@@ -2,7 +2,7 @@ import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
 import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
-import {commentClassName} from "~/shared/content/content_styles.js";
+import {commentClassName, fileClassName} from "~/shared/content/content_styles.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -132,6 +132,13 @@ export function createContentEditorCommentMarkViewConstructor({
 
             // If we're inert, pressing on the comment mark does nothing.
             if (isInert() || event.defaultPrevented) {
+                return;
+            }
+
+            // If we're pressing on a file then the file press should open the file viewer.
+            // It shouldn't open the comment thread.
+            if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                maybeUpdatePressed();
                 return;
             }
 

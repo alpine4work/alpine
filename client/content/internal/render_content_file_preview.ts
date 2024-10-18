@@ -13,7 +13,7 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
-import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
+import {isHtmlImageElementLoaded} from "~/client/helpers/elements/is_html_image_element_loaded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
@@ -628,6 +628,7 @@ export function addContentFilePreviewBehavior(
         reference,
         attachmentTarget,
         expirationTimers,
+        isInert,
         isOurEditorUploading,
         isEditorInitialAppRender,
         rootNavigate,
@@ -642,6 +643,7 @@ export function addContentFilePreviewBehavior(
         reference: {signedUrlSearch: string; file: FileModel} | undefined;
         attachmentTarget: FileAttachmentTarget;
         expirationTimers: ContentFilePreviewExpirationTimers;
+        isInert: boolean;
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
         isEditorInitialAppRender: boolean;
         rootNavigate: NavigateFunction;
@@ -772,6 +774,8 @@ export function addContentFilePreviewBehavior(
     let isLongPress = false;
 
     const handlePointerDown = (event: PointerEvent) => {
+        assert(!isInert);
+
         isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
 
         if (isPointerDownAndOver) {
@@ -839,6 +843,8 @@ export function addContentFilePreviewBehavior(
     };
 
     const resetPointerState = () => {
+        if (isInert) return;
+
         isPointerDownAndOver = false;
 
         // We set `element.draggable = true` on `pointerdown` and ProseMirror sets
@@ -858,6 +864,8 @@ export function addContentFilePreviewBehavior(
     };
 
     const handlePointerUp = () => {
+        assert(!isInert);
+
         const wasPointerDownAndOver = isPointerDownAndOver;
         const wasLongPress = isLongPress;
         resetPointerState();
@@ -900,6 +908,8 @@ export function addContentFilePreviewBehavior(
     const handleParentScrollWhenPointerDownAndOver = resetPointerState;
 
     const handleDragStart = (event: DragEvent) => {
+        assert(!isInert);
+
         // Don't allow dragging with the web drag API on mobile.
         if (getIsMobileWithoutListening()) {
             event.stopPropagation();
@@ -979,28 +989,17 @@ export function addContentFilePreviewBehavior(
         }
     };
 
-    // Reset pointer state on document selection change before long press. For
-    // example if you double tap on iOS and hold then iOS will select some text.
-    // This should cancel our long press.
-    //
-    // A long press will cause a `selectionchange` event. So after long press
-    // selection change events are fine.
-    const handleDocumentSelectionChange = () => {
-        if (!isLongPress) {
-            resetPointerState();
-        }
-    };
-
-    element.addEventListener("pointerdown", handlePointerDown);
-    element.addEventListener("pointerup", handlePointerUp);
-    element.addEventListener("pointerleave", handlePointerLeave);
-    element.addEventListener("pointercancel", handlePointerCancel);
-    element.addEventListener("dragstart", handleDragStart);
-    document.addEventListener("selectionchange", handleDocumentSelectionChange);
-    addParentScrollWhenPointerDownAndOverListener(
-        element,
-        handleParentScrollWhenPointerDownAndOver,
-    );
+    if (!isInert) {
+        element.addEventListener("pointerdown", handlePointerDown);
+        element.addEventListener("pointerup", handlePointerUp);
+        element.addEventListener("pointerleave", handlePointerLeave);
+        element.addEventListener("pointercancel", handlePointerCancel);
+        element.addEventListener("dragstart", handleDragStart);
+        addParentScrollWhenPointerDownAndOverListener(
+            element,
+            handleParentScrollWhenPointerDownAndOver,
+        );
+    }
 
     /* ========================================================================== *\
      *                             Context menu event                             *
@@ -1060,7 +1059,7 @@ export function addContentFilePreviewBehavior(
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
     if (!isEditorInitialAppRender && imagePreviewContentElement) {
-        const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
+        const loadedPromise = isHtmlImageElementLoaded(imagePreviewContentElement);
 
         const handleLoad = () => {
             if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
@@ -1094,17 +1093,18 @@ export function addContentFilePreviewBehavior(
     return () => {
         hasCleanedUp = true;
 
-        element.removeEventListener("pointerdown", handlePointerDown);
-        element.removeEventListener("pointerup", handlePointerUp);
-        element.removeEventListener("pointerleave", handlePointerLeave);
-        element.removeEventListener("pointercancel", handlePointerCancel);
-        element.removeEventListener("dragstart", handleDragStart);
-        element.removeEventListener("contextmenu", handleContextMenu);
-        document.removeEventListener("selectionchange", handleDocumentSelectionChange);
-        removeParentScrollWhenPointerDownAndOverListener(
-            element,
-            handleParentScrollWhenPointerDownAndOver,
-        );
+        if (!isInert) {
+            element.removeEventListener("pointerdown", handlePointerDown);
+            element.removeEventListener("pointerup", handlePointerUp);
+            element.removeEventListener("pointerleave", handlePointerLeave);
+            element.removeEventListener("pointercancel", handlePointerCancel);
+            element.removeEventListener("dragstart", handleDragStart);
+            element.removeEventListener("contextmenu", handleContextMenu);
+            removeParentScrollWhenPointerDownAndOverListener(
+                element,
+                handleParentScrollWhenPointerDownAndOver,
+            );
+        }
 
         resetPointerState();
 

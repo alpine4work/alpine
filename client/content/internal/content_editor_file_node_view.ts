@@ -140,6 +140,7 @@ export function createContentEditorFileNodeViewConstructor({
                     reference: fileReference,
                     attachmentTarget: getAttachmentTarget(),
                     expirationTimers: getExpirationTimers(),
+                    isInert: false,
                     // If we're currently uploading this `FileId` then disable polling.
                     // `FileUploadService` will push us updates immediately when they're available.
                     isOurEditorUploading,

@@ -54,6 +54,7 @@ export function ContentEditorFileToolbarController({
     selectedNodeElement,
     hasFileDropTarget,
     onInsertFiles,
+    onMobileCommentInputOpen,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
@@ -61,6 +62,7 @@ export function ContentEditorFileToolbarController({
     selectedNodeElement: HTMLElement | null;
     hasFileDropTarget: boolean;
     onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
+    onMobileCommentInputOpen: () => void;
 }) {
     const [fileToolbar, setFileToolbar] = useState<{
         key: string;
@@ -121,6 +123,7 @@ export function ContentEditorFileToolbarController({
             targetElement={fileToolbar.targetElement}
             isDisablingInitialAnimation={fileToolbar.isDisablingInitialAnimation}
             onInsertFiles={onInsertFiles}
+            onMobileCommentInputOpen={onMobileCommentInputOpen}
         />
     ) : null;
 }
@@ -133,6 +136,7 @@ function ContentEditorFileToolbar({
     targetElement,
     isDisablingInitialAnimation: isDisablingInitialAnimationFromProps,
     onInsertFiles,
+    onMobileCommentInputOpen,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
@@ -141,7 +145,10 @@ function ContentEditorFileToolbar({
     targetElement: HTMLElement;
     isDisablingInitialAnimation: boolean;
     onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
+    onMobileCommentInputOpen: () => void;
 }) {
+    const isMobile = useIsMobile();
+
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     const selectionRef = useRef<NodeSelection | null>(null);
@@ -454,9 +461,13 @@ function ContentEditorFileToolbar({
                                 viewRef={viewRef}
                                 isActive={false}
                                 command={(state, dispatch) => {
-                                    dispatch?.(
-                                        state.tr.setMeta(openCommentInputFloaterMetaKey, true),
-                                    );
+                                    if (isMobile) {
+                                        onMobileCommentInputOpen();
+                                    } else {
+                                        dispatch?.(
+                                            state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                        );
+                                    }
                                     return true;
                                 }}
                             >

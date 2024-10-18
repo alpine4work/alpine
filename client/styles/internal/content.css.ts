@@ -1449,7 +1449,7 @@ globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}
     // `inset` and `borderRadius` is based on the `<FocusRing>` we render when the
     // file is selected. The focus ring should render on top of the file.
     inset: -4,
-    borderRadius: 4,
+    borderRadius: 8,
 });
 
 globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}::after`, {

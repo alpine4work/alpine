@@ -22,7 +22,7 @@ import {
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
-import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
+import {isHtmlImageElementLoaded} from "~/client/helpers/elements/is_html_image_element_loaded.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -345,6 +345,19 @@ function ContentFileImageMobileViewer({
         return null;
     }
 
+    // TODO(calebmer): Support viewing large files. It's very frustrating but
+    // WebKit grinds to a halt when trying to render a large file. Some ideas on
+    // solutions:
+    //
+    // 1. Virtualize the image. Render the image in chunks, any chunks offscreen we
+    //    don't render. When zoomed out we use a resized image WebKit can render.
+    //
+    // 2. Implement the image viewer natively. We can render a native view on top
+    //    of our web view that can render large images effectively. This would also
+    //    be nice since we can implement smoother zoom/pan gestures than trying to
+    //    implement them in JavaScript.
+    //
+    // 2 is likely the best solution.
     if (file.preview.size.width * file.preview.size.height >= 35e6) {
         return (
             <Box
@@ -599,7 +612,7 @@ function ContentFileImageMobileViewerInner({
         let hasCleanedUp = false;
         const contentElement = assertExists(imageContentRef.current);
 
-        isHtmlImageElementLoadedAndDecoded(contentElement).then(
+        isHtmlImageElementLoaded(contentElement).then(
             () => {
                 if (hasCleanedUp) return;
                 setIsLoaded(true);

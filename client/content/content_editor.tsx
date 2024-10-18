@@ -3945,6 +3945,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 onInsertFiles={(insertionSelection, files) =>
                     insertFilesRef.current?.(insertionSelection, files)
                 }
+                onMobileCommentInputOpen={() => {
+                    setIsMobileCommentInputOpen(true);
+                }}
             />
             {!fileDropTarget && selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />

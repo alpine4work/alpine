@@ -635,8 +635,6 @@ export function ContentView({
     // `EditorView` is initialized. This only happens if
     // `addContentFilePreviewBehavior()` is in a layout effect.
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (isInert) return;
-
         // Re-run this effect whenever the HTML changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         html;
@@ -650,7 +648,11 @@ export function ContentView({
         )) {
             if (!(element instanceof HTMLElement)) continue;
 
-            if (element.classList.contains(linkClassName) && element instanceof HTMLAnchorElement) {
+            if (
+                !isInert &&
+                element.classList.contains(linkClassName) &&
+                element instanceof HTMLAnchorElement
+            ) {
                 let isPointerDownAndOver = false;
 
                 const maybeUpdateStyle = () => {
@@ -756,7 +758,7 @@ export function ContentView({
                 });
             }
 
-            if (element.classList.contains(contentViewStyles.seeButtonClassName)) {
+            if (!isInert && element.classList.contains(contentViewStyles.seeButtonClassName)) {
                 let isPointerDownAndOver = false;
 
                 const maybeUpdateStyle = () => {
@@ -852,7 +854,10 @@ export function ContentView({
                 );
             }
 
-            if (element.classList.contains(contentStyles.codeBlockCopyButtonClassName)) {
+            if (
+                !isInert &&
+                element.classList.contains(contentStyles.codeBlockCopyButtonClassName)
+            ) {
                 let isCodeBlockCopyButtonHovered = false;
 
                 // We don't need to cleanup event listeners on DOM nodes created for this
@@ -938,6 +943,7 @@ export function ContentView({
                         reference: fileReference,
                         attachmentTarget: assertExists(fileAttachmentTarget),
                         expirationTimers: assertExists(filePreviewExpirationTimers),
+                        isInert,
                         isOurEditorUploading: false,
                         isEditorInitialAppRender,
                         rootNavigate,
