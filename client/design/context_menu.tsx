@@ -23,7 +23,6 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.j
 import {Menu, MenuAction, MenuItem} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
@@ -223,108 +222,118 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             const actions: Array<ReadonlyArray<MenuAction>> =
                 event[contextMenuEventActionsSymbol] ?? [];
 
-            // If we right-clicked on a text input then add our standard text
-            // processing actions.
-            if (document.activeElement && isTextInputElement(document.activeElement)) {
-                // Emulate default browser behavior of selecting word the user right clicked.
-                selectWordIfSelectionEmpty(event.target);
+            // Emulate default browser behavior of selecting word the user right clicked.
+            selectWordIfSelectionEmpty(event.target);
 
-                const selection = window.getSelection();
+            const selection = window.getSelection();
 
-                const isTextSelectionDisabled =
-                    selection &&
-                    event.target instanceof Node &&
-                    selection.containsNode(event.target) &&
-                    selection.anchorNode instanceof Element &&
-                    selection.anchorNode === selection.focusNode
-                        ? (getComputedStyle(selection.anchorNode).userSelect ||
-                              // In Safari `user-select` is behind a vendor prefix.
-                              getComputedStyle(selection.anchorNode).webkitUserSelect) === "none"
-                        : false;
+            let target:
+                | {type: "Input"; element: HTMLInputElement}
+                | {type: "Selection"; selection: Selection}
+                | null = null;
 
-                // If you right-click into an element with text selection disabled in a text
-                // input (e.g. image files in `<ContentEditor>`) then we shouldn't show text
-                // input actions.
-                if (!isTextSelectionDisabled) {
-                    const isTextSelectedInInput =
-                        document.activeElement instanceof HTMLInputElement &&
-                        document.activeElement.selectionStart !==
-                            document.activeElement.selectionEnd;
-
-                    const isTextSelectedInContentEditable =
-                        document.activeElement instanceof HTMLElement &&
-                        document.activeElement.isContentEditable &&
-                        selection &&
-                        selection.anchorOffset !== selection.focusOffset;
-
-                    const isTextSelected = isTextSelectedInInput || isTextSelectedInContentEditable;
-
-                    actions.unshift([
-                        {
-                            label: "Cut",
-                            isDisabled: !isTextSelected,
-                            keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
-                            onPress: () => {
-                                document.execCommand("cut");
-                            },
-                        },
-                        {
-                            label: "Copy",
-                            isDisabled: !isTextSelected,
-                            keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
-                            onPress: () => {
-                                document.execCommand("copy");
-                            },
-                        },
-                        {
-                            label: "Paste",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
-                            onPress: () => {
-                                // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
-                                // have a desktop app wrapper also ask the user if they want to install the app
-                                // to paste.
-                                setShouldShowPasteWarningDialog(true);
-                            },
-                        },
-                    ]);
-                }
-            }
-            // If we right-clicked on selectable text then add our standard text
-            // processing actions.
-            else if (
-                (event.target instanceof HTMLElement &&
-                    (getComputedStyle(event.target).userSelect ??
-                        // In Safari `user-select` is behind a vendor prefix.
-                        getComputedStyle(event.target).webkitUserSelect) !== "none") ||
-                // If this is a disabled or read-only input element we allow text
-                // processing actions.
-                (event.target instanceof HTMLInputElement &&
-                    (event.target.disabled || event.target.readOnly))
+            if (event.target instanceof HTMLInputElement) {
+                target = {type: "Input", element: event.target};
+            } else if (
+                event.target instanceof Node &&
+                selection?.containsNode(event.target, true)
             ) {
-                // Emulate default browser behavior of selecting word the user right clicked.
-                selectWordIfSelectionEmpty(event.target);
+                target = {type: "Selection", selection};
+            }
 
-                const selection = window.getSelection();
+            if (target) {
+                let isDisabled: boolean;
+                let isEditable: boolean;
+                let isEmpty: boolean;
 
-                if (
-                    event.target instanceof HTMLInputElement ||
-                    // If user is right-clicking in the margins of some selectable text (e.g. a
-                    // document) don't give them an option to copy. If the right click on a word
-                    // then we'll select a word and let them copy.
-                    (selection &&
-                        event.target instanceof Node &&
-                        selection.containsNode(event.target) &&
-                        selection.anchorOffset !== selection.focusOffset)
-                ) {
-                    actions.unshift([
-                        {
-                            label: "Copy",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
-                            onPress: () => {
-                                document.execCommand("copy");
+                switch (target.type) {
+                    case "Input": {
+                        isDisabled = false;
+
+                        isEditable =
+                            target.element === document.activeElement &&
+                            !(target.element.disabled || target.element.readOnly);
+
+                        isEmpty = target.element.selectionStart === target.element.selectionEnd;
+                        break;
+                    }
+                    case "Selection": {
+                        const isDisabledForNode = (node: Node | null) => {
+                            if (node === null) return true;
+                            if (!(node instanceof Text)) return true;
+
+                            const element = node.parentElement;
+                            if (!element) return true;
+
+                            const userSelect =
+                                getComputedStyle(element).userSelect ||
+                                // In Safari `user-select` is behind a vendor prefix.
+                                getComputedStyle(element).webkitUserSelect;
+
+                            return userSelect === "none";
+                        };
+
+                        isDisabled =
+                            isDisabledForNode(target.selection.anchorNode) &&
+                            isDisabledForNode(target.selection.focusNode);
+
+                        isEditable =
+                            document.activeElement instanceof HTMLElement &&
+                            document.activeElement.isContentEditable &&
+                            target.selection.containsNode(document.activeElement, true);
+
+                        isEmpty =
+                            target.selection.anchorNode === target.selection.focusNode &&
+                            target.selection.anchorOffset === target.selection.focusOffset;
+                        break;
+                    }
+                    default:
+                        throw exhaustive(target);
+                }
+
+                if (!isDisabled) {
+                    if (!isEditable) {
+                        if (!isEmpty) {
+                            actions.unshift([
+                                {
+                                    label: "Copy",
+                                    keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                    onPress: () => {
+                                        document.execCommand("copy");
+                                    },
+                                },
+                            ]);
+                        }
+                    } else {
+                        actions.unshift([
+                            {
+                                label: "Cut",
+                                isDisabled: !isEmpty,
+                                keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
+                                onPress: () => {
+                                    document.execCommand("cut");
+                                },
                             },
-                        },
-                    ]);
+                            {
+                                label: "Copy",
+                                isDisabled: !isEmpty,
+                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                onPress: () => {
+                                    document.execCommand("copy");
+                                },
+                            },
+                            {
+                                label: "Paste",
+                                keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
+                                onPress: () => {
+                                    // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
+                                    // have a desktop app wrapper also ask the user if they want to install the app
+                                    // to paste.
+                                    setShouldShowPasteWarningDialog(true);
+                                },
+                            },
+                        ]);
+                    }
                 }
             }
 
@@ -821,7 +830,12 @@ function selectWordIfSelectionEmpty(mouseEventTarget: MouseEvent["target"]) {
     if (!(selection.anchorNode instanceof Text)) return;
 
     // Selection is not empty.
-    if (selection.anchorOffset !== selection.focusOffset) return;
+    if (
+        selection.anchorNode !== selection.focusNode ||
+        selection.anchorOffset !== selection.focusOffset
+    ) {
+        return;
+    }
 
     const textSpans = findUnicodeDefaultWordBoundarySpans(selection.anchorNode.nodeValue!);
 
