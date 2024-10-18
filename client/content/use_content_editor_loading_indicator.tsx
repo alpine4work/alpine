@@ -1,5 +1,5 @@
 import {SpinnerGap} from "phosphor-react";
-import {ReactElement, ReactNode, useCallback, useMemo, useState} from "react";
+import {ReactElement, ReactNode, useCallback, useEffect, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -160,8 +160,25 @@ export function useContentEditorLoadingIndicator(isSaving: boolean): {
         return <ContentEditorLoadingIndicator summary="Saving" progressStore={null} />;
     }, [loadingIndicatorWithoutSaving, shouldShowLoadingIndicator, shouldShowSavingIndicator]);
 
+    // Warn the user if they try to leave Alpine while there are still some changes
+    // to their document which are saving.
+    useEffect(() => {
+        if (!isSaving && !hasLoadingIndicator) return;
+
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            const confirmationMessage = "Changes you made may not be saved.";
+            event.returnValue = confirmationMessage;
+            return confirmationMessage;
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [hasLoadingIndicator, isSaving]);
+
     return {
-        loadingIndicator: shouldShowLoadingIndicator ? loadingIndicator : null,
+        loadingIndicator,
         onLoadingIndicator,
     };
 }

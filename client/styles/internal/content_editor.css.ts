@@ -100,9 +100,6 @@ globalStyle(
 
 // While pressing shift clicking on a file selects it instead of opening the
 // file viewer.
-//
-// TODO(calebmer, #files): Implement file viewer. Also shift key doesn't seem
-// to be working? Alt key does.
 globalStyle(`${shiftKeyOrAltKeyDownClassName} ${fileClassName}`, {
     cursor: "default",
 });
