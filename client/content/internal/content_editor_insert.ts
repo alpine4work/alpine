@@ -85,7 +85,7 @@ export function findInsertedNodeAfterReplaceRangeWith(
     node: Node,
 ): ResolvedPos | null {
     if ($replaceFrom.parentOffset === 0) {
-        let $pos = newDoc.resolve($replaceFrom.pos + node.nodeSize);
+        let $pos = newDoc.resolve(Math.min($replaceFrom.pos + node.nodeSize, newDoc.nodeSize - 2));
         while ($pos.nodeBefore !== node && $pos.depth > 0) {
             $pos = newDoc.resolve($pos.before());
         }
