@@ -18,7 +18,6 @@ import {
     useOverlayRootPortalElement,
 } from "~/client/design/overlay.js";
 import {
-    scheduleAfterNavigationAnimation,
     trackNavigationAnimationFinish,
     trackNavigationAnimationStart,
 } from "~/client/design/schedule_after_navigation_animation.js";
@@ -31,11 +30,9 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {easeOutCubic, parseCubicBezier} from "~/shared/design/easing.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 export const mobileFullScreenModalAnimationDurationMs = 250;
 export const mobileFullScreenModalAnimationDurationLongMs = 250 * 1.5;
@@ -121,9 +118,7 @@ export function MobileFullScreenModal({
         | ReactNode
         | ((props: {
               isAnimating: boolean;
-              onCloseWithAnimation: (options?: {
-                  withoutFocus?: boolean;
-              }) => SafeFloatingPromise<void>;
+              onCloseWithAnimation: (options?: {withoutFocus?: boolean}) => void;
           }) => ReactNode);
     "data-ownedby"?: string;
 }) {
@@ -150,17 +145,7 @@ export function MobileFullScreenModal({
     const hasCalledOnBeforeDismissRef = useRef(false);
 
     const {onClose, setAnimation} = useEvents({
-        onClose: () => {
-            onCloseFromProps();
-
-            const closePromiseResolver = closePromiseResolverRef.current;
-            closePromiseResolverRef.current = null;
-
-            if (closePromiseResolver) {
-                // Wait for native navigation animations to finish.
-                scheduleAfterNavigationAnimation(closePromiseResolver.resolve);
-            }
-        },
+        onClose: onCloseFromProps,
         setAnimation: (animation: MobileFullScreenModalAnimation) => {
             if (
                 animation === null &&
@@ -200,10 +185,8 @@ export function MobileFullScreenModal({
     const lastAnimationForInsertionEffectRef = useRef<MobileFullScreenModalAnimation>(null);
     const lastAnimationForLayoutEffectRef = useRef<MobileFullScreenModalAnimation>(null);
 
-    const closePromiseResolverRef = useRef<PromiseResolver<void> | null>(null);
-
     const onCloseWithAnimation = useCallback(
-        ({withoutFocus = false}: {withoutFocus?: boolean} = {}): SafeFloatingPromise<void> => {
+        ({withoutFocus = false}: {withoutFocus?: boolean} = {}) => {
             // Courtesy blur call if the focused element is in the overlay. Useful on
             // mobile Safari since if the focused element is removed from the DOM there
             // won't be a `focusout` event. So `useIsTextInputFocused()` won't update and
@@ -229,11 +212,6 @@ export function MobileFullScreenModal({
                     setAnimation("Dismissing");
                 });
             }
-
-            // Returns a promise that resolves when the modal has closed. Awaiting this
-            // promise is optional.
-            return (closePromiseResolverRef.current ??= createPromiseResolver())
-                .promise as SafeFloatingPromise<void>;
         },
         [setAnimation],
     );

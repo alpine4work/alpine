@@ -1,4 +1,15 @@
 import classNames from "classnames";
+import {
+    File,
+    Image,
+    ListBullets,
+    ListChecks,
+    ListNumbers,
+    Minus,
+    TextHOne,
+    TextHThree,
+    TextHTwo,
+} from "phosphor-react";
 import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {
@@ -92,11 +103,14 @@ import {
     uploadFileFromContentEditorProgressCompositeStoreWeights,
 } from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {ContentEditorLoadingIndicatorSummary} from "~/client/content/use_content_editor_loading_indicator.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {
     MobileFullScreenModal,
     useIsBehindMobileFullScreenModal,
@@ -115,7 +129,11 @@ import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {flushSyncIfNotRendering} from "~/client/helpers/flush_sync_if_not_rendering.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
+import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -144,6 +162,11 @@ import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
+import {
+    getFileAudioContentTypes,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -759,6 +782,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const navigate = useNavigate();
     const reporter = useReporter();
     const isMobile = useIsMobile();
+    const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
@@ -3648,9 +3672,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     useContentEditorDebugTools(viewRef);
 
     const unwrappedState = unwrap(state);
+    const {schema} = unwrappedState;
 
     assert(
-        !unwrappedState.schema.nodes.file || (fileAttachmentTarget && props.onLoadingIndicator),
+        !schema.nodes.file || (fileAttachmentTarget && props.onLoadingIndicator),
         "When the ProseMirror schema supports files then the props `fileAttachmentTarget` and `onLoadingIndicator` are required",
     );
 
@@ -3784,6 +3809,241 @@ function ContentEditor<Content extends ContentWithReferences>(
     }
 
     /* ========================================================================== *\
+     *                                Context menu                                *
+    \* ========================================================================== */
+
+    const canUndo = state.undoDepth() > 0;
+    const canRedo = state.redoDepth() > 0;
+
+    const getContextMenuActions = useCallback((): Array<Array<MenuAction>> => {
+        const insertMenuActions: Array<Array<MenuAction>> = [];
+
+        if (schema.nodes.file) {
+            insertMenuActions.push([
+                {
+                    label: "Image",
+                    iconSize: "4",
+                    icon: <Image />,
+                    onPress: () => {
+                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
+                            multiple: true,
+                            acceptContentTypes: getFileImageContentTypes(),
+                        })
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError);
+                    },
+                },
+                {
+                    label: "Video",
+                    iconSize: "4",
+                    icon: <VideoIcon />,
+                    onPress: () => {
+                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
+                            multiple: true,
+                            acceptContentTypes: getFileVideoContentTypes(),
+                        })
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError);
+                    },
+                },
+                {
+                    label: "Audio",
+                    iconSize: "4",
+                    icon: <WaveformIcon />,
+                    onPress: () => {
+                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
+                            multiple: true,
+                            acceptContentTypes: getFileAudioContentTypes(),
+                        })
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError);
+                    },
+                },
+                {
+                    label: "File",
+                    iconSize: "4",
+                    icon: <File />,
+                    onPress: () => {
+                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
+                            multiple: true,
+                        })
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError);
+                    },
+                },
+            ]);
+        }
+
+        const insertListMenuActions: Array<MenuAction> = [];
+        insertMenuActions.push(insertListMenuActions);
+
+        insertListMenuActions.push(
+            {
+                label: "Bullet list",
+                iconSize: "4",
+                icon: <ListBullets />,
+                onPress: () => {
+                    insertContentUnorderedListItem(assertExists(viewRef.current));
+                },
+            },
+            {
+                label: "Number list",
+                iconSize: "4",
+                icon: <ListNumbers />,
+                onPress: () => {
+                    insertContentOrderedListItem(assertExists(viewRef.current));
+                },
+            },
+        );
+
+        if (schema.nodes.checkListItem) {
+            insertListMenuActions.push({
+                label: "Check list",
+                iconSize: "4",
+                icon: <ListChecks />,
+                onPress: () => {
+                    insertContentCheckListItem(assertExists(viewRef.current));
+                },
+            });
+        }
+
+        if (schema.nodes.heading) {
+            insertMenuActions.push([
+                {
+                    label: "Heading 1",
+                    iconSize: "4",
+                    icon: <TextHOne />,
+                    onPress: () => {
+                        insertContentHeading(assertExists(viewRef.current), 1);
+                    },
+                },
+                {
+                    label: "Heading 2",
+                    iconSize: "4",
+                    icon: <TextHTwo />,
+                    onPress: () => {
+                        insertContentHeading(assertExists(viewRef.current), 2);
+                    },
+                },
+                {
+                    label: "Heading 3",
+                    iconSize: "4",
+                    icon: <TextHThree />,
+                    onPress: () => {
+                        insertContentHeading(assertExists(viewRef.current), 3);
+                    },
+                },
+            ]);
+        }
+
+        const insertOtherMenuActions: Array<MenuAction> = [];
+        insertMenuActions.push(insertOtherMenuActions);
+
+        if (schema.nodes.divider) {
+            insertOtherMenuActions.push({
+                label: "Divider",
+                iconSize: "4",
+                icon: <Minus />,
+                onPress: () => {
+                    insertContentDivider(assertExists(viewRef.current));
+                },
+            });
+        }
+
+        insertOtherMenuActions.push(
+            {
+                label: "Quote block",
+                iconSize: "4",
+                icon: <QuoteBlockIcon />,
+                onPress: () => {
+                    insertContentQuoteBlock(assertExists(viewRef.current));
+                },
+            },
+            {
+                label: "Code block",
+                iconSize: "4",
+                icon: <CodeBlockIcon />,
+                onPress: () => {
+                    insertContentCodeBlock(assertExists(viewRef.current));
+                },
+            },
+        );
+
+        return [
+            [
+                {
+                    label: "Undo",
+                    isDisabled: canUndo,
+                    keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                    onPress: () => {
+                        const view = assertExists(viewRef.current);
+                        undo(view.state, view.dispatch.bind(view), view);
+                    },
+                },
+                {
+                    label: "Redo",
+                    isDisabled: canRedo,
+                    keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                    onPress: () => {
+                        const view = assertExists(viewRef.current);
+                        redo(view.state, view.dispatch.bind(view), view);
+                    },
+                },
+            ],
+            [
+                {
+                    hasChildren: true,
+                    key: "insert",
+                    label: "Insert",
+                    // This is a large sized menu since because:
+                    //
+                    // 1. If your mouse leaves the menu it closes
+                    // 2. There are a lot of options so it takes some precision for the user to find
+                    //    the right one
+                    //
+                    // So there's a risk of the mouse "slipping". Leaving the area while trying to
+                    // make a selection causing the insert menu to close. By making the menu larger
+                    // there's less risk of slipping.
+                    size: "lg",
+                    actions: insertMenuActions,
+                },
+            ],
+        ];
+    }, [canRedo, canUndo, clientInfo.isAppleDevice, schema]);
+
+    // Manually add context menu actions on `contextmenu` event since we can't
+    // render a `<ContextMenu>` component which would break our
+    // `useInsertionEffect()`.
+    useLayoutEffect(() => {
+        const view = assertExists(viewRef.current);
+
+        const handleContextMenu = (event: MouseEvent) => {
+            addContextMenuActions(event, getContextMenuActions());
+        };
+
+        view.dom.addEventListener("contextmenu", handleContextMenu);
+        return () => {
+            view.dom.removeEventListener("contextmenu", handleContextMenu);
+        };
+    }, [getContextMenuActions]);
+
+    /* ========================================================================== *\
      *                                   Render                                   *
     \* ========================================================================== */
 
@@ -3863,9 +4123,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             initialText={mobileLinkModalState.initialText}
                             isTextEditable={mobileLinkModalState.isTextEditable}
                             initialUrl={mobileLinkModalState.initialUrl}
-                            onCloseWithAnimation={() => {
-                                onCloseWithAnimation();
-                            }}
+                            onCloseWithAnimation={onCloseWithAnimation}
                         />
                     )}
                 </MobileFullScreenModal>

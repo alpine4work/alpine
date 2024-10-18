@@ -890,8 +890,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                     })
                         .then(files => {
                             if (files.length === 0) return;
-
-                            insertContentFiles(assertExists(viewRef.current), files);
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
                         })
                         .catch(scheduleUncaughtError);
                 }}
@@ -906,8 +906,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                     })
                         .then(files => {
                             if (files.length === 0) return;
-
-                            insertContentFiles(assertExists(viewRef.current), files);
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
                         })
                         .catch(scheduleUncaughtError);
                 }}
@@ -922,8 +922,8 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                     })
                         .then(files => {
                             if (files.length === 0) return;
-
-                            insertContentFiles(assertExists(viewRef.current), files);
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
                         })
                         .catch(scheduleUncaughtError);
                 }}
@@ -932,13 +932,11 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                 icon={<File />}
                 label="File"
                 onPress={() => {
-                    selectFiles(assertExists(containerRef.current), {
-                        multiple: true,
-                    })
+                    selectFiles(assertExists(containerRef.current), {multiple: true})
                         .then(files => {
                             if (files.length === 0) return;
-
-                            insertContentFiles(assertExists(viewRef.current), files);
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
                         })
                         .catch(scheduleUncaughtError);
                 }}
