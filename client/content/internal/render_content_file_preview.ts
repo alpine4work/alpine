@@ -13,7 +13,7 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
-import {isHtmlImageElementLoaded} from "~/client/helpers/elements/is_html_image_element_loaded.js";
+import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
@@ -513,6 +513,10 @@ function actuallyRenderFileImagePreviewContent({
     // `src` always needs to be up-to-date since we don't know when the browser will
     // need it.
     imageHtml.setAttribute("loading", "lazy");
+
+    // Asynchronously decode images. For atomic presentation of images you need to
+    // wait for the `decode()` method.
+    imageHtml.setAttribute("decoding", "async");
 
     const srcs = srcset.split(",");
     const firstSrc = srcs[0]!.trim();
@@ -1059,7 +1063,7 @@ export function addContentFilePreviewBehavior(
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
     if (!isEditorInitialAppRender && imagePreviewContentElement) {
-        const loadedPromise = isHtmlImageElementLoaded(imagePreviewContentElement);
+        const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
 
         const handleLoad = () => {
             if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {

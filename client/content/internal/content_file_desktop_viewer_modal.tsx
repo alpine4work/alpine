@@ -21,7 +21,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {Modal} from "~/client/design/modal.js";
-import {isHtmlImageElementLoaded} from "~/client/helpers/elements/is_html_image_element_loaded.js";
+import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
@@ -464,7 +464,7 @@ function ContentFileImageDesktopViewerInner({
         let hasCleanedUp = false;
         const contentElement = assertExists(imageContentRef.current);
 
-        isHtmlImageElementLoaded(contentElement).then(
+        isHtmlImageElementLoadedAndDecoded(contentElement).then(
             () => {
                 if (hasCleanedUp) return;
                 setIsLoaded(true);
@@ -668,6 +668,7 @@ function ContentFileImageDesktopViewerInner({
                                           ref={imageContentRef}
                                           className={contentStyles.fileImagePreviewContentClassName}
                                           style={imageContentStyle}
+                                          decoding="async"
                                           // TODO(calebmer): Support drag events with the same code we use for content
                                           // previews.
                                           draggable={false}
@@ -685,6 +686,7 @@ function ContentFileImageDesktopViewerInner({
                                           ref={imageContentRef}
                                           className={contentStyles.fileImagePreviewContentClassName}
                                           style={imageContentStyle}
+                                          decoding="async"
                                           // TODO(calebmer): Support drag events with the same code we use for content
                                           // previews.
                                           draggable={false}

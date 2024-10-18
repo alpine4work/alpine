@@ -22,7 +22,7 @@ import {
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
-import {isHtmlImageElementLoaded} from "~/client/helpers/elements/is_html_image_element_loaded.js";
+import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -612,7 +612,7 @@ function ContentFileImageMobileViewerInner({
         let hasCleanedUp = false;
         const contentElement = assertExists(imageContentRef.current);
 
-        isHtmlImageElementLoaded(contentElement).then(
+        isHtmlImageElementLoadedAndDecoded(contentElement).then(
             () => {
                 if (hasCleanedUp) return;
                 setIsLoaded(true);
@@ -851,6 +851,7 @@ function ContentFileImageMobileViewerInner({
                                   ref={imageContentRef}
                                   className={contentStyles.fileImagePreviewContentClassName}
                                   style={imageContentStyle}
+                                  decoding="async"
                                   draggable={false}
                                   src={`/files/${space.id}/${file.id}${signedUrlSearch}&variant=${
                                       file.alternative.isImagePreviewContent
@@ -864,6 +865,7 @@ function ContentFileImageMobileViewerInner({
                                   ref={imageContentRef}
                                   className={contentStyles.fileImagePreviewContentClassName}
                                   style={imageContentStyle}
+                                  decoding="async"
                                   draggable={false}
                                   src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
                               />
