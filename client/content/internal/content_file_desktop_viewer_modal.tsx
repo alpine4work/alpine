@@ -1,10 +1,18 @@
 /* eslint-disable jsx-a11y/alt-text */
 
 import classNames from "classnames";
-import {DownloadSimple, MagnifyingGlassMinus, MagnifyingGlassPlus, X} from "phosphor-react";
+import {
+    DownloadSimple,
+    Lock,
+    MagnifyingGlassMinus,
+    MagnifyingGlassPlus,
+    SpinnerGap,
+    Warning,
+    X,
+} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
+import {CSSProperties, Fragment, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {
@@ -31,6 +39,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentStyles,
     invertLightSelectionColorsClassName,
+    spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -38,7 +47,9 @@ import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.
 import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
@@ -50,6 +61,15 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
+/**
+ * Render the provided file in a fullscreen modal on desktop platforms.
+ *
+ * IMPORTANT: If you make a change to preview rendering here you should also
+ * consider making the same change to `renderContentFilePreview()` and
+ * `<ContentFileDesktopViewerModal>`. We have three renderers for every file
+ * type. The inline preview, the fullscreen desktop modal, and the fullscreen
+ * mobile modal. They should all look and behave about the same.
+ */
 export function ContentFileDesktopViewerModal({
     file,
     signedUrlSearch,
@@ -72,11 +92,20 @@ export function ContentFileDesktopViewerModal({
         method: "clientWidthAndHeight",
     });
 
+    // Only allow zooming on image files that have finished loading.
+    const withZoom =
+        isFileImageContentType(file.contentType) &&
+        file.preview?.type === "Image" &&
+        (file.preview.isProcessing || file.preview.ok) &&
+        file.preview.placeholder !== "Processing" &&
+        file.preview.size !== "Processing";
+
     const initialZoomLevel = 0;
     const minZoomLevel = -3;
     const maxZoomLevel = 7;
 
     const [zoomLevel, setZoomLevel] = useState(initialZoomLevel);
+    if (!withZoom && zoomLevel !== initialZoomLevel) setZoomLevel(initialZoomLevel);
 
     // Use an exponential scaling function for zoom. Each additional zoom needs to
     // reveal more detail than the last.
@@ -157,38 +186,73 @@ export function ContentFileDesktopViewerModal({
                         <Box
                             paddingLeft="2"
                             color={{light: "grey-20-const", dark: "grey-30-const"}}
-                            userSelect="text"
+                            display="flex"
+                            alignItems="center"
+                            gap="3"
                         >
-                            {getFileContentTypeName(file.contentType)} -{" "}
-                            {prettyBytes(file.contentLength)}
+                            <Box userSelect="text">
+                                {getFileContentTypeName(file.contentType)} -{" "}
+                                {prettyBytes(file.contentLength)}
+                            </Box>
+                            {file.isLoading() &&
+                                // If the file has an image preview where the size or placeholder are
+                                // processing then we'll be showing a large spinner in the center of the entire
+                                // modal so we don't need to also show a small spinner here.
+                                !(
+                                    file.preview?.type === "Image" &&
+                                    (file.preview.size === "Processing" ||
+                                        file.preview.placeholder === "Processing")
+                                ) && (
+                                    <Box
+                                        display="flex"
+                                        alignItems="center"
+                                        gap="1"
+                                        color={{light: "grey-30-const", dark: "grey-40-const"}}
+                                        fontSize="50"
+                                    >
+                                        <SpinnerGap
+                                            className={spinAnimationClassName}
+                                            size={spacing["4"]}
+                                        />
+                                        Processing
+                                    </Box>
+                                )}
                         </Box>
                         <Box flexGrow="1" />
                         <Box display="flex" justifyContent="flex-end" alignItems="center" gap="2.5">
-                            <IconButton
-                                variant="quiet-above-content-file-viewer-modal"
-                                description="Zoom in"
-                                tooltipPlacement="bottom"
-                                keyboardShortcutHint={isAppleDevice ? "⌘+=" : "Ctrl+="}
-                                isDisabled={zoomLevel >= maxZoomLevel}
-                                onPress={zoomIn}
-                            >
-                                <MagnifyingGlassPlus />
-                            </IconButton>
-                            <IconButton
-                                variant="quiet-above-content-file-viewer-modal"
-                                description="Zoom out"
-                                tooltipPlacement="bottom"
-                                keyboardShortcutHint={isAppleDevice ? "⌘+-" : "Ctrl+-"}
-                                isDisabled={zoomLevel <= minZoomLevel}
-                                onPress={zoomOut}
-                            >
-                                <MagnifyingGlassMinus />
-                            </IconButton>
+                            {withZoom && (
+                                <>
+                                    <IconButton
+                                        variant="quiet-above-content-file-viewer-modal"
+                                        description="Zoom in"
+                                        tooltipPlacement="bottom"
+                                        keyboardShortcutHint={isAppleDevice ? "⌘+=" : "Ctrl+="}
+                                        isDisabled={zoomLevel >= maxZoomLevel}
+                                        onPress={zoomIn}
+                                    >
+                                        <MagnifyingGlassPlus />
+                                    </IconButton>
+                                    <IconButton
+                                        variant="quiet-above-content-file-viewer-modal"
+                                        description="Zoom out"
+                                        tooltipPlacement="bottom"
+                                        keyboardShortcutHint={isAppleDevice ? "⌘+-" : "Ctrl+-"}
+                                        isDisabled={zoomLevel <= minZoomLevel}
+                                        onPress={zoomOut}
+                                    >
+                                        <MagnifyingGlassMinus />
+                                    </IconButton>
+                                </>
+                            )}
                             <Box paddingLeft="1">
                                 <Button
                                     variant="neutral"
                                     icon={<DownloadSimple />}
                                     iconGap="1.5"
+                                    isDisabled={file.isUploading}
+                                    pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                                        file.contentType,
+                                    )}`}
                                     onPress={() => {
                                         handleDownloadContentFile({
                                             spaceId: space.id,
@@ -268,7 +332,9 @@ function ContentFileDesktopViewer(props: {
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
             // TODO(calebmer, #files): Implement
-            return null;
+            //
+            // Should start with the image viewer then switch to a proper viewer?
+            return <ContentFileImageDesktopViewer {...props} />;
         }
         case "video/webm":
         case "video/mp4":
@@ -355,8 +421,99 @@ function ContentFileImageDesktopViewer({
         file.preview.placeholder === "Processing" ||
         file.preview.size === "Processing"
     ) {
-        // TODO(calebmer, #files): Implement
-        return null;
+        return (
+            <Box
+                width="full"
+                height="full"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+            >
+                {file.preview.isProcessing || file.preview.ok ? (
+                    <Box
+                        color={{light: "grey-20-const", dark: "grey-30-const"}}
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap="2"
+                        fontSize="100"
+                    >
+                        <SpinnerGap
+                            className={spinAnimationClassName}
+                            size={spacing["9"]}
+                            weight="light"
+                        />
+                        Processing
+                    </Box>
+                ) : (
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap="5"
+                        maxWidth="96"
+                        userSelect="text"
+                    >
+                        <Box display="flex" flexDirection="column" alignItems="center" gap="2.5">
+                            <Box
+                                display="flex"
+                                flexDirection="column"
+                                alignItems="center"
+                                gap="0.5"
+                                fontSize="200"
+                                color={{light: "grey-0-const", dark: "grey-10-const"}}
+                                fontStyle="semi-bold"
+                            >
+                                {file.preview.error.code === ErrorCode.PermissionDenied ? (
+                                    <>
+                                        <Lock size={spacing["6"]} />
+                                        Protected file
+                                    </>
+                                ) : (
+                                    <>
+                                        <Warning size={spacing["6"]} />
+                                        Couldn’t process file
+                                    </>
+                                )}
+                            </Box>
+                            <Box
+                                fontSize="100"
+                                color={{light: "grey-20-const", dark: "grey-30-const"}}
+                                textAlign="center"
+                                paddingX="8"
+                            >
+                                {file.preview.error.displayMessage.map(
+                                    (displayMessageSegment, i) => {
+                                        switch (displayMessageSegment.type) {
+                                            case "Text":
+                                            case "SensitiveText": {
+                                                return (
+                                                    <Fragment key={i}>
+                                                        {displayMessageSegment.text}
+                                                    </Fragment>
+                                                );
+                                            }
+                                            case "Link": {
+                                                // We don't currently support links in content file viewer error
+                                                // messages. Since links aren't supported in content file previews which would
+                                                // require interactivity.
+                                                return (
+                                                    <Fragment key={i}>
+                                                        {displayMessageSegment.text}
+                                                    </Fragment>
+                                                );
+                                            }
+                                            default:
+                                                throw exhaustive(displayMessageSegment);
+                                        }
+                                    },
+                                )}
+                            </Box>
+                        </Box>
+                    </Box>
+                )}
+            </Box>
+        );
     }
 
     return (
@@ -480,11 +637,14 @@ function ContentFileImageDesktopViewerInner({
         };
     }, [file.alternative, file.isUploading, isSignedUrlSearchExpired]);
 
+    const fileContentTypeNoun = getFileContentTypeNoun(file.contentType);
+
     const contextMenuActions: Array<Array<MenuAction>> = [
         [
             {
-                label: `Copy ${getFileContentTypeNoun(file.contentType)}`,
-                pressErrorTitle: `Couldn’t copy ${getFileContentTypeNoun(file.contentType)}`,
+                label: `Copy ${fileContentTypeNoun}`,
+                isDisabled: file.isUploading,
+                pressErrorTitle: `Couldn’t copy ${fileContentTypeNoun}`,
                 onPress: async () => {
                     const element = assertExists(imageRef.current);
 
@@ -510,7 +670,9 @@ function ContentFileImageDesktopViewerInner({
                 },
             },
             {
-                label: `Download ${getFileContentTypeNoun(file.contentType)}`,
+                label: `Download ${fileContentTypeNoun}`,
+                isDisabled: file.isUploading,
+                pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
                 onPress: () => {
                     handleDownloadContentFile({
                         spaceId: space.id,

@@ -15,16 +15,21 @@ import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
+import {warningIconSvg} from "~/client/icons/warning_icon_svg.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     ContentReferences,
     emptyContentReferences,
     getContentReferencesFileSignedUrlSearchExpirationTime,
 } from "~/shared/content/content_references.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
-import {InternalError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -32,6 +37,7 @@ import {
 import {getFileContentTypePreferredExtension} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {FileImagePreview, FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {
@@ -47,7 +53,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
-import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlElementGenerator,
+    HtmlGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -205,10 +215,95 @@ export class ContentFilePreviewExpirationTimers {
     }
 }
 
+const spinnerGapIconClassName = `${spinAnimationClassName} ${sprinkles({
+    width: "6",
+    height: "6",
+})}`;
+
+let spinnerGapIconHtml: string | undefined;
+
+const spinnerGapIconHtmlGenerator: HtmlGenerator = {
+    generateHtml: () => {
+        spinnerGapIconHtml ??= spinnerGapIconSvg({className: spinnerGapIconClassName});
+        return spinnerGapIconHtml;
+    },
+    generateNode: () => {
+        const temporaryElement = document.createElement("div");
+        temporaryElement.innerHTML = spinnerGapIconHtmlGenerator.generateHtml();
+        assert(temporaryElement.firstElementChild?.tagName === "svg");
+        return temporaryElement.firstElementChild;
+    },
+    patchNode: (previous, node) => {
+        return (
+            previous === spinnerGapIconHtmlGenerator &&
+            node instanceof Element &&
+            node.tagName === "svg"
+        );
+    },
+};
+
+const warningIconClassName = sprinkles({
+    width: "6",
+    height: "6",
+});
+
+let warningIconHtml: string | undefined;
+
+const warningIconHtmlGenerator: HtmlGenerator = {
+    generateHtml: () => {
+        warningIconHtml ??= warningIconSvg({className: warningIconClassName});
+        return warningIconHtml;
+    },
+    generateNode: () => {
+        const temporaryElement = document.createElement("div");
+        temporaryElement.innerHTML = warningIconHtmlGenerator.generateHtml();
+        assert(temporaryElement.firstElementChild?.tagName === "svg");
+        return temporaryElement.firstElementChild;
+    },
+    patchNode: (previous, node) => {
+        return (
+            previous === warningIconHtmlGenerator &&
+            node instanceof Element &&
+            node.tagName === "svg"
+        );
+    },
+};
+
+const lockIconClassName = sprinkles({
+    width: "6",
+    height: "6",
+});
+
+let lockIconHtml: string | undefined;
+
+const lockIconHtmlGenerator: HtmlGenerator = {
+    generateHtml: () => {
+        lockIconHtml ??= lockIconSvg({className: lockIconClassName});
+        return lockIconHtml;
+    },
+    generateNode: () => {
+        const temporaryElement = document.createElement("div");
+        temporaryElement.innerHTML = lockIconHtmlGenerator.generateHtml();
+        assert(temporaryElement.firstElementChild?.tagName === "svg");
+        return temporaryElement.firstElementChild;
+    },
+    patchNode: (previous, node) => {
+        return (
+            previous === lockIconHtmlGenerator && node instanceof Element && node.tagName === "svg"
+        );
+    },
+};
+
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
  * `HtmlElementGenerator` can either be used to render `<ContentEditor>` or
  * `<ContentView>`.
+ *
+ * IMPORTANT: If you make a change to preview rendering here you should also
+ * consider making the same change to `renderContentFilePreview()` and
+ * `<ContentFileDesktopViewerModal>`. We have three renderers for every file
+ * type. The inline preview, the fullscreen desktop modal, and the fullscreen
+ * mobile modal. They should all look and behave about the same.
  */
 export function renderContentFilePreview(
     get: <Value>(store: Store<Value>) => Value,
@@ -251,164 +346,15 @@ export function renderContentFilePreview(
                 break;
             }
             case "Image": {
-                if (
-                    (!reference.file.preview.isProcessing && !reference.file.preview.ok) ||
-                    reference.file.preview.placeholder === "Processing" ||
-                    reference.file.preview.size === "Processing"
-                ) {
-                    // TODO(calebmer, #files): Implement
-                    break;
-                }
-
-                // This is the file size after applying scaling. If you want the actual pixel
-                // size of the file use `reference.file.preview.size`.
-                const size = getFilePreviewSize(reference.file);
-
-                const adjustments = getFileImagePreviewRenderingAdjustments(
-                    reference.file.preview.placeholder,
-                );
-
-                if (
-                    adjustments.isNearWhite ||
-                    adjustments.isNearBlack ||
-                    adjustments.hasTransparentBackground
-                ) {
-                    html.setAttribute(
-                        "class",
-                        classNames(
-                            html.getAttribute("class"),
-                            adjustments.isNearWhite && contentStyles.fileNearWhiteClassName,
-                            adjustments.isNearBlack && contentStyles.fileNearBlackClassName,
-                            adjustments.hasTransparentBackground &&
-                                contentStyles.fileTransparentBackgroundClassName,
-                        ),
-                    );
-                }
-
-                const svg = renderFileImagePreviewPlaceholder(reference.file.preview.placeholder);
-
-                const placeholderImageHtml = new HtmlElementGenerator("img");
-                placeholderImageHtml.setAttribute(
-                    "class",
-                    contentStyles.fileImagePreviewPlaceholderClassName,
-                );
-                placeholderImageHtml.setAttribute(
-                    "style",
-                    `max-width: ${size.width}px; max-height: ${size.height}px`,
-                );
-                // The placeholder image is purely decorative. It shouldn't be visible to
-                // assistive technologies.
-                placeholderImageHtml.setAttribute("aria-hidden", "true");
-                placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
-
-                html.appendChild(placeholderImageHtml);
-
-                // Render the image if we have a signed preview URL and the signature isn't
-                // expired.
-                //
-                // When the signature expires we re-render the file to remove the image from
-                // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
-                // signatures that haven't expired.
-                if (
-                    reference &&
-                    !get(expirationTimers.getExpiredTimerStore(reference.signedUrlSearch)) &&
-                    reference.file.preview.content !== "Processing"
-                ) {
-                    const imageSourceBase = `/files/${spaceId}/${reference.file.id}${
-                        reference.signedUrlSearch
-                    }${reference.file.preview.content !== undefined ? "&variant=preview" : ""}`;
-
-                    let image1xSource: string;
-                    let image2xSource: string;
-                    let image3xSource: string;
-
-                    // Don't resize vector images. They're already infinitely resizable.
-                    const isVectorImage =
-                        (reference.file.preview.content?.contentType ??
-                            reference.file.contentType) === "image/svg+xml";
-
-                    if (isVectorImage) {
-                        image1xSource = imageSourceBase;
-                        image2xSource = imageSourceBase;
-                        image3xSource = imageSourceBase;
-                    } else {
-                        const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
-                        const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
-                        const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
-
-                        const aspectRatio =
-                            reference.file.preview.size.width / reference.file.preview.size.height;
-                        const isOutsideAspectRatioRange =
-                            aspectRatio < minFilePreviewAspectRatio ||
-                            aspectRatio > maxFilePreviewAspectRatio;
-
-                        if (!isOutsideAspectRatioRange) {
-                            // If the file is smaller than our desired resize width then don't bother
-                            // resizing since resizing will be a noop.
-                            image1xSource =
-                                reference.file.preview.size.width <= image1xWidth
-                                    ? imageSourceBase
-                                    : `${imageSourceBase}&width=${image1xWidth}`;
-
-                            image2xSource =
-                                reference.file.preview.size.width <= image2xWidth
-                                    ? imageSourceBase
-                                    : `${imageSourceBase}&width=${image2xWidth}`;
-
-                            image3xSource =
-                                reference.file.preview.size.width <= image3xWidth
-                                    ? imageSourceBase
-                                    : `${imageSourceBase}&width=${image3xWidth}`;
-                        }
-                        // If we're outside the aspect ratio range then we always want to resize our
-                        // file. Since resizing will also crop the file to our aspect ratio range. This
-                        // will result in a smaller file to download.
-                        else {
-                            const defaultWidth = getFilePreviewImageResizeWidth(
-                                reference.file.preview.size.width,
-                            );
-
-                            image1xSource =
-                                reference.file.preview.size.width <= image1xWidth
-                                    ? `${imageSourceBase}&width=${defaultWidth}`
-                                    : `${imageSourceBase}&width=${image1xWidth}`;
-
-                            image2xSource =
-                                reference.file.preview.size.width <= image2xWidth
-                                    ? `${imageSourceBase}&width=${defaultWidth}`
-                                    : `${imageSourceBase}&width=${image2xWidth}`;
-
-                            image3xSource =
-                                reference.file.preview.size.width <= image3xWidth
-                                    ? `${imageSourceBase}&width=${defaultWidth}`
-                                    : `${imageSourceBase}&width=${image3xWidth}`;
-                        }
-                    }
-
-                    let imageSrcset: string;
-                    if (image1xSource === image2xSource) {
-                        imageSrcset = image1xSource;
-                    } else if (image2xSource === image3xSource) {
-                        imageSrcset = `${image1xSource}, ${image2xSource} 2x`;
-                    } else {
-                        imageSrcset = `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`;
-                    }
-
-                    const imageHtml = renderFileImagePreviewContent({
-                        srcset: imageSrcset,
-                        // We need to set the image `max-width` and `max-height` since we don't want
-                        // the image growing to fill its parent if the image is smaller than the
-                        // parent (e.g. a small 32x32 image).
-                        maxWidth: `${size.width}px`,
-                        maxHeight: `${size.height}px`,
-                    });
-
-                    html.appendChild(imageHtml);
-                }
-
-                if (typeof reference.file.preview.videoDuration === "number") {
-                    // TODO(calebmer, #files): Implement
-                }
+                renderContentFileImagePreview(get, {
+                    spaceId,
+                    signedUrlSearch: reference.signedUrlSearch,
+                    file: reference.file,
+                    filePreview: reference.file.preview,
+                    layout,
+                    expirationTimers,
+                    html,
+                });
                 break;
             }
             default:
@@ -417,6 +363,342 @@ export function renderContentFilePreview(
     }
 
     return html;
+}
+
+function renderContentFileImagePreview(
+    get: <Value>(store: Store<Value>) => Value,
+    {
+        spaceId,
+        signedUrlSearch,
+        file,
+        filePreview,
+        layout,
+        expirationTimers,
+        html,
+    }: {
+        spaceId: SpaceId;
+        signedUrlSearch: string;
+        file: FileModel;
+        filePreview: FileImagePreview;
+        layout: ContentFileLayout;
+        expirationTimers: ContentFilePreviewExpirationTimers;
+        html: HtmlElementGenerator;
+    },
+) {
+    if (
+        (!filePreview.isProcessing && !filePreview.ok) ||
+        filePreview.placeholder === "Processing" ||
+        filePreview.size === "Processing"
+    ) {
+        const containerHtml = new HtmlElementGenerator("div");
+        html.appendChild(containerHtml);
+
+        containerHtml.setAttribute(
+            "class",
+            sprinkles({
+                position: "absolute",
+                inset: "0",
+                backgroundColor: "grey-5",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "grey-30",
+            }),
+        );
+
+        if (filePreview.isProcessing || filePreview.ok) {
+            const processingHtml = new HtmlElementGenerator("div");
+            containerHtml.appendChild(processingHtml);
+
+            processingHtml.setAttribute("data-width", layout.width);
+
+            processingHtml.setAttribute(
+                "class",
+                sprinkles({
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1.5",
+                    fontSize: layout.width < 150 ? "25" : "50",
+                    // Push the loading spinner into the center with some
+                    // padding top.
+                    paddingTop: "2",
+                }),
+            );
+
+            processingHtml.appendChild(spinnerGapIconHtmlGenerator);
+            processingHtml.appendChild(new HtmlTextGenerator("Processing"));
+        } else {
+            // Width at which we need to shrinking the error message so that it's still
+            // readable.
+            const minWidth = 250;
+
+            const errorHtml = new HtmlElementGenerator("div");
+            containerHtml.appendChild(errorHtml);
+
+            errorHtml.setAttribute(
+                "style",
+                `min-width: ${minWidth}px; transform: scale(${Math.min(
+                    1,
+                    layout.width / minWidth,
+                )})`,
+            );
+
+            errorHtml.setAttribute(
+                "class",
+                sprinkles({
+                    maxWidth: "64",
+                    padding: "4",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1.5",
+                }),
+            );
+
+            const errorTitleHtml = new HtmlElementGenerator("div");
+            errorHtml.appendChild(errorTitleHtml);
+
+            errorTitleHtml.setAttribute(
+                "class",
+                sprinkles({
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "0.5",
+                    fontSize: "100",
+                    fontStyle: "semi-bold",
+                    color: "grey-60",
+                }),
+            );
+
+            if (filePreview.error.code === ErrorCode.PermissionDenied) {
+                errorTitleHtml.appendChild(lockIconHtmlGenerator);
+                errorTitleHtml.appendChild(new HtmlTextGenerator("Protected file"));
+            } else {
+                errorTitleHtml.appendChild(warningIconHtmlGenerator);
+                errorTitleHtml.appendChild(new HtmlTextGenerator("Couldn’t process file"));
+            }
+
+            const errorMessageHtml = new HtmlElementGenerator("div");
+            errorHtml.appendChild(errorMessageHtml);
+
+            errorMessageHtml.setAttribute(
+                "class",
+                sprinkles({
+                    textAlign: "center",
+                    // If we're shrinking the error then increase the size of the message text so
+                    // that it stays readable instead of using the minimum size.
+                    fontSize: layout.width < minWidth ? "75" : "50",
+                    color: "grey-50",
+                }),
+            );
+
+            for (const displayMessageSegment of filePreview.error.displayMessage) {
+                switch (displayMessageSegment.type) {
+                    case "Text":
+                    case "SensitiveText": {
+                        errorMessageHtml.appendChild(
+                            new HtmlTextGenerator(displayMessageSegment.text),
+                        );
+                        break;
+                    }
+                    case "Link": {
+                        // We don't currently support links in content file previews. Since we can't
+                        // render a full `<Link>` component (like we do in
+                        // `<ErrorDisplayMessageRenderer>`) with all the navigation bells and whistles.
+                        errorMessageHtml.appendChild(
+                            new HtmlTextGenerator(displayMessageSegment.text),
+                        );
+                        break;
+                    }
+                    default:
+                        throw exhaustive(displayMessageSegment);
+                }
+            }
+        }
+        return;
+    }
+
+    // This is the file size after applying scaling. If you want the actual pixel
+    // size of the file use `reference.file.preview.size`.
+    const fileSize = getFilePreviewSize(file);
+
+    renderContentFileImagePreviewInner(get, {
+        spaceId,
+        signedUrlSearch,
+        file,
+        fileSize,
+        filePreview,
+        filePreviewSize: filePreview.size,
+        filePreviewPlaceholder: filePreview.placeholder,
+        layout,
+        expirationTimers,
+        html,
+    });
+}
+
+function renderContentFileImagePreviewInner(
+    get: <Value>(store: Store<Value>) => Value,
+    {
+        spaceId,
+        signedUrlSearch,
+        file,
+        fileSize,
+        filePreview,
+        filePreviewSize,
+        filePreviewPlaceholder,
+        layout,
+        expirationTimers,
+        html,
+    }: {
+        spaceId: SpaceId;
+        signedUrlSearch: string;
+        file: FileModel;
+        fileSize: {width: number; height: number};
+        filePreview: Exclude<FileImagePreview, {ok: false}>;
+        filePreviewSize: FileImagePreviewSize;
+        filePreviewPlaceholder: FileImagePreviewPlaceholder;
+        layout: ContentFileLayout;
+        expirationTimers: ContentFilePreviewExpirationTimers;
+        html: HtmlElementGenerator;
+    },
+) {
+    const adjustments = getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder);
+
+    if (
+        adjustments.isNearWhite ||
+        adjustments.isNearBlack ||
+        adjustments.hasTransparentBackground
+    ) {
+        html.setAttribute(
+            "class",
+            classNames(
+                html.getAttribute("class"),
+                adjustments.isNearWhite && contentStyles.fileNearWhiteClassName,
+                adjustments.isNearBlack && contentStyles.fileNearBlackClassName,
+                adjustments.hasTransparentBackground &&
+                    contentStyles.fileTransparentBackgroundClassName,
+            ),
+        );
+    }
+
+    const svg = renderFileImagePreviewPlaceholder(filePreviewPlaceholder);
+
+    const placeholderImageHtml = new HtmlElementGenerator("img");
+    placeholderImageHtml.setAttribute("class", contentStyles.fileImagePreviewPlaceholderClassName);
+    placeholderImageHtml.setAttribute(
+        "style",
+        `max-width: ${fileSize.width}px; max-height: ${fileSize.height}px`,
+    );
+    // The placeholder image is purely decorative. It shouldn't be visible to
+    // assistive technologies.
+    placeholderImageHtml.setAttribute("aria-hidden", "true");
+    placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
+
+    html.appendChild(placeholderImageHtml);
+
+    // Render the image if we have a signed preview URL and the signature isn't
+    // expired.
+    //
+    // When the signature expires we re-render the file to remove the image from
+    // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
+    // signatures that haven't expired.
+    if (
+        !get(expirationTimers.getExpiredTimerStore(signedUrlSearch)) &&
+        filePreview.content !== "Processing"
+    ) {
+        const imageSourceBase = `/files/${spaceId}/${file.id}${signedUrlSearch}${
+            filePreview.content !== undefined ? "&variant=preview" : ""
+        }`;
+
+        let image1xSource: string;
+        let image2xSource: string;
+        let image3xSource: string;
+
+        // Don't resize vector images. They're already infinitely resizable.
+        const isVectorImage =
+            (filePreview.content?.contentType ?? file.contentType) === "image/svg+xml";
+
+        if (isVectorImage) {
+            image1xSource = imageSourceBase;
+            image2xSource = imageSourceBase;
+            image3xSource = imageSourceBase;
+        } else {
+            const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
+            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
+            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
+
+            const aspectRatio = filePreviewSize.width / filePreviewSize.height;
+            const isOutsideAspectRatioRange =
+                aspectRatio < minFilePreviewAspectRatio || aspectRatio > maxFilePreviewAspectRatio;
+
+            if (!isOutsideAspectRatioRange) {
+                // If the file is smaller than our desired resize width then don't bother
+                // resizing since resizing will be a noop.
+                image1xSource =
+                    filePreviewSize.width <= image1xWidth
+                        ? imageSourceBase
+                        : `${imageSourceBase}&width=${image1xWidth}`;
+
+                image2xSource =
+                    filePreviewSize.width <= image2xWidth
+                        ? imageSourceBase
+                        : `${imageSourceBase}&width=${image2xWidth}`;
+
+                image3xSource =
+                    filePreviewSize.width <= image3xWidth
+                        ? imageSourceBase
+                        : `${imageSourceBase}&width=${image3xWidth}`;
+            }
+
+            // If we're outside the aspect ratio range then we always want to resize our
+            // file. Since resizing will also crop the file to our aspect ratio range. This
+            // will result in a smaller file to download.
+            else {
+                const defaultWidth = getFilePreviewImageResizeWidth(filePreviewSize.width);
+
+                image1xSource =
+                    filePreviewSize.width <= image1xWidth
+                        ? `${imageSourceBase}&width=${defaultWidth}`
+                        : `${imageSourceBase}&width=${image1xWidth}`;
+
+                image2xSource =
+                    filePreviewSize.width <= image2xWidth
+                        ? `${imageSourceBase}&width=${defaultWidth}`
+                        : `${imageSourceBase}&width=${image2xWidth}`;
+
+                image3xSource =
+                    filePreviewSize.width <= image3xWidth
+                        ? `${imageSourceBase}&width=${defaultWidth}`
+                        : `${imageSourceBase}&width=${image3xWidth}`;
+            }
+        }
+
+        let imageSrcset: string;
+        if (image1xSource === image2xSource) {
+            imageSrcset = image1xSource;
+        } else if (image2xSource === image3xSource) {
+            imageSrcset = `${image1xSource}, ${image2xSource} 2x`;
+        } else {
+            imageSrcset = `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`;
+        }
+
+        const imageHtml = renderFileImagePreviewContent({
+            srcset: imageSrcset,
+            // We need to set the image `max-width` and `max-height` since we don't want
+            // the image growing to fill its parent if the image is smaller than the
+            // parent (e.g. a small 32x32 image).
+            maxWidth: `${fileSize.width}px`,
+            maxHeight: `${fileSize.height}px`,
+        });
+
+        html.appendChild(imageHtml);
+    }
+
+    if (typeof filePreview.videoDuration === "number") {
+        // TODO(calebmer, #files): Implement
+    }
 }
 
 // Round numbers to 3 decimal places so we sending less data over the
@@ -1009,16 +1291,17 @@ export function addContentFilePreviewBehavior(
      *                             Context menu event                             *
     \* ========================================================================== */
 
+    const fileContentTypeNoun = getFileContentTypeNoun(reference?.file.contentType);
+
     const handleContextMenu = (event: MouseEvent) => {
         if (!navigator.clipboard) return;
 
         addContextMenuActions(event, [
             [
                 {
-                    label: `Copy ${getFileContentTypeNoun(reference?.file.contentType)}`,
-                    pressErrorTitle: `Couldn’t copy ${getFileContentTypeNoun(
-                        reference?.file.contentType,
-                    )}`,
+                    label: `Copy ${fileContentTypeNoun}`,
+                    isDisabled: reference?.file.isUploading ?? true,
+                    pressErrorTitle: `Couldn’t copy ${fileContentTypeNoun}`,
                     onPress: async () => {
                         await handleCopyContentFile(element, {
                             spaceId,
@@ -1034,7 +1317,9 @@ export function addContentFilePreviewBehavior(
                     },
                 },
                 {
-                    label: `Download ${getFileContentTypeNoun(reference?.file.contentType)}`,
+                    label: `Download ${fileContentTypeNoun}`,
+                    isDisabled: reference?.file.isUploading ?? true,
+                    pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
                     onPress: () => {
                         if (!reference) return;
 
@@ -1288,6 +1573,12 @@ export function handleDownloadContentFile({
     file: FileModel;
     signedUrlSearch: string;
 }) {
+    if (file.isUploading) {
+        throw new FailedPreconditionError("File hasn't finished uploading", {
+            displayMessage: errorDisplayMessage`The file hasn’t finished uploading. Wait a few seconds then try again.`,
+        });
+    }
+
     const downloadLinkElement = document.createElement("a");
 
     downloadLinkElement.setAttribute("download", getContentFileDownloadName(file));

@@ -1,9 +1,9 @@
 /* eslint-disable jsx-a11y/alt-text */
 
 import classNames from "classnames";
-import {DownloadSimple, Export, X} from "phosphor-react";
+import {DownloadSimple, Export, Lock, SpinnerGap, Warning, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
-import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
+import {CSSProperties, Fragment, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
@@ -21,14 +21,17 @@ import {
     mobileNavigationBarGap,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -45,6 +48,15 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
+/**
+ * Render the provided file in a fullscreen modal on mobile platforms.
+ *
+ * IMPORTANT: If you make a change to preview rendering here you should also
+ * consider making the same change to `renderContentFilePreview()` and
+ * `<ContentFileDesktopViewerModal>`. We have three renderers for every file
+ * type. The inline preview, the fullscreen desktop modal, and the fullscreen
+ * mobile modal. They should all look and behave about the same.
+ */
 export function ContentFileMobileViewerModal({
     file,
     signedUrlSearch,
@@ -84,8 +96,8 @@ export function ContentFileMobileViewerModal({
         }
 
         if (!url) {
-            throw new FailedPreconditionError("Image hasn't finished uploading", {
-                displayMessage: errorDisplayMessage`File hasn’t finished uploading. Wait a minute then try again.`,
+            throw new FailedPreconditionError("File hasn't finished uploading", {
+                displayMessage: errorDisplayMessage`The file hasn’t finished uploading. Wait a few seconds then try again.`,
             });
         }
 
@@ -125,6 +137,16 @@ export function ContentFileMobileViewerModal({
             }
         });
     };
+
+    const withProcessingIndicator =
+        file.isLoading() &&
+        // If the file has an image preview where the size or placeholder are
+        // processing then we'll be showing a large spinner in the center of the entire
+        // modal so we don't need to also show a small spinner here.
+        !(
+            file.preview?.type === "Image" &&
+            (file.preview.size === "Processing" || file.preview.placeholder === "Processing")
+        );
 
     return (
         <MobileFullScreenModal onClose={onClose}>
@@ -169,12 +191,31 @@ export function ContentFileMobileViewerModal({
                                 <X />
                             </IconButton>
                             <Box
-                                fontStyle="truncate"
-                                color={{light: "grey-20-const", dark: "grey-30-const"}}
-                                userSelect="text"
+                                display="flex"
+                                gap="1.5"
+                                style={{
+                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                    // have `min-width: auto` which extends with content.
+                                    // https://stackoverflow.com/a/66689926/1568890
+                                    minWidth: 0,
+                                }}
                             >
-                                {getFileContentTypeName(file.contentType)} -{" "}
-                                {prettyBytes(file.contentLength)}
+                                {withProcessingIndicator && <Spacer space="4" />}
+                                <Box
+                                    fontStyle="truncate"
+                                    color={{light: "grey-20-const", dark: "grey-30-const"}}
+                                >
+                                    {getFileContentTypeName(file.contentType)} -{" "}
+                                    {prettyBytes(file.contentLength)}
+                                </Box>
+                                {withProcessingIndicator && (
+                                    <Box color={{light: "grey-30-const", dark: "grey-40-const"}}>
+                                        <SpinnerGap
+                                            className={spinAnimationClassName}
+                                            size={spacing["4"]}
+                                        />
+                                    </Box>
+                                )}
                             </Box>
                             <IconButton
                                 variant="quiet-above-content-file-viewer-modal"
@@ -183,6 +224,11 @@ export function ContentFileMobileViewerModal({
                                 pressErrorTitle={`Couldn’t share ${getFileContentTypeNoun(
                                     file.contentType,
                                 )}`}
+                                isDisabled={
+                                    file.alternative
+                                        ? file.alternative.isProcessing
+                                        : file.isUploading
+                                }
                                 onPress={onShare}
                             >
                                 <Export />
@@ -242,7 +288,7 @@ function ContentFileMobileViewer(props: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return <ContentFileImageMobileViewer {...props} />;
+            return <ContentFileImageMobileViewer {...props} withZoom={true} />;
         }
         case "application/pdf":
         case "application/msword":
@@ -252,7 +298,9 @@ function ContentFileMobileViewer(props: {
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
             // TODO(calebmer, #files): Implement
-            return null;
+            //
+            // Should start with the image viewer then switch to a proper viewer?
+            return <ContentFileImageMobileViewer {...props} withZoom={false} />;
         }
         case "video/webm":
         case "video/mp4":
@@ -323,6 +371,7 @@ function ContentFileImageMobileViewer({
     isModalAnimating,
     navigationBarSize,
     viewerSize,
+    withZoom,
     onShare,
 }: {
     file: FileModel;
@@ -332,6 +381,7 @@ function ContentFileImageMobileViewer({
     isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
+    withZoom: boolean;
     onShare: () => Promise<void>;
 }) {
     assert(file.preview?.type === "Image");
@@ -341,8 +391,109 @@ function ContentFileImageMobileViewer({
         file.preview.placeholder === "Processing" ||
         file.preview.size === "Processing"
     ) {
-        // TODO(calebmer, #files): Implement
-        return null;
+        return (
+            <Box
+                width="full"
+                height="full"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+            >
+                {file.preview.isProcessing || file.preview.ok ? (
+                    <Box
+                        color={{light: "grey-20-const", dark: "grey-30-const"}}
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap="2"
+                        fontSize="75"
+                    >
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["6"]} />
+                        Processing
+                    </Box>
+                ) : (
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap="5"
+                        maxWidth="96"
+                        userSelect="text"
+                    >
+                        <Box display="flex" flexDirection="column" alignItems="center" gap="2.5">
+                            <Box
+                                display="flex"
+                                flexDirection="column"
+                                alignItems="center"
+                                gap="0.5"
+                                fontSize="200"
+                                color={{light: "grey-0-const", dark: "grey-10-const"}}
+                                fontStyle="semi-bold"
+                            >
+                                {file.preview.error.code === ErrorCode.PermissionDenied ? (
+                                    <>
+                                        <Lock size={spacing["6"]} />
+                                        Protected file
+                                    </>
+                                ) : (
+                                    <>
+                                        <Warning size={spacing["6"]} />
+                                        Couldn’t process file
+                                    </>
+                                )}
+                            </Box>
+                            <Box
+                                fontSize="100"
+                                color={{light: "grey-20-const", dark: "grey-30-const"}}
+                                textAlign="center"
+                                paddingX="8"
+                            >
+                                {file.preview.error.displayMessage.map(
+                                    (displayMessageSegment, i) => {
+                                        switch (displayMessageSegment.type) {
+                                            case "Text":
+                                            case "SensitiveText": {
+                                                return (
+                                                    <Fragment key={i}>
+                                                        {displayMessageSegment.text}
+                                                    </Fragment>
+                                                );
+                                            }
+                                            case "Link": {
+                                                // We don't currently support links in content file viewer error
+                                                // messages. Since links aren't supported in content file previews which would
+                                                // require interactivity.
+                                                return (
+                                                    <Fragment key={i}>
+                                                        {displayMessageSegment.text}
+                                                    </Fragment>
+                                                );
+                                            }
+                                            default:
+                                                throw exhaustive(displayMessageSegment);
+                                        }
+                                    },
+                                )}
+                            </Box>
+                        </Box>
+                        <Button
+                            variant="neutral"
+                            icon={<DownloadSimple />}
+                            iconGap="1.5"
+                            isDisabled={
+                                file.alternative ? file.alternative.isProcessing : file.isUploading
+                            }
+                            pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                                file.contentType,
+                            )}`}
+                            onPress={onShare}
+                        >
+                            Download
+                        </Button>
+                    </Box>
+                )}
+            </Box>
+        );
     }
 
     // TODO(calebmer): Support viewing large files. It's very frustrating but
@@ -375,6 +526,9 @@ function ContentFileImageMobileViewer({
                         variant="neutral"
                         icon={<DownloadSimple />}
                         iconGap="1.5"
+                        isDisabled={
+                            file.alternative ? file.alternative.isProcessing : file.isUploading
+                        }
                         pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
                             file.contentType,
                         )}`}
@@ -397,6 +551,7 @@ function ContentFileImageMobileViewer({
             isModalAnimating={isModalAnimating}
             navigationBarSize={navigationBarSize}
             viewerSize={viewerSize}
+            withZoom={withZoom}
         />
     );
 }
@@ -502,6 +657,7 @@ function ContentFileImageMobileViewerInner({
     isModalAnimating,
     navigationBarSize,
     viewerSize,
+    withZoom,
 }: {
     file: FileModel;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
@@ -511,9 +667,10 @@ function ContentFileImageMobileViewerInner({
     isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
+    withZoom: boolean;
 }) {
     // If we're on the client, start loading `hammerjs`.
-    if (typeof window !== "undefined") void hammerModulePromise.get();
+    if (withZoom && typeof window !== "undefined") void hammerModulePromise.get();
 
     const {space} = useSpaceContext();
 
@@ -574,6 +731,22 @@ function ContentFileImageMobileViewerInner({
             old: transformStates.old?.clone({measurements: transformStateMeasurements}) ?? null,
             new: transformStates.new.clone({measurements: transformStateMeasurements}),
         });
+    } else if (
+        !withZoom &&
+        (transformStates.old ||
+            transformStates.new.zoomScale !== 1 ||
+            transformStates.new.panTranslateX !== 0 ||
+            transformStates.new.panTranslateY !== 0)
+    ) {
+        setTransformStates({
+            old: null,
+            new: new ContentFileImageMobileViewerTransformState({
+                measurements: transformStateMeasurements,
+                zoomScale: 1,
+                panTranslateX: 0,
+                panTranslateY: 0,
+            }),
+        });
     }
 
     const scaledFileWidth = fileSize.width * fileScale * transformStates.new.zoomScale;
@@ -632,6 +805,8 @@ function ContentFileImageMobileViewerInner({
     // have to access it through a global and you can't import `hammerjs` on the
     // server. But it's very popular and gets the job done so we use it.
     useEffect(() => {
+        if (!withZoom) return;
+
         const containerElement = assertExists(containerRef.current);
 
         let hasCleanedUp = false;
@@ -766,7 +941,7 @@ function ContentFileImageMobileViewerInner({
             hasCleanedUp = true;
             cleanup?.();
         };
-    }, []);
+    }, [withZoom]);
 
     const imageContentStyle: CSSProperties = {
         // Re-enable `-webkit-touch-callout` for this preview image. So the user can
