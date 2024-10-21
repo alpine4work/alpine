@@ -1500,11 +1500,18 @@ export function DocumentContentEditor({
         withMobileLayout,
         title: getDocumentContentTitle(content.doc),
         titleBoundaryRef,
-        titleBoundaryMarginTop: isMobile
-            ? contentStyles.mobilePlatformTitlePaddingTop
-            : withMobileLayout
-            ? contentStyles.mobileLayoutTitlePaddingTop
-            : contentStyles.desktopTitlePaddingTop,
+        titleBoundaryMarginTop: useMemo(
+            () =>
+                addRemLengths(
+                    isMobile
+                        ? contentStyles.mobilePlatformTitlePaddingTop
+                        : withMobileLayout
+                        ? contentStyles.mobileLayoutTitlePaddingTop
+                        : contentStyles.desktopTitlePaddingTop,
+                    spacing["4"],
+                ),
+            [isMobile, withMobileLayout],
+        ),
         menuActions: [
             [
                 {
