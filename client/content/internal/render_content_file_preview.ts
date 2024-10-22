@@ -7,6 +7,7 @@ import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
+import {contentFileCodeViewerProcessingIndicatorColor} from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
@@ -26,7 +27,15 @@ import {
     emptyContentReferences,
     getContentReferencesFileSignedUrlSearchExpirationTime,
 } from "~/shared/content/content_references.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
+import {
+    codeBlockClassName,
+    codeBlockLineClassName,
+    codeBlockLineContentClassName,
+    codeBlockWrapperClassName,
+    fileClassName,
+} from "~/shared/content/content_styles.js";
+import {fontSizesByPlatform} from "~/shared/design/fonts.js";
+import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/spacing.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -37,7 +46,11 @@ import {
 import {getFileContentTypePreferredExtension} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FileImagePreview, FileImagePreviewSize} from "~/shared/files/file_preview.js";
+import {
+    FileCodePreview,
+    FileImagePreview,
+    FileImagePreviewSize,
+} from "~/shared/files/file_preview.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {
@@ -243,15 +256,18 @@ const spinnerGapIconHtmlGenerator: HtmlGenerator = {
 };
 
 const warningIconClassName = sprinkles({
-    width: "6",
-    height: "6",
+    width: "4",
+    height: "4",
 });
 
 let warningIconHtml: string | undefined;
 
 const warningIconHtmlGenerator: HtmlGenerator = {
     generateHtml: () => {
-        warningIconHtml ??= warningIconSvg({className: warningIconClassName});
+        warningIconHtml ??= warningIconSvg({
+            className: warningIconClassName,
+            weight: "bold",
+        });
         return warningIconHtml;
     },
     generateNode: () => {
@@ -270,15 +286,18 @@ const warningIconHtmlGenerator: HtmlGenerator = {
 };
 
 const lockIconClassName = sprinkles({
-    width: "6",
-    height: "6",
+    width: "4",
+    height: "4",
 });
 
 let lockIconHtml: string | undefined;
 
 const lockIconHtmlGenerator: HtmlGenerator = {
     generateHtml: () => {
-        lockIconHtml ??= lockIconSvg({className: lockIconClassName});
+        lockIconHtml ??= lockIconSvg({
+            className: lockIconClassName,
+            weight: "bold",
+        });
         return lockIconHtml;
     },
     generateNode: () => {
@@ -312,12 +331,16 @@ export function renderContentFilePreview(
         node,
         reference,
         layout,
+        screenWidth,
+        isMobile,
         expirationTimers,
     }: {
         spaceId: SpaceId;
         node: Node;
         reference: {signedUrlSearch: string; file: FileModel} | undefined;
         layout: ContentFileLayout;
+        screenWidth: number;
+        isMobile: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
     },
 ): HtmlElementGenerator {
@@ -332,19 +355,21 @@ export function renderContentFilePreview(
     }
 
     if (!reference) {
-        // TODO(calebmer, #files): Implement
+        const blankHtml = new HtmlElementGenerator("div");
+        html.appendChild(blankHtml);
+
+        blankHtml.setAttribute(
+            "class",
+            sprinkles({
+                position: "absolute",
+                inset: "0",
+                backgroundColor: "grey-5",
+            }),
+        );
     } else if (!reference.file.preview) {
         // TODO(calebmer, #files): Implement
     } else {
         switch (reference.file.preview.type) {
-            case "Audio": {
-                // TODO(calebmer, #files): Implement
-                break;
-            }
-            case "Code": {
-                // TODO(calebmer, #files): Implement
-                break;
-            }
             case "Image": {
                 renderContentFileImagePreview(get, {
                     spaceId,
@@ -353,6 +378,20 @@ export function renderContentFilePreview(
                     filePreview: reference.file.preview,
                     layout,
                     expirationTimers,
+                    html,
+                });
+                break;
+            }
+            case "Audio": {
+                // TODO(calebmer, #files): Implement
+                break;
+            }
+            case "Code": {
+                renderContentFileCodePreview({
+                    filePreview: reference.file.preview,
+                    layout,
+                    screenWidth,
+                    isMobile,
                     html,
                 });
                 break;
@@ -410,8 +449,6 @@ function renderContentFileImagePreview(
             const processingHtml = new HtmlElementGenerator("div");
             containerHtml.appendChild(processingHtml);
 
-            processingHtml.setAttribute("data-width", layout.width);
-
             processingHtml.setAttribute(
                 "class",
                 sprinkles({
@@ -448,11 +485,11 @@ function renderContentFileImagePreview(
                 "class",
                 sprinkles({
                     maxWidth: "64",
-                    padding: "4",
+                    paddingX: "6",
+                    paddingY: "4",
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "center",
-                    gap: "1.5",
+                    gap: "2",
                 }),
             );
 
@@ -463,10 +500,9 @@ function renderContentFileImagePreview(
                 "class",
                 sprinkles({
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
-                    gap: "0.5",
-                    fontSize: "100",
+                    gap: "1.5",
+                    fontSize: "200",
                     fontStyle: "semi-bold",
                     color: "grey-60",
                 }),
@@ -477,7 +513,7 @@ function renderContentFileImagePreview(
                 errorTitleHtml.appendChild(new HtmlTextGenerator("Protected file"));
             } else {
                 errorTitleHtml.appendChild(warningIconHtmlGenerator);
-                errorTitleHtml.appendChild(new HtmlTextGenerator("Couldn’t process file"));
+                errorTitleHtml.appendChild(new HtmlTextGenerator("Couldn’t open file"));
             }
 
             const errorMessageHtml = new HtmlElementGenerator("div");
@@ -486,7 +522,6 @@ function renderContentFileImagePreview(
             errorMessageHtml.setAttribute(
                 "class",
                 sprinkles({
-                    textAlign: "center",
                     // If we're shrinking the error then increase the size of the message text so
                     // that it stays readable instead of using the minimum size.
                     fontSize: layout.width < minWidth ? "75" : "50",
@@ -701,6 +736,153 @@ function renderContentFileImagePreviewInner(
     }
 }
 
+function renderContentFileCodePreview({
+    filePreview,
+    layout,
+    screenWidth,
+    isMobile,
+    html,
+}: {
+    filePreview: FileCodePreview;
+    layout: ContentFileLayout;
+    screenWidth: number;
+    isMobile: boolean;
+    html: HtmlElementGenerator;
+}) {
+    html.setAttribute(
+        "class",
+        classNames(html.getAttribute("class"), sprinkles({backgroundColor: "grey-0"})),
+    );
+
+    // Make sure when we scale the file down, we continue to use the layout height
+    // instead of the unscaled element height. To reproduce the bug which caused us
+    // to add this: Scale down a code preview by adding another file to its file
+    // row. Then add a comment to the code preview.
+    html.setAttribute("style", `height: ${layout.height}px`);
+
+    if (filePreview.content === "Processing") {
+        const containerHtml = new HtmlElementGenerator("div");
+        html.appendChild(containerHtml);
+
+        containerHtml.setAttribute(
+            "class",
+            sprinkles({
+                position: "absolute",
+                inset: "0",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                color: contentFileCodeViewerProcessingIndicatorColor,
+            }),
+        );
+
+        const processingHtml = new HtmlElementGenerator("div");
+        containerHtml.appendChild(processingHtml);
+
+        processingHtml.setAttribute(
+            "class",
+            sprinkles({
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "1.5",
+                fontSize: layout.width < 150 ? "25" : "50",
+                // Push the loading spinner into the center with some
+                // padding top.
+                paddingTop: "2",
+            }),
+        );
+
+        processingHtml.appendChild(spinnerGapIconHtmlGenerator);
+        processingHtml.appendChild(new HtmlTextGenerator("Processing"));
+        return;
+    }
+
+    const fullWidth = Math.min(
+        contentStyles.blockMaxWidthRem[isMobile ? "mobile" : "desktop"] *
+            remPxByPlatform[isMobile ? "mobile" : "desktop"],
+        screenWidth -
+            screenPaddingXRem[isMobile ? "mobile" : "desktop"] *
+                remPxByPlatform[isMobile ? "mobile" : "desktop"] *
+                2,
+    );
+
+    const initialScale =
+        fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+    const scale = Math.min(1, layout.width / fullWidth) * initialScale;
+
+    const containerHtml = new HtmlElementGenerator("div");
+    html.appendChild(containerHtml);
+
+    containerHtml.setAttribute(
+        "class",
+        sprinkles({
+            paddingLeft: "2.5",
+            paddingTop: "2.5",
+            overflow: "hidden",
+        }),
+    );
+
+    containerHtml.setAttribute(
+        "style",
+        `width: ${fullWidth / initialScale}px; height: ${round6(
+            layout.height / scale,
+        )}px; transform-origin: top left; transform: scale(${round6(scale)})`,
+    );
+
+    const preHtml = new HtmlElementGenerator("pre");
+    containerHtml.appendChild(preHtml);
+    preHtml.setAttribute(
+        "class",
+        classNames(codeBlockWrapperClassName, contentStyles.filePreviewCodeBlockClassName),
+    );
+
+    const codeHtml = new HtmlElementGenerator("code");
+    preHtml.appendChild(codeHtml);
+    codeHtml.setAttribute("class", codeBlockClassName);
+
+    let lineHtml = new HtmlElementGenerator("div");
+    let lineContentHtml = new HtmlElementGenerator("div");
+    codeHtml.appendChild(lineHtml);
+    lineHtml.appendChild(lineContentHtml);
+    lineHtml.setAttribute("class", codeBlockLineClassName);
+    lineContentHtml.setAttribute("class", codeBlockLineContentClassName);
+
+    let hadNewline = false;
+
+    for (const contentItem of filePreview.content.get()) {
+        if (hadNewline) {
+            lineHtml = new HtmlElementGenerator("div");
+            lineContentHtml = new HtmlElementGenerator("div");
+            codeHtml.appendChild(lineHtml);
+            lineHtml.appendChild(lineContentHtml);
+            lineHtml.setAttribute("class", codeBlockLineClassName);
+            lineContentHtml.setAttribute("class", codeBlockLineContentClassName);
+        }
+        hadNewline = false;
+
+        switch (contentItem.type) {
+            case "String": {
+                if (contentItem.classes.length === 0) {
+                    lineContentHtml.appendChild(new HtmlTextGenerator(contentItem.string));
+                } else {
+                    const spanHtml = new HtmlElementGenerator("span");
+                    lineContentHtml.appendChild(spanHtml);
+                    spanHtml.setAttribute("class", contentItem.classes);
+                    spanHtml.appendChild(new HtmlTextGenerator(contentItem.string));
+                }
+                break;
+            }
+            case "Newline": {
+                hadNewline = true;
+                break;
+            }
+            default:
+                throw exhaustive(contentItem);
+        }
+    }
+}
+
 // Round numbers to 3 decimal places so we sending less data over the
 // network in our generated HTML.
 function round6(n: number) {
@@ -796,9 +978,20 @@ function actuallyRenderFileImagePreviewContent({
     // need it.
     imageHtml.setAttribute("loading", "lazy");
 
-    // Asynchronously decode images. For atomic presentation of images you need to
-    // wait for the `decode()` method.
-    imageHtml.setAttribute("decoding", "async");
+    // Synchronously decode images. That way we don't need to wait for the
+    // `decode()` method before we can present an image. Since preview images are
+    // small we don't expect this to be a performance issue.
+    //
+    // This improves the user experience in `<ContentEditor>`s when moving files
+    // around. If you move a file we don't need to re-fetch the image because the
+    // browser has it cached. But if `decoding` is `async` then we do need to wait
+    // for the `decode()` method which flashes the loading state for an image
+    // temporarily while we wait for the image to decode.
+    //
+    // To test this, try adding and removing comments from files. This will
+    // re-create the file `<img>` element but since the file is cached we shouldn't
+    // have to show the loading indicator.
+    imageHtml.setAttribute("decoding", "sync");
 
     const srcs = srcset.split(",");
     const firstSrc = srcs[0]!.trim();

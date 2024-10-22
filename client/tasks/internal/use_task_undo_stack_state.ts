@@ -55,8 +55,7 @@ export type TaskUndoStackEntry =
  */
 export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     const [undoState] = useStateWithDependencies(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        stateKey => ({
+        () => ({
             undoStackRef: cast<
                 MutableRefObject<Array<TaskUndoStackEntry & {readonly fromRedo: boolean}>>
             >({current: []}),

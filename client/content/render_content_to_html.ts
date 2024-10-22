@@ -382,6 +382,8 @@ export function renderContentFragmentToHtmlStore(
                         node,
                         reference: fileReference,
                         layout,
+                        screenWidth,
+                        isMobile,
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                     });
 

@@ -23,6 +23,7 @@ import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
@@ -464,11 +465,7 @@ function DocumentCommentThreadListView(
     const hasNavigationBar = !!navigationBar?.navigationBar;
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMoreData = useEvent(
         (
@@ -487,7 +484,7 @@ function DocumentCommentThreadListView(
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;

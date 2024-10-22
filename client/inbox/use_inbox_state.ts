@@ -5,6 +5,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {
     ActionForStateWithOptimisticUpdates,
     StateWithOptimisticUpdates,
@@ -222,11 +223,7 @@ export function useInboxState(props: {
     );
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMore = useEvent(
         (
@@ -246,7 +243,7 @@ export function useInboxState(props: {
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;

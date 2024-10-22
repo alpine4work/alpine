@@ -12,7 +12,6 @@ import {
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {Sprinkles, greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
-import {Color} from "~/shared/design/colors.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

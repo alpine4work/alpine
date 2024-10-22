@@ -111,6 +111,7 @@ globalStyle(darkColorSchemeSelector, {
     ),
 });
 
+export const initialSelectionColorsClassName = style({});
 export const invertSelectionColorsClassName = style({});
 export const invertLightSelectionColorsClassName = style({});
 export const invertDarkSelectionColorsClassName = style({});
@@ -177,6 +178,8 @@ function createTheme(color: ThemeColor) {
         "theme-70-const": constantColors[`${color}-70-const`],
         "theme-80-const": constantColors[`${color}-80-const`],
         "theme-90-const": constantColors[`${color}-90-const`],
+        "theme-40-const-opacity-60": `${constantColors[`${color}-40-const`]}99`,
+        "theme-60-const-opacity-60": `${constantColors[`${color}-60-const`]}99`,
     };
 }
 

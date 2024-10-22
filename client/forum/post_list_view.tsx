@@ -45,6 +45,7 @@ import {
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -343,11 +344,7 @@ function PostListView(
     }
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMoreData = useEvent(
         (
@@ -366,7 +363,7 @@ function PostListView(
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;
@@ -560,7 +557,7 @@ function PostListView(
 
                 isLoadingRef.current = false;
             } catch (error) {
-                setErrorState({hasError: true, error});
+                setErrorState(error);
             }
         },
     );

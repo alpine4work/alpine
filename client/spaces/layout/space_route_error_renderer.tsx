@@ -13,6 +13,10 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
+import {
+    spaceLayoutErrorRendererPaddingX,
+    spaceLayoutErrorRendererPaddingY,
+} from "~/client/styles/space_layout_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 
@@ -61,12 +65,10 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
             )}
             <Box display="flex" justifyContent="center">
                 <Box
-                    className={sprinkles({
-                        width: "full",
-                        maxWidth: "128",
-                        paddingX: "8",
-                        paddingY: isMobile ? "6" : "32",
-                    })}
+                    width="full"
+                    maxWidth="128"
+                    paddingX={spaceLayoutErrorRendererPaddingX}
+                    paddingY={spaceLayoutErrorRendererPaddingY}
                 >
                     <ErrorBodyRenderer title={useRouteErrorTitle()} error={error} />
                 </Box>

@@ -1,5 +1,6 @@
 import {Memo, useEffect, useRef, useState} from "react";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
@@ -151,11 +152,7 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
         reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>>;
     },
 ) {
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     // Subscribe to realtime events that may change what's in the channel.
     useEffect(() => {
@@ -209,7 +206,7 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
 
                                 onUpdateQuery(() => DynamoGeneralRealtimeIndexQuery.new(result));
                             },
-                            error => setErrorState({hasError: true, error}),
+                            error => setErrorState(error),
                         );
                         break;
                     }
@@ -217,7 +214,7 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
                         throw exhaustive(backfillResult);
                 }
             },
-            error => setErrorState({hasError: true, error}),
+            error => setErrorState(error),
         );
-    }, [backfillQuery, isConnected, onUpdateQuery, query, reloadQuery]);
+    }, [backfillQuery, isConnected, onUpdateQuery, query, reloadQuery, setErrorState]);
 }

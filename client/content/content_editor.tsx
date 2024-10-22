@@ -2182,7 +2182,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             case "InsertFileIntoRow": {
                                 assert(slice.size > 0);
 
-                                const fileIds: Array<FileId | null> = [];
+                                const fileNodes: Array<Node> = [];
 
                                 for (const fileRowNode of slice.content.content) {
                                     assert(fileRowNode.type.name === "fileRow");
@@ -2190,20 +2190,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     for (const fileNode of fileRowNode.content.content) {
                                         assert(fileNode.type.name === "file");
 
-                                        fileIds.push(fileNode.attrs.fileId);
+                                        fileNodes.push(fileNode);
                                     }
                                 }
 
                                 // A non-empty slice will have at least one `FileId`. If the slice is
                                 // empty then we return above.
-                                assert(fileIds.length > 0);
+                                assert(fileNodes.length > 0);
 
-                                transaction.insert(
-                                    pos,
-                                    schema.nodes.file!.create({
-                                        fileId: fileIds[0],
-                                    }),
-                                );
+                                // We need to use the first file node instead of creating a new node from the
+                                // `FileId` to preserve any comment marks on the file.
+                                transaction.insert(pos, fileNodes[0]!);
 
                                 const $newPos = transaction.doc.resolve(pos);
 
@@ -2213,14 +2210,16 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                 // If there's more than one file, then add all additional files as new rows
                                 // after the row we inserted into.
-                                if (fileIds.length > 1) {
-                                    const fileIdsByRow: Array<Array<FileId | null>> = [[]];
+                                if (fileNodes.length > 1) {
+                                    const fileNodesByRow: Array<Array<Node>> = [[]];
 
-                                    for (const fileId of fileIds.slice(1)) {
-                                        if (fileIdsByRow[fileIdsByRow.length - 1]!.length < 3) {
-                                            fileIdsByRow[fileIdsByRow.length - 1]!.push(fileId);
+                                    for (const fileNode of fileNodes.slice(1)) {
+                                        if (fileNodesByRow[fileNodesByRow.length - 1]!.length < 3) {
+                                            fileNodesByRow[fileNodesByRow.length - 1]!.push(
+                                                fileNode,
+                                            );
                                         } else {
-                                            fileIdsByRow.push([fileId]);
+                                            fileNodesByRow.push([fileNode]);
                                         }
                                     }
 
@@ -2228,13 +2227,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                     transaction.insert(
                                         $newPos.after(),
-                                        fileIdsByRow.map(fileIds =>
+                                        fileNodesByRow.map(fileNodes =>
                                             schema.node(
                                                 "fileRow",
                                                 {},
-                                                fileIds.map(fileId =>
-                                                    schema.node("file", {fileId}),
-                                                ),
+                                                fileNodes.map(fileNode => fileNode),
                                             ),
                                         ),
                                     );

@@ -4,6 +4,7 @@ import {Box} from "~/client/design/box.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {
     MessagingView,
     MessagingViewRef,
@@ -64,15 +65,13 @@ export function TaskCommentsView({
     const messagingRef = useRef<MessagingViewRef>(null);
     const [initialComments, setInitialComments] = useState(initialCommentsFromProps);
 
-    const [errorState, setErrorState] = useState({hasError: false, error: {}});
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const clientInfo = useClientInfo();
 
     const isLoadingInitialCommentsRef = useRef(false);
     useEffect(() => {
         if (initialComments) return;
-        if (errorState.hasError) return;
 
         if (isLoadingInitialCommentsRef.current) return;
         isLoadingInitialCommentsRef.current = true;
@@ -96,10 +95,10 @@ export function TaskCommentsView({
             },
             error => {
                 isLoadingInitialCommentsRef.current = false;
-                setErrorState({hasError: true, error});
+                setErrorState(error);
             },
         );
-    }, [initialComments, context, taskId, clientInfo, errorState.hasError]);
+    }, [initialComments, context, taskId, clientInfo, setErrorState]);
 
     const hasInitializedRef = useRef(false);
 

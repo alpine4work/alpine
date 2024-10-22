@@ -90,8 +90,10 @@ export function createContentEditorFileNodeViewConstructor({
                 ? getContentEditorReferences(view.state).references.fileById.get(fileId)
                 : undefined;
 
+            const screenWidth = getLayoutScreenWidth();
+
             const layout = layoutContentFile(references, view.state.doc, getPos(), node, {
-                screenWidth: getLayoutScreenWidth(),
+                screenWidth,
                 isMobile,
             });
 
@@ -114,6 +116,8 @@ export function createContentEditorFileNodeViewConstructor({
                         node,
                         reference: fileReference,
                         layout,
+                        screenWidth,
+                        isMobile,
                         expirationTimers: getExpirationTimers(),
                     }),
                 );

@@ -14,10 +14,12 @@ export function Link({
     url,
     onClick,
     children,
+    colorSchemeOverride,
 }: {
     url: string;
     onClick?: (event: MouseEvent) => void;
     children?: ReactNode;
+    colorSchemeOverride?: "light" | "dark";
 }) {
     // Make sure link is well-formed.
     assert(
@@ -37,6 +39,12 @@ export function Link({
                     href={url}
                     className={classNames(
                         linkClassName,
+                        colorSchemeOverride === "light"
+                            ? contentStyles.linkLightColorSchemeOverrideClassName
+                            : undefined,
+                        colorSchemeOverride === "dark"
+                            ? contentStyles.linkDarkColorSchemeOverrideClassName
+                            : undefined,
                         isPressed ? contentStyles.linkPressedClassName : undefined,
                     )}
                     // We don't support arbitrary navigation in the native mobile app. Since not
@@ -52,6 +60,12 @@ export function Link({
                     to={url}
                     className={classNames(
                         linkClassName,
+                        colorSchemeOverride === "light"
+                            ? contentStyles.linkLightColorSchemeOverrideClassName
+                            : undefined,
+                        colorSchemeOverride === "dark"
+                            ? contentStyles.linkDarkColorSchemeOverrideClassName
+                            : undefined,
                         isPressed ? contentStyles.linkPressedClassName : undefined,
                     )}
                     // We don't support arbitrary navigation in the native mobile app. Since not

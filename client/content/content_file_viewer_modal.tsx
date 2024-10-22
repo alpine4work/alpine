@@ -1,16 +1,27 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {ContentFileDesktopViewerModal} from "~/client/content/internal/content_file_desktop_viewer_modal.js";
 import {ContentFileMobileViewerModal} from "~/client/content/internal/content_file_mobile_viewer_modal.js";
+import {
+    ContentFileViewerLoaderData,
+    loadContentFileViewerData,
+} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useForceRevalidateRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {
+    PromiseImmediateResolver,
+    createPromiseImmediateResolver,
+} from "~/shared/helpers/async/promise_immediate_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -186,7 +197,66 @@ export function ContentFileViewerModal({
         forceRevalidateRpc,
     ]);
 
-    if (fileFromAttachmentOutput.output === null) return null;
+    const [loaderDataPromiseResolver] = useStateWithDependencies(
+        () => createPromiseImmediateResolver<ContentFileViewerLoaderData | null>(),
+        [fileId],
+    );
+
+    const loadedLoaderDataPromiseResolverRef =
+        useRef<PromiseImmediateResolver<ContentFileViewerLoaderData | null> | null>(null);
+
+    // Load any data needed to render the file viewer modal. We will delay opening
+    // the file viewer modal for a bit so if the network is fast we don't need to
+    // show a loading spinner.
+    useEffect(() => {
+        if (!fileFromAttachmentOutput.output) return;
+
+        if (loadedLoaderDataPromiseResolverRef.current === loaderDataPromiseResolver) return;
+        loadedLoaderDataPromiseResolverRef.current = loaderDataPromiseResolver;
+
+        loadContentFileViewerData({
+            spaceId: space.id,
+            signedUrlSearch: fileFromAttachmentOutput.output.signedUrlSearch,
+            file: fileFromAttachmentOutput.output.file,
+        }).then(loaderDataPromiseResolver.resolve, loaderDataPromiseResolver.reject);
+    }, [fileFromAttachmentOutput.output, loaderDataPromiseResolver, space.id]);
+
+    const [delayState, setDelayState] = useState<{startTime: number} | null>(() => ({
+        startTime: Date.now(),
+    }));
+
+    // Wait for either:
+    //
+    // 1. `loaderData.promise` to resolve; OR
+    // 2. For `delayScreenTransitionLoadingIndicatorLimitMs` to elapse
+    //
+    // Whichever happens first.
+    useEffect(() => {
+        if (!delayState) return;
+        if (!fileFromAttachmentOutput.output) return;
+
+        let hasCleanedUp = false;
+
+        Promise.race([
+            wait(delayState.startTime + delayScreenTransitionLoadingIndicatorLimitMs - Date.now()),
+            loaderDataPromiseResolver.promise,
+        ]).then(
+            () => {
+                if (hasCleanedUp) return;
+                setDelayState(null);
+            },
+            () => {
+                if (hasCleanedUp) return;
+                setDelayState(null);
+            },
+        );
+
+        return () => {
+            hasCleanedUp = true;
+        };
+    }, [delayState, fileFromAttachmentOutput.output, loaderDataPromiseResolver?.promise]);
+
+    if (!fileFromAttachmentOutput.output || !loaderDataPromiseResolver || delayState) return null;
 
     if (isMobile) {
         return (
@@ -195,6 +265,7 @@ export function ContentFileViewerModal({
                 signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                 attachmentTarget={attachmentTarget}
                 expirationTimers={expirationTimers}
+                loaderDataPromise={loaderDataPromiseResolver.promise}
                 onClose={onClose}
             />
         );
@@ -205,6 +276,7 @@ export function ContentFileViewerModal({
                 signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                 attachmentTarget={attachmentTarget}
                 expirationTimers={expirationTimers}
+                loaderDataPromise={loaderDataPromiseResolver.promise}
                 onClose={onClose}
             />
         );

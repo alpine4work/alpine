@@ -1,6 +1,7 @@
 import {Memo, useEffect, useRef, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -43,11 +44,7 @@ export function useMessagingRealtime<
         (subscriber: (event: MessagingRealtimeEvent<Message>) => void) => () => void
     >;
 }) {
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const hasBackfillFinishedRef = useRef(false);
 
@@ -163,10 +160,10 @@ export function useMessagingRealtime<
             },
             error => {
                 if (backfillPromiseRef.current !== backfillPromise) return;
-                setErrorState({hasError: true, error});
+                setErrorState(error);
             },
         );
 
         backfillPromiseRef.current = backfillPromise;
-    }, [backfillMessages, handleBackfillResponse, isConnected]);
+    }, [backfillMessages, handleBackfillResponse, isConnected, setErrorState]);
 }

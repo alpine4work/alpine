@@ -27,8 +27,6 @@ export function isHtmlImageElementLoadedAndDecoded(
         element,
         () => {
             return new PromiseImmediate<void>((resolve, reject) => {
-                let isSync = true;
-
                 const handleLoad = () => {
                     element.removeEventListener("load", handleLoad);
                     element.removeEventListener("error", handleLoad);
@@ -42,16 +40,8 @@ export function isHtmlImageElementLoadedAndDecoded(
                         return;
                     }
 
-                    // If we could synchronously resolve this promise then let's do it. If the
-                    // element has set `element.complete` we're going to assume it's decoded as
-                    // well. If we don't synchronously resolve them if we're re-creating an image
-                    // whose content is cached we'll end up flashing the loading indicator for the
-                    // image while waiting for the decode promise.
-                    //
-                    // To test this, try adding and removing comments from files. This will
-                    // re-create the file `<img>` element but since the file is cached we shouldn't
-                    // have to show the loading indicator.
-                    if (isSync) {
+                    // Only decode images which need asynchronous decoding.
+                    if (element.decoding === "sync") {
                         resolve();
                     } else {
                         element.decode().then(
@@ -70,8 +60,6 @@ export function isHtmlImageElementLoadedAndDecoded(
                     element.addEventListener("load", handleLoad);
                     element.addEventListener("error", handleLoad);
                 }
-
-                isSync = false;
             });
         },
     );

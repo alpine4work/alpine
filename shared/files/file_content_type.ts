@@ -458,6 +458,43 @@ export const fileContentTypeByCodeBlockLanguageId = {
     ocaml: "text/x-ocaml",
 } as const;
 
+export function isFileCodeContentType(
+    contentType: FileContentType,
+): contentType is FileCodeContentType {
+    return !!getFileContentTypeContentCodeBlockLanguageIdIfExists(contentType);
+}
+
+let codeBlockLanguageIdByFileContentType: Map<
+    FileContentType,
+    keyof typeof fileContentTypeByCodeBlockLanguageId
+> | null = null;
+
+export function getFileContentTypeContentCodeBlockLanguageIdIfExists(
+    contentType: FileContentType,
+): keyof typeof fileContentTypeByCodeBlockLanguageId | null {
+    codeBlockLanguageIdByFileContentType ??= new Map(
+        Object.entries(fileContentTypeByCodeBlockLanguageId).map(
+            ([languageId, contentType]): [
+                FileContentType,
+                keyof typeof fileContentTypeByCodeBlockLanguageId,
+            ] => [contentType, languageId as keyof typeof fileContentTypeByCodeBlockLanguageId],
+        ),
+    );
+    return codeBlockLanguageIdByFileContentType.get(contentType) ?? null;
+}
+
+export function getFileContentTypeContentCodeBlockLanguageId(
+    contentType: FileCodeContentType,
+): keyof typeof fileContentTypeByCodeBlockLanguageId {
+    return getFileContentTypeContentCodeBlockLanguageIdIfExists(contentType)!;
+}
+
+export function getContentCodeBlockLanguageIdFileContentType(
+    languageId: keyof typeof fileContentTypeByCodeBlockLanguageId,
+): FileCodeContentType {
+    return fileContentTypeByCodeBlockLanguageId[languageId];
+}
+
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
 const filePreferredExtensionByContentType: {[Key in FileContentType]: string} = {

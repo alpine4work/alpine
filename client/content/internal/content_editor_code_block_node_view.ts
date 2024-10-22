@@ -84,10 +84,10 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             // node view.
             addUnfocusableButtonBehaviorToElement(languagePickerElement, {
                 defaultClassName: sprinkles({
-                    color: "grey-70",
+                    color: "grey-60",
                 }),
                 hoverClassName: sprinkles({
-                    color: "grey-70",
+                    color: "grey-60",
                     backgroundColor: "grey-5",
                 }),
                 pressClassName: sprinkles({

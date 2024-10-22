@@ -512,14 +512,13 @@ export function getFilePreviewSize(file: FileModel | null): {width: number; heig
             return {width, height};
         }
         case "Code": {
-            // Standard laptop monitor aspect ratio. As if you rendered the code file
-            // fullscreen on your laptop.
-            // https://www.theverge.com/2021/1/19/22238671
-            const aspectRatio = 3 / 2;
+            // Pick an aspect ratio that shows all 16 lines of code and a line width of
+            // almost exactly 80 characters (at font size 75).
+            const aspectRatio = 63 / 32;
 
             // Use the larger `remPx` size (mobile) and the larger block max width
             // (mobile). The file will be scaled down as necessary.
-            const width = contentStyles.blockMaxWidthRem.mobile * remPxByPlatform.mobile;
+            const width = fallbackFileWidth;
             const height = fallbackFileWidth / aspectRatio;
             return {width, height};
         }

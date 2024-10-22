@@ -1,64 +1,50 @@
-/* eslint-disable jsx-a11y/alt-text */
-
-import classNames from "classnames";
 import {
     DownloadSimple,
     Lock,
     MagnifyingGlassMinus,
     MagnifyingGlassPlus,
     SpinnerGap,
-    Warning,
     X,
 } from "phosphor-react";
 import prettyBytes from "pretty-bytes";
-import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {CSSProperties, Fragment, useEffect, useMemo, useRef, useState} from "react";
-import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
+import {useState} from "react";
+import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
+import {ContentFileImageDesktopViewer} from "~/client/content/internal/content_file_image_desktop_viewer.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {
+    contentFileDesktopViewerMarginBottom,
+    contentFileDesktopViewerMarginTop,
+    contentFileDesktopViewerMarginX,
+} from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {
     ContentFilePreviewExpirationTimers,
-    getFileImagePreviewRenderingAdjustments,
-    handleCopyContentFile,
     handleDownloadContentFile,
-    renderFileImagePreviewPlaceholder,
 } from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {ContextMenuActions} from "~/client/design/context_menu.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu.js";
 import {Modal} from "~/client/design/modal.js";
-import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
+import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    contentStyles,
+    initialSelectionColorsClassName,
     invertLightSelectionColorsClassName,
     spinAnimationClassName,
-    sprinkles,
 } from "~/client/styles/styles.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
-import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {isFileImageContentType} from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
@@ -75,12 +61,14 @@ export function ContentFileDesktopViewerModal({
     signedUrlSearch,
     attachmentTarget,
     expirationTimers,
+    loaderDataPromise,
     onClose,
 }: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
+    loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
     const {isAppleDevice} = useClientInfo();
@@ -119,6 +107,20 @@ export function ContentFileDesktopViewerModal({
     const zoomOut = () => {
         setZoomLevel(zoomLevel => clamp(minZoomLevel, zoomLevel - 1, maxZoomLevel));
     };
+
+    const withProcessingIndicator =
+        file.isLoading() &&
+        // If the file has an image preview where the size or placeholder are
+        // processing then we'll be showing a large spinner in the center of the entire
+        // modal so we don't need to also show a small spinner here.
+        !(
+            file.preview?.type === "Image" &&
+            (file.preview.size === "Processing" || file.preview.placeholder === "Processing")
+        ) &&
+        // If the file has a code preview where the preview is
+        // processing then we'll be showing a large spinner in the center of the entire
+        // modal so we don't need to also show a small spinner here.
+        !(file.preview?.type === "Code" && file.preview.isProcessing);
 
     return (
         <Modal
@@ -194,29 +196,21 @@ export function ContentFileDesktopViewerModal({
                                 {getFileContentTypeName(file.contentType)} -{" "}
                                 {prettyBytes(file.contentLength)}
                             </Box>
-                            {file.isLoading() &&
-                                // If the file has an image preview where the size or placeholder are
-                                // processing then we'll be showing a large spinner in the center of the entire
-                                // modal so we don't need to also show a small spinner here.
-                                !(
-                                    file.preview?.type === "Image" &&
-                                    (file.preview.size === "Processing" ||
-                                        file.preview.placeholder === "Processing")
-                                ) && (
-                                    <Box
-                                        display="flex"
-                                        alignItems="center"
-                                        gap="1"
-                                        color={{light: "grey-30-const", dark: "grey-40-const"}}
-                                        fontSize="50"
-                                    >
-                                        <SpinnerGap
-                                            className={spinAnimationClassName}
-                                            size={spacing["4"]}
-                                        />
-                                        Processing
-                                    </Box>
-                                )}
+                            {withProcessingIndicator && (
+                                <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    gap="1"
+                                    color={{light: "grey-30-const", dark: "grey-40-const"}}
+                                    fontSize="50"
+                                >
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        size={spacing["4"]}
+                                    />
+                                    Processing
+                                </Box>
+                            )}
                         </Box>
                         <Box flexGrow="1" />
                         <Box display="flex" justifyContent="flex-end" alignItems="center" gap="2.5">
@@ -275,17 +269,53 @@ export function ContentFileDesktopViewerModal({
                         </Box>
                     </Box>
                     <Box ref={viewerRef} flexGrow="1" overflow="hidden" position="relative">
-                        {viewerSize && (
-                            <ContentFileDesktopViewer
-                                file={file}
-                                signedUrlSearch={signedUrlSearch}
-                                attachmentTarget={attachmentTarget}
-                                viewerSize={viewerSize}
-                                expirationTimers={expirationTimers}
-                                zoomScale={zoomScale}
-                                maxZoomScale={maxZoomScale}
-                            />
-                        )}
+                        <ErrorBoundary
+                            fallback={({error}) => (
+                                <Box
+                                    width="full"
+                                    height="full"
+                                    paddingX={screenPaddingX}
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                >
+                                    <Box maxWidth="96">
+                                        {error instanceof ErrorBase &&
+                                        error.code === ErrorCode.PermissionDenied ? (
+                                            <ErrorBodyRenderer
+                                                icon={<Lock weight="bold" />}
+                                                title={`Protected ${getFileContentTypeNoun(
+                                                    file.contentType,
+                                                )}`}
+                                                error={error}
+                                                colorSchemeOverride="dark"
+                                            />
+                                        ) : (
+                                            <ErrorBodyRenderer
+                                                title={`Couldn’t open ${getFileContentTypeNoun(
+                                                    file.contentType,
+                                                )}`}
+                                                error={error}
+                                                colorSchemeOverride="dark"
+                                            />
+                                        )}
+                                    </Box>
+                                </Box>
+                            )}
+                        >
+                            {viewerSize && (
+                                <ContentFileDesktopViewer
+                                    file={file}
+                                    signedUrlSearch={signedUrlSearch}
+                                    attachmentTarget={attachmentTarget}
+                                    viewerSize={viewerSize}
+                                    expirationTimers={expirationTimers}
+                                    loaderDataPromise={loaderDataPromise}
+                                    zoomScale={zoomScale}
+                                    maxZoomScale={maxZoomScale}
+                                />
+                            )}
+                        </ErrorBoundary>
                     </Box>
                 </Box>
             </GlobalKeyDownEvent>
@@ -293,15 +323,12 @@ export function ContentFileDesktopViewerModal({
     );
 }
 
-const contentFileDesktopViewerMarginX = "12";
-const contentFileDesktopViewerMarginTop = "10";
-const contentFileDesktopViewerMarginBottom = contentFileDesktopViewerMarginX;
-
 function ContentFileDesktopViewer(props: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
+    loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
@@ -389,475 +416,32 @@ function ContentFileDesktopViewer(props: {
         case "text/x-clojure":
         case "text/x-erlang":
         case "text/x-ocaml": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return (
+                <Box
+                    width="full"
+                    height="full"
+                    paddingX={contentFileDesktopViewerMarginX}
+                    paddingTop={contentFileDesktopViewerMarginTop}
+                    paddingBottom={contentFileDesktopViewerMarginBottom}
+                    userSelect={!props.file.preview?.isProcessing ? "text" : undefined}
+                >
+                    <Box
+                        width="full"
+                        height="full"
+                        backgroundColor="grey-0"
+                        boxShadow="elevation-20-above-content-file-viewer-modal"
+                        borderRadius="1.5"
+                        color="grey-100"
+                        cursor={!props.file.preview?.isProcessing ? "text" : undefined}
+                        overflow="hidden"
+                        className={initialSelectionColorsClassName}
+                    >
+                        <ContentFileCodeViewer {...props} />
+                    </Box>
+                </Box>
+            );
         }
         default:
             throw exhaustive(props.file.contentType);
     }
-}
-
-function ContentFileImageDesktopViewer({
-    file,
-    signedUrlSearch,
-    attachmentTarget,
-    expirationTimers,
-    viewerSize,
-    zoomScale,
-    maxZoomScale,
-}: {
-    file: FileModel;
-    signedUrlSearch: string;
-    attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
-    viewerSize: {width: number; height: number};
-    zoomScale: number;
-    maxZoomScale: number;
-}) {
-    assert(file.preview?.type === "Image");
-
-    if (
-        (!file.preview.isProcessing && !file.preview.ok) ||
-        file.preview.placeholder === "Processing" ||
-        file.preview.size === "Processing"
-    ) {
-        return (
-            <Box
-                width="full"
-                height="full"
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-            >
-                {file.preview.isProcessing || file.preview.ok ? (
-                    <Box
-                        color={{light: "grey-20-const", dark: "grey-30-const"}}
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="center"
-                        gap="2"
-                        fontSize="100"
-                    >
-                        <SpinnerGap
-                            className={spinAnimationClassName}
-                            size={spacing["9"]}
-                            weight="light"
-                        />
-                        Processing
-                    </Box>
-                ) : (
-                    <Box
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="center"
-                        gap="5"
-                        maxWidth="96"
-                        userSelect="text"
-                    >
-                        <Box display="flex" flexDirection="column" alignItems="center" gap="2.5">
-                            <Box
-                                display="flex"
-                                flexDirection="column"
-                                alignItems="center"
-                                gap="0.5"
-                                fontSize="200"
-                                color={{light: "grey-0-const", dark: "grey-10-const"}}
-                                fontStyle="semi-bold"
-                            >
-                                {file.preview.error.code === ErrorCode.PermissionDenied ? (
-                                    <>
-                                        <Lock size={spacing["6"]} />
-                                        Protected file
-                                    </>
-                                ) : (
-                                    <>
-                                        <Warning size={spacing["6"]} />
-                                        Couldn’t process file
-                                    </>
-                                )}
-                            </Box>
-                            <Box
-                                fontSize="100"
-                                color={{light: "grey-20-const", dark: "grey-30-const"}}
-                                textAlign="center"
-                                paddingX="8"
-                            >
-                                {file.preview.error.displayMessage.map(
-                                    (displayMessageSegment, i) => {
-                                        switch (displayMessageSegment.type) {
-                                            case "Text":
-                                            case "SensitiveText": {
-                                                return (
-                                                    <Fragment key={i}>
-                                                        {displayMessageSegment.text}
-                                                    </Fragment>
-                                                );
-                                            }
-                                            case "Link": {
-                                                // We don't currently support links in content file viewer error
-                                                // messages. Since links aren't supported in content file previews which would
-                                                // require interactivity.
-                                                return (
-                                                    <Fragment key={i}>
-                                                        {displayMessageSegment.text}
-                                                    </Fragment>
-                                                );
-                                            }
-                                            default:
-                                                throw exhaustive(displayMessageSegment);
-                                        }
-                                    },
-                                )}
-                            </Box>
-                        </Box>
-                    </Box>
-                )}
-            </Box>
-        );
-    }
-
-    return (
-        <ContentFileImageDesktopViewerInner
-            file={file}
-            filePreviewPlaceholder={file.preview.placeholder}
-            signedUrlSearch={signedUrlSearch}
-            attachmentTarget={attachmentTarget}
-            expirationTimers={expirationTimers}
-            viewerSize={viewerSize}
-            zoomScale={zoomScale}
-            maxZoomScale={maxZoomScale}
-        />
-    );
-}
-
-function ContentFileImageDesktopViewerInner({
-    file,
-    filePreviewPlaceholder,
-    signedUrlSearch,
-    attachmentTarget,
-    expirationTimers,
-    viewerSize,
-    zoomScale,
-    maxZoomScale,
-}: {
-    file: FileModel;
-    filePreviewPlaceholder: FileImagePreviewPlaceholder;
-    signedUrlSearch: string;
-    attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
-    viewerSize: {width: number; height: number};
-    zoomScale: number;
-    maxZoomScale: number;
-}) {
-    const remPx = useRemPx();
-    const {space} = useSpaceContext();
-
-    const containerRef = useRef<HTMLDivElement>(null);
-    const imageRef = useRef<HTMLDivElement>(null);
-    const imageContentRef = useRef<HTMLImageElement>(null);
-
-    const fileSize = getFilePreviewSize(file);
-    const fileAspectRatio = fileSize.width / fileSize.height;
-
-    const viewerAspectRatio = viewerSize.width / viewerSize.height;
-    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileDesktopViewerMarginX], remPx);
-    const viewerMarginTopPx = convertRemLengthToPx(
-        spacing[contentFileDesktopViewerMarginTop],
-        remPx,
-    );
-    const viewerMarginBottomPx = convertRemLengthToPx(
-        spacing[contentFileDesktopViewerMarginBottom],
-        remPx,
-    );
-
-    let fileScale: number;
-    if (fileAspectRatio > viewerAspectRatio) {
-        const resizedFileWidth = Math.min(fileSize.width, viewerSize.width - viewerMarginXPx * 2);
-        fileScale = resizedFileWidth / fileSize.width;
-    } else {
-        const resizedFileHeight = Math.min(
-            fileSize.height,
-            viewerSize.height - (viewerMarginTopPx + viewerMarginBottomPx),
-        );
-        fileScale = resizedFileHeight / fileSize.height;
-    }
-
-    const scaledFileWidth = fileSize.width * fileScale * zoomScale;
-    const scaledFileHeight = fileSize.height * fileScale * zoomScale;
-    const maxScaledFileWidth = fileSize.width * fileScale * maxZoomScale;
-    const maxScaledFileHeight = fileSize.height * fileScale * maxZoomScale;
-
-    const adjustments = useMemo(
-        () => getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder),
-        [filePreviewPlaceholder],
-    );
-
-    const isSignedUrlSearchExpired = useStore(
-        expirationTimers.getExpiredTimerStore(signedUrlSearch),
-    );
-
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(false);
-
-    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
-
-    useEffect(() => {
-        if (isLoaded && !isLoadedAndAnimated) {
-            const timeout = createTimeout(() => {
-                setIsLoadedAndAnimated(true);
-                // Multiply duration by 2 for good measure.
-            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
-            return () => {
-                timeout.clear();
-            };
-        }
-    }, [isLoaded, isLoadedAndAnimated]);
-
-    useEffect(() => {
-        if (isSignedUrlSearchExpired) return;
-        if (file.alternative && file.alternative.isProcessing) return;
-        if (!file.alternative && file.isUploading) return;
-
-        let hasCleanedUp = false;
-        const contentElement = assertExists(imageContentRef.current);
-
-        isHtmlImageElementLoadedAndDecoded(contentElement).then(
-            () => {
-                if (hasCleanedUp) return;
-                setIsLoaded(true);
-            },
-            error => {
-                if (hasCleanedUp) return;
-                scheduleUncaughtError(error);
-            },
-        );
-
-        return () => {
-            hasCleanedUp = true;
-        };
-    }, [file.alternative, file.isUploading, isSignedUrlSearchExpired]);
-
-    const fileContentTypeNoun = getFileContentTypeNoun(file.contentType);
-
-    const contextMenuActions: Array<Array<MenuAction>> = [
-        [
-            {
-                label: `Copy ${fileContentTypeNoun}`,
-                isDisabled: file.isUploading,
-                pressErrorTitle: `Couldn’t copy ${fileContentTypeNoun}`,
-                onPress: async () => {
-                    const element = assertExists(imageRef.current);
-
-                    // Create a temporary schema we can use for constructing a `file` node we
-                    // can copy.
-                    const schema = new ProsemirrorSchema({
-                        nodes: {
-                            ...contentBaseProsemirrorSchemaSpec.nodes,
-                            ...createContentFileProsemirrorNodeSpecs({}),
-                        },
-                        marks: contentBaseProsemirrorSchemaSpec.marks,
-                    });
-
-                    await handleCopyContentFile(element, {
-                        spaceId: space.id,
-                        node: schema.node("file", {fileId: file.id}),
-                        references: {
-                            ...emptyContentReferences,
-                            fileById: new Map([[file.id, {file, signedUrlSearch}]]),
-                        },
-                        attachmentTarget,
-                    });
-                },
-            },
-            {
-                label: `Download ${fileContentTypeNoun}`,
-                isDisabled: file.isUploading,
-                pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
-                onPress: () => {
-                    handleDownloadContentFile({
-                        spaceId: space.id,
-                        file,
-                        signedUrlSearch,
-                    });
-                },
-            },
-        ],
-    ];
-
-    const lastScrollLeftPercentRef = useRef(0);
-    const lastScrollTopPercentRef = useRef(0);
-    const lastZoomScaleRef = useRef(zoomScale);
-
-    // Initialize our last scroll position refs.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        const containerElement = assertExists(containerRef.current);
-
-        lastScrollLeftPercentRef.current =
-            (containerElement.scrollLeft + containerElement.clientWidth / 2) /
-            containerElement.scrollWidth;
-
-        lastScrollTopPercentRef.current =
-            (containerElement.scrollTop + containerElement.clientHeight / 2) /
-            containerElement.scrollHeight;
-    }, []);
-
-    // Whenever the zoom changes, we want to adjust our `scrollTop` and
-    // `scrollLeft` so that the center of our image stays in the same place as it
-    // was before the zoom.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (lastZoomScaleRef.current === zoomScale) return;
-        lastZoomScaleRef.current = zoomScale;
-
-        const containerElement = assertExists(containerRef.current);
-
-        containerElement.scrollLeft =
-            lastScrollLeftPercentRef.current * containerElement.scrollWidth -
-            containerElement.clientWidth / 2;
-
-        containerElement.scrollTop =
-            lastScrollTopPercentRef.current * containerElement.scrollHeight -
-            containerElement.clientHeight / 2;
-    }, [zoomScale]);
-
-    const imageContentStyle: CSSProperties = {
-        // My theory here is we'll get better zoom performance if we render the image
-        // at it's maximum size then scale down since the browser prepares the image at
-        // its maximum size. There's no evidence to support this theory.
-        width: maxScaledFileWidth,
-        height: maxScaledFileHeight,
-        maxWidth: "none",
-        // Override positioning in `fileImagePreviewContentClassName`.
-        top: "0",
-        left: "0",
-        // When the user zooms all the way in we want to show them the image's pixels
-        // instead of some interpolation.
-        imageRendering: scaledFileWidth > fileSize.width ? "pixelated" : "auto",
-        // Use `transform: scale()` to GPU accelerate zooming. `will-change: transform`
-        // improves zooming performance in Chrome.
-        transformOrigin: "top left",
-        transform: `scale(${zoomScale / maxZoomScale})`,
-        willChange: "transform",
-    };
-
-    return (
-        <Box
-            ref={containerRef}
-            width="full"
-            height="full"
-            overflow="auto"
-            // We don't have support for horizontal scrollbars at the moment. So we choose
-            // to disable scrollbars entirely for now in the file viewer.
-            //
-            // TODO(calebmer): Implement horizontal scrollbars and use them here.
-            data-scrollbar="false"
-            onScroll={event => {
-                const containerElement = event.currentTarget;
-
-                lastScrollLeftPercentRef.current =
-                    (containerElement.scrollLeft + containerElement.clientWidth / 2) /
-                    containerElement.scrollWidth;
-
-                lastScrollTopPercentRef.current =
-                    (containerElement.scrollTop + containerElement.clientHeight / 2) /
-                    containerElement.scrollHeight;
-            }}
-        >
-            <Box
-                position="relative"
-                paddingX={contentFileDesktopViewerMarginX}
-                paddingTop={contentFileDesktopViewerMarginTop}
-                paddingBottom={contentFileDesktopViewerMarginBottom}
-                style={{
-                    width: "min-content",
-                    height: "min-content",
-                    left: Math.max(
-                        0,
-                        viewerSize.width / 2 - (scaledFileWidth + viewerMarginXPx * 2) / 2,
-                    ),
-                    top: Math.max(
-                        0,
-                        viewerSize.height / 2 -
-                            (scaledFileHeight + viewerMarginTopPx + viewerMarginBottomPx) / 2,
-                    ),
-                }}
-            >
-                <ContextMenuActions actions={contextMenuActions}>
-                    <div
-                        ref={imageRef}
-                        className={classNames(
-                            fileClassName,
-                            isLoaded && contentStyles.loadedFileImagePreviewClassName,
-                            contentStyles.fileViewerClassName,
-                            sprinkles({
-                                boxShadow: !adjustments.hasTransparentBackground
-                                    ? "elevation-20-above-content-file-viewer-modal"
-                                    : undefined,
-                            }),
-                        )}
-                        style={{width: scaledFileWidth, height: scaledFileHeight}}
-                    >
-                        {useMemo(
-                            () =>
-                                !isLoadedAndAnimated && (
-                                    <img
-                                        className={
-                                            contentStyles.fileImagePreviewPlaceholderClassName
-                                        }
-                                        style={{
-                                            width: scaledFileWidth,
-                                            height: scaledFileHeight,
-                                        }}
-                                        aria-hidden={true}
-                                        draggable={false}
-                                        src={convertSvgToDataUrl(
-                                            renderFileImagePreviewPlaceholder(
-                                                filePreviewPlaceholder,
-                                            ),
-                                        )}
-                                    />
-                                ),
-                            [
-                                filePreviewPlaceholder,
-                                isLoadedAndAnimated,
-                                scaledFileHeight,
-                                scaledFileWidth,
-                            ],
-                        )}
-                        {!isSignedUrlSearchExpired &&
-                            (file.alternative
-                                ? !file.alternative.isProcessing && (
-                                      <img
-                                          ref={imageContentRef}
-                                          className={contentStyles.fileImagePreviewContentClassName}
-                                          style={imageContentStyle}
-                                          decoding="async"
-                                          // TODO(calebmer): Support drag events with the same code we use for content
-                                          // previews.
-                                          draggable={false}
-                                          src={`/files/${space.id}/${
-                                              file.id
-                                          }${signedUrlSearch}&variant=${
-                                              file.alternative.isImagePreviewContent
-                                                  ? "preview"
-                                                  : "alternative"
-                                          }`}
-                                      />
-                                  )
-                                : !file.isUploading && (
-                                      <img
-                                          ref={imageContentRef}
-                                          className={contentStyles.fileImagePreviewContentClassName}
-                                          style={imageContentStyle}
-                                          decoding="async"
-                                          // TODO(calebmer): Support drag events with the same code we use for content
-                                          // previews.
-                                          draggable={false}
-                                          src={`/files/${space.id}/${file.id}${signedUrlSearch}`}
-                                      />
-                                  ))}
-                    </div>
-                </ContextMenuActions>
-            </Box>
-        </Box>
-    );
 }

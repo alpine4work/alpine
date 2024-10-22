@@ -9,6 +9,7 @@ import {globalStyle} from "@vanilla-extract/css";
 import {
     colorSchemeVars,
     darkColorSchemeSelector,
+    initialSelectionColorsClassName,
     invertDarkSelectionColorsClassName,
     invertLightSelectionColorsClassName,
     invertSelectionColorsClassName,
@@ -98,4 +99,11 @@ globalStyle(
 globalStyle(
     `${darkColorSchemeSelector} ${invertDarkSelectionColorsClassName}::selection, ${darkColorSchemeSelector} ${invertDarkSelectionColorsClassName} ::selection`,
     {background: colorSchemeVars["theme-selection-inverted"]},
+);
+
+// List the selector three times to increase precedence and beat our other
+// selection classes.
+globalStyle(
+    `${initialSelectionColorsClassName}${initialSelectionColorsClassName}${initialSelectionColorsClassName}::selection, ${initialSelectionColorsClassName}${initialSelectionColorsClassName}${initialSelectionColorsClassName} ::selection`,
+    {background: colorSchemeVars["theme-selection"]},
 );

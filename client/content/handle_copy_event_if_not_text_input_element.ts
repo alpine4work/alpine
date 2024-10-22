@@ -188,7 +188,7 @@ export function getSelectionClipboardData(selection: {
     const endParentNodes = start === "Anchor" ? focusParentNodes : anchorParentNodes;
 
     const results: Array<
-        string | {requiredLineBreakAroundCount?: number; text: string; html: Node} | number
+        string | {requiredLineBreakAroundCount?: number; text: string; html: Node | null} | number
     > = [];
 
     for (
@@ -433,7 +433,16 @@ export function getSelectionClipboardData(selection: {
                     // 5. If node is a `br` element, then append a string containing a single
                     //    U+000A LF code point to items.
                     if (node.tagName === "BR") {
-                        results.push({text: "\n", html: document.createElement("br")});
+                        // NOTE(calebmer): We add special handling for `<br>` elements with
+                        // `data-copy="force-newlines"`. We don't add any text for the element, instead
+                        // we prevent the newlines around this position from collapsing. Useful for
+                        // `<ContentFileCodeViewer>` to make sure code is copied correctly without
+                        // needing a custom clipboard serializer.
+                        if (node.getAttribute("data-copy") === "force-newlines") {
+                            results.push({text: "", html: null});
+                        } else {
+                            results.push({text: "\n", html: document.createElement("br")});
+                        }
                     }
 
                     // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box
@@ -508,10 +517,10 @@ export function getSelectionClipboardData(selection: {
 
         if (typeof result === "string") {
             text += result;
-            html.appendChild(document.createTextNode(result));
+            if (result.length > 0) html.appendChild(document.createTextNode(result));
         } else {
             text += result.text;
-            html.appendChild(result.html);
+            if (result.html !== null) html.appendChild(result.html);
         }
     }
 

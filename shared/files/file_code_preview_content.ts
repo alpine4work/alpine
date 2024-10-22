@@ -74,8 +74,11 @@ export const maxFileCodePreviewLineCount = 16;
 
 /**
  * The maximum number of code points we show for each line in a code file.
+ *
+ * Our preview aims to show almost exactly 80 characters. We include 5 more
+ * characters to make sure we can fully fill the preview.
  */
-export const maxFileCodePreviewLineCodePointCount = 80;
+export const maxFileCodePreviewLineCodePointCount = 85;
 
 /**
  * The maximum number of highlight classes we may use on each substring in some

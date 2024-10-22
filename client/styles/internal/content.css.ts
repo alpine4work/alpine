@@ -130,7 +130,7 @@ export const defaultParagraphMarginRem = parseRemLengthNumber(defaultParagraphMa
 const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
 const standaloneBlockMarginVar = createVar("standalone-block-margin");
-const listItemOffsetVar = createVar("list-item-offset");
+export const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
     vars: {
@@ -727,6 +727,31 @@ globalStyle(`${extraCompactDocClassName} ${codeBlockClassName}`, {
     paddingBottom: extraCompactCodeBlockPaddingY,
 });
 
+export const filePreviewCodeBlockClassName = style({});
+
+// Change styles for code block in file preview.
+globalStyle(`${filePreviewCodeBlockClassName}${codeBlockWrapperClassName}`, {
+    height: "100%",
+    maxWidth: "none",
+    overflowX: "hidden",
+    overflowY: "hidden",
+    margin: 0,
+});
+
+const fileViewCodeBlockMargin = spacing["3"];
+
+export const fileViewCodeBlockClassName = style({});
+
+globalStyle(`${fileViewCodeBlockClassName}${codeBlockWrapperClassName}`, {
+    height: "100%",
+    maxWidth: "none",
+    margin: 0,
+    paddingTop: fileViewCodeBlockMargin,
+    paddingBottom: `calc(${fileViewCodeBlockMargin} + var(--safe-area-inset-bottom, 0px))`,
+    overflowY: "auto",
+    overscrollBehaviorY: "contain",
+});
+
 // In Safari, when the user is scrolling and they reach the end of the scroll
 // view they may start overscrolling. When the user ends their scroll Safari
 // will bounce animate the scroll position back to the correct range.
@@ -780,27 +805,49 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     ...fontStyles["code-light"],
 });
 
+// Add some extra margin to the left of code block file views.
+globalStyle(
+    `${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
+    {
+        width: `calc(${addRemLengths(
+            fileViewCodeBlockMargin,
+            listItemIndentation,
+        )} + ${listItemOffsetVar})`,
+    },
+);
+
 globalStyle(`${codeBlockLineClassName}::after`, {
     content: '""',
     flexShrink: "0",
     pointerEvents: "none",
     zIndex: "0",
     position: "sticky",
-    right: "0",
-    width: codeBlockPaddingRight,
+    // Render in margins to make sure there are no rendering artifacts.
+    right: `-${codeBlockPaddingRight}`,
+    width: `${parseRemLengthNumber(codeBlockPaddingRight) * 2}rem`,
     height: paragraphFontSize.lineHeight,
-    background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+    background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
 });
 
+// Turn off sticky right edge gradient on file previews and file views. Since
+// the right edge has a hard cut and doesn't blend into the document
+// background.
 globalStyle(
-    `${desktopPlatformSelector} ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
+    `${codeBlockWrapperClassName}:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName}) ${codeBlockLineClassName}::after`,
+    {
+        content: "none",
+    },
+);
+
+globalStyle(
+    `${desktopPlatformSelector} ${codeBlockWrapperClassName}:not(:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName})) > ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
     {
         paddingRight: desktopCodeBlockToolbarMaxWidth,
     },
 );
 
 globalStyle(
-    `${mobilePlatformSelector} ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
+    `${mobilePlatformSelector} ${codeBlockWrapperClassName}:not(:is(${filePreviewCodeBlockClassName}, ${fileViewCodeBlockClassName})) > ${codeBlockClassName} > ${codeBlockLineClassName}:first-child`,
     {
         paddingRight: mobileCodeBlockToolbarMaxWidth,
     },
@@ -808,6 +855,10 @@ globalStyle(
 
 globalStyle(`${codeBlockClassName} > ${codeBlockLineClassName}:first-child::after`, {
     content: "none",
+});
+
+globalStyle(`${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}`, {
+    paddingRight: fileViewCodeBlockMargin,
 });
 
 globalStyle(codeBlockLineContentClassName, {
@@ -1058,6 +1109,10 @@ globalStyle(fileClassName, {
     isolation: "isolate",
 });
 
+globalStyle(`${fileClassName} > *`, {
+    pointerEvents: "none",
+});
+
 export const fileViewerClassName = style({
     selectors: {
         [`${fileClassName}&`]: {
@@ -1180,6 +1235,7 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
             // `pressedFileClassName`.
             "&::after": {
                 content: '""',
+                pointerEvents: "none",
                 zIndex: "20",
                 position: "absolute",
                 top: "0",
@@ -1236,6 +1292,7 @@ const darkFileBorderColor = Color.rgb(
 // `selectionFileClassNameByColor`.
 globalStyle(`${fileClassName}:not(${fileViewerClassName})::before`, {
     content: '""',
+    pointerEvents: "none",
     zIndex: "20",
     position: "absolute",
     inset: "0",
@@ -1285,7 +1342,8 @@ export const pressedFileClassName = style({
 });
 
 // After a long press releasing won't open the attachment viewer. So set cursor to
-// `default` to communicate this.
+// `default` to communicate this. This is also a hint to the user that other
+// interactions are possible. Like dragging.
 export const longPressedFileClassName = style({
     cursor: "default",
 });
@@ -1596,27 +1654,24 @@ for (const [lezerHighlightSelector, color] of Object.entries(colorByLezerHighlig
     const options = typeof color === "string" ? {color} : color;
 
     if (!options.weight) {
-        globalStyle(`${codeBlockLineContentClassName} ${lezerHighlightSelector}`, {
+        globalStyle(`${lezerHighlightSelector}`, {
             color: options.color ?? options.lightColor,
         });
     } else {
-        globalStyle(`${codeBlockLineContentClassName} ${lezerHighlightSelector}`, {
+        globalStyle(`${lezerHighlightSelector}`, {
             color: options.color ?? options.lightColor,
             ...fontStyles[`code-${options.weight}`],
         });
 
-        globalStyle(`${codeBlockLineContentClassName} ${boldClassName} ${lezerHighlightSelector}`, {
+        globalStyle(`${boldClassName} ${lezerHighlightSelector}`, {
             ...fontStyles["code-extra-bold"],
         });
     }
 
     if (options.darkColor) {
-        globalStyle(
-            `${darkColorSchemeSelector} ${codeBlockLineContentClassName} ${lezerHighlightSelector}`,
-            {
-                color: options.darkColor,
-            },
-        );
+        globalStyle(`${darkColorSchemeSelector} ${lezerHighlightSelector}`, {
+            color: options.darkColor,
+        });
     }
 }
 
@@ -1760,9 +1815,23 @@ export const linkPressedClassName = style({
         [`&${linkClassName}`]: {
             color: colorSchemeVars["theme-60-opacity-60"],
         },
-        // Increase the precedence to beat `color` on `linkClassName`.
-        [`${darkColorSchemeSelector} &${linkClassName}`]: {
-            color: colorSchemeVars["theme-70-opacity-60"],
+    },
+});
+
+export const linkLightColorSchemeOverrideClassName = style({
+    color: colorSchemeVars["theme-60-const"],
+    selectors: {
+        [`&${linkClassName}${linkPressedClassName}`]: {
+            color: colorSchemeVars["theme-60-const-opacity-60"],
+        },
+    },
+});
+
+export const linkDarkColorSchemeOverrideClassName = style({
+    color: colorSchemeVars["theme-40-const"],
+    selectors: {
+        [`&${linkClassName}${linkPressedClassName}`]: {
+            color: colorSchemeVars["theme-40-const-opacity-60"],
         },
     },
 });

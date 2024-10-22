@@ -1,6 +1,8 @@
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {getFileContentTypeContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    getFileContentTypeContentCodeBlockLanguageId,
+} from "~/shared/files/file_content_type.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 

@@ -15,6 +15,7 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
@@ -184,11 +185,7 @@ export function useDocumentContentEditorWebSocket(
         setShouldConnect(shouldConnect => !shouldConnect);
     }, []);
 
-    const [createDocumentErrorState, setCreateDocumentErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (createDocumentErrorState.hasError) throw createDocumentErrorState.error;
+    const setCreateDocumentErrorState = useErrorState();
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -225,7 +222,7 @@ export function useDocumentContentEditorWebSocket(
                 onCreate?.();
             },
             error => {
-                setCreateDocumentErrorState({hasError: true, error});
+                setCreateDocumentErrorState(error);
                 createDocumentPromiseRef.current = null;
             },
         );
