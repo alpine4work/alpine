@@ -19,9 +19,9 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {
-    navigationBarHeight,
-    mobileNavigationBarHeight,
     desktopNavigationBarHeight,
+    mobileNavigationBarHeight,
+    navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";

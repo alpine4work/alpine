@@ -4,7 +4,6 @@ import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_con
 import {useStore} from "~/client/helpers/use_store.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
-import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";

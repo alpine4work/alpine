@@ -888,6 +888,7 @@ function Tooltip(
         [
             isVisible,
             isWaitingForOverlayPortalElement,
+            canPrimaryInputHover,
             tooltipSymbolAboutToFadeOutRef,
             getHasActiveTooltipSymbol,
             tooltipSymbol,

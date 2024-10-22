@@ -1,6 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {CaretRight, ChatCircleDots, IconContext, Lock, Trash} from "phosphor-react";
-import {redo as redoCommand, undo as undoCommand} from "prosemirror-history";
 import {
     Memo,
     ReactNode,

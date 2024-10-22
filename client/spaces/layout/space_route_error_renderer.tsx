@@ -17,7 +17,6 @@ import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,
 } from "~/client/styles/space_layout_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
