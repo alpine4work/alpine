@@ -789,7 +789,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // We don't want Safari showing previews of links on long press. Since many
         // links navigate within the app. However, setting this to false also prevents
         // Safari's touch callout from opening when long pressing an image. Which we
-        // depend on in `<ContentFileMobileViewerModal>` to allow the user to
+        // depend on in `<ContentFileViewerModalMobile>` to allow the user to
         // download/share an image. They long press. So we need to leave this option on
         // to allow image touch callouts and find other ways to disable link touch
         // callouts.

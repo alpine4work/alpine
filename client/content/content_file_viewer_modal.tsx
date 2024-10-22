@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import {ContentFileDesktopViewerModal} from "~/client/content/internal/content_file_desktop_viewer_modal.js";
-import {ContentFileMobileViewerModal} from "~/client/content/internal/content_file_mobile_viewer_modal.js";
+import {ContentFileViewerModalDesktop} from "~/client/content/internal/content_file_viewer_modal_desktop.js";
+import {ContentFileViewerModalMobile} from "~/client/content/internal/content_file_viewer_modal_mobile.js";
 import {
     ContentFileViewerLoaderData,
     loadContentFileViewerData,
@@ -34,7 +34,7 @@ let handoffContentFileReferencesByFileId: Map<
 > | null = null;
 
 /**
- * Handoff some previously loaded data to `<ContentFileDesktopViewerModal>` so
+ * Handoff some previously loaded data to `<ContentFileViewerModal>` so
  * it doesn't have to fetch data from the server when it mounts.
  */
 function handoffContentFileReference(reference: {signedUrlSearch: string; file: FileModel}) {
@@ -260,7 +260,7 @@ export function ContentFileViewerModal({
 
     if (isMobile) {
         return (
-            <ContentFileMobileViewerModal
+            <ContentFileViewerModalMobile
                 file={fileFromAttachmentOutput.output.file}
                 signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                 attachmentTarget={attachmentTarget}
@@ -271,7 +271,7 @@ export function ContentFileViewerModal({
         );
     } else {
         return (
-            <ContentFileDesktopViewerModal
+            <ContentFileViewerModalDesktop
                 file={fileFromAttachmentOutput.output.file}
                 signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                 attachmentTarget={attachmentTarget}

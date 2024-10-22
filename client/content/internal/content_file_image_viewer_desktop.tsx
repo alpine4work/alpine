@@ -5,16 +5,16 @@ import {SpinnerGap} from "phosphor-react";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
-import {getContentFileImagePreviewViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
-    contentFileDesktopViewerMarginBottom,
-    contentFileDesktopViewerMarginTop,
-    contentFileDesktopViewerMarginX,
+    contentFileViewerDesktopMarginBottom,
+    contentFileViewerDesktopMarginTop,
+    contentFileViewerDesktopMarginX,
     contentFileViewerLargeProcessingIndicatorFontSize,
     contentFileViewerLargeProcessingIndicatorGap,
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
+import {getContentFileImagePreviewViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
@@ -47,7 +47,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 
-export function ContentFileImageDesktopViewer({
+export function ContentFileImageViewerDesktop({
     file,
     signedUrlSearch,
     attachmentTarget,
@@ -149,13 +149,13 @@ function ContentFileImageDesktopViewerInner({
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;
-    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileDesktopViewerMarginX], remPx);
+    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileViewerDesktopMarginX], remPx);
     const viewerMarginTopPx = convertRemLengthToPx(
-        spacing[contentFileDesktopViewerMarginTop],
+        spacing[contentFileViewerDesktopMarginTop],
         remPx,
     );
     const viewerMarginBottomPx = convertRemLengthToPx(
-        spacing[contentFileDesktopViewerMarginBottom],
+        spacing[contentFileViewerDesktopMarginBottom],
         remPx,
     );
 
@@ -361,9 +361,9 @@ function ContentFileImageDesktopViewerInner({
         >
             <Box
                 position="relative"
-                paddingX={contentFileDesktopViewerMarginX}
-                paddingTop={contentFileDesktopViewerMarginTop}
-                paddingBottom={contentFileDesktopViewerMarginBottom}
+                paddingX={contentFileViewerDesktopMarginX}
+                paddingTop={contentFileViewerDesktopMarginTop}
+                paddingBottom={contentFileViewerDesktopMarginBottom}
                 style={{
                     width: "min-content",
                     height: "min-content",

@@ -319,8 +319,8 @@ const lockIconHtmlGenerator: HtmlGenerator = {
  * `<ContentView>`.
  *
  * IMPORTANT: If you make a change to preview rendering here you should also
- * consider making the same change to `renderContentFilePreview()` and
- * `<ContentFileDesktopViewerModal>`. We have three renderers for every file
+ * consider making the same change to `<ContentFileViewerModalDesktop>` and
+ * `<ContentFileViewerModalMobile>`. We have three renderers for every file
  * type. The inline preview, the fullscreen desktop modal, and the fullscreen
  * mobile modal. They should all look and behave about the same.
  */

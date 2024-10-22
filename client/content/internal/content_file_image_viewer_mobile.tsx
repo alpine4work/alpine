@@ -5,13 +5,13 @@ import {DownloadSimple, SpinnerGap} from "phosphor-react";
 import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
-import {getContentFileImagePreviewViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     contentFileViewerLargeProcessingIndicatorFontSize,
     contentFileViewerLargeProcessingIndicatorGap,
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
+import {getContentFileImagePreviewViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
@@ -41,7 +41,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
-export function ContentFileImageMobileViewer({
+export function ContentFileImageViewerMobile({
     file,
     signedUrlSearch,
     attachmentTarget,

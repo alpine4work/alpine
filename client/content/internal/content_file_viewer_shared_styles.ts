@@ -17,6 +17,6 @@ export const contentFileViewerLargeProcessingIndicatorWeight = {
     desktop: "light",
 } as const;
 
-export const contentFileDesktopViewerMarginX = "12";
-export const contentFileDesktopViewerMarginTop = "4";
-export const contentFileDesktopViewerMarginBottom = contentFileDesktopViewerMarginX;
+export const contentFileViewerDesktopMarginX = "12";
+export const contentFileViewerDesktopMarginTop = "4";
+export const contentFileViewerDesktopMarginBottom = contentFileViewerDesktopMarginX;

@@ -9,14 +9,14 @@ import {
 import prettyBytes from "pretty-bytes";
 import {useState} from "react";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
-import {ContentFileImageDesktopViewer} from "~/client/content/internal/content_file_image_desktop_viewer.js";
-import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {
-    contentFileDesktopViewerMarginBottom,
-    contentFileDesktopViewerMarginTop,
-    contentFileDesktopViewerMarginX,
+    contentFileViewerDesktopMarginBottom,
+    contentFileViewerDesktopMarginTop,
+    contentFileViewerDesktopMarginX,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     handleDownloadContentFile,
@@ -52,11 +52,11 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  *
  * IMPORTANT: If you make a change to preview rendering here you should also
  * consider making the same change to `renderContentFilePreview()` and
- * `<ContentFileDesktopViewerModal>`. We have three renderers for every file
+ * `<ContentFileViewerModalMobile>`. We have three renderers for every file
  * type. The inline preview, the fullscreen desktop modal, and the fullscreen
  * mobile modal. They should all look and behave about the same.
  */
-export function ContentFileDesktopViewerModal({
+export function ContentFileViewerModalDesktop({
     file,
     signedUrlSearch,
     attachmentTarget,
@@ -349,7 +349,7 @@ function ContentFileDesktopViewer(props: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return <ContentFileImageDesktopViewer {...props} />;
+            return <ContentFileImageViewerDesktop {...props} />;
         }
         case "application/pdf":
         case "application/msword":
@@ -361,7 +361,7 @@ function ContentFileDesktopViewer(props: {
             // TODO(calebmer, #files): Implement
             //
             // Should start with the image viewer then switch to a proper viewer?
-            return <ContentFileImageDesktopViewer {...props} />;
+            return <ContentFileImageViewerDesktop {...props} />;
         }
         case "video/webm":
         case "video/mp4":
@@ -420,9 +420,9 @@ function ContentFileDesktopViewer(props: {
                 <Box
                     width="full"
                     height="full"
-                    paddingX={contentFileDesktopViewerMarginX}
-                    paddingTop={contentFileDesktopViewerMarginTop}
-                    paddingBottom={contentFileDesktopViewerMarginBottom}
+                    paddingX={contentFileViewerDesktopMarginX}
+                    paddingTop={contentFileViewerDesktopMarginTop}
+                    paddingBottom={contentFileViewerDesktopMarginBottom}
                     userSelect={!props.file.preview?.isProcessing ? "text" : undefined}
                 >
                     <Box

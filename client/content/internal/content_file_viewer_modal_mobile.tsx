@@ -1,9 +1,9 @@
 import {DownloadSimple, Export, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
-import {ContentFileImageMobileViewer} from "~/client/content/internal/content_file_image_mobile_viewer.js";
-import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     getContentFileDownloadName,
@@ -42,11 +42,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  *
  * IMPORTANT: If you make a change to preview rendering here you should also
  * consider making the same change to `renderContentFilePreview()` and
- * `<ContentFileDesktopViewerModal>`. We have three renderers for every file
+ * `<ContentFileViewerModalDesktop>`. We have three renderers for every file
  * type. The inline preview, the fullscreen desktop modal, and the fullscreen
  * mobile modal. They should all look and behave about the same.
  */
-export function ContentFileMobileViewerModal({
+export function ContentFileViewerModalMobile({
     file,
     signedUrlSearch,
     attachmentTarget,
@@ -288,7 +288,7 @@ export function ContentFileMobileViewerModal({
                             )}
                         >
                             {navigationBarSize && viewerSize && (
-                                <ContentFileMobileViewer
+                                <ContentFileViewerMobile
                                     file={file}
                                     signedUrlSearch={signedUrlSearch}
                                     attachmentTarget={attachmentTarget}
@@ -308,7 +308,7 @@ export function ContentFileMobileViewerModal({
     );
 }
 
-function ContentFileMobileViewer(props: {
+function ContentFileViewerMobile(props: {
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
@@ -335,7 +335,7 @@ function ContentFileMobileViewer(props: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return <ContentFileImageMobileViewer {...props} withZoom={true} />;
+            return <ContentFileImageViewerMobile {...props} withZoom={true} />;
         }
         case "application/pdf":
         case "application/msword":
@@ -347,7 +347,7 @@ function ContentFileMobileViewer(props: {
             // TODO(calebmer, #files): Implement
             //
             // Should start with the image viewer then switch to a proper viewer?
-            return <ContentFileImageMobileViewer {...props} withZoom={false} />;
+            return <ContentFileImageViewerMobile {...props} withZoom={false} />;
         }
         case "video/webm":
         case "video/mp4":
