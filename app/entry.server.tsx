@@ -15,11 +15,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // looks for this global and uses it.
 (globalThis as any).__remixErrorSchema = ErrorSchema;
 
-// If this module changes we don't need to reload the page. We need this since
-// we import `styles_url.js` in this file. We don't want the page to reload
-// whenever our styles change.
-import.meta.hot?.accept("~/app/helpers/styles_url.js", () => {});
-
 export default async function handleRequest(
     request: Request,
     responseStatusCode: number,
@@ -91,7 +86,7 @@ export default async function handleRequest(
         // always will need the main stylesheet and Inter so deliver those as quickly
         // as possible.
         //
-        // // https://developers.cloudflare.com/cache/advanced-configuration/early-hints
+        // https://developers.cloudflare.com/cache/advanced-configuration/early-hints
         // https://developers.cloudflare.com/workers/examples/103-early-hints
         responseHeaders.set(
             "link",

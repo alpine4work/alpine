@@ -6,10 +6,9 @@
  * [2]: https://commitmono.com
  */
 
-import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
+import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
 import {mobilePlatformSelector} from "~/client/styles/core/internal/platform.css.js";
 import {
-    commitMonoFontSizeAdjust,
     interFontAscender,
     interFontDescender,
     interFontUnitsPerEm,
@@ -19,9 +18,6 @@ import {RemLength} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-const formatPercentage = (percentage: number) =>
-    `${Math.round(percentage * 100 * 10 ** 5) / 10 ** 5}%`;
-
 /**
  * The percentage you multiply your `font-size` by to get the height rendered by
  * `background-color` in the browser.
@@ -29,95 +25,16 @@ const formatPercentage = (percentage: number) =>
 export const backgroundFontSizePercentage =
     (interFontAscender + interFontDescender) / interFontUnitsPerEm;
 
-const interWithoutItalicFontFaceRule: Parameters<typeof fontFace>[0] & {src: string} = {
-    // See how to use variable fonts:
-    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: `url(/fonts/inter.v1.woff2) format('woff2 supports variations'), url(/fonts/inter.v1.woff2) format('woff2-variations'), url(/fonts/inter.v1.woff2) format('woff2')`,
-    fontWeight: "100 900",
-    fontStyle: "normal",
-    fontDisplay: "swap",
-    // Shouldn't be necessary but we include to ensure layout is stable when
-    // swapping fonts.
-    ascentOverride: formatPercentage(interFontAscender / interFontUnitsPerEm),
-    descentOverride: formatPercentage(interFontDescender / interFontUnitsPerEm),
-};
-
-const interWithoutItalicFontFace = fontFace(interWithoutItalicFontFaceRule);
-
-const interFontFace = fontFace([
-    interWithoutItalicFontFaceRule,
-    {
-        // See how to use variable fonts:
-        // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-        src: `url(/fonts/inter-italic.v1.woff2) format('woff2 supports variations'), url(/fonts/inter-italic.v1.woff2) format('woff2-variations'), url(/fonts/inter-italic.v1.woff2) format('woff2')`,
-        fontWeight: "100 900",
-        fontStyle: "italic",
-        fontDisplay: "swap",
-        // Shouldn't be necessary but we include to ensure layout is stable when
-        // swapping fonts.
-        ascentOverride: formatPercentage(interFontAscender / interFontUnitsPerEm),
-        descentOverride: formatPercentage(interFontDescender / interFontUnitsPerEm),
-    },
-]);
-
-const commitMonoFontFace = fontFace({
-    // See how to use variable fonts:
-    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: `url(/fonts/commit-mono.v1.woff2) format('woff2 supports variations'), url(/fonts/commit-mono.v1.woff2) format('woff2-variations'), url(/fonts/commit-mono.v1.woff2) format('woff2')`,
-    fontWeight: "100 900",
-    fontDisplay: "swap",
-    // Make sure the x-height of our monospace font matches the x-height of Inter.
-    sizeAdjust: formatPercentage(commitMonoFontSizeAdjust),
-    // Shouldn't be necessary since we modify the font to have matching
-    // ascender/descender stats with Inter (since Safari doesn't support
-    // `ascent-override` and `descent-override`) but we include to ensure layout is
-    // stable when swapping fonts.
-    ascentOverride: formatPercentage(
-        interFontAscender / (interFontUnitsPerEm * commitMonoFontSizeAdjust),
-    ),
-    descentOverride: formatPercentage(
-        interFontDescender / (interFontUnitsPerEm * commitMonoFontSizeAdjust),
-    ),
-});
-
-const emojiFontFace = fontFace({
-    // Emoji font stack is originally from: https://www.client9.com/css-color-emoji-stack/
-    src: 'local("Apple Color Emoji"), local("Segoe UI Emoji"), local("NotoColorEmoji"), local("Noto Color Emoji"), local("Segoe UI Symbol"), local("Android Emoji"), local("EmojiSymbols")',
-    // Use the same ascent/descent metrics for our emoji font face. This means
-    // `background-color`s, font sizes, line heights, everything set on this font
-    // will line up with our main font Inter.
-    ascentOverride: formatPercentage(interFontAscender / interFontUnitsPerEm),
-    descentOverride: formatPercentage(interFontDescender / interFontUnitsPerEm),
-});
-
-// Value taken from the fallback font `@next/font` generates for Inter.
-// We use the same fallback font for Inter and Commit Mono because Commit Mono
-// is resized to the same size as Inter.
+// Definitions for these fonts are in `fonts_critical_css.ts`.
 //
-// See:
-// https://beta.nextjs.org/docs/optimizing/fonts
-// https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
-const fallbackFontSizeAdjust = 1.0764;
-
-const fallbackFontFace = fontFace({
-    src: 'local("Arial")',
-    ascentOverride: formatPercentage(
-        interFontAscender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
-    ),
-    descentOverride: formatPercentage(
-        interFontDescender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
-    ),
-    sizeAdjust: `${fallbackFontSizeAdjust * 100}%`,
-});
-
 // If our italic font hasn't loaded, fallback to an Inter font face without the
 // italic file so we temporarily render Inter but the browser manually
 // slants it.
-const interFontFamily = `${interFontFace}, ${interWithoutItalicFontFace}, ${fallbackFontFace}`;
+const interFontFamily = "CyInter, CyInterWithoutItalic, CyInterFallback";
 
-const commitMonoFontFamily = `${commitMonoFontFace}, ${fallbackFontFace}`;
+const commitMonoFontFamily = "CyCommitMono, CyInterFallback";
 
-export const emojiFontFamily = emojiFontFace;
+export const emojiFontFamily = "CyEmoji";
 
 /**
  * The typography styles available in our product.

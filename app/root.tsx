@@ -16,10 +16,10 @@ import {
     useRouteError,
 } from "react-router";
 import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display_message.js";
+import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
@@ -48,6 +48,7 @@ import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
+import {fontsCriticalCss} from "~/client/styles/core/fonts_critical_css.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -578,6 +579,7 @@ export default function Root() {
                     content="telephone=no, date=no, email=no, address=no"
                 />
                 <Meta />
+                <style dangerouslySetInnerHTML={{__html: fontsCriticalCss}} />
                 <Links />
                 <ColorSchemeManager />
                 {loaderData?.isIntegrationTest && (
