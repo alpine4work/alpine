@@ -225,7 +225,11 @@ const responsiveProperties = defineProperties({
         rowGap: spacing,
         columnGap: spacing,
         paddingTop: {...spacing, "safe-area-inset": "var(--safe-area-inset-top, 0px)"},
-        paddingBottom: {...spacing, "safe-area-inset": "var(--safe-area-inset-bottom, 0px)"},
+        paddingBottom: {
+            ...spacing,
+            "safe-area-inset": "var(--safe-area-inset-bottom, 0px)",
+            "window-safe-area-inset": "var(--window-safe-area-inset-bottom, 0px)",
+        },
         paddingLeft: {...spacing, "safe-area-inset": "var(--safe-area-inset-left, 0px)"},
         paddingRight: {...spacing, "safe-area-inset": "var(--safe-area-inset-right, 0px)"},
         marginTop: {...spacingWithNegatives, auto: "auto"},

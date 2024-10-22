@@ -354,7 +354,7 @@ export function renderContentFilePreview(
         html.setAttribute("data-testid", `ContentFile:${reference.file.contentType}`);
     }
 
-    if (!reference) {
+    if (!reference || !reference.file.preview) {
         const blankHtml = new HtmlElementGenerator("div");
         html.appendChild(blankHtml);
 
@@ -366,8 +366,6 @@ export function renderContentFilePreview(
                 backgroundColor: "grey-5",
             }),
         );
-    } else if (!reference.file.preview) {
-        // TODO(calebmer, #files): Implement
     } else {
         switch (reference.file.preview.type) {
             case "Image": {

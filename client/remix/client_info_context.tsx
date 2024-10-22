@@ -9,7 +9,12 @@ import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
-import {ClientInfo, defaultClientInfo, isAppleDeviceUserAgent} from "~/shared/remix/client_info.js";
+import {
+    ClientInfo,
+    defaultClientInfo,
+    getRenderingEngineFromUserAgent,
+    isAppleDeviceUserAgent,
+} from "~/shared/remix/client_info.js";
 
 const clientInfo = new Lazy((): ClientInfo => {
     // In Jest tests we use a dummy client info since properties like
@@ -23,12 +28,11 @@ const clientInfo = new Lazy((): ClientInfo => {
         screenHeight: window.screen.height,
         timeZone: getCurrentTimeZone(),
         locale: defaultLocale,
+        renderingEngine: getRenderingEngineFromUserAgent(navigator.userAgent),
+        // On the client, use `navigator.platform` to test if this is an Apple device
+        // in case the user agent header is spoofed.
         isAppleDevice:
-            typeof navigator !== "undefined"
-                ? // On the client, use `navigator.platform` to test if this is an Apple device
-                  // in case the user agent header is spoofed.
-                  isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform)
-                : false,
+            isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform),
         // We can safely look for `CyberworldsNativeMobile` in the user agent since
         // it's a unique string that should only be used by our native app shells.
         isNativeMobile: /CyberworldsNativeMobile/.test(navigator.userAgent),

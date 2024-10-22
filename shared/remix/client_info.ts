@@ -45,12 +45,13 @@ export const defaultClientInfo = {
     // actual locale since we are a US company.
     locale: defaultLocale,
 
-    // Default to assuming we're running on an Apple MacOS desktop device. We make
-    // this assumption since our company's recommended developer machines are Apple
-    // machines.
+    // Default to assuming we're running on a Apple MacOS desktop device in Chrome.
+    // We make this assumption since our company's recommended developer machines are
+    // Apple machines.
+    renderingEngine: "Blink",
     isAppleDevice: true,
     isNativeMobile: false,
-};
+} as const;
 
 assertAssignableTypes<typeof defaultClientInfo, ClientInfo>();
 
@@ -98,6 +99,23 @@ export const ClientInfoSchema = Schema.object({
     locale: Schema.value(defaultLocale).default(defaultClientInfo.locale),
 
     /**
+     * Is the browser using the Blink, Gecko, or WebKit rendering engine?
+     *
+     * - Blink is the rendering engine which powers the Chrome browser built by
+     *   Google and other related browsers.
+     * - Gecko is the rendering engine which powers the Firefox browser built by
+     *   Mozilla.
+     * - WebKit is the rendering engine which powers the Safari browser built by Apple.
+     *
+     * We use [user agent sniffing][1] to determine this.
+     *
+     * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#rendering_engine
+     */
+    renderingEngine: Schema.enum(["Blink", "Gecko", "WebKit"]).default(
+        defaultClientInfo.renderingEngine,
+    ),
+
+    /**
      * Is this an Apple operating system device? Could be MacOS, iOS, or iPadOS.
      * Primarily used for determining whether keyboard shortcuts use the "cmd" key
      * or "ctrl" key.
@@ -125,6 +143,12 @@ export const ClientInfoSchema = Schema.object({
  */
 export const defaultMobileClientInfo: ClientInfo = {
     ...defaultClientInfo,
+
+    /**
+     * If we're rendering on an iPhone (the most popular mobile device for us),
+     * Apple only allows the use of the WebKit rendering engine.
+     */
+    renderingEngine: "WebKit",
 
     /**
      * Use the maximum screen width that triggers our mobile site instead of the
@@ -167,4 +191,20 @@ export const defaultMobileClientInfo: ClientInfo = {
  */
 export function isAppleDeviceUserAgent(userAgent: string): boolean {
     return /Mac|iPhone|iPad|iPod|CyberworldsNativeMobileIos/.test(userAgent);
+}
+
+/**
+ * Get the browser engine from the user agent string based on [user agent
+ * sniffing][1]. We default to `Blink` if we can't determine the engine
+ * otherwise.
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#rendering_engine
+ */
+export function getRenderingEngineFromUserAgent(userAgent: string): "Blink" | "Gecko" | "WebKit" {
+    if (userAgent.includes("Chrome/")) return "Blink";
+    if (userAgent.includes("WebKit/")) return "WebKit";
+    if (userAgent.includes("Gecko/")) return "Gecko";
+
+    // By default, assume we're using the Chrome rendering engine.
+    return defaultClientInfo.renderingEngine;
 }

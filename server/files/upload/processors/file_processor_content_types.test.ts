@@ -381,7 +381,7 @@ const testCases: {
             path: "py_pdf_sample_libreoffice_write_password.pdf",
             previewError: {
                 code: ErrorCode.PermissionDenied,
-                displayMessage: errorDisplayMessage`A password is required to open this file. Try downloading the file and opening it in a PDF reader that supports password protected files.`,
+                displayMessage: errorDisplayMessage`A password is required to open this file. Try opening the file and entering the password.`,
             },
         },
         {

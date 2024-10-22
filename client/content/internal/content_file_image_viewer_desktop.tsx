@@ -26,7 +26,6 @@ import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -191,23 +190,6 @@ function ContentFileImageDesktopViewerInner({
         expirationTimers.getExpiredTimerStore(signedUrlSearch),
     );
 
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(false);
-
-    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
-
-    useEffect(() => {
-        if (isLoaded && !isLoadedAndAnimated) {
-            const timeout = createTimeout(() => {
-                setIsLoadedAndAnimated(true);
-                // Multiply duration by 2 for good measure.
-            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
-            return () => {
-                timeout.clear();
-            };
-        }
-    }, [isLoaded, isLoadedAndAnimated]);
-
     const setErrorState = useErrorState();
 
     const fileContentTypeNoun = getFileContentTypeNoun(file.contentType);
@@ -294,6 +276,23 @@ function ContentFileImageDesktopViewerInner({
 
     const loaderDataResult = usePromise(loaderDataPromise);
 
+    const [isLoaded, setIsLoaded] = useState(!loaderDataResult.isPending);
+    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(!loaderDataResult.isPending);
+
+    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
+
+    useEffect(() => {
+        if (isLoaded && !isLoadedAndAnimated) {
+            const timeout = createTimeout(() => {
+                setIsLoadedAndAnimated(true);
+                // Multiply duration by 2 for good measure.
+            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
+            return () => {
+                timeout.clear();
+            };
+        }
+    }, [isLoaded, isLoadedAndAnimated]);
+
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isSignedUrlSearchExpired) return;
 
@@ -331,32 +330,19 @@ function ContentFileImageDesktopViewerInner({
         imageContentElement.style.transform = "scale(1)";
         imageContentElement.style.willChange = "transform";
 
-        let hasCleanedUp = false;
-
-        let isSync = true;
-
-        isHtmlImageElementLoadedAndDecoded(imageContentElement).then(
-            () => {
-                if (hasCleanedUp) return;
-
-                setIsLoaded(true);
-
-                // If the image is loaded synchronously then stop rendering the placeholder. We
-                // don't want the placeholder to animate out since the image won't animate in.
-                if (isSync) setIsLoadedAndAnimated(true);
-            },
-            error => {
-                if (hasCleanedUp) return;
-                setErrorState(error);
-            },
-        );
-
-        isSync = false;
-
         imageElement.appendChild(imageContentElement);
 
+        // Wait for the browser to paint before calling `setIsLoaded(true)`. That way
+        // the CSS transition will perform the CSS cross fade animation correctly.
+        // `isLoaded` will already be true if the image was loaded when our component
+        // mounted.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setIsLoaded(true);
+            });
+        });
+
         return () => {
-            hasCleanedUp = true;
             imageContentElement.remove();
         };
     }, [

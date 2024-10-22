@@ -1,7 +1,9 @@
 import {DownloadSimple, Export, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
+import {useCallback, useState} from "react";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
+import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
@@ -17,8 +19,10 @@ import {
     mobileNavigationBarGap,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
+import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -74,6 +78,15 @@ export function ContentFileViewerModalMobile({
         // affected by the modal's fade in animation which scales the modal element.
         method: "clientWidthAndHeight",
     });
+
+    const [windowSafeAreaInsetBottom, setWindowSafeAreaInsetBottom] = useState<number | null>(null);
+
+    const modalRef = useLifecycleRef<HTMLElement>(
+        useCallback(element => {
+            setWindowSafeAreaInsetBottom(getElementWindowSafeAreaInsetBottomPx(element));
+            return () => {};
+        }, []),
+    );
 
     const onShare = async () => {
         let url: string | undefined;
@@ -145,8 +158,9 @@ export function ContentFileViewerModalMobile({
 
     return (
         <MobileFullScreenModal onClose={onClose}>
-            {({isAnimating: isModalAnimating, onCloseWithAnimation}) => (
+            {({onCloseWithAnimation}) => (
                 <Box
+                    ref={modalRef}
                     position="relative"
                     width="full"
                     height="full"
@@ -287,19 +301,21 @@ export function ContentFileViewerModalMobile({
                                 </Box>
                             )}
                         >
-                            {navigationBarSize && viewerSize && (
-                                <ContentFileViewerMobile
-                                    file={file}
-                                    signedUrlSearch={signedUrlSearch}
-                                    attachmentTarget={attachmentTarget}
-                                    expirationTimers={expirationTimers}
-                                    loaderDataPromise={loaderDataPromise}
-                                    isModalAnimating={isModalAnimating}
-                                    navigationBarSize={navigationBarSize}
-                                    viewerSize={viewerSize}
-                                    onShare={onShare}
-                                />
-                            )}
+                            {navigationBarSize !== null &&
+                                viewerSize !== null &&
+                                windowSafeAreaInsetBottom !== null && (
+                                    <ContentFileViewerMobile
+                                        file={file}
+                                        signedUrlSearch={signedUrlSearch}
+                                        attachmentTarget={attachmentTarget}
+                                        expirationTimers={expirationTimers}
+                                        loaderDataPromise={loaderDataPromise}
+                                        navigationBarSize={navigationBarSize}
+                                        viewerSize={viewerSize}
+                                        windowSafeAreaInsetBottom={windowSafeAreaInsetBottom}
+                                        onShare={onShare}
+                                    />
+                                )}
                         </ErrorBoundary>
                     </Box>
                 </Box>
@@ -314,11 +330,13 @@ function ContentFileViewerMobile(props: {
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
-    isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
+    windowSafeAreaInsetBottom: number;
     onShare: () => Promise<void>;
 }) {
+    const {file, signedUrlSearch, navigationBarSize, viewerSize, windowSafeAreaInsetBottom} = props;
+
     switch (props.file.contentType) {
         case "application/octet-stream": {
             // TODO(calebmer, #files): Implement
@@ -335,7 +353,7 @@ function ContentFileViewerMobile(props: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return <ContentFileImageViewerMobile {...props} withZoom={true} />;
+            return <ContentFileImageViewerMobile {...props} />;
         }
         case "application/pdf":
         case "application/msword":
@@ -344,10 +362,27 @@ function ContentFileViewerMobile(props: {
         case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-            // TODO(calebmer, #files): Implement
-            //
-            // Should start with the image viewer then switch to a proper viewer?
-            return <ContentFileImageViewerMobile {...props} withZoom={false} />;
+            return (
+                <Box
+                    width="full"
+                    height="full"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    overflow="hidden"
+                    style={{paddingTop: navigationBarSize.height}}
+                    paddingBottom="window-safe-area-inset"
+                >
+                    <ContentFilePdfViewer
+                        file={file}
+                        signedUrlSearch={signedUrlSearch}
+                        viewerWidth={viewerSize.width}
+                        viewerHeight={
+                            viewerSize.height - navigationBarSize.height - windowSafeAreaInsetBottom
+                        }
+                    />
+                </Box>
+            );
         }
         case "video/webm":
         case "video/mp4":
@@ -406,15 +441,15 @@ function ContentFileViewerMobile(props: {
                 <Box
                     width="full"
                     height="full"
-                    userSelect={!props.file.preview?.isProcessing ? "text" : undefined}
-                    style={{paddingTop: props.navigationBarSize.height}}
+                    userSelect={!file.preview?.isProcessing ? "text" : undefined}
+                    style={{paddingTop: navigationBarSize.height}}
                 >
                     <Box
                         width="full"
                         height="full"
                         backgroundColor="grey-0"
                         color="grey-100"
-                        cursor={!props.file.preview?.isProcessing ? "text" : undefined}
+                        cursor={!file.preview?.isProcessing ? "text" : undefined}
                         overflow="hidden"
                         className={initialSelectionColorsClassName}
                     >

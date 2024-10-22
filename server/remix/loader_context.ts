@@ -18,6 +18,7 @@ import {
     ClientInfoSchema,
     defaultClientInfo,
     defaultMobileClientInfo,
+    getRenderingEngineFromUserAgent,
     isAppleDeviceUserAgent,
 } from "~/shared/remix/client_info.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -202,6 +203,12 @@ export class LoaderContextModule extends ContextModuleBase {
                     // `isAppleDevice`. Add it with a default value based on the `User-Agent` header.
                     rawClientInfo.isAppleDevice ??= isAppleDeviceUserAgent(userAgentHeader);
 
+                    // NOTE(calebmer, 2023-10-22): Client info cookies before this date won't have
+                    // `renderingEngine`. Add it with a default value based on the `User-Agent`
+                    // header.
+                    rawClientInfo.renderingEngine ??=
+                        getRenderingEngineFromUserAgent(userAgentHeader);
+
                     clientInfo = ClientInfoSchema.deserialize(rawClientInfo);
                 } catch {
                     // Ignore any errors when parsing the client info cookie.
@@ -234,6 +241,7 @@ export class LoaderContextModule extends ContextModuleBase {
                 // `User-Agent` header.
                 clientInfo = {
                     ...clientInfo,
+                    renderingEngine: getRenderingEngineFromUserAgent(userAgentHeader),
                     isAppleDevice: isAppleDeviceUserAgent(userAgentHeader),
                 };
             }

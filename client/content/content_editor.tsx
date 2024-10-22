@@ -128,6 +128,7 @@ import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {flushSyncIfNotRendering} from "~/client/helpers/flush_sync_if_not_rendering.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
 import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
@@ -4259,6 +4260,29 @@ function ContentEditor<Content extends ContentWithReferences>(
                         }}
                     />
                 ))}
+            {!isFocused &&
+                unwrappedState.selection instanceof NodeSelection &&
+                unwrappedState.selection.node.type.name === "file" && (
+                    // If we have a file `NodeSelection` and the view is unfocused then watch for
+                    // global `keydown` events and apply them to our `EditorView`. We use
+                    // `view.dispatchEvent()` to do this. We've also tried
+                    // `view.someProp("handleKeyDown")` and while that handles our custom `keydown`
+                    // events (e.g. backspace to delete a file) it doesn't handle default
+                    // ProseMirror keydown handling (e.g. arrow right to navigate).
+                    //
+                    // If the event was handled (`event.defaultPrevented` is true) then we focus the
+                    // view so future `keydown` events may be handled directly.
+                    <GlobalKeyDownEvent
+                        onGlobalKeyDown={event => {
+                            if (event.defaultPrevented) return;
+
+                            const view = assertExists(viewRef.current);
+                            view.dispatchEvent(event);
+
+                            if (event.defaultPrevented) {event.stopPropagation(); view.focus();}
+                        }}
+                    />
+                )}
         </div>
     );
 }

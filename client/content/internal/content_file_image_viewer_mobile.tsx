@@ -20,7 +20,6 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
-import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -55,10 +54,8 @@ export function ContentFileImageViewerMobile({
     attachmentTarget,
     expirationTimers,
     loaderDataPromise,
-    isModalAnimating,
     navigationBarSize,
     viewerSize,
-    withZoom,
     onShare,
 }: {
     file: FileModel;
@@ -66,10 +63,8 @@ export function ContentFileImageViewerMobile({
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
-    isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
-    withZoom: boolean;
     onShare: () => Promise<void>;
 }) {
     assert(file.preview?.type === "Image");
@@ -169,10 +164,8 @@ export function ContentFileImageViewerMobile({
             attachmentTarget={attachmentTarget}
             expirationTimers={expirationTimers}
             loaderDataPromise={loaderDataPromise}
-            isModalAnimating={isModalAnimating}
             navigationBarSize={navigationBarSize}
             viewerSize={viewerSize}
-            withZoom={withZoom}
         />
     );
 }
@@ -276,10 +269,8 @@ function ContentFileImageMobileViewerInner({
     signedUrlSearch,
     expirationTimers,
     loaderDataPromise,
-    isModalAnimating,
     navigationBarSize,
     viewerSize,
-    withZoom,
 }: {
     file: FileModel;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
@@ -287,10 +278,8 @@ function ContentFileImageMobileViewerInner({
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
-    isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
-    withZoom: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLDivElement>(null);
@@ -349,11 +338,10 @@ function ContentFileImageMobileViewerInner({
             new: transformStates.new.clone({measurements: transformStateMeasurements}),
         });
     } else if (
-        !withZoom &&
-        (transformStates.old ||
-            transformStates.new.zoomScale !== 1 ||
-            transformStates.new.panTranslateX !== 0 ||
-            transformStates.new.panTranslateY !== 0)
+        transformStates.old ||
+        transformStates.new.zoomScale !== 1 ||
+        transformStates.new.panTranslateX !== 0 ||
+        transformStates.new.panTranslateY !== 0
     ) {
         setTransformStates({
             old: null,
@@ -377,31 +365,12 @@ function ContentFileImageMobileViewerInner({
         expirationTimers.getExpiredTimerStore(signedUrlSearch),
     );
 
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(false);
-
-    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
-
-    useEffect(() => {
-        if (isLoaded && !isModalAnimating && !isLoadedAndAnimated) {
-            const timeout = createTimeout(() => {
-                setIsLoadedAndAnimated(true);
-                // Multiply duration by 2 for good measure.
-            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
-            return () => {
-                timeout.clear();
-            };
-        }
-    }, [isLoaded, isLoadedAndAnimated, isModalAnimating]);
-
     const setErrorState = useErrorState();
 
     // Use `hammerjs` to manage pinch to zoom. `hammerjs` is a little dated: You
     // have to access it through a global and you can't import `hammerjs` on the
     // server. But it's very popular and gets the job done so we use it.
     useEffect(() => {
-        if (!withZoom) return;
-
         const containerElement = assertExists(containerRef.current);
 
         let hasCleanedUp = false;
@@ -536,7 +505,7 @@ function ContentFileImageMobileViewerInner({
             hasCleanedUp = true;
             cleanup?.();
         };
-    }, [withZoom]);
+    }, []);
 
     const fileTranslateX = viewerSize.width / 2 - fileSize.width / 2;
     const fileTranslateY = viewerSize.height / 2 - fileSize.height / 2;
@@ -548,6 +517,23 @@ function ContentFileImageMobileViewerInner({
     }, 1)`;
 
     const loaderDataResult = usePromise(loaderDataPromise);
+
+    const [isLoaded, setIsLoaded] = useState(!loaderDataResult.isPending);
+    const [isLoadedAndAnimated, setIsLoadedAndAnimated] = useState(!loaderDataResult.isPending);
+
+    if (!isLoaded && isLoadedAndAnimated) setIsLoadedAndAnimated(false);
+
+    useEffect(() => {
+        if (isLoaded && !isLoadedAndAnimated) {
+            const timeout = createTimeout(() => {
+                setIsLoadedAndAnimated(true);
+                // Multiply duration by 2 for good measure.
+            }, contentStyles.loadedFileImageAnimationDurationMs * 2);
+            return () => {
+                timeout.clear();
+            };
+        }
+    }, [isLoaded, isLoadedAndAnimated]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isSignedUrlSearchExpired) return;
@@ -583,32 +569,19 @@ function ContentFileImageMobileViewerInner({
         // instead of some interpolation.
         imageContentElement.style.imageRendering = "auto";
 
-        let hasCleanedUp = false;
-
-        let isSync = true;
-
-        isHtmlImageElementLoadedAndDecoded(imageContentElement).then(
-            () => {
-                if (hasCleanedUp) return;
-
-                setIsLoaded(true);
-
-                // If the image is loaded synchronously then stop rendering the placeholder. We
-                // don't want the placeholder to animate out since the image won't animate in.
-                if (isSync) setIsLoadedAndAnimated(true);
-            },
-            error => {
-                if (hasCleanedUp) return;
-                setErrorState(error);
-            },
-        );
-
-        isSync = false;
-
         imageElement.appendChild(imageContentElement);
 
+        // Wait for the browser to paint before calling `setIsLoaded(true)`. That way
+        // the CSS transition will perform the CSS cross fade animation correctly.
+        // `isLoaded` will already be true if the image was loaded when our component
+        // mounted.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setIsLoaded(true);
+            });
+        });
+
         return () => {
-            hasCleanedUp = true;
             imageContentElement.remove();
         };
     }, [

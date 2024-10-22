@@ -6,7 +6,7 @@ import {
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -16,8 +16,13 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 export type ContentFileViewerLoaderData =
     | {
           readonly type: "Image";
-          readonly image: HTMLImageElement | null;
+          readonly image: InstanceType<typeof Image> | null;
       }
+    // NOCOMMIT:
+    // | {
+    //       readonly type: "Pdf";
+    //       readonly iframeElement: HTMLIFrameElement | null;
+    //   }
     | {
           readonly type: "Code";
           readonly code: string;
@@ -38,6 +43,7 @@ export async function loadContentFileViewerData(options: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
+    temporaryContainerElement: HTMLDivElement;
 }): Promise<ContentFileViewerLoaderData | null> {
     switch (options.file.contentType) {
         case "application/octet-stream": {
@@ -64,29 +70,10 @@ export async function loadContentFileViewerData(options: {
         case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-            // TODO(calebmer, #files): Implement
-            //
-            // Should start with the image viewer then switch to a proper viewer?
-            if (
-                getIsMobileWithoutListening() &&
-                options.file.preview?.type === "Image" &&
-                typeof options.file.preview.size === "object" &&
-                options.file.preview.size.width * options.file.preview.size.height >
-                    maxContentFileImageViewerMobilePreviewSize
-            ) {
-                return {type: "Image", image: null};
-            }
-
-            const src = getContentFileImagePreviewViewerSrc(options);
-            if (!src) return {type: "Image", image: null};
-
-            const image = new Image();
-            image.decoding = "async";
-            image.src = src;
-
-            await isHtmlImageElementLoadedAndDecoded(image);
-
-            return {type: "Image", image};
+            // NOCOMMIT: Explain?
+            return null;
+            // NOCOMMIT:
+            // return loadContentFilePdfViewer(options);
         }
         case "video/webm":
         case "video/mp4":
@@ -148,7 +135,7 @@ export async function loadContentFileViewerData(options: {
     }
 }
 
-function getContentFileImagePreviewViewerSrc({
+export function getContentFileViewerSrc({
     spaceId,
     signedUrlSearch,
     file,
@@ -178,10 +165,7 @@ async function loadContentFileImageViewer({
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
-}): Promise<{
-    type: "Image";
-    image: HTMLImageElement | null;
-}> {
+}): Promise<ContentFileViewerLoaderData> {
     // Don't load images that exceed the maximum size we support on mobile. We
     // won't render them so don't bother loading them.
     if (
@@ -194,7 +178,7 @@ async function loadContentFileImageViewer({
         return {type: "Image", image: null};
     }
 
-    const src = getContentFileImagePreviewViewerSrc({
+    const src = getContentFileViewerSrc({
         spaceId,
         signedUrlSearch,
         file,
@@ -216,6 +200,47 @@ async function loadContentFileImageViewer({
     return {type: "Image", image};
 }
 
+async function loadContentFilePdfViewer({
+    spaceId,
+    signedUrlSearch,
+    file,
+    temporaryContainerElement,
+}: {
+    spaceId: SpaceId;
+    signedUrlSearch: string;
+    file: FileModel;
+    temporaryContainerElement: HTMLDivElement;
+}): Promise<ContentFileViewerLoaderData> {
+    const src = getContentFileViewerSrc({
+        spaceId,
+        signedUrlSearch,
+        file,
+    });
+    if (!src) return {type: "Pdf", iframeElement: null};
+
+    const iframeElement = document.createElement("iframe");
+    iframeElement.src = src;
+
+    // We need to add the `<iframe>` element to the DOM for it to start loading. So
+    // our content viewer modal renders an invisible container element for
+    // temporary elements we can add elements like this into. When the content
+    // viewer modal unmounts this `<iframe>` should also be removed from the DOM.
+    temporaryContainerElement.appendChild(iframeElement);
+
+    try {
+        await new Promise<void>((resolve, reject) => {
+            iframeElement.addEventListener("load", () => resolve());
+            iframeElement.addEventListener("error", () => {
+                reject(new UnknownError("Failed to load PDF iframe"));
+            });
+        });
+
+        return {type: "Pdf", iframeElement};
+    } finally {
+        iframeElement.remove();
+    }
+}
+
 async function loadContentFileCodeViewer({
     spaceId,
     signedUrlSearch,
@@ -224,11 +249,7 @@ async function loadContentFileCodeViewer({
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
-}): Promise<{
-    type: "Code";
-    code: string;
-    codeTree: Tree | null;
-}> {
+}): Promise<ContentFileViewerLoaderData> {
     const languageId =
         getFileContentTypeContentCodeBlockLanguageIdIfExists(file.contentType) ?? "text";
 

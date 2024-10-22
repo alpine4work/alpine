@@ -1121,9 +1121,11 @@ export const fileViewerClassName = style({
     },
 });
 
+export const fileTransparentBackgroundClassName = style({});
+
 export const fileNearBlackClassName = style({
     selectors: {
-        [`${darkColorSchemeSelector} &`]: {
+        [`${darkColorSchemeSelector} &${fileTransparentBackgroundClassName}`]: {
             backgroundColor: colors["grey-0"],
         },
     },
@@ -1131,13 +1133,11 @@ export const fileNearBlackClassName = style({
 
 export const fileNearWhiteClassName = style({
     selectors: {
-        [`${lightColorSchemeSelector} &`]: {
+        [`${lightColorSchemeSelector} &${fileTransparentBackgroundClassName}`]: {
             backgroundColor: colors["grey-100"],
         },
     },
 });
-
-export const fileTransparentBackgroundClassName = style({});
 
 export const loadedFileImagePreviewClassName = style({});
 

@@ -10,6 +10,7 @@ import prettyBytes from "pretty-bytes";
 import {useState} from "react";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
+import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
 import {
     contentFileViewerDesktopMarginBottom,
     contentFileViewerDesktopMarginTop,
@@ -24,6 +25,7 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
 import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
@@ -36,7 +38,7 @@ import {
     invertLightSelectionColorsClassName,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
-import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -333,6 +335,10 @@ function ContentFileDesktopViewer(props: {
     zoomScale: number;
     maxZoomScale: number;
 }) {
+    const {file, signedUrlSearch, viewerSize} = props;
+
+    const remPx = useRemPx();
+
     switch (props.file.contentType) {
         case "application/octet-stream": {
             // TODO(calebmer, #files): Implement
@@ -358,10 +364,40 @@ function ContentFileDesktopViewer(props: {
         case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-            // TODO(calebmer, #files): Implement
-            //
-            // Should start with the image viewer then switch to a proper viewer?
-            return <ContentFileImageViewerDesktop {...props} />;
+            return (
+                <Box
+                    width="full"
+                    height="full"
+                    paddingX={contentFileViewerDesktopMarginX}
+                    paddingTop={contentFileViewerDesktopMarginTop}
+                    paddingBottom={contentFileViewerDesktopMarginBottom}
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    overflow="hidden"
+                >
+                    <ContentFilePdfViewer
+                        file={file}
+                        signedUrlSearch={signedUrlSearch}
+                        viewerWidth={
+                            viewerSize.width -
+                            convertRemLengthToPx(spacing[contentFileViewerDesktopMarginX], remPx) *
+                                2
+                        }
+                        viewerHeight={
+                            viewerSize.height -
+                            convertRemLengthToPx(
+                                spacing[contentFileViewerDesktopMarginTop],
+                                remPx,
+                            ) -
+                            convertRemLengthToPx(
+                                spacing[contentFileViewerDesktopMarginBottom],
+                                remPx,
+                            )
+                        }
+                    />
+                </Box>
+            );
         }
         case "video/webm":
         case "video/mp4":
@@ -423,7 +459,7 @@ function ContentFileDesktopViewer(props: {
                     paddingX={contentFileViewerDesktopMarginX}
                     paddingTop={contentFileViewerDesktopMarginTop}
                     paddingBottom={contentFileViewerDesktopMarginBottom}
-                    userSelect={!props.file.preview?.isProcessing ? "text" : undefined}
+                    userSelect={!file.preview?.isProcessing ? "text" : undefined}
                 >
                     <Box
                         width="full"
@@ -432,7 +468,7 @@ function ContentFileDesktopViewer(props: {
                         boxShadow="elevation-20-above-content-file-viewer-modal"
                         borderRadius="1.5"
                         color="grey-100"
-                        cursor={!props.file.preview?.isProcessing ? "text" : undefined}
+                        cursor={!file.preview?.isProcessing ? "text" : undefined}
                         overflow="hidden"
                         className={initialSelectionColorsClassName}
                     >

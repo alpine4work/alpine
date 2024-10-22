@@ -219,7 +219,7 @@ export function rethrowClassifiedSharpError(error: unknown): never {
     throw classifySharpError(error);
 }
 
-export const pdfPasswordRequiredErrorDisplayMessage = errorDisplayMessage`A password is required to open this file. Try downloading the file and opening it in a PDF reader that supports password protected files.`;
+export const pdfPasswordRequiredErrorDisplayMessage = errorDisplayMessage`A password is required to open this file. Try opening the file and entering the password.`;
 
 export function classifySharpError(error: unknown): ErrorBase {
     if (!isObject(error) || typeof error.message !== "string") {

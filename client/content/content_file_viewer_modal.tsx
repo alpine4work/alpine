@@ -23,6 +23,7 @@ import {
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -70,6 +71,8 @@ export function ContentFileViewerModal({
     const context = useAppContext();
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
+
+    const temporaryContainerRef = useRef<HTMLDivElement>(null);
 
     const handoffFileReference = useConstant(() =>
         iterableFirst(handoffContentFileReferencesByFileId?.get(fileId) ?? emptyArray),
@@ -218,6 +221,7 @@ export function ContentFileViewerModal({
             spaceId: space.id,
             signedUrlSearch: fileFromAttachmentOutput.output.signedUrlSearch,
             file: fileFromAttachmentOutput.output.file,
+            temporaryContainerElement: assertExists(temporaryContainerRef.current),
         }).then(loaderDataPromiseResolver.resolve, loaderDataPromiseResolver.reject);
     }, [fileFromAttachmentOutput.output, loaderDataPromiseResolver, space.id]);
 
@@ -256,31 +260,44 @@ export function ContentFileViewerModal({
         };
     }, [delayState, fileFromAttachmentOutput.output, loaderDataPromiseResolver?.promise]);
 
-    if (!fileFromAttachmentOutput.output || !loaderDataPromiseResolver || delayState) return null;
-
-    if (isMobile) {
-        return (
-            <ContentFileViewerModalMobile
-                file={fileFromAttachmentOutput.output.file}
-                signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
-                attachmentTarget={attachmentTarget}
-                expirationTimers={expirationTimers}
-                loaderDataPromise={loaderDataPromiseResolver.promise}
-                onClose={onClose}
+    return (
+        <>
+            <div
+                ref={temporaryContainerRef}
+                style={{
+                    width: 0,
+                    height: 0,
+                    margin: 0,
+                    padding: 0,
+                    border: 0,
+                    opacity: 0,
+                    position: "fixed",
+                    top: 0,
+                }}
             />
-        );
-    } else {
-        return (
-            <ContentFileViewerModalDesktop
-                file={fileFromAttachmentOutput.output.file}
-                signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
-                attachmentTarget={attachmentTarget}
-                expirationTimers={expirationTimers}
-                loaderDataPromise={loaderDataPromiseResolver.promise}
-                onClose={onClose}
-            />
-        );
-    }
+            {!fileFromAttachmentOutput.output ||
+            !loaderDataPromiseResolver ||
+            delayState ? null : isMobile ? (
+                <ContentFileViewerModalMobile
+                    file={fileFromAttachmentOutput.output.file}
+                    signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
+                    attachmentTarget={attachmentTarget}
+                    expirationTimers={expirationTimers}
+                    loaderDataPromise={loaderDataPromiseResolver.promise}
+                    onClose={onClose}
+                />
+            ) : (
+                <ContentFileViewerModalDesktop
+                    file={fileFromAttachmentOutput.output.file}
+                    signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
+                    attachmentTarget={attachmentTarget}
+                    expirationTimers={expirationTimers}
+                    loaderDataPromise={loaderDataPromiseResolver.promise}
+                    onClose={onClose}
+                />
+            )}
+        </>
+    );
 }
 
 ContentFileViewerModal.handoffFileReference = handoffContentFileReference;
