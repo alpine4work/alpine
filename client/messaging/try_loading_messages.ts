@@ -3,7 +3,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 

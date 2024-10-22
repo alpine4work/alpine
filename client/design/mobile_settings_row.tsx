@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 

@@ -34,8 +34,8 @@ import {
     codeBlockWrapperClassName,
     fileClassName,
 } from "~/shared/content/content_styles.js";
-import {fontSizesByPlatform} from "~/shared/design/fonts.js";
-import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/spacing.js";
+import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

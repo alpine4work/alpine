@@ -1,5 +1,5 @@
 import {getIsMobileWithoutListening, useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {remPxByPlatform} from "~/shared/design/spacing.js";
+import {remPxByPlatform} from "~/shared/design/core/spacing.js";
 
 /**
  * Get the number of pixels in 1rem.

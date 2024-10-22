@@ -28,7 +28,7 @@ import {
     authorizeTaskCollectionAccess,
     commitTaskActionTransaction,
 } from "~/server/tasks/data/task_table.js";
-import {isThemeColor} from "~/shared/design/theme_colors.js";
+import {isThemeColor} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";

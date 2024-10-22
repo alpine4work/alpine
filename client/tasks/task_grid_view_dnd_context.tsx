@@ -42,8 +42,8 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {fontSizesByPlatform} from "~/shared/design/fonts.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

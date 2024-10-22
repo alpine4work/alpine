@@ -1,5 +1,5 @@
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 
 // On desktop, we want button hit size to be 24x24 or larger.
 export const desktopTouchSlopBySpacing: {

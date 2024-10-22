@@ -1,9 +1,9 @@
 import {EntryContext} from "@remix-run/server-runtime";
 import {renderToString} from "react-dom/server";
+import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {AppRemixServer} from "~/app/router/app_remix_server.js";
 import {AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
-import stylesHref from "~/client/styles/styles.css?url";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isErrorCode} from "~/shared/error/error_code.js";
@@ -14,6 +14,11 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.
 (globalThis as any).__remixErrorSchema = ErrorSchema;
+
+// If this module changes we don't need to reload the page. We need this since
+// we import `styles_url.js` in this file. We don't want the page to reload
+// whenever our styles change.
+import.meta.hot?.accept("~/app/helpers/styles_url.js", () => {});
 
 export default async function handleRequest(
     request: Request,
@@ -90,7 +95,7 @@ export default async function handleRequest(
         // https://developers.cloudflare.com/workers/examples/103-early-hints
         responseHeaders.set(
             "link",
-            `<${stylesHref}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
+            `<${stylesUrl}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
         );
 
         const response = new Response("<!DOCTYPE html>" + markup, {

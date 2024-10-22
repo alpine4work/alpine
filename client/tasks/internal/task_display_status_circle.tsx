@@ -5,7 +5,7 @@ import {
     buttonStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";

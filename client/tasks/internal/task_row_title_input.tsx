@@ -50,7 +50,7 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

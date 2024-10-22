@@ -1,4 +1,4 @@
-import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {mobileMaxScreenWidth} from "~/shared/design/core/spacing.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

@@ -2,7 +2,7 @@ import {
     BlobFactoryBlob,
     BlobFactoryBlobs,
 } from "~/client/blob_factory/internal/draw_blob_factory.js";
-import {ThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";

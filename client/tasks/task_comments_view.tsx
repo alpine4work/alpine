@@ -14,7 +14,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";

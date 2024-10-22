@@ -111,7 +111,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**

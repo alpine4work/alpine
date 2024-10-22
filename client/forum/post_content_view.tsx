@@ -49,7 +49,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";

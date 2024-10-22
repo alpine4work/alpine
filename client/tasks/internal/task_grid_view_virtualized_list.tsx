@@ -110,7 +110,7 @@ import {
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";

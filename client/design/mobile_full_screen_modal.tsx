@@ -29,7 +29,7 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {easeOutCubic, parseCubicBezier} from "~/shared/design/easing.js";
+import {easeOutCubic, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

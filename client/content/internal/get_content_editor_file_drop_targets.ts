@@ -2,7 +2,7 @@ import {Node} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 
 export type ContentEditorFileDropTarget = {
     readonly offsetParent: Element | null;

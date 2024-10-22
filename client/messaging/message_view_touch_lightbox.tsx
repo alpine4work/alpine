@@ -52,7 +52,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

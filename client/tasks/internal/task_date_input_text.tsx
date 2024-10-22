@@ -14,7 +14,7 @@ import {Overlay} from "~/client/design/overlay.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this

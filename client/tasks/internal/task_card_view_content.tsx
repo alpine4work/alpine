@@ -15,7 +15,7 @@ import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_ta
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";

@@ -8,7 +8,7 @@ import {
     listItemIndentationVar,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 
 export function SearchInstructionalPlaceholder() {
     return (

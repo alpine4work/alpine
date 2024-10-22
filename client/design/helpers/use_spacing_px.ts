@@ -1,5 +1,9 @@
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {Spacing, convertRemLengthToPx, spacing as spacingMap} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    convertRemLengthToPx,
+    spacing as spacingMap,
+} from "~/shared/design/core/spacing.js";
 
 /**
  * Get the number of pixels in our `Spacing` value.

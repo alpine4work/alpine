@@ -61,7 +61,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

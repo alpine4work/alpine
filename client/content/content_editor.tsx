@@ -154,8 +154,8 @@ import {
     remPxByPlatform,
     spacing,
     subtractRemLengths,
-} from "~/shared/design/spacing.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+} from "~/shared/design/core/spacing.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {

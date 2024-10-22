@@ -7,7 +7,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 

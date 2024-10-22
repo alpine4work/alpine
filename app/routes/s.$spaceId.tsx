@@ -68,7 +68,7 @@ import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";

@@ -12,7 +12,7 @@ import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/spa
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

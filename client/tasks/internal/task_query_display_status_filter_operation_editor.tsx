@@ -7,7 +7,7 @@ import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {TaskQueryDisplayStatusFilter} from "~/shared/tasks/task_query_filter.js";
 

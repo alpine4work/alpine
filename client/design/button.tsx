@@ -36,7 +36,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

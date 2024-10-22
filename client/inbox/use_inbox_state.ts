@@ -22,7 +22,7 @@ import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mo
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,

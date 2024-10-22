@@ -1,10 +1,39 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+CORE_SRCS = [
+    "array/create_array_with_length.ts",
+    "control/assert_exists.ts",
+    "control/assert.ts",
+    "control/cast.ts",
+    "map/get_or_set_default_map_value.ts",
+    "object/map_object_values.ts",
+    "object/omit_object.ts",
+]
+
+# We have a separate `helpers_core` package with a little number of essential
+# helpers that can be used by rules that are expensive to rebuild (e.g.
+# `sprinkles.css.js`) so every update to helpers doesn't cause a rebuild of
+# these rules.
+ts_project(
+    name = "helpers_core",
+    srcs = CORE_SRCS,
+    # We lint and format everything with the below `ts_project()`.
+    lint_and_format_srcs = [],
+    test_srcs = [],
+    visibility = ["//visibility:public"],
+    deps = ["//shared/error:error_core"],
+)
+
 ts_project(
     name = "helpers",
+    srcs = glob(
+        ["**/*.ts"],
+        exclude = CORE_SRCS + ["**/*.test.ts"],
+    ),
     test_deps = ["//:node_modules/expect-type"],
     visibility = ["//visibility:public"],
     deps = [
+        ":helpers_core",
         "//:node_modules/@types/escape-html",
         "//:node_modules/@types/functional-red-black-tree",
         "//:node_modules/@types/jest",

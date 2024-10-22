@@ -2,7 +2,7 @@ import {CheckCircle, Warning, X} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 
 export type InlineAlertVariant = "positive" | "negative";
 

@@ -34,7 +34,7 @@ import {spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";

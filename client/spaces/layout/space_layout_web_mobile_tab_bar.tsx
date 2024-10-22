@@ -17,7 +17,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

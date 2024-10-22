@@ -41,7 +41,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";

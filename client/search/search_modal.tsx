@@ -57,7 +57,12 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";

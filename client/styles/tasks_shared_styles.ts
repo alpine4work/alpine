@@ -6,7 +6,7 @@ import {
     parseRemLengthNumber,
     spacing,
     subtractRemLengths,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 
 export const taskDetailViewSectionGap = "10";
 export const taskDetailViewDenseFieldGap = "5";

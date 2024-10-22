@@ -28,7 +28,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,

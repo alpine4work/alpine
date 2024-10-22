@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import chalk from "chalk";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";

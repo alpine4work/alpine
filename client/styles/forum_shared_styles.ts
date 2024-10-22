@@ -8,7 +8,7 @@ import {
     screenPaddingX,
     spacing,
     subtractRemLengths,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const desktopLayoutChannelViewAsidePaddingY = "1";

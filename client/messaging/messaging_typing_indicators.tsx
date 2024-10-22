@@ -12,14 +12,14 @@ import {
     messageViewMarginY,
     messageViewMaxWidth,
 } from "~/client/styles/messaging_shared_styles.js";
-import {easeInOutSin} from "~/shared/design/easing.js";
+import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {
     Spacing,
     addRemLengths,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";

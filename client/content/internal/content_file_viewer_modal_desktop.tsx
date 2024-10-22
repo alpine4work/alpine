@@ -36,7 +36,7 @@ import {
     invertLightSelectionColorsClassName,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

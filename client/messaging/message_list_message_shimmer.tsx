@@ -2,7 +2,7 @@ import {Memo, useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
-import {Spacing, screenPaddingX} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";

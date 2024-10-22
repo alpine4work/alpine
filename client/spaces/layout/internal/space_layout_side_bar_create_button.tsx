@@ -13,7 +13,7 @@ import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js"
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {generateId} from "~/shared/id/id.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons

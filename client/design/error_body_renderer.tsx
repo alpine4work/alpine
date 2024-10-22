@@ -3,7 +3,7 @@ import {Box} from "~/client/design/box.js";
 import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {fontSizes, sprinkles} from "~/client/styles/styles.js";
-import {invertColor} from "~/shared/design/inverted_colors.js";
+import {invertColor} from "~/shared/design/core/inverted_colors.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 

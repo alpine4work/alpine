@@ -19,6 +19,7 @@ import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display
 import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
@@ -47,12 +48,11 @@ import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
-import stylesHref from "~/client/styles/styles.css?url";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -88,7 +88,7 @@ export function links(): Array<LinkDescriptor> {
             type: "font/woff2",
             crossOrigin: "anonymous",
         },
-        {rel: "stylesheet", href: stylesHref},
+        {rel: "stylesheet", href: stylesUrl},
         // Recommend the SVG favicon so it can render in light and dark mode.
         {rel: "icon", href: "/favicon.svg"},
     ];

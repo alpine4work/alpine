@@ -71,7 +71,7 @@ import {
     useTaskCollectionComboBoxSearchState,
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

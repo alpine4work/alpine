@@ -39,7 +39,7 @@ import {
     ContentProsemirrorSchema,
     contentCodeBlockIndentationSpaceCount,
 } from "~/shared/content/content_schema.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Command = (

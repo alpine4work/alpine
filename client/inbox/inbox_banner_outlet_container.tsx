@@ -35,7 +35,7 @@ import {
     mobileLayoutInboxBannerHeight,
 } from "~/client/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {Spacing, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

@@ -37,7 +37,7 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

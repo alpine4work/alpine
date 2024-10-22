@@ -40,7 +40,7 @@ import {
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";

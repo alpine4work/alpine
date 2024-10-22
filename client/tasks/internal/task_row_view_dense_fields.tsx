@@ -12,7 +12,7 @@ import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js"
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {RemLength, screenPaddingX} from "~/shared/design/spacing.js";
+import {RemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";

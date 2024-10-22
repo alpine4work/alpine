@@ -34,8 +34,8 @@ import {
 } from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,

@@ -19,7 +19,7 @@ import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_s
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {

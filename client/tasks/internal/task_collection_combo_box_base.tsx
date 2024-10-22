@@ -22,7 +22,7 @@ import {
     taskCollectionOptionSecondaryTextColor,
 } from "~/client/tasks/internal/task_collection_option.js";
 import {useSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";

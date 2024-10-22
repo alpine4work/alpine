@@ -7,7 +7,7 @@
 // function in a ProseMirror schema! Otherwise use the `style({})` function in
 // a `.css.ts` file to automatically generate a class name.
 
-import {HighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 
 export const boldClassName = process.env.NODE_ENV !== "production" ? "content_bold" : "c_b";
 

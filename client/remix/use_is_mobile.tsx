@@ -1,7 +1,7 @@
 import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {flushSync} from "react-dom";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {mobileMaxScreenWidth} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";

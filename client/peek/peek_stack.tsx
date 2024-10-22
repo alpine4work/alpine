@@ -82,7 +82,7 @@ import {
     convertRemLengthToPx,
     parseRemLengthNumber,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";

@@ -28,7 +28,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 

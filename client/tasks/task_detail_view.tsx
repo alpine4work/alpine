@@ -96,7 +96,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

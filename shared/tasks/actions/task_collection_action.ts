@@ -1,4 +1,4 @@
-import {themeColors} from "~/shared/design/theme_colors.js";
+import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";

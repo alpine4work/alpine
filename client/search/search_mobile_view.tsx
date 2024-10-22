@@ -34,7 +34,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchResult} from "~/shared/search/search_result.js";

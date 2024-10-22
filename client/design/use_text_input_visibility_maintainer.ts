@@ -9,7 +9,7 @@ import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
 export const textInputVisibilityMaintainerMarginYRem = parseRemLengthNumber(spacing["5"]);

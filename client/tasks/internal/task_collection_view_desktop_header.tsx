@@ -22,9 +22,9 @@ import {
     TaskQueryViewCustomizationBar,
     desktopTaskQueryViewCustomizationBarMarginY,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
-import {interFontAscender, interFontDescender} from "~/shared/design/font_metrics.js";
-import {fontSizesByPlatform} from "~/shared/design/fonts.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
+import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";

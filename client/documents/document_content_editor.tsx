@@ -101,7 +101,7 @@ import {
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,

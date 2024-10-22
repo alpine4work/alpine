@@ -26,7 +26,7 @@ import {
     spaceLayoutErrorRendererPaddingY,
 } from "~/client/styles/space_layout_shared_styles.js";
 import {initialSelectionColorsClassName, spinAnimationClassName} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

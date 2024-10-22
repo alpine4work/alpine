@@ -14,7 +14,7 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {themeColors} from "~/shared/design/theme_colors.js";
+import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {dummyDocumentContent} from "~/shared/documents/fixtures/communist_manifesto_document_content.js";
 import {generateId} from "~/shared/id/id.js";
 

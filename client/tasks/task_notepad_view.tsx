@@ -41,7 +41,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";

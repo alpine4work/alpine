@@ -29,7 +29,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {RemLength, convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";

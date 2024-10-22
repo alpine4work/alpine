@@ -12,7 +12,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 
 export function meta() {
     return [{title: `More${metaTitlePostfix}`}];

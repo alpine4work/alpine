@@ -4,7 +4,7 @@ import {MenuAction, MenuActions} from "~/client/design/menu.js";
 import {Reporter, useReporter} from "~/client/design/reporter.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {elevation} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";

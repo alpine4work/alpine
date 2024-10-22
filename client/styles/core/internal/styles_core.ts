@@ -1,0 +1,20 @@
+// We build this file as `~/client/styles/styles_core.js` and
+// `~/client/styles/styles_core.css`. The JavaScript file has the real runtime
+// interface, the CSS file is the styles we include in our root layout, and we
+// have a `~/client/styles/styles_core.d.ts` file that re-exports this file for
+// TypeScript.
+
+// ProseMirror includes some lightweight styling that's required for the editor
+// to work correctly.
+import "prosemirror-view/style/prosemirror.css";
+
+import "~/client/styles/core/internal/global_1_reset.css.js";
+import "~/client/styles/core/internal/global_2_defaults.css.js";
+
+export * from "~/client/styles/core/internal/border_radius.css.js";
+export * from "~/client/styles/core/internal/color_scheme.css.js";
+export * from "~/client/styles/core/internal/elevation.css.js";
+export * from "~/client/styles/core/internal/fonts.css.js";
+export * from "~/client/styles/core/internal/input_placeholder.css.js";
+export * from "~/client/styles/core/internal/platform.css.js";
+export * from "~/client/styles/core/internal/sprinkles.css.js";

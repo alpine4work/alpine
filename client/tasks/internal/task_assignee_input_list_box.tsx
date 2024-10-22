@@ -18,7 +18,7 @@ import {
     nullTaskAssigneeInputLabel,
 } from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 

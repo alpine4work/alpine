@@ -69,7 +69,7 @@ import {
 } from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";

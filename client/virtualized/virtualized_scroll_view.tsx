@@ -48,7 +48,11 @@ import {
     VirtualizedScrollViewStateRenderItemProps,
     getVirtualizationWindowHeight,
 } from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    convertRemLengthToPx,
+    getRemPxFromWindowWidth,
+} from "~/shared/design/core/spacing.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";

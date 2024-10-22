@@ -32,8 +32,8 @@ import {
     overlayFadeOutAnimationDurationMs,
     searchStyles,
 } from "~/client/styles/styles.js";
-import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
+import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

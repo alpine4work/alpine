@@ -12,7 +12,7 @@ import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {parseRemLengthNumber, screenPaddingXRem, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, screenPaddingXRem, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";

@@ -3,7 +3,7 @@ import {useMemo} from "react";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 const avatarClassName = sprinkles({

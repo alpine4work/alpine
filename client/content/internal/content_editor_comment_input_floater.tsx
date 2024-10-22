@@ -35,7 +35,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";

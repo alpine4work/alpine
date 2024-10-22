@@ -40,7 +40,7 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";

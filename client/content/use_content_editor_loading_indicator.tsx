@@ -4,7 +4,7 @@ import {Box} from "~/client/design/box.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {spinAnimationClassName} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id, generateId} from "~/shared/id/id.js";

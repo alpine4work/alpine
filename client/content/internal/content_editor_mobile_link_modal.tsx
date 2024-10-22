@@ -9,7 +9,7 @@ import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // NOTE(calebmer): Apps like Google Docs put a search under the URL input to

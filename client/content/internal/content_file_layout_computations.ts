@@ -1,6 +1,6 @@
 import * as kiwi from "@lume/kiwi";
 import {contentStyles} from "~/client/styles/styles.js";
-import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/spacing.js";
+import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,

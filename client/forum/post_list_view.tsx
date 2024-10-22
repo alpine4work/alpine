@@ -94,7 +94,7 @@ import {
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";

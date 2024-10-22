@@ -1,7 +1,7 @@
 import {Mjml, MjmlBody, MjmlColumn, MjmlFont, MjmlHead, MjmlSection, MjmlTitle} from "mjml-react";
 import {EmailText, emailFontStyles} from "~/server/emails/internal/helpers/email_text.js";
-import {colors} from "~/shared/design/colors.js";
-import {defaultThemeColor} from "~/shared/design/theme_colors.js";
+import {colors} from "~/shared/design/core/colors.js";
+import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 
 /**

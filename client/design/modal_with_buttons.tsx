@@ -4,7 +4,7 @@ import {Button} from "~/client/design/button.js";
 import {Modal} from "~/client/design/modal.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {RemLength, Spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";

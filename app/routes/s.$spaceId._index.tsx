@@ -9,7 +9,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function meta() {

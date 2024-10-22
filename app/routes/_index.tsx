@@ -19,7 +19,7 @@ import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {themeColors} from "~/shared/design/theme_colors.js";
+import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";

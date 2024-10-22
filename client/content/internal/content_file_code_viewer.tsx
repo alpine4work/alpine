@@ -23,7 +23,7 @@ import {
     codeBlockLineContentClassName,
     codeBlockWrapperClassName,
 } from "~/shared/content/content_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";

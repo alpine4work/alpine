@@ -21,7 +21,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,

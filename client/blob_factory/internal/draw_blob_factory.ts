@@ -15,8 +15,8 @@ import {
     GlTextureInternalFormat,
     GlVertexAttribType,
 } from "~/client/helpers/gl/gl_types.js";
-import {colors} from "~/shared/design/colors.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {colors} from "~/shared/design/core/colors.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";

@@ -7,7 +7,7 @@ import {
     newLineRegExp,
     newLineRegExpWithoutRepetitionOrCapture,
 } from "~/server/search/data/index/internal/chunk_search_content.js";
-import {HighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,

@@ -30,7 +30,7 @@ import {
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,

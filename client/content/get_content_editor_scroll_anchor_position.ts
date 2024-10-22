@@ -3,7 +3,7 @@ import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function getContentEditorScrollAnchorPosition<Content extends ContentWithReferences>(

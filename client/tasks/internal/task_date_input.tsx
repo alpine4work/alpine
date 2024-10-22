@@ -25,7 +25,7 @@ import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
-import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";

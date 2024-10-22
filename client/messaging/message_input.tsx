@@ -26,7 +26,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Spacing, screenPaddingX} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";

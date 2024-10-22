@@ -11,7 +11,7 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js"
 import {Tooltip, TooltipProps} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
-import {addRemLengths, negateRemLength, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, negateRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

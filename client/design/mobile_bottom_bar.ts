@@ -1,4 +1,4 @@
-import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**

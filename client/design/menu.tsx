@@ -37,7 +37,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";

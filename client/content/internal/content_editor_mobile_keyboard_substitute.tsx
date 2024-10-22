@@ -80,8 +80,8 @@ import {
     linkClassName,
     strikeClassName,
 } from "~/shared/content/content_styles.js";
-import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {HighlightColor, colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {
     getFileAudioContentTypes,
     getFileImageContentTypes,

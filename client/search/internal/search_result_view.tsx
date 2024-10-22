@@ -37,7 +37,7 @@ import {
     searchStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";

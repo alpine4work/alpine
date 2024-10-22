@@ -24,7 +24,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

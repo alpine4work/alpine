@@ -69,7 +69,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

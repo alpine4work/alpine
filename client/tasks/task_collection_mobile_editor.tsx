@@ -9,8 +9,8 @@ import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 

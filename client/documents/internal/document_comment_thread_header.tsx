@@ -12,7 +12,7 @@ import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderPaddingY,
 } from "~/client/styles/document_shared_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";

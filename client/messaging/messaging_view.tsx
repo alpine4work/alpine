@@ -44,7 +44,7 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, screenPaddingX} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

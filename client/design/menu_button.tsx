@@ -8,7 +8,7 @@ import {
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 
 const MenuButtonForwardRef = forwardRef(MenuButton);
 export {MenuButtonForwardRef as MenuButton};

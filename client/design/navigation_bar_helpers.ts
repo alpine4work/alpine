@@ -8,7 +8,12 @@
 
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {navigationBarStyles} from "~/client/styles/styles.js";
-import {Spacing, remPxByPlatform, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {
+    Spacing,
+    remPxByPlatform,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 

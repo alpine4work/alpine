@@ -8,7 +8,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
-import {remPxByPlatform} from "~/shared/design/spacing.js";
+import {remPxByPlatform} from "~/shared/design/core/spacing.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,

@@ -5,67 +5,38 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "styles",
     srcs = glob(
-        [
-            "**/*.ts",
-            "**/*.tsx",
-        ],
-        allow_empty = True,
+        ["**/*.ts"],
         exclude = [
             "**/*.test.ts",
-            "**/*.test.tsx",
-            "internal/**/*.ts",
-            "internal/**/*.tsx",
+            "core/**/*.ts",
+            "other/**/*.ts",
         ],
-    ),
-    test_srcs = glob(
-        [
-            "**/*.test.ts",
-            "**/*.test.tsx",
-        ],
-        allow_empty = True,
     ),
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
     ],
     deps = [
-        # `:styles_bundle_file` as a dependency here adds `styles.js` and `styles.css`
-        # to our runfiles and not our sources. You can run
-        # `bazel build //app:app_client_runfiles` to see our runfiles.
+        # `:styles_bundle_file` as a dependency here adds `styles.css` to our runfiles
+        # and not our sources. You can run `bazel build //app:app_runfiles` to see our
+        # runfiles.
         ":styles_bundle",
-        # `:styles_internal_typings` as a dependency here adds a bunch of source files
-        # to our runfiles. You can run `bazel build //app:app_client_runfiles` to see
-        # our runfiles.
-        ":styles_internal",
-        "//shared/design",
-        "//shared/error",
-        "//shared/helpers",
-        "//shared/schema",
-    ],
-)
-
-ts_project(
-    name = "styles_internal",
-    srcs = glob(
-        [
-            "internal/**/*.ts",
-            "internal/**/*.tsx",
-        ],
-        allow_empty = True,
-        exclude = [
-            "internal/**/*.test.ts",
-            "internal/**/*.test.tsx",
-        ],
-    ),
-    # Linting will be run by the `styles` project above.
-    lint_and_format_srcs = [],
-    test_srcs = [],
-    deps = [
-        "//:node_modules/@types/color",
-        "//:node_modules/@vanilla-extract/css",
-        "//:node_modules/@vanilla-extract/sprinkles",
-        "//:node_modules/color",
-        "//shared/content",
+        # `:styles_core_bundle_file` as a dependency here adds `styles_core.js` and
+        # `styles_core.css` to our runfiles and not our sources. You can run
+        # `bazel build //app:app_runfiles` to see our runfiles.
+        ":styles_core_bundle",
+        # `:styles_core_internal_typings` as a dependency here adds a bunch of source
+        # files to our runfiles. You can run `bazel build //app:app_runfiles` to
+        # see our runfiles.
+        ":styles_core_internal",
+        # `:styles_other_bundle_file` as a dependency here adds `styles_other.js` and
+        # `styles_other.css` to our runfiles and not our sources. You can run
+        # `bazel build //app:app_runfiles` to see our runfiles.
+        ":styles_other_bundle",
+        # `:styles_other_internal_typings` as a dependency here adds a bunch of source
+        # files to our runfiles. You can run `bazel build //app:app_runfiles` to
+        # see our runfiles.
+        ":styles_other_internal",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
@@ -78,10 +49,51 @@ js_library(
     srcs = [":styles_bundle_file"],
 )
 
-esbuild(
+# Intentionally put `styles_other.css` first. Sprinkles classes in
+# `styles_core.css` should be able to override styles from `styles_other.css`.
+genrule(
     name = "styles_bundle_file",
     srcs = [
-        ":styles_internal",
+        "other/styles_other.css",
+        "core/styles_core.css",
+    ],
+    outs = ["styles.css"],
+    cmd = "cat $(location other/styles_other.css) $(location core/styles_core.css) > $@",
+)
+
+# NOTE(calebmer, 2024-10-22): I split apart `styles/core` and `styles/other`
+# into two separate bundles for performance. It was taking ~7s to rebuild after
+# a change to a file like `content.css.ts`! My hypothesis was
+# `sprinkles.css.ts` takes a while to build so we should build it separately.
+# Now rebuilding `content.css.ts` takes ~2s.
+ts_project(
+    name = "styles_core_internal",
+    srcs = glob(
+        ["core/**/*.ts"],
+        exclude = ["core/**/*.test.ts"],
+    ),
+    # Linting will be run by the `styles` project above.
+    lint_and_format_srcs = [],
+    test_srcs = [],
+    deps = [
+        "//:node_modules/@vanilla-extract/css",
+        "//:node_modules/@vanilla-extract/sprinkles",
+        "//:node_modules/murmurhash",
+        "//shared/design:design_core",
+        "//shared/error:error_core",
+        "//shared/helpers:helpers_core",
+    ],
+)
+
+js_library(
+    name = "styles_core_bundle",
+    srcs = [":styles_core_bundle_file"],
+)
+
+esbuild(
+    name = "styles_core_bundle_file",
+    srcs = [
+        ":styles_core_internal",
         "//:node_modules/@vanilla-extract/css",
         "//:node_modules/@vanilla-extract/sprinkles",
     ],
@@ -89,7 +101,7 @@ esbuild(
     # `.vanilla.css` build URLs generated by the `vanilla-extract` plugin.
     bazel_sandbox_plugin = False,
     config = "internal/styles_esbuild_config.cjs",
-    entry_point = "internal/styles.js",
+    entry_point = "core/internal/styles_core.js",
     env = select({
         "//admin/bazel:compilation_mode_fastbuild": {"NODE_ENV": "development"},
         "//admin/bazel:compilation_mode_dbg": {"NODE_ENV": "development"},
@@ -102,8 +114,8 @@ esbuild(
         "*.woff2",
         "*.ttf",
     ],
-    output = "styles.js",
-    output_css = "styles.css",
+    output = "core/styles_core.js",
+    output_css = "core/styles_core.css",
     # Don't generate a source file since targets that depend on this file won't
     # have access to the `:styles_internal` source files.
     sourcemap = None,
@@ -111,10 +123,83 @@ esbuild(
     # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L60
     splitting = False,
     deps = [
-        "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/esbuild-plugin",
         "//:node_modules/autoprefixer",
-        "//:node_modules/color",
+        "//:node_modules/postcss",
+        "//:node_modules/prosemirror-view",
+        "//shared/design:design_core",
+        "//shared/error:error_core",
+        "//shared/helpers:helpers_core",
+    ],
+)
+
+ts_project(
+    name = "styles_other_internal",
+    srcs = glob(
+        ["other/**/*.ts"],
+        exclude = ["other/**/*.test.ts"],
+    ),
+    # Linting will be run by the `styles` project above.
+    lint_and_format_srcs = [],
+    test_srcs = [],
+    deps = [
+        # `:styles_core_bundle_file` as a dependency here adds `styles.js` and
+        # `styles.css` to our runfiles and not our sources. You can run
+        # `bazel build //app:app_client_runfiles` to see our runfiles.
+        ":styles_core_bundle",
+        # `:styles_core_internal_typings` as a dependency here adds a bunch of source
+        # files to our runfiles. You can run `bazel build //app:app_client_runfiles` to
+        # see our runfiles.
+        ":styles_core_internal",
+        "//:node_modules/@vanilla-extract/css",
+        "//:node_modules/@vanilla-extract/sprinkles",
+        "//shared/content",
+        "//shared/design",
+        "//shared/error",
+        "//shared/helpers",
+    ],
+)
+
+js_library(
+    name = "styles_other_bundle",
+    srcs = [":styles_other_bundle_file"],
+)
+
+esbuild(
+    name = "styles_other_bundle_file",
+    srcs = [
+        ":styles_other_internal",
+        "//:node_modules/@vanilla-extract/css",
+        "//:node_modules/@vanilla-extract/sprinkles",
+    ],
+    # TODO(calebmer): The Bazel sandbox plugin currently doesn't like the custom
+    # `.vanilla.css` build URLs generated by the `vanilla-extract` plugin.
+    bazel_sandbox_plugin = False,
+    config = "internal/styles_esbuild_config.cjs",
+    entry_point = "other/internal/styles_other.js",
+    env = select({
+        "//admin/bazel:compilation_mode_fastbuild": {"NODE_ENV": "development"},
+        "//admin/bazel:compilation_mode_dbg": {"NODE_ENV": "development"},
+        "//admin/bazel:compilation_mode_opt": {"NODE_ENV": "production"},
+    }),
+    # Can't set `external` in the ESBuild config file.
+    # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L54
+    external = [
+        # Leave font face `url()`s alone.
+        "*.woff2",
+        "*.ttf",
+    ],
+    output = "other/styles_other.js",
+    output_css = "other/styles_other.css",
+    # Don't generate a source file since targets that depend on this file won't
+    # have access to the `:styles_internal` source files.
+    sourcemap = None,
+    # Can't set `splitting` in the ESBuild config file.
+    # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L60
+    splitting = False,
+    deps = [
+        "//:node_modules/@vanilla-extract/esbuild-plugin",
+        "//:node_modules/autoprefixer",
         "//:node_modules/postcss",
         "//:node_modules/prosemirror-view",
         "//shared/content",

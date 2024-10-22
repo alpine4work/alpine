@@ -1,7 +1,7 @@
 import {Box} from "~/client/design/box.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {backgroundColorVar} from "~/client/styles/styles.js";
-import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/core/spacing.js";
 
 /**
  * The red dot with a notification count we render next to the notifications

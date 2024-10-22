@@ -10,7 +10,7 @@ import {
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 

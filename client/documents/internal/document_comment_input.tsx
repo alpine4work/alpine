@@ -14,7 +14,7 @@ import {getMessageListItemKey} from "~/client/messaging/messaging_view.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,

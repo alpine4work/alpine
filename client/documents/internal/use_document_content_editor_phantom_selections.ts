@@ -4,7 +4,7 @@ import {Mapping, StepMap} from "prosemirror-transform";
 import {useMemo} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";

@@ -3,7 +3,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {inboxEntryDeleteAnimationDurationMs} from "~/client/inbox/inbox_entry_view.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";

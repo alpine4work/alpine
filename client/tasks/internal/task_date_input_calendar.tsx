@@ -29,7 +29,12 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

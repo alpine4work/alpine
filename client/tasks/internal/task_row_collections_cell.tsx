@@ -37,7 +37,7 @@ import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

@@ -61,7 +61,7 @@ import {
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {FontSize} from "~/shared/design/fonts.js";
+import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
     Spacing,
@@ -72,7 +72,7 @@ import {
     parseRemLengthNumber,
     remPxByPlatform,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";

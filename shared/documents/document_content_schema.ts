@@ -22,7 +22,7 @@ import {
     listItemIndentationVar,
     titleClassName,
 } from "~/shared/content/content_styles.js";
-import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor, isHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";

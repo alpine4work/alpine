@@ -19,7 +19,7 @@ import {
     screenPaddingX,
     spacing,
     subtractRemLengths,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {

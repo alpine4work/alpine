@@ -36,7 +36,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {

@@ -15,7 +15,7 @@ import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/style
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskPriorityInputItem} from "~/client/tasks/internal/task_priority_input.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function TaskPriorityInputListBox({

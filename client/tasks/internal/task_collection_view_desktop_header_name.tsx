@@ -31,7 +31,7 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";

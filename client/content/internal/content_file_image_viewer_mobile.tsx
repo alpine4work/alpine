@@ -27,7 +27,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

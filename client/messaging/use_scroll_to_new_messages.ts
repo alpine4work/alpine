@@ -8,7 +8,7 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";

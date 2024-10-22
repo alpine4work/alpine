@@ -21,7 +21,7 @@ import {
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,

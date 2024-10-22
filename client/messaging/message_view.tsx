@@ -58,7 +58,7 @@ import {
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
-import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
+import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,
     Spacing,
@@ -66,7 +66,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";

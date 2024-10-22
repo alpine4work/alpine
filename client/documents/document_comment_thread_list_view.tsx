@@ -63,7 +63,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";

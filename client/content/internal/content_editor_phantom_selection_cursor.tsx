@@ -4,7 +4,7 @@ import {RefObject} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
 import {useContentEditorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {defaultThemeColor} from "~/shared/design/theme_colors.js";
+import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 
 export function ContentEditorPhantomSelectionCursor({
     state,

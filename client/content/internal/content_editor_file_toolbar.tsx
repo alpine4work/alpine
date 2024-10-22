@@ -29,7 +29,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";

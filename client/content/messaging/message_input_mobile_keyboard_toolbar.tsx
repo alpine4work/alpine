@@ -36,7 +36,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
