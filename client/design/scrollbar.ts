@@ -12,6 +12,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {scrollbarStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -430,10 +431,25 @@ export function initializeScrollbar(
         // setting `position: relative` on the scrollable element but here are some
         // other ways:
         // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
-        assert(
-            position === "relative",
-            "Scrollable element must be a containing block (set `position: relative` on the element)",
-        );
+        if (process.env.NODE_ENV !== "development") {
+            assert(
+                position === "relative",
+                "Scrollable element must be a containing block (set `position: relative` on the element)",
+            );
+        } else if (position !== "relative") {
+            // In development, when hot reloading `<Root>` after a state change (like
+            // adding an effect) the style `<link>` will be re-rendered which temporarily
+            // causes `getComputedStyle(element).position` to report the wrong value. So
+            // wait a macrotask and check again.
+            scheduleMacrotask(() => {
+                const {position} = getComputedStyle(element);
+
+                assert(
+                    position === "relative",
+                    "Scrollable element must be a containing block (set `position: relative` on the element)",
+                );
+            });
+        }
     }
 
     let visibleAfterScrollTimeout: Timeout | null = null;
