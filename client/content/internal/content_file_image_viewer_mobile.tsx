@@ -2,7 +2,7 @@
 
 import classNames from "classnames";
 import {DownloadSimple, SpinnerGap} from "phosphor-react";
-import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
@@ -11,7 +11,7 @@ import {
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
-import {getContentFileImagePreviewViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
@@ -21,9 +21,10 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -41,11 +42,19 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
+/**
+ * The maximum number of pixels in a preview image we'll render on mobile. If
+ * `preview.width * preview.height` is greater than this we won't render the
+ * image.
+ */
+export const maxContentFileImageViewerMobilePreviewSize = 35e6;
+
 export function ContentFileImageViewerMobile({
     file,
     signedUrlSearch,
     attachmentTarget,
     expirationTimers,
+    loaderDataPromise,
     isModalAnimating,
     navigationBarSize,
     viewerSize,
@@ -56,6 +65,7 @@ export function ContentFileImageViewerMobile({
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
+    loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
@@ -116,7 +126,10 @@ export function ContentFileImageViewerMobile({
     //    implement them in JavaScript.
     //
     // 2 is likely the best solution.
-    if (file.preview.size.width * file.preview.size.height >= 35e6) {
+    if (
+        file.preview.size.width * file.preview.size.height >=
+        maxContentFileImageViewerMobilePreviewSize
+    ) {
         return (
             <Box
                 width="full"
@@ -155,6 +168,7 @@ export function ContentFileImageViewerMobile({
             signedUrlSearch={signedUrlSearch}
             attachmentTarget={attachmentTarget}
             expirationTimers={expirationTimers}
+            loaderDataPromise={loaderDataPromise}
             isModalAnimating={isModalAnimating}
             navigationBarSize={navigationBarSize}
             viewerSize={viewerSize}
@@ -165,7 +179,7 @@ export function ContentFileImageViewerMobile({
 
 // Must import `hammerjs` lazily since it references `window` so it's not
 // available on the server.
-const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(import("hammerjs")));
+export const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(import("hammerjs")));
 
 class ContentFileImageMobileViewerTransformState {
     public static readonly minZoomScale = 1;
@@ -261,6 +275,7 @@ function ContentFileImageMobileViewerInner({
     filePreviewPlaceholder,
     signedUrlSearch,
     expirationTimers,
+    loaderDataPromise,
     isModalAnimating,
     navigationBarSize,
     viewerSize,
@@ -271,19 +286,14 @@ function ContentFileImageMobileViewerInner({
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
+    loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     isModalAnimating: boolean;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
     withZoom: boolean;
 }) {
-    // If we're on the client, start loading `hammerjs`.
-    if (withZoom && typeof window !== "undefined") void hammerModulePromise.get();
-
-    const {space} = useSpaceContext();
-
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLDivElement>(null);
-    const imageContentRef = useRef<HTMLImageElement>(null);
 
     const fileSize = getFilePreviewSize(file);
     const fileAspectRatio = fileSize.width / fileSize.height;
@@ -385,30 +395,6 @@ function ContentFileImageMobileViewerInner({
     }, [isLoaded, isLoadedAndAnimated, isModalAnimating]);
 
     const setErrorState = useErrorState();
-
-    useEffect(() => {
-        if (isSignedUrlSearchExpired) return;
-        if (file.alternative && file.alternative.isProcessing) return;
-        if (!file.alternative && file.isUploading) return;
-
-        let hasCleanedUp = false;
-        const contentElement = assertExists(imageContentRef.current);
-
-        isHtmlImageElementLoadedAndDecoded(contentElement).then(
-            () => {
-                if (hasCleanedUp) return;
-                setIsLoaded(true);
-            },
-            error => {
-                if (hasCleanedUp) return;
-                setErrorState(error);
-            },
-        );
-
-        return () => {
-            hasCleanedUp = true;
-        };
-    }, [file.alternative, file.isUploading, isSignedUrlSearchExpired, setErrorState]);
 
     // Use `hammerjs` to manage pinch to zoom. `hammerjs` is a little dated: You
     // have to access it through a global and you can't import `hammerjs` on the
@@ -552,24 +538,6 @@ function ContentFileImageMobileViewerInner({
         };
     }, [withZoom]);
 
-    const imageContentStyle: CSSProperties = {
-        // Re-enable `-webkit-touch-callout` for this preview image. So the user can
-        // save and share on a long press.
-        WebkitTouchCallout: "default",
-        // Render at full file size then scale down so we don't zoom in on rendering
-        // artifacts created by mobile Safari.
-        width: fileSize.width,
-        height: fileSize.height,
-        maxWidth: "none",
-        // Override positioning in `fileImagePreviewContentClassName`.
-        top: "0",
-        left: "0",
-        transform: "initial",
-        // When the user zooms all the way in we want to show them the image's pixels
-        // instead of some interpolation.
-        imageRendering: scaledFileWidth > fileSize.width ? "pixelated" : "auto",
-    };
-
     const fileTranslateX = viewerSize.width / 2 - fileSize.width / 2;
     const fileTranslateY = viewerSize.height / 2 - fileSize.height / 2;
 
@@ -579,11 +547,92 @@ function ContentFileImageMobileViewerInner({
         fileScale * transformStates.new.zoomScale
     }, 1)`;
 
-    const src = getContentFileImagePreviewViewerSrc({
-        spaceId: space.id,
-        signedUrlSearch,
-        file,
-    });
+    const loaderDataResult = usePromise(loaderDataPromise);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isSignedUrlSearchExpired) return;
+
+        if (loaderDataResult.isPending) return;
+        assert(loaderDataResult.value?.type === "Image");
+
+        const imageElement = assertExists(imageRef.current);
+
+        const imageContentElement = loaderDataResult.value.image;
+        if (!imageContentElement) return;
+
+        imageContentElement.className = contentStyles.fileImagePreviewContentClassName;
+
+        // Re-enable `-webkit-touch-callout` for this preview image. So the user can
+        // save and share on a long press. In order for touch callouts to work we also
+        // need to make sure `pointer-events` is not `none`.
+        imageContentElement.style.pointerEvents = "auto";
+        (imageContentElement.style as any).webkitTouchCallout = "default";
+
+        // Render at full file size then scale down so we don't zoom in on rendering
+        // artifacts created by mobile Safari.
+        imageContentElement.style.width = `${fileSize.width}px`;
+        imageContentElement.style.height = `${fileSize.height}px`;
+        imageContentElement.style.maxWidth = "none";
+
+        // Override positioning in `fileImagePreviewContentClassName`.
+        imageContentElement.style.top = "0";
+        imageContentElement.style.left = "0";
+        imageContentElement.style.transform = "initial";
+
+        // When the user zooms all the way in we want to show them the image's pixels
+        // instead of some interpolation.
+        imageContentElement.style.imageRendering = "auto";
+
+        let hasCleanedUp = false;
+
+        let isSync = true;
+
+        isHtmlImageElementLoadedAndDecoded(imageContentElement).then(
+            () => {
+                if (hasCleanedUp) return;
+
+                setIsLoaded(true);
+
+                // If the image is loaded synchronously then stop rendering the placeholder. We
+                // don't want the placeholder to animate out since the image won't animate in.
+                if (isSync) setIsLoadedAndAnimated(true);
+            },
+            error => {
+                if (hasCleanedUp) return;
+                setErrorState(error);
+            },
+        );
+
+        isSync = false;
+
+        imageElement.appendChild(imageContentElement);
+
+        return () => {
+            hasCleanedUp = true;
+            imageContentElement.remove();
+        };
+    }, [
+        fileSize.height,
+        fileSize.width,
+        isSignedUrlSearchExpired,
+        loaderDataResult,
+        setErrorState,
+    ]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isSignedUrlSearchExpired) return;
+
+        if (loaderDataResult.isPending) return;
+        assert(loaderDataResult.value?.type === "Image");
+
+        const imageContentElement = loaderDataResult.value.image;
+        if (!imageContentElement) return;
+
+        // When the user zooms all the way in we want to show them the image's pixels
+        // instead of some interpolation.
+        imageContentElement.style.imageRendering =
+            scaledFileWidth > fileSize.width ? "pixelated" : "auto";
+    }, [fileSize.width, isSignedUrlSearchExpired, loaderDataResult, scaledFileWidth]);
 
     return (
         <Box ref={containerRef} position="relative" width="full" height="full">
@@ -591,10 +640,7 @@ function ContentFileImageMobileViewerInner({
                 ref={imageRef}
                 className={classNames(
                     fileClassName,
-                    // Don't animate out placeholder until modal has finished animating. We've
-                    // observed the animation stutter in Chrome if it needs to animate in the image
-                    // while also animating the modal.
-                    isLoaded && !isModalAnimating && contentStyles.loadedFileImagePreviewClassName,
+                    isLoaded && contentStyles.loadedFileImagePreviewClassName,
                     contentStyles.fileViewerClassName,
                     sprinkles({
                         boxShadow: !adjustments.hasTransparentBackground
@@ -633,16 +679,6 @@ function ContentFileImageMobileViewerInner({
                             />
                         ),
                     [filePreviewPlaceholder, fileSize.height, fileSize.width, isLoadedAndAnimated],
-                )}
-                {!isSignedUrlSearchExpired && src && (
-                    <img
-                        ref={imageContentRef}
-                        className={contentStyles.fileImagePreviewContentClassName}
-                        style={imageContentStyle}
-                        decoding="async"
-                        draggable={false}
-                        src={src}
-                    />
                 )}
             </div>
         </Box>

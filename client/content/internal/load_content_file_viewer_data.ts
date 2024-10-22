@@ -1,4 +1,10 @@
 import {Tree} from "@lezer/common";
+import {
+    hammerModulePromise,
+    maxContentFileImageViewerMobilePreviewSize,
+} from "~/client/content/internal/content_file_image_viewer_mobile.js";
+import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
+import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {InternalError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
@@ -10,7 +16,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 export type ContentFileViewerLoaderData =
     | {
           readonly type: "Image";
-          readonly image: HTMLImageElement;
+          readonly image: HTMLImageElement | null;
       }
     | {
           readonly type: "Code";
@@ -49,18 +55,7 @@ export async function loadContentFileViewerData(options: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            const src = getContentFileImagePreviewViewerSrc(options);
-            if (!src) return null;
-
-            const image = new Image();
-            image.src = src;
-
-            await new Promise<void>(resolve => {
-                image.addEventListener("load", () => resolve());
-                image.addEventListener("error", () => resolve());
-            });
-
-            return {type: "Image", image};
+            return loadContentFileImageViewer(options);
         }
         case "application/pdf":
         case "application/msword":
@@ -72,16 +67,24 @@ export async function loadContentFileViewerData(options: {
             // TODO(calebmer, #files): Implement
             //
             // Should start with the image viewer then switch to a proper viewer?
+            if (
+                getIsMobileWithoutListening() &&
+                options.file.preview?.type === "Image" &&
+                typeof options.file.preview.size === "object" &&
+                options.file.preview.size.width * options.file.preview.size.height >
+                    maxContentFileImageViewerMobilePreviewSize
+            ) {
+                return {type: "Image", image: null};
+            }
+
             const src = getContentFileImagePreviewViewerSrc(options);
-            if (!src) return null;
+            if (!src) return {type: "Image", image: null};
 
             const image = new Image();
+            image.decoding = "async";
             image.src = src;
 
-            await new Promise<void>(resolve => {
-                image.addEventListener("load", () => resolve());
-                image.addEventListener("error", () => resolve());
-            });
+            await isHtmlImageElementLoadedAndDecoded(image);
 
             return {type: "Image", image};
         }
@@ -138,15 +141,14 @@ export async function loadContentFileViewerData(options: {
         case "text/x-clojure":
         case "text/x-erlang":
         case "text/x-ocaml": {
-            const {code, codeTree} = await loadContentFileCodeViewer(options);
-            return {type: "Code", code, codeTree};
+            return loadContentFileCodeViewer(options);
         }
         default:
             throw exhaustive(options.file.contentType);
     }
 }
 
-export function getContentFileImagePreviewViewerSrc({
+function getContentFileImagePreviewViewerSrc({
     spaceId,
     signedUrlSearch,
     file,
@@ -168,6 +170,52 @@ export function getContentFileImagePreviewViewerSrc({
     }
 }
 
+async function loadContentFileImageViewer({
+    spaceId,
+    signedUrlSearch,
+    file,
+}: {
+    spaceId: SpaceId;
+    signedUrlSearch: string;
+    file: FileModel;
+}): Promise<{
+    type: "Image";
+    image: HTMLImageElement | null;
+}> {
+    // Don't load images that exceed the maximum size we support on mobile. We
+    // won't render them so don't bother loading them.
+    if (
+        getIsMobileWithoutListening() &&
+        file.preview?.type === "Image" &&
+        typeof file.preview.size === "object" &&
+        file.preview.size.width * file.preview.size.height >
+            maxContentFileImageViewerMobilePreviewSize
+    ) {
+        return {type: "Image", image: null};
+    }
+
+    const src = getContentFileImagePreviewViewerSrc({
+        spaceId,
+        signedUrlSearch,
+        file,
+    });
+    if (!src) return {type: "Image", image: null};
+
+    const image = new Image();
+    image.decoding = "async";
+    image.src = src;
+
+    await runAllPromises([
+        isHtmlImageElementLoadedAndDecoded(image),
+
+        // Make sure `hammerjs` is imported as well. We only need it for zoomable
+        // images.
+        getIsMobileWithoutListening() ? hammerModulePromise.get() : null,
+    ]);
+
+    return {type: "Image", image};
+}
+
 async function loadContentFileCodeViewer({
     spaceId,
     signedUrlSearch,
@@ -177,6 +225,7 @@ async function loadContentFileCodeViewer({
     signedUrlSearch: string;
     file: FileModel;
 }): Promise<{
+    type: "Code";
     code: string;
     codeTree: Tree | null;
 }> {
@@ -203,5 +252,9 @@ async function loadContentFileCodeViewer({
 
     const codeTree = parser?.parse(code) ?? null;
 
-    return {code, codeTree};
+    return {
+        type: "Code",
+        code,
+        codeTree,
+    };
 }

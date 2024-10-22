@@ -3,7 +3,6 @@ import {highlightCode} from "@lezer/highlight";
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useMemo} from "react";
-import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     contentFileCodeViewerProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -11,6 +10,7 @@ import {
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {Box} from "~/client/design/box.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {usePromise} from "~/client/helpers/use_promise.js";

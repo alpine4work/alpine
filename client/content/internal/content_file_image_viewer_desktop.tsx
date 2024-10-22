@@ -3,7 +3,7 @@
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {CSSProperties, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     contentFileViewerDesktopMarginBottom,
@@ -14,7 +14,7 @@ import {
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
-import {getContentFileImagePreviewViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
@@ -29,6 +29,7 @@ import {MenuAction} from "~/client/design/menu.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
@@ -42,6 +43,7 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -52,6 +54,7 @@ export function ContentFileImageViewerDesktop({
     signedUrlSearch,
     attachmentTarget,
     expirationTimers,
+    loaderDataPromise,
     viewerSize,
     zoomScale,
     maxZoomScale,
@@ -60,6 +63,7 @@ export function ContentFileImageViewerDesktop({
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
+    loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
@@ -112,6 +116,7 @@ export function ContentFileImageViewerDesktop({
             signedUrlSearch={signedUrlSearch}
             attachmentTarget={attachmentTarget}
             expirationTimers={expirationTimers}
+            loaderDataPromise={loaderDataPromise}
             viewerSize={viewerSize}
             zoomScale={zoomScale}
             maxZoomScale={maxZoomScale}
@@ -125,6 +130,7 @@ function ContentFileImageDesktopViewerInner({
     signedUrlSearch,
     attachmentTarget,
     expirationTimers,
+    loaderDataPromise,
     viewerSize,
     zoomScale,
     maxZoomScale,
@@ -134,6 +140,7 @@ function ContentFileImageDesktopViewerInner({
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
     expirationTimers: ContentFilePreviewExpirationTimers;
+    loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
@@ -143,7 +150,6 @@ function ContentFileImageDesktopViewerInner({
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLDivElement>(null);
-    const imageContentRef = useRef<HTMLImageElement>(null);
 
     const fileSize = getFilePreviewSize(file);
     const fileAspectRatio = fileSize.width / fileSize.height;
@@ -203,30 +209,6 @@ function ContentFileImageDesktopViewerInner({
     }, [isLoaded, isLoadedAndAnimated]);
 
     const setErrorState = useErrorState();
-
-    useEffect(() => {
-        if (isSignedUrlSearchExpired) return;
-        if (file.alternative && file.alternative.isProcessing) return;
-        if (!file.alternative && file.isUploading) return;
-
-        let hasCleanedUp = false;
-        const contentElement = assertExists(imageContentRef.current);
-
-        isHtmlImageElementLoadedAndDecoded(contentElement).then(
-            () => {
-                if (hasCleanedUp) return;
-                setIsLoaded(true);
-            },
-            error => {
-                if (hasCleanedUp) return;
-                setErrorState(error);
-            },
-        );
-
-        return () => {
-            hasCleanedUp = true;
-        };
-    }, [file.alternative, file.isUploading, isSignedUrlSearchExpired, setErrorState]);
 
     const fileContentTypeNoun = getFileContentTypeNoun(file.contentType);
 
@@ -310,31 +292,106 @@ function ContentFileImageDesktopViewerInner({
             containerElement.clientHeight / 2;
     }, [zoomScale]);
 
-    const imageContentStyle: CSSProperties = {
+    const loaderDataResult = usePromise(loaderDataPromise);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isSignedUrlSearchExpired) return;
+
+        if (loaderDataResult.isPending) return;
+        assert(loaderDataResult.value?.type === "Image");
+
+        const imageElement = assertExists(imageRef.current);
+
+        const imageContentElement = loaderDataResult.value.image;
+        if (!imageContentElement) return;
+
+        imageContentElement.className = contentStyles.fileImagePreviewContentClassName;
+        // TODO(calebmer): Support drag events with the same code we use for content
+        // previews.
+        imageContentElement.draggable = false;
+
         // My theory here is we'll get better zoom performance if we render the image
         // at it's maximum size then scale down since the browser prepares the image at
         // its maximum size. There's no evidence to support this theory.
-        width: maxScaledFileWidth,
-        height: maxScaledFileHeight,
-        maxWidth: "none",
+        imageContentElement.style.width = `${maxScaledFileWidth}px`;
+        imageContentElement.style.height = `${maxScaledFileHeight}px`;
+        imageContentElement.style.maxWidth = "none";
+
         // Override positioning in `fileImagePreviewContentClassName`.
-        top: "0",
-        left: "0",
+        imageContentElement.style.top = "0";
+        imageContentElement.style.left = "0";
+
         // When the user zooms all the way in we want to show them the image's pixels
         // instead of some interpolation.
-        imageRendering: scaledFileWidth > fileSize.width ? "pixelated" : "auto",
+        imageContentElement.style.imageRendering = "auto";
+
         // Use `transform: scale()` to GPU accelerate zooming. `will-change: transform`
         // improves zooming performance in Chrome.
-        transformOrigin: "top left",
-        transform: `scale(${zoomScale / maxZoomScale})`,
-        willChange: "transform",
-    };
+        imageContentElement.style.transformOrigin = "top left";
+        imageContentElement.style.transform = "scale(1)";
+        imageContentElement.style.willChange = "transform";
 
-    const src = getContentFileImagePreviewViewerSrc({
-        spaceId: space.id,
-        signedUrlSearch,
-        file,
-    });
+        let hasCleanedUp = false;
+
+        let isSync = true;
+
+        isHtmlImageElementLoadedAndDecoded(imageContentElement).then(
+            () => {
+                if (hasCleanedUp) return;
+
+                setIsLoaded(true);
+
+                // If the image is loaded synchronously then stop rendering the placeholder. We
+                // don't want the placeholder to animate out since the image won't animate in.
+                if (isSync) setIsLoadedAndAnimated(true);
+            },
+            error => {
+                if (hasCleanedUp) return;
+                setErrorState(error);
+            },
+        );
+
+        isSync = false;
+
+        imageElement.appendChild(imageContentElement);
+
+        return () => {
+            hasCleanedUp = true;
+            imageContentElement.remove();
+        };
+    }, [
+        isSignedUrlSearchExpired,
+        loaderDataResult,
+        maxScaledFileHeight,
+        maxScaledFileWidth,
+        setErrorState,
+    ]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isSignedUrlSearchExpired) return;
+
+        if (loaderDataResult.isPending) return;
+        assert(loaderDataResult.value?.type === "Image");
+
+        const imageContentElement = loaderDataResult.value.image;
+        if (!imageContentElement) return;
+
+        // When the user zooms all the way in we want to show them the image's pixels
+        // instead of some interpolation.
+        imageContentElement.style.imageRendering =
+            scaledFileWidth > fileSize.width ? "pixelated" : "auto";
+
+        // Use `transform: scale()` to GPU accelerate zooming. `will-change: transform`
+        // improves zooming performance in Chrome.
+        imageContentElement.style.transform = `scale(${zoomScale / maxZoomScale})`;
+    }, [
+        fileSize.width,
+        isSignedUrlSearchExpired,
+        loaderDataResult,
+        maxZoomScale,
+        scaledFileWidth,
+        zoomScale,
+    ]);
 
     return (
         <Box
@@ -419,18 +476,6 @@ function ContentFileImageDesktopViewerInner({
                                 scaledFileHeight,
                                 scaledFileWidth,
                             ],
-                        )}
-                        {src && (
-                            <img
-                                ref={imageContentRef}
-                                className={contentStyles.fileImagePreviewContentClassName}
-                                style={imageContentStyle}
-                                decoding="async"
-                                // TODO(calebmer): Support drag events with the same code we use for content
-                                // previews.
-                                draggable={false}
-                                src={src}
-                            />
                         )}
                     </div>
                 </ContextMenuActions>
