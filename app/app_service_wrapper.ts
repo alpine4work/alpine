@@ -214,6 +214,7 @@ export async function run({
             configFile: joinPath(rootPath, "vite.config.mjs"),
             server: {
                 middlewareMode: true,
+
                 // Serve the Vite HMR WebSocket server off the same private port as
                 // `AppService`. We need to set `clientPort` so Vite doesn't try to access
                 // `EdgeService`'s public port which'll block WebSocket connections.
@@ -221,6 +222,7 @@ export async function run({
                 // This also gives us nice graceful shutdown behavior. `AppService` shouldn't
                 // shutdown until the browser reloads and closes its HMR WebSocket connection.
                 hmr: {server, clientPort: port},
+
                 // While building Bazel will frequently remove a file then add it back.
                 // `atomic` makes sure `chokidar` treats this as one `change` update instead of
                 // an `unlink` update then an `add` update.
@@ -243,8 +245,14 @@ export async function run({
                     //   app at runtime and there may be large artifacts in here.
                     // - Ignore everything in `native` directory. This is native code and build
                     //   artifacts and shouldn't include files bundled by Vite.
-                    ignored:
-                        /(^|\/)(node_modules|[^/]*\.runfiles|[^/]*\.tsx?|[^/]*\.map|admin|native)(\/|$)/,
+                    ignored: [
+                        "**/node_modules/**",
+                        /(^|\/)[^/]*\.runfiles(\/|$)/,
+                        /(^|\/)[^/]*\.tsx?$/,
+                        /(^|\/)[^/]*\.map$/,
+                        "**/admin/**",
+                        "**/native/**",
+                    ],
                 },
             },
             optimizeDeps: {
@@ -268,6 +276,20 @@ export async function run({
                     await bazelBuildPromiseResolver.promise;
                 }
             },
+            // chokidar receives a `change` event for these files every time a `*.css.ts`
+            // file changes even if the contents of the files didn't update! Most changes
+            // to `*.css.ts` files only change the generated CSS and don't change these
+            // JavaScript files.
+            //
+            // If we emit a change event for these files it will cause a full page reload
+            // (since these files are imported by basically every component in our client
+            // code). So we want to skip change events for these files if the contents
+            // didn't change. That way only the CSS file will emit a change event which can
+            // be hot reloaded.
+            watchFilesForActualChanges: [
+                joinPath(rootPath, "client/styles/core/styles_core.js"),
+                joinPath(rootPath, "client/styles/other/styles_other.js"),
+            ],
         });
 
         let isShuttingDown = false;

@@ -2,6 +2,8 @@ import stylesUrl from "~/client/styles/styles.css?url";
 
 export {stylesUrl};
 
-// Make sure we hot reload when the CSS changes. Vite or Remix seem to handle
-// hot reloading the CSS file for us. Cool!
+// Accept hot reload changes. Remix and Vite seem to hot reload the CSS for us,
+// nice. By accepting here we stop full page reloads when styles change. Since
+// this file is imported by `entry.server.tsx` which will reload the page when
+// updated.
 import.meta.hot?.accept();
