@@ -6,7 +6,7 @@ import {
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,11 +18,6 @@ export type ContentFileViewerLoaderData =
           readonly type: "Image";
           readonly image: InstanceType<typeof Image> | null;
       }
-    // NOCOMMIT:
-    // | {
-    //       readonly type: "Pdf";
-    //       readonly iframeElement: HTMLIFrameElement | null;
-    //   }
     | {
           readonly type: "Code";
           readonly code: string;
@@ -43,7 +38,6 @@ export async function loadContentFileViewerData(options: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
-    temporaryContainerElement: HTMLDivElement;
 }): Promise<ContentFileViewerLoaderData | null> {
     switch (options.file.contentType) {
         case "application/octet-stream": {
@@ -70,10 +64,11 @@ export async function loadContentFileViewerData(options: {
         case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-            // NOCOMMIT: Explain?
+            // We don't currently preload anything regarding PDFs. Since we can't
+            // accurately tell when an `<iframe>` has finished loading. It's not just when
+            // the `load` event fires since the browser will continue to load behind the
+            // scenes.
             return null;
-            // NOCOMMIT:
-            // return loadContentFilePdfViewer(options);
         }
         case "video/webm":
         case "video/mp4":
@@ -198,47 +193,6 @@ async function loadContentFileImageViewer({
     ]);
 
     return {type: "Image", image};
-}
-
-async function loadContentFilePdfViewer({
-    spaceId,
-    signedUrlSearch,
-    file,
-    temporaryContainerElement,
-}: {
-    spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
-    temporaryContainerElement: HTMLDivElement;
-}): Promise<ContentFileViewerLoaderData> {
-    const src = getContentFileViewerSrc({
-        spaceId,
-        signedUrlSearch,
-        file,
-    });
-    if (!src) return {type: "Pdf", iframeElement: null};
-
-    const iframeElement = document.createElement("iframe");
-    iframeElement.src = src;
-
-    // We need to add the `<iframe>` element to the DOM for it to start loading. So
-    // our content viewer modal renders an invisible container element for
-    // temporary elements we can add elements like this into. When the content
-    // viewer modal unmounts this `<iframe>` should also be removed from the DOM.
-    temporaryContainerElement.appendChild(iframeElement);
-
-    try {
-        await new Promise<void>((resolve, reject) => {
-            iframeElement.addEventListener("load", () => resolve());
-            iframeElement.addEventListener("error", () => {
-                reject(new UnknownError("Failed to load PDF iframe"));
-            });
-        });
-
-        return {type: "Pdf", iframeElement};
-    } finally {
-        iframeElement.remove();
-    }
 }
 
 async function loadContentFileCodeViewer({
