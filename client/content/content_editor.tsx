@@ -4279,7 +4279,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                             const view = assertExists(viewRef.current);
                             view.dispatchEvent(event);
 
-                            if (event.defaultPrevented) {event.stopPropagation(); view.focus();}
+                            if (event.defaultPrevented) {
+                                event.stopPropagation();
+                                view.focus();
+                            }
                         }}
                     />
                 )}
