@@ -954,9 +954,23 @@ function selectFileMp4VideoOrAudioProcessor(
         );
 
         const codecNames = codecNamesString.trim().split("\n");
+        let webSafeCodecCount = 0;
+
+        for (const codecName of codecNames) {
+            if (ffmpegWebSafeMp4CodecNames.has(codecName)) {
+                webSafeCodecCount++;
+            }
+        }
+
+        // If there are at least 2 web safe codecs in the file (for video) then we
+        // consider the MP4 to be web safe.
+        const expectedWebSafeCodecCount = contentType === "audio/mp4" ? 1 : 2;
 
         let processor: FileProcessor;
-        if (codecNames.every(codecName => ffmpegWebSafeMp4CodecNames.has(codecName))) {
+        if (
+            Math.min(webSafeCodecCount, expectedWebSafeCodecCount) ===
+            Math.min(codecNames.length, expectedWebSafeCodecCount)
+        ) {
             processor =
                 contentType === "audio/mp4"
                     ? fileWebSafeMp4AudioProcessor
