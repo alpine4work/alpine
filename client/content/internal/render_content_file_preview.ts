@@ -16,6 +16,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
 import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {warningIconSvg} from "~/client/icons/warning_icon_svg.js";
@@ -313,6 +314,35 @@ const lockIconHtmlGenerator: HtmlGenerator = {
     },
 };
 
+const fileDottedIconClassName = sprinkles({
+    width: "5",
+    height: "5",
+});
+
+let fileDottedIconHtml: string | undefined;
+
+const fileDottedIconHtmlGenerator: HtmlGenerator = {
+    generateHtml: () => {
+        fileDottedIconHtml ??= fileDottedSvg({
+            className: fileDottedIconClassName,
+        });
+        return fileDottedIconHtml;
+    },
+    generateNode: () => {
+        const temporaryElement = document.createElement("div");
+        temporaryElement.innerHTML = fileDottedIconHtmlGenerator.generateHtml();
+        assert(temporaryElement.firstElementChild?.tagName === "svg");
+        return temporaryElement.firstElementChild;
+    },
+    patchNode: (previous, node) => {
+        return (
+            previous === fileDottedIconHtmlGenerator &&
+            node instanceof Element &&
+            node.tagName === "svg"
+        );
+    },
+};
+
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
  * `HtmlElementGenerator` can either be used to render `<ContentEditor>` or
@@ -354,7 +384,7 @@ export function renderContentFilePreview(
         html.setAttribute("data-testid", `ContentFile:${reference.file.contentType}`);
     }
 
-    if (!reference || !reference.file.preview) {
+    if (!reference) {
         const blankHtml = new HtmlElementGenerator("div");
         html.appendChild(blankHtml);
 
@@ -366,6 +396,42 @@ export function renderContentFilePreview(
                 backgroundColor: "grey-5",
             }),
         );
+    } else if (!reference.file.preview) {
+        const containerHtml = new HtmlElementGenerator("div");
+        html.appendChild(containerHtml);
+
+        containerHtml.setAttribute(
+            "class",
+            sprinkles({
+                position: "absolute",
+                inset: "0",
+                backgroundColor: "grey-5",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "grey-40",
+            }),
+        );
+
+        const processingHtml = new HtmlElementGenerator("div");
+        containerHtml.appendChild(processingHtml);
+
+        processingHtml.setAttribute(
+            "class",
+            sprinkles({
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "1.5",
+                fontSize: layout.width < 150 ? "25" : "50",
+                // Push the loading spinner into the center with some
+                // padding top.
+                paddingTop: "2",
+            }),
+        );
+
+        processingHtml.appendChild(fileDottedIconHtmlGenerator);
+        processingHtml.appendChild(new HtmlTextGenerator("Unknown file"));
     } else {
         switch (reference.file.preview.type) {
             case "Image": {

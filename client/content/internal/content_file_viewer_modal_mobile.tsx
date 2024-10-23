@@ -1,9 +1,16 @@
-import {DownloadSimple, Export, Lock, SpinnerGap, X} from "phosphor-react";
+import {DownloadSimple, Export, FileDotted, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useCallback, useState} from "react";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {
+    contentFileViewerLargeProcessingIndicatorColor,
+    contentFileViewerLargeProcessingIndicatorFontSize,
+    contentFileViewerLargeProcessingIndicatorGap,
+    contentFileViewerLargeProcessingIndicatorIconSize,
+    contentFileViewerLargeProcessingIndicatorWeight,
+} from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
@@ -335,12 +342,57 @@ function ContentFileViewerMobile(props: {
     windowSafeAreaInsetBottom: number;
     onShare: () => Promise<void>;
 }) {
-    const {file, signedUrlSearch, navigationBarSize, viewerSize, windowSafeAreaInsetBottom} = props;
+    const {
+        file,
+        signedUrlSearch,
+        navigationBarSize,
+        viewerSize,
+        windowSafeAreaInsetBottom,
+        onShare,
+    } = props;
 
     switch (props.file.contentType) {
         case "application/octet-stream": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return (
+                <Box
+                    width="full"
+                    height="full"
+                    display="flex"
+                    flexDirection="column"
+                    justifyContent="center"
+                    alignItems="center"
+                    gap="5"
+                >
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap={contentFileViewerLargeProcessingIndicatorGap}
+                        fontSize={contentFileViewerLargeProcessingIndicatorFontSize}
+                        color={contentFileViewerLargeProcessingIndicatorColor}
+                    >
+                        <FileDotted
+                            size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.mobile]}
+                            weight={contentFileViewerLargeProcessingIndicatorWeight.mobile}
+                        />
+                        Unknown file
+                    </Box>
+                    <Button
+                        variant="neutral"
+                        icon={<DownloadSimple />}
+                        iconGap="1.5"
+                        isDisabled={
+                            file.alternative ? file.alternative.isProcessing : file.isUploading
+                        }
+                        pressErrorTitle={`Couldn’t download ${getFileContentTypeNoun(
+                            file.contentType,
+                        )}`}
+                        onPress={onShare}
+                    >
+                        Download
+                    </Button>
+                </Box>
+            );
         }
         case "image/apng":
         case "image/avif":

@@ -1,5 +1,6 @@
 import {
     DownloadSimple,
+    FileDotted,
     Lock,
     MagnifyingGlassMinus,
     MagnifyingGlassPlus,
@@ -15,6 +16,11 @@ import {
     contentFileViewerDesktopMarginBottom,
     contentFileViewerDesktopMarginTop,
     contentFileViewerDesktopMarginX,
+    contentFileViewerLargeProcessingIndicatorColor,
+    contentFileViewerLargeProcessingIndicatorFontSize,
+    contentFileViewerLargeProcessingIndicatorGap,
+    contentFileViewerLargeProcessingIndicatorIconSize,
+    contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
@@ -341,8 +347,32 @@ function ContentFileDesktopViewer(props: {
 
     switch (props.file.contentType) {
         case "application/octet-stream": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return (
+                <Box
+                    width="full"
+                    height="full"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                >
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap={contentFileViewerLargeProcessingIndicatorGap}
+                        fontSize={contentFileViewerLargeProcessingIndicatorFontSize}
+                        color={contentFileViewerLargeProcessingIndicatorColor}
+                    >
+                        <FileDotted
+                            size={
+                                spacing[contentFileViewerLargeProcessingIndicatorIconSize.desktop]
+                            }
+                            weight={contentFileViewerLargeProcessingIndicatorWeight.desktop}
+                        />
+                        Unknown file
+                    </Box>
+                </Box>
+            );
         }
         case "image/apng":
         case "image/avif":

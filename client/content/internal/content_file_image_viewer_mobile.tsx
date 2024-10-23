@@ -6,6 +6,7 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
+    contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
     contentFileViewerLargeProcessingIndicatorGap,
     contentFileViewerLargeProcessingIndicatorIconSize,
@@ -90,12 +91,12 @@ export function ContentFileImageViewerMobile({
                 alignItems="center"
             >
                 <Box
-                    color={{light: "grey-20-const", dark: "grey-30-const"}}
                     display="flex"
                     flexDirection="column"
                     alignItems="center"
                     gap={contentFileViewerLargeProcessingIndicatorGap}
                     fontSize={contentFileViewerLargeProcessingIndicatorFontSize}
+                    color={contentFileViewerLargeProcessingIndicatorColor}
                 >
                     <SpinnerGap
                         className={spinAnimationClassName}
