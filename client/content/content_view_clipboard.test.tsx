@@ -8,7 +8,7 @@ import {
 } from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/render_content_file_preview.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
-import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
+import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {

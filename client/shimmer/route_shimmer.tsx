@@ -112,7 +112,6 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Shimmer component for each space route. The test
@@ -177,10 +176,13 @@ const shimmerOptionsByRouteId: {
     "routes/s.$spaceId._index": false,
 };
 
-export function getRouteIdsWithDefinedShimmerForTest() {
-    assert(import.meta.jest);
-    return Object.keys(shimmerOptionsByRouteId);
-}
+// If we're not running in Jest then export null. This way we export a constant
+// in development that won't break hot module reloading.
+//
+// eslint-disable-next-line react-refresh/only-export-components
+export const getRouteIdsWithDefinedShimmerForTest = import.meta.jest
+    ? () => Object.keys(shimmerOptionsByRouteId)
+    : null;
 
 const RouteShimmerMemo = memo(RouteShimmer);
 export {RouteShimmerMemo as RouteShimmer};

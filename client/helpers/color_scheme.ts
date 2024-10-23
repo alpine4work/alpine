@@ -1,61 +1,8 @@
 import {useEffect, useState} from "react";
+import {colorSchemeEventEmitter} from "~/client/helpers/internal/color_scheme_event_emitter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-
-const initializeColorSchemeScript =
-    'var colorScheme = localStorage.getItem("colorScheme"); var isDarkColorScheme = colorScheme === "dark" || !colorScheme && window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.dataset.colorScheme = isDarkColorScheme ? "dark" : "light";';
-
-/**
- * Manages the color scheme for the page. Importantly, contains a script that
- * synchronously initializes the color scheme on the `<html>` element. Should
- * be placed in the `<head>` on all pages.
- *
- * The script needs to be a synchronously executing script that blocks browser
- * rendering so that we don't render UI until the color scheme is initialized.
- *
- * If the user does not have an explicitly selected color scheme in local
- * storage then we initialize to their device preference.
- *
- * Also subscribes to device color scheme preference changes. So we can
- * re-render in light/dark mode when the user changes their configuration.
- * Useful if the device is configured to be dark mode at night and light mode
- * during the day.
- */
-export function ColorSchemeManager() {
-    useEffect(() => {
-        const darkColorSchemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-        const update = () => {
-            const colorSchemeString = localStorage.getItem("colorScheme");
-
-            const isDarkColorScheme =
-                colorSchemeString === "dark" ||
-                (!colorSchemeString && darkColorSchemeMediaQuery.matches);
-
-            const colorScheme = isDarkColorScheme ? "dark" : "light";
-
-            if (colorScheme !== document.documentElement.dataset.colorScheme) {
-                document.documentElement.dataset.colorScheme = colorScheme;
-
-                for (const listener of colorSchemeListeners) {
-                    try {
-                        listener(colorScheme);
-                    } catch (error) {
-                        scheduleUncaughtError(error);
-                    }
-                }
-            }
-        };
-
-        darkColorSchemeMediaQuery.addEventListener("change", update);
-        return () => {
-            darkColorSchemeMediaQuery.removeEventListener("change", update);
-        };
-    }, []);
-
-    return <script dangerouslySetInnerHTML={{__html: initializeColorSchemeScript}} />;
-}
 
 export type ColorScheme = "light" | "dark";
 
@@ -86,10 +33,7 @@ export function setColorScheme(colorScheme: ColorScheme) {
 }
 
 export function subscribeToColorSchemeChange(listener: (colorScheme: ColorScheme) => void) {
-    colorSchemeListeners.add(listener);
-    return () => {
-        colorSchemeListeners.delete(listener);
-    };
+    return colorSchemeEventEmitter.subscribe(listener);
 }
 
 /**

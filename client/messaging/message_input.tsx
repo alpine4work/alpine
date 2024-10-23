@@ -152,6 +152,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         const newMessageState = ContentEditorState.create(emptyMessageContentWithReferences);
 
         if (restoreStateRef) {
+            // eslint-disable-next-line react-compiler/react-compiler
             restoreStateRef.current = {
                 state: newMessageState,
                 isFocused: inputRef.current?.isFocused() ?? false,

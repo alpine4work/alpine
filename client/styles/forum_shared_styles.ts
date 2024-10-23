@@ -153,3 +153,9 @@ export const desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinn
         postContentViewMinHeightWithoutHeaderBase,
         postContentViewOuterMarginBottom,
     );
+
+export const channelViewHeaderMinHeight = addRemLengths(
+    spacing[desktopLayoutChannelViewAsidePaddingY],
+    spacing[postFauxInputCreateButtonHeight],
+    spacing[postContentViewOuterMarginY],
+);

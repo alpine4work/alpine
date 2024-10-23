@@ -7,7 +7,7 @@ import {
     rememberContentEditorPosWhileLoading,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
-import {withDisableContentEditorFileToolbarInitialAnimation} from "~/client/content/internal/content_editor_file_toolbar.js";
+import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {layoutContentFile} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {
@@ -252,7 +252,7 @@ export function createContentEditorFileNodeViewConstructor({
             //
             // This relies on the fact that `view.dispatch()` performs its update with
             // `flushSync()`.
-            withDisableContentEditorFileToolbarInitialAnimation(() => {
+            ContentEditorFileToolbarController.withDisableInitialAnimation(() => {
                 // Right-clicking on a file selects the file. This is another way to access
                 // file selection tools.
                 view.dispatch(

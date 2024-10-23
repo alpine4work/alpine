@@ -1,19 +1,14 @@
-import {
-    Memo,
-    ReactNode,
-    RefObject,
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
-} from "react";
+import {Memo, RefObject, useCallback, useContext, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {
+    BottomBarFrameContext,
+    bottomBarFrameContextForTest,
+} from "~/client/design/internal/bottom_bar_frame_context.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {throwIfRendering} from "~/client/helpers/lifecycle/throw_if_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
@@ -30,43 +25,6 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-type BottomBarFrameContext = {
-    currentBottomBarHeight: {
-        readonly visibleMobileKeyboard: number;
-        readonly hiddenMobileKeyboard: number;
-    } | null;
-    bottomBarFrameChangeEmitter: EventEmitter<{
-        oldBottomBarHeight: {
-            readonly visibleMobileKeyboard: number;
-            readonly hiddenMobileKeyboard: number;
-        };
-        newBottomBarHeight: {
-            readonly visibleMobileKeyboard: number;
-            readonly hiddenMobileKeyboard: number;
-        };
-        wasBottomBarMounted: boolean;
-        wasBottomBarUnmounted: boolean;
-    }> | null;
-    bottomBarFrames: Set<{
-        readonly height: number;
-        readonly withMobileKeyboardToolbar: boolean;
-    }>;
-};
-
-const BottomBarFrameContext = createContext<BottomBarFrameContext | null>(null);
-
-function getInitialBottomBarFrameContext(): BottomBarFrameContext {
-    return {
-        currentBottomBarHeight: null,
-        bottomBarFrameChangeEmitter: null,
-        bottomBarFrames: new Set(),
-    };
-}
-
-const bottomBarFrameContextForTest: BottomBarFrameContext | null = import.meta.jest
-    ? getInitialBottomBarFrameContext()
-    : null;
-
 function useBottomBarFrameContext(): BottomBarFrameContext {
     const context = useContext(BottomBarFrameContext);
 
@@ -79,14 +37,6 @@ function useBottomBarFrameContext(): BottomBarFrameContext {
     }
 
     return context;
-}
-
-export function BottomBarFrameContextProvider({children}: {children?: ReactNode}) {
-    const [context] = useState<BottomBarFrameContext>(getInitialBottomBarFrameContext);
-
-    return (
-        <BottomBarFrameContext.Provider value={context}>{children}</BottomBarFrameContext.Provider>
-    );
 }
 
 const zeroBottomBarHeight = {visibleMobileKeyboard: 0, hiddenMobileKeyboard: 0};

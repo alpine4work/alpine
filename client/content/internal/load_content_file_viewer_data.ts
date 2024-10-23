@@ -1,17 +1,20 @@
 import {Tree} from "@lezer/common";
-import {
-    hammerModulePromise,
-    maxContentFileImageViewerMobilePreviewSize,
-} from "~/client/content/internal/content_file_image_viewer_mobile.js";
+import {maxContentFileImageViewerMobilePreviewSize} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {InternalError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+
+// Must import `hammerjs` lazily since it references `window` so it's not
+// available on the server.
+export const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(import("hammerjs")));
 
 export type ContentFileViewerLoaderData =
     | {

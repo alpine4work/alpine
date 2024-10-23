@@ -19,7 +19,7 @@ import {
     addTriggeredOverlayOpenEventListener,
     removeTriggeredOverlayCloseEventListener,
     removeTriggeredOverlayOpenEventListener,
-} from "~/client/design/overlay_trigger_button.js";
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
@@ -578,6 +578,7 @@ function Button(
         <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
             {createElement(
                 isFocusable ? "button" : "div",
+                // eslint-disable-next-line react-compiler/react-compiler
                 {
                     ...mergeProps(buttonProps, hoverProps),
                     ref: useCallback(

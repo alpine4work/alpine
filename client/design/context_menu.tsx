@@ -56,6 +56,7 @@ const contextMenuEventActionsSymbol = Symbol("actions");
  * ...the parent's actions should come after the child's actions. So `actions2`
  * should come after `actions1`.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function addContextMenuActions(
     event: MouseEvent & {
         [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
@@ -84,6 +85,7 @@ export function addContextMenuActions(
  * ...the parent's actions should come after the child's actions. So `actions2`
  * should come after `actions1`.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useContextMenuActionsRef(
     actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
 ): RefCallback<HTMLElement> {
@@ -156,6 +158,7 @@ const IsContextMenuOpenContext = createContext<boolean>(false);
 /**
  * Returns true if the context menu is open.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useIsContextMenuOpen() {
     return useContext(IsContextMenuOpenContext);
 }

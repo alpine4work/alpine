@@ -1,45 +1,27 @@
 import {ArrowLeft} from "phosphor-react";
-import {Memo, Ref, useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
-import {
-    getElementSafeAreaInsetBottomPx,
-    getElementWindowSafeAreaInsetBottomPx,
-} from "~/client/design/safe_area_inset.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    messageViewMarginY,
-    messageViewMaxWidth,
-    messageViewTimestampDividerMarginTop,
-} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {
-    addRemLengths,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
@@ -162,123 +144,6 @@ function AccountFullName({account}: {account: AccountModel}) {
     return <>{useAccountModel(account).name}</>;
 }
 
-// When our view is full of messages this will be the top margin of the view.
-const chatMessagingViewHeaderMinHeight = addRemLengths(
-    spacing[messageViewTimestampDividerMarginTop],
-    spacing[messageViewMarginY],
-);
-
-const chatMessagingViewHeaderMinHeightRem = parseRemLengthNumber(chatMessagingViewHeaderMinHeight);
-
-/**
- * The messaging header is empty space. It fills up the view height so your
- * first messages are pushed to the bottom of the screen. In the future we
- * should do something interesting with this empty space.
- */
-export const chatMessagingViewHeader = ((): DistributiveOmit<VirtualizedScrollViewItem, "key"> => {
-    return {
-        minHeight: chatMessagingViewHeaderMinHeight,
-        withManualLayout: true,
-        render: ({
-            ref,
-            shouldRenderWithRelativePositioning,
-            offset,
-            height: originalHeight,
-            viewHeight,
-            originalContentHeight,
-        }) => (
-            <ChatMessagingViewHeader
-                itemRef={ref}
-                shouldRenderWithRelativePositioning={shouldRenderWithRelativePositioning}
-                offset={offset}
-                originalHeight={originalHeight}
-                viewHeight={viewHeight}
-                originalContentHeight={originalContentHeight}
-            />
-        ),
-    };
-})() as Memo<DistributiveOmit<VirtualizedScrollViewItem, "key">>;
-
-function ChatMessagingViewHeader({
-    itemRef: externalRef,
-    shouldRenderWithRelativePositioning,
-    offset,
-    viewHeight,
-    originalContentHeight,
-    originalHeight,
-}: {
-    itemRef: Ref<HTMLDivElement>;
-    shouldRenderWithRelativePositioning: boolean;
-    offset: number;
-    viewHeight: number;
-    originalContentHeight: number;
-    originalHeight: number;
-}) {
-    const internalRef = useRef<HTMLDivElement>(null);
-    const remPx = useRemPx();
-
-    const minHeight = chatMessagingViewHeaderMinHeightRem * remPx;
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (shouldRenderWithRelativePositioning) return;
-
-        const element = assertExists(internalRef.current);
-
-        // Exclude safe area contributed by the keyboard opening/closing from the chat
-        // messaging view header height. This makes sure scroll animations from
-        // `useScrollToAvoidBottomBarsAndMobileKeyboard()` are nice and smooth.
-        //
-        // We need to update the header height in a layout effect
-        const keyboardSafeAreaBottom =
-            getElementSafeAreaInsetBottomPx(element) -
-            getElementWindowSafeAreaInsetBottomPx(element) -
-            (NativeMobileBridge?.tabBar.height ?? 0);
-
-        const height = Math.max(
-            minHeight,
-            viewHeight - (originalContentHeight - keyboardSafeAreaBottom - originalHeight),
-        );
-
-        // Directly update the height style without scheduling another React render.
-        // React should never override this style since from React's perspective the
-        // height is always `chatMessagingViewHeaderMinHeight`.
-        //
-        // It's important we directly update the DOM instead of scheduling another
-        // render so that other hooks like `useScrollToNewMessages()` that run in the
-        // same render will read the correct height.
-        if (height !== element.clientHeight) {
-            element.style.height = `${height}px`;
-        }
-    }, [
-        minHeight,
-        originalContentHeight,
-        originalHeight,
-        shouldRenderWithRelativePositioning,
-        viewHeight,
-    ]);
-
-    return (
-        <div
-            ref={useMergedRefs(internalRef, externalRef)}
-            style={{
-                // NOTE(calebmer): On initial render we don't know the view height so this
-                // header won't push other messages down. So you end up with a flash when
-                // server-rendering a chat with few messages where messages jump down. A flash
-                // we choose to accept since correct implementations are annoying.
-                ...(shouldRenderWithRelativePositioning
-                    ? {position: "relative", height: chatMessagingViewHeaderMinHeight}
-                    : {
-                          position: "absolute",
-                          top: offset,
-                          left: 0,
-                          right: 0,
-                          height: chatMessagingViewHeaderMinHeight,
-                      }),
-            }}
-        />
-    );
-}
-
 function ChatMessagingView({
     withMobileLayout,
     chat,
@@ -327,7 +192,7 @@ function ChatMessagingView({
                 otherReferencedMessages: initialOtherReferencedMessages,
                 lastMessageChangeTime: chat.lastMessageChangeTime,
             }}
-            header={chatMessagingViewHeader}
+            header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
             getMessagesFromStart={useCallback(
                 input => getChatMessagesFromStart(context, {...input, chatId: chat.id}),

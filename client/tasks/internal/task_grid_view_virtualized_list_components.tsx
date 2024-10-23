@@ -1,0 +1,1220 @@
+import {SpinnerGap} from "phosphor-react";
+import {Selection} from "prosemirror-state";
+import {
+    Dispatch,
+    Key,
+    Memo,
+    MutableRefObject,
+    ReactNode,
+    Ref,
+    RefObject,
+    SetStateAction,
+    forwardRef,
+    memo,
+    useCallback,
+    useMemo,
+    useRef,
+} from "react";
+import * as Y from "yjs";
+import {AppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
+import {
+    taskGridViewColumnHeaderExtraPaddingBottomPx,
+    taskGridViewColumnHeaderHeight,
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewFirstColumnPaddingLeft,
+    taskRowViewFirstColumnWidth,
+    taskRowViewLastColumnPaddingRight,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/core/task_client_store.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
+import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
+import {
+    TaskGridViewVirtualizedListEvents,
+    TaskGridViewVirtualizedListViewRef,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
+import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
+import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
+import {undefinedStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {
+    TaskQuerySortCursor,
+    getTaskQuerySortCursorTaskId,
+} from "~/shared/tasks/task_query_sort_cursor.js";
+
+export const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
+
+function TaskGridViewColumnHeader(
+    {
+        hasColumns,
+        columnHeaderControls,
+        minHeight,
+        offset,
+        shouldRenderWithRelativePositioning,
+    }: {
+        hasColumns: boolean;
+        columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
+        minHeight: number;
+        offset: number;
+        shouldRenderWithRelativePositioning: boolean;
+    },
+    virtualizedItemRef: Ref<HTMLDivElement>,
+) {
+    const columnHeaderContainerRef = useRef<HTMLDivElement>(null);
+
+    return (
+        <Box
+            ref={columnHeaderContainerRef}
+            style={
+                shouldRenderWithRelativePositioning
+                    ? {
+                          position: "relative",
+                          backgroundColor: "grey-0",
+                      }
+                    : {
+                          position: "absolute",
+                          top: offset,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                      }
+            }
+            pointerEvents="none"
+            // Default to 30. Our `useEffect()` hook above will update the `z-index` when
+            // the column header is stuck.
+            zIndex="30"
+        >
+            <Box
+                ref={virtualizedItemRef}
+                // Our header is not sticky when rendered with relative positioning.
+                position={!shouldRenderWithRelativePositioning ? "sticky" : "relative"}
+                left="0"
+                right="0"
+                pointerEvents="auto"
+                style={{
+                    top: !shouldRenderWithRelativePositioning ? 0 : undefined,
+                    minHeight,
+                    paddingBottom: taskGridViewColumnHeaderExtraPaddingBottomPx,
+                }}
+            >
+                <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
+                    <Box
+                        position="absolute"
+                        bottom="0"
+                        left={screenPaddingX}
+                        right={screenPaddingX}
+                        backgroundColor="grey-5"
+                        style={{height: 1}}
+                    />
+                </Box>
+                <OverlayScopeContextProvider
+                // Provide an overlay scope within our sticky element which has a `zIndex` that
+                // renders over overlays.
+                >
+                    {columnHeaderControls && (
+                        <Box style={{minHeight: columnHeaderControls.minHeight}}>
+                            {columnHeaderControls.node}
+                        </Box>
+                    )}
+                    {hasColumns && (
+                        <Box
+                            height={taskGridViewColumnHeaderHeight}
+                            paddingTop="0.5"
+                            display="flex"
+                        >
+                            <Box
+                                flexShrink="0"
+                                width="32"
+                                paddingLeft="5"
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                            >
+                                Name
+                            </Box>
+                            <Box flexGrow="1" />
+                            <Box
+                                flexShrink="0"
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{
+                                    width: taskRowViewFirstColumnWidth,
+                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                }}
+                            >
+                                Assignee
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{width: taskRowViewColumnWidth}}
+                            >
+                                Priority
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{width: taskRowViewColumnWidth}}
+                            >
+                                Due date
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                paddingLeft={taskRowViewColumnPaddingX}
+                                paddingRight={taskRowViewLastColumnPaddingRight}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{width: taskRowViewCollectionsColumnWidth}}
+                            >
+                                Collections
+                            </Box>
+                            <Box flexShrink="0" width="5" />
+                        </Box>
+                    )}
+                </OverlayScopeContextProvider>
+            </Box>
+        </Box>
+    );
+}
+
+export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloadedTasksMemo({
+    capabilities,
+    rowMaxWidth,
+    focusPreviousTaskTitleEnd,
+    focusPreviousTaskTitleAll,
+}: {
+    capabilities: Memo<TaskGridViewCapabilities>;
+    rowMaxWidth: Spacing | null;
+    focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
+    focusPreviousTaskTitleAll: Memo<(key: string) => void>;
+}) {
+    return (
+        <>
+            <TaskRowShimmer
+                capabilities={capabilities}
+                rowMaxWidth={rowMaxWidth}
+                randomSeed="MoreUnloadedTasks"
+                index={0}
+                indentation={0}
+                focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
+                focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
+            />
+            <TaskRowShimmer
+                capabilities={capabilities}
+                rowMaxWidth={rowMaxWidth}
+                randomSeed="MoreUnloadedTasks"
+                index={1}
+                indentation={0}
+                focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
+                focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
+            />
+            <TaskRowShimmer
+                capabilities={capabilities}
+                rowMaxWidth={rowMaxWidth}
+                randomSeed="MoreUnloadedTasks"
+                index={2}
+                indentation={0}
+                focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
+                focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
+            />
+            <Box
+                display="flex"
+                justifyContent="center"
+                color="grey-60"
+                paddingY="4"
+                pointerEvents="none"
+            >
+                <SpinnerGap className={spinAnimationClassName} size={spacing["6"]} weight="light" />
+            </Box>
+        </>
+    );
+});
+
+export const TaskGridViewDecorativeGhostTaskMemo = memo(
+    function TaskGridViewDecorativeGhostTaskMemo({
+        capabilities,
+        rowMaxWidth,
+        isRootQueryNull,
+        relativeItemIndex,
+        withPaddingBottom,
+        focusPreviousTaskTitleEnd,
+        focusPreviousTaskTitleAll,
+    }: {
+        capabilities: Memo<TaskGridViewCapabilities>;
+        rowMaxWidth: Spacing | null;
+        isRootQueryNull: boolean;
+        relativeItemIndex: number;
+        withPaddingBottom: boolean;
+        focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
+        focusPreviousTaskTitleAll: Memo<(key: string) => void>;
+    }) {
+        const isMobile = useIsMobile();
+        const isInert = capabilities.isReadOnly || isRootQueryNull;
+
+        return (
+            <Box
+                paddingX={screenPaddingX}
+                maxWidth={rowMaxWidth ?? undefined}
+                marginX="center"
+                // Create an illusion that the text editor extends into the margins by giving
+                // the margin a text cursor and making it clickable putting focus in the task.
+                // A double click selects the task text.
+                //
+                // This is an affordance for mouse users, does not need to be usable
+                // by keyboard.
+                cursor={!isInert ? "text" : undefined}
+                {...useOutOfBoundsClickSelection({
+                    isDisabled: isInert,
+                    onSelect: () =>
+                        focusPreviousTaskTitleEnd(`DecorativeGhostTask:${relativeItemIndex}`),
+                    onSelectAll: () =>
+                        focusPreviousTaskTitleAll(`DecorativeGhostTask:${relativeItemIndex}`),
+                })}
+            >
+                <Box
+                    width="full"
+                    height={taskRowViewMinHeight}
+                    pointerEvents="none"
+                    style={{
+                        // Draw the top and bottom border with a shadow so it:
+                        //
+                        // 1. Doesn't add 2px to layout
+                        // 2. Adjacent borders share the same space so we don't get 2px dividers
+                        boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                    }}
+                />
+                {withPaddingBottom && (
+                    <Box
+                        width="full"
+                        height="5"
+                        pointerEvents="none"
+                        style={{
+                            height: isMobile
+                                ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                                : undefined,
+                        }}
+                    />
+                )}
+            </Box>
+        );
+    },
+);
+
+export const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChildTaskMemo({
+    capabilities,
+    rowMaxWidth,
+    parentGridKey,
+    unloadedChildTaskIndex,
+    indentation,
+    focusPreviousTaskTitleEnd,
+    focusPreviousTaskTitleAll,
+}: {
+    capabilities: Memo<TaskGridViewCapabilities>;
+    rowMaxWidth: Spacing | null;
+    parentGridKey: TaskGridViewTaskKey;
+    unloadedChildTaskIndex: number;
+    indentation: number;
+    focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
+    focusPreviousTaskTitleAll: Memo<(key: string) => void>;
+}) {
+    return (
+        <TaskRowShimmer
+            capabilities={capabilities}
+            rowMaxWidth={rowMaxWidth}
+            randomSeed={parentGridKey}
+            index={unloadedChildTaskIndex}
+            indentation={indentation}
+            focusPreviousTaskTitleEnd={() =>
+                focusPreviousTaskTitleEnd(
+                    `UnloadedChildTask:${parentGridKey}-${unloadedChildTaskIndex}`,
+                )
+            }
+            focusPreviousTaskTitleAll={() =>
+                focusPreviousTaskTitleAll(
+                    `UnloadedChildTask:${parentGridKey}-${unloadedChildTaskIndex}`,
+                )
+            }
+        />
+    );
+});
+
+export const TaskRowViewMemo = memo(function TaskRowViewMemo({
+    context,
+    capabilities,
+    maxGridExpandableTaskDepth,
+    stateKey,
+    rootQuery,
+    isRootQueryManuallySorted,
+    affinityManager,
+    query,
+    gridKey,
+    cursor,
+    ghostTaskId,
+    isTopGhostTask,
+    parents,
+    rowMaxWidth,
+    disableExpensiveFeaturesDuringScroll,
+    isFirstRow,
+    isFirstTaskInQuery,
+    nextIndentation,
+    titlePlaceholder,
+    viewRef,
+    events,
+    taskRowByGridKeyRef,
+    onLayoutEffectCallbacksRef,
+    getAreChildTasksExpandedStore,
+    toggleAreChildTasksExpanded,
+    setTaskDeleteConfirmationState,
+    onTaskDeleteConfirmationModalDialogClosedCallbacksRef,
+    withoutPaddingLeft,
+    withPaddingBottom,
+    mobileKeyboardToolbarPortalRef,
+}: {
+    context: AppContext;
+    capabilities: Memo<TaskGridViewCapabilities>;
+    maxGridExpandableTaskDepth: number;
+    stateKey: Key | undefined;
+    rootQuery: TaskClientQuery;
+    isRootQueryManuallySorted: boolean;
+    affinityManager: TaskClientStoreSearchAffinityManager;
+    query: TaskClientQuery;
+    gridKey: TaskGridViewTaskKey;
+    cursor: TaskQuerySortCursor | null;
+    ghostTaskId?: TaskId | null;
+    isTopGhostTask?: boolean;
+    parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    rowMaxWidth: Spacing | null;
+    disableExpensiveFeaturesDuringScroll: boolean;
+    isFirstRow: boolean;
+    isFirstTaskInQuery: boolean;
+    nextIndentation: number;
+    titlePlaceholder?: string;
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
+    events: TaskGridViewVirtualizedListEvents;
+    taskRowByGridKeyRef: MutableRefObject<Map<TaskGridViewTaskKey, TaskRowViewRef>>;
+    onLayoutEffectCallbacksRef: MutableRefObject<Array<() => void>>;
+    getAreChildTasksExpandedStore: Memo<
+        (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>
+    >;
+    toggleAreChildTasksExpanded: Memo<
+        (taskPath: ReadonlyArray<TaskId>, options?: {onFinish?: () => void}) => void
+    >;
+    setTaskDeleteConfirmationState: Dispatch<
+        SetStateAction<{
+            undoManager: TaskClientStoreUndoManager;
+            taskId: TaskId;
+            onAfterDelete?: (() => void) | undefined;
+        } | null>
+    >;
+    onTaskDeleteConfirmationModalDialogClosedCallbacksRef: MutableRefObject<Array<() => void>>;
+    withoutPaddingLeft?: boolean;
+    withPaddingBottom?: boolean;
+    mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
+}) {
+    const {timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+
+    const taskPath = cursor
+        ? [
+              ...parents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
+              getTaskQuerySortCursorTaskId(cursor),
+          ]
+        : null;
+
+    const taskId = taskPath ? taskPath[taskPath.length - 1]! : null;
+    const rootParentTaskId = taskPath ? taskPath[0]! : null;
+
+    const isQueryManuallySorted = query !== rootQuery || isRootQueryManuallySorted;
+
+    const areChildTasksExpandedStore = taskPath
+        ? getAreChildTasksExpandedStore(taskPath)
+        : undefinedStore;
+
+    const undoManager: TaskClientStoreUndoManager = useMemo(
+        () => ({
+            pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
+                events.pushUndoStackEntry({
+                    type: "Actions",
+                    rootParentTaskId: rootParentTaskId ?? assertExists(ghostTaskId),
+                    undoActions,
+                    removedFromQueries,
+                    leaseId,
+                    release,
+                });
+            },
+        }),
+        [events, ghostTaskId, rootParentTaskId],
+    );
+
+    // If this is the root query then the new task needs to be added to that query.
+    // Otherwise we want to add the new task at the same indentation level that our
+    // task is currently at.
+    const getMoveTaskToQueryActions: (
+        taskId: TaskId,
+        position:
+            | {type: "Start"}
+            | {type: "End"}
+            | {type: "Above"; taskId: TaskId}
+            | {type: "Below"; taskId: TaskId},
+    ) => Array<TaskAction> =
+        query === rootQuery
+            ? events.getMoveTaskToRootQueryActions
+            : (newTaskId, position) => {
+                  const time1 = rootQuery.store.clock.now();
+                  const time2 = rootQuery.store.clock.now();
+
+                  return [
+                      {
+                          type: "UpdateTask",
+                          time: time1,
+                          taskId: newTaskId,
+                          taskAction: {
+                              type: "UpdateParentTaskId",
+                              parentTaskId: getTaskQuerySortCursorTaskId(
+                                  assertExists(parents[parents.length - 1]).cursor,
+                              ),
+                          },
+                      },
+                      {
+                          type: "UpdateTask",
+                          time: time2,
+                          taskId: newTaskId,
+                          taskAction: {
+                              type: "UpdateParentPosition",
+                              parentPosition: getNewTaskPositionForQuerySortedByPosition(
+                                  time2,
+                                  query,
+                                  position,
+                              ),
+                          },
+                      },
+                  ];
+              };
+
+    const getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction> =
+        query === rootQuery
+            ? events.getMaybeRemoveTaskFromRootQueryActions
+            : taskId => [
+                  {
+                      type: "UpdateTask",
+                      time: rootQuery.store.clock.now(),
+                      taskId,
+                      taskAction: {
+                          type: "UpdateParentTaskId",
+                          parentTaskId: null,
+                      },
+                  },
+              ];
+
+    const createTaskAbove = () => {
+        // Hitting enter to create a task near the current row only makes sense in a
+        // manually sorted query. We don't have control of task order in an
+        // auto-sorted query.
+        if (!isQueryManuallySorted) return;
+
+        // Can't create a task above our top ghost task. So always create a task below
+        // and focus it since the user expects their cursor to move down when enter is
+        // pressed.
+        if (!taskId && isTopGhostTask) {
+            createTaskBelowAndFocus();
+            return;
+        }
+
+        const newTaskId = generateId<TaskId>();
+
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+        query.store.commitTaskActionTransaction(
+            context,
+            [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId: newTaskId,
+                    taskAction: {
+                        type: "Create",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
+                    },
+                },
+                ...getMoveTaskToQueryActions(
+                    newTaskId,
+                    taskId ? {type: "Above", taskId} : {type: "End"},
+                ),
+            ],
+            {undoManager, affinityManager},
+        );
+    };
+
+    const createTaskBelowAndFocus = () => {
+        // Hitting enter to create a task near the current row only makes sense in a
+        // manually sorted query. We don't have control of task order in an
+        // auto-sorted query.
+        if (!isQueryManuallySorted) return;
+
+        if (!taskId) {
+            // This method doesn't support bottom ghost tasks. You can't create a task
+            // below the bottom ghost task. Bottom ghost tasks should be using
+            // `createTaskAbove()`.
+            if (!isTopGhostTask) return;
+
+            const newTaskId = generateId<TaskId>();
+
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+            query.store.commitTaskActionTransaction(
+                context,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: query.store.clock.now(),
+                        taskId: newTaskId,
+                        taskAction: {
+                            type: "Create",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
+                        },
+                    },
+                    ...getMoveTaskToQueryActions(newTaskId, {type: "Start"}),
+                ],
+                {undoManager, affinityManager},
+            );
+
+            onLayoutEffectCallbacksRef.current.push(() => {
+                // This may call `flushSync()` which can't be called during React lifecycle
+                // methods. So we wrap in a microtask.
+                scheduleMicrotask(() => {
+                    events.focusTaskTitleStart(newTaskId);
+
+                    // Make sure the new task is visible...
+                    if (
+                        document.activeElement instanceof HTMLElement &&
+                        isTextInputElement(document.activeElement)
+                    ) {
+                        maintainTextInputVisibility(document.activeElement);
+                    }
+                });
+            });
+            return;
+        }
+
+        const task = query.getLoadedTaskSnapshot(taskId);
+
+        const newTaskId = generateId<TaskId>();
+
+        // If we have a task with children, the children are expanded, and the children
+        // are loaded then to create a task below this task we need to create it as the
+        // first child of this task.
+        //
+        // Otherwise we fall down to the branch below and create a task below ours in
+        // our query.
+        if (
+            task.getChildTaskCount() > 0 &&
+            parents.length < maxGridExpandableTaskDepth &&
+            areChildTasksExpandedStore.getSnapshot()
+        ) {
+            const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
+            if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
+                const time1 = query.store.clock.now();
+                const time2 = query.store.clock.now();
+                const time3 = query.store.clock.now();
+
+                let position: TaskPosition = {
+                    orderTime: time3,
+                    orderKey: initialOrderKey,
+                };
+
+                const firstChildCursor = childrenQuery.taskOrderStore.getSnapshot().begin.key;
+
+                const firstChildPosition = firstChildCursor
+                    ? childrenQuery
+                          .getLoadedTaskSnapshot(getTaskQuerySortCursorTaskId(firstChildCursor))
+                          .getParent()?.position
+                    : null;
+
+                if (firstChildPosition) {
+                    position = {
+                        orderTime: firstChildPosition.orderTime,
+                        orderKey: generateOrderKeyBetween(null, firstChildPosition.orderKey),
+                    };
+                }
+
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+                query.store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateTask",
+                            time: time1,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "Create",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                            },
+                        },
+                        {
+                            type: "UpdateTask",
+                            time: time2,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "UpdateParentTaskId",
+                                parentTaskId: taskId,
+                            },
+                        },
+                        {
+                            type: "UpdateTask",
+                            time: time3,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "UpdateParentPosition",
+                                parentPosition: position,
+                            },
+                        },
+                    ],
+                    {undoManager, affinityManager},
+                );
+
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    // This may call `flushSync()` which can't be called during React lifecycle
+                    // methods. So we wrap in a microtask.
+                    scheduleMicrotask(() => {
+                        if (parents.length === 0) {
+                            events.focusTaskTitleStart(`${task.id}-${newTaskId}`);
+                        } else {
+                            events.focusTaskTitleStart(
+                                `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
+                            );
+                        }
+
+                        // Make sure the new task is visible...
+                        if (
+                            document.activeElement instanceof HTMLElement &&
+                            isTextInputElement(document.activeElement)
+                        ) {
+                            maintainTextInputVisibility(document.activeElement);
+                        }
+                    });
+                });
+                return;
+            }
+        }
+
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+        query.store.commitTaskActionTransaction(
+            context,
+            [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId: newTaskId,
+                    taskAction: {
+                        type: "Create",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
+                    },
+                },
+                ...getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId}),
+            ],
+            {undoManager, affinityManager},
+        );
+
+        onLayoutEffectCallbacksRef.current.push(() => {
+            // This may call `flushSync()` which can't be called during React lifecycle
+            // methods. So we wrap in a microtask.
+            scheduleMicrotask(() => {
+                if (parents.length === 0) {
+                    events.focusTaskTitleStart(newTaskId);
+                } else {
+                    events.focusTaskTitleStart(
+                        `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
+                    );
+                }
+
+                // Make sure the new task is visible...
+                if (
+                    document.activeElement instanceof HTMLElement &&
+                    isTextInputElement(document.activeElement)
+                ) {
+                    maintainTextInputVisibility(document.activeElement);
+                }
+            });
+        });
+    };
+
+    const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
+        // Hitting tab to indent only makes sense if the query is manually sorted.
+        if (!isQueryManuallySorted) return;
+
+        if (!cursor) return;
+
+        // Don't nest tasks if it would exceed the maximum task depth. While we allow
+        // infinite nesting, the UI can only support showing nesting to a certain
+        // level.
+        if (parents.length >= maxGridExpandableTaskDepth) return;
+
+        const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`));
+
+        const state = events.getState();
+        const itemCountBeforeState = events.getItemCountBeforeState();
+
+        for (let previousItemIndex = itemIndex - 1; previousItemIndex >= 0; previousItemIndex--) {
+            const indentation = parents.length;
+
+            // Can't tab into the top ghost task.
+            const stateItemIndex = previousItemIndex - itemCountBeforeState;
+            if (stateItemIndex < 0) break;
+
+            const previousItem = state.getItem(stateItemIndex);
+            const previousIndentation = previousItem.parents.length;
+
+            if (previousIndentation > indentation) continue;
+            if (previousIndentation < indentation) break;
+
+            if (previousItem.type !== "Task") break;
+
+            const taskId = getTaskQuerySortCursorTaskId(cursor);
+            const previousTaskId = getTaskQuerySortCursorTaskId(previousItem.cursor);
+
+            const nest = () => {
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
+                const maybeRemoveActions =
+                    query === rootQuery
+                        ? events.getMaybeRemoveTaskFromRootQueryActions(taskId)
+                        : [];
+
+                rootQuery.store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateTask",
+                            time: rootQuery.store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "UpdateParentTaskId",
+                                parentTaskId: previousTaskId,
+                            },
+                        },
+
+                        // If we are indenting at the root of our query then we want to remove the task
+                        // from the query root since it lives in its parent task now.
+                        //
+                        // Must come first since if we're removing a task from its parent then our
+                        // following action needs to set the parent again.
+                        //
+                        // Order is important! We create these actions before `UpdateParentTaskId` so
+                        // they have earlier timestamps but put them later in the array so our serial
+                        // action authorization check doesn't remove our access to the task before
+                        // `UpdateParentTaskId` which grants it back.
+                        ...maybeRemoveActions,
+                    ],
+                    {undoManager, affinityManager},
+                );
+
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    // This may call `flushSync()` which can't be called during React lifecycle
+                    // methods. So we wrap in a microtask.
+                    scheduleMicrotask(() => {
+                        if (previousItem.parents.length === 0) {
+                            events.focusTaskTitleSelection(
+                                `${previousTaskId}-${taskId}`,
+                                titleSelection,
+                            );
+                        } else {
+                            events.focusTaskTitleSelection(
+                                `${getTaskQuerySortCursorTaskId(
+                                    previousItem.parents[0]!.cursor,
+                                )}-${taskId}`,
+                                titleSelection,
+                            );
+                        }
+                    });
+                });
+            };
+
+            const previousTaskPath = [
+                ...previousItem.parents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
+                getTaskQuerySortCursorTaskId(previousItem.cursor),
+            ];
+
+            // Expand our new parent task if it's not already expanded.
+            if (getAreChildTasksExpandedStore(previousTaskPath).getSnapshot()) {
+                nest();
+            } else {
+                toggleAreChildTasksExpanded(previousTaskPath, {
+                    onFinish: nest,
+                });
+            }
+            break;
+        }
+    };
+
+    const unnestTaskIfNestedRow = (titleSelection: Selection) => {
+        if (!cursor || parents.length === 0) return;
+
+        const taskId = getTaskQuerySortCursorTaskId(cursor);
+
+        const oldParentTaskId = query.getLoadedTaskSnapshot(taskId).getParent()?.taskId ?? null;
+        if (!oldParentTaskId) return;
+
+        const newParentTaskId =
+            parents.length > 1
+                ? getTaskQuerySortCursorTaskId(parents[parents.length - 2]!.cursor)
+                : null;
+
+        // If our task no longer has any parent then move it into our root query.
+        if (!newParentTaskId) {
+            // Hitting shift-tab to dedent only makes sense if the query is manually sorted.
+            if (!isRootQueryManuallySorted) return;
+
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
+            const removeAction: TaskAction = {
+                type: "UpdateTask",
+                time: rootQuery.store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: null,
+                },
+            };
+
+            rootQuery.store.commitTaskActionTransaction(
+                context,
+                [
+                    ...events.getMoveTaskToRootQueryActions(taskId, {
+                        type: "Below",
+                        taskId: oldParentTaskId,
+                    }),
+
+                    // Order is important! Removing the task from its parent may remove our access
+                    // to the task resulting in an authorization error. Perform our update that puts
+                    // us in the right spot first to make sure we maintain permission to access
+                    // this task. But the timestamp on our remove action needs to be earlier in
+                    // case of conflict.
+                    removeAction,
+                ],
+                {undoManager, affinityManager},
+            );
+        }
+        // Move the task to our parent's parent. If we have access to the new parent's
+        // children query then we can pick a position below our old parent.
+        else {
+            const time1 = rootQuery.store.clock.now();
+            const time2 = rootQuery.store.clock.now();
+
+            const newChildrenQuery = rootQuery.store
+                .getTaskChildrenQueryStore(newParentTaskId)
+                .getSnapshot();
+
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
+            rootQuery.store.commitTaskActionTransaction(
+                context,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: time1,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateParentTaskId",
+                            parentTaskId: newParentTaskId,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: time2,
+                        taskId,
+                        taskAction: {
+                            type: "UpdateParentPosition",
+                            parentPosition: newChildrenQuery
+                                ? getNewTaskPositionForQuerySortedByPosition(
+                                      time2,
+                                      newChildrenQuery,
+                                      {
+                                          type: "Below",
+                                          taskId: oldParentTaskId,
+                                      },
+                                  )
+                                : {
+                                      orderTime: time2,
+                                      orderKey: initialOrderKey,
+                                  },
+                        },
+                    },
+                ],
+                {undoManager, affinityManager},
+            );
+        }
+
+        // Store updates are rendered by React immediately. So focus our task before
+        // the next paint.
+        onLayoutEffectCallbacksRef.current.push(() => {
+            // This may call `flushSync()` which can't be called during React lifecycle
+            // methods. So we wrap in a microtask.
+            scheduleMicrotask(() => {
+                if (parents.length <= 1) {
+                    events.focusTaskTitleSelection(taskId, titleSelection);
+                } else {
+                    events.focusTaskTitleSelection(
+                        `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${taskId}`,
+                        titleSelection,
+                    );
+                }
+            });
+        });
+    };
+
+    const deleteTaskAndAllChildren = () => {
+        if (!cursor) return;
+
+        const taskId = getTaskQuerySortCursorTaskId(cursor);
+
+        setTaskDeleteConfirmationState({undoManager, taskId});
+    };
+
+    const deleteTaskAndAllChildrenAndFocusPreviousRow = () => {
+        // If this is a ghost task then hitting delete should focus the task above it.
+        if (!cursor) {
+            events.focusPreviousTaskTitleEnd(`Task:${gridKey}`);
+            return;
+        }
+
+        const taskId = getTaskQuerySortCursorTaskId(cursor);
+
+        const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${gridKey}`));
+
+        const state = events.getState();
+        const itemCount = events.getItemCount();
+        const itemCountBeforeState = events.getItemCountBeforeState();
+        const stateItemIndex = itemIndex - itemCountBeforeState;
+
+        // Item is not in state, we can't delete it.
+        if (!(0 <= stateItemIndex && stateItemIndex < itemCount - itemCountBeforeState)) return;
+
+        const item = state.getItem(stateItemIndex);
+        if (item.type !== "Task") return;
+
+        const focusPreviousRow = (itemIndex: number) => {
+            let hasFoundPreviousRow = false;
+
+            for (let index = itemIndex - 1; index >= 0; index--) {
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (!taskRow) continue;
+
+                taskRow.focusTitleEnd();
+                hasFoundPreviousRow = true;
+                break;
+            }
+
+            // If there is no previous row (we're the first row) then we want to focus the
+            // start of the next row instead.
+            if (!hasFoundPreviousRow) {
+                for (let index = itemIndex + 1; index < events.getItemCount(); index++) {
+                    const taskRow = events.getTaskRowByIndexIfExists(index);
+                    if (!taskRow) continue;
+
+                    taskRow.focusTitleStart();
+                    break;
+                }
+            }
+        };
+
+        // If a task has zero children then we delete it immediately without asking for
+        // confirmation. We use `commitTaskActionTransaction()` since that
+        // optimistically applies the delete action.
+        //
+        // There may be a race condition where the task has a child our client doesn't
+        // know about yet. This child won't be deleted. This race condition is
+        // acceptable.
+        if (item.query.getLoadedTaskSnapshot(taskId).getChildTaskCount() === 0) {
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
+            rootQuery.store.commitTaskActionTransaction(
+                context,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: rootQuery.store.clock.now(),
+                        taskId,
+                        taskAction: {type: "Delete"},
+                    },
+                ],
+                {undoManager, affinityManager},
+            );
+
+            focusPreviousRow(itemIndex);
+        } else {
+            setTaskDeleteConfirmationState({
+                undoManager,
+                taskId,
+                onAfterDelete: () => {
+                    const view = viewRef.current;
+                    if (!view) return;
+
+                    // Once React has closed the modal dialog, focus the previous task. Until the
+                    // modal dialog is closed, focus is trapped inside it.
+                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current.push(() =>
+                        focusPreviousRow(itemIndex),
+                    );
+                },
+            });
+        }
+    };
+
+    const pushUndoStackYDocEntry = (entry: {yUndoManager: Y.UndoManager; release: () => void}) => {
+        // We don't handle ghost tasks with this code path.
+        if (!rootParentTaskId || !taskId) return;
+
+        events.pushUndoStackEntry({
+            type: "YDoc",
+            rootParentTaskId,
+            taskId,
+            yUndoManager: entry.yUndoManager,
+            release: entry.release,
+        });
+    };
+
+    const pushUndoStackYDocEntryFromRedo = (entry: {
+        yUndoManager: Y.UndoManager;
+        release: () => void;
+    }) => {
+        // We don't handle ghost tasks with this code path.
+        if (!rootParentTaskId || !taskId) return;
+
+        events.pushUndoStackEntryFromRedo({
+            type: "YDoc",
+            rootParentTaskId,
+            taskId,
+            yUndoManager: entry.yUndoManager,
+            release: entry.release,
+        });
+    };
+
+    const pushRedoStackYDocEntry = (entry: {yUndoManager: Y.UndoManager; release: () => void}) => {
+        // We don't handle ghost tasks with this code path.
+        if (!rootParentTaskId || !taskId) return;
+
+        events.pushRedoStackEntry({
+            type: "YDoc",
+            rootParentTaskId,
+            taskId,
+            yUndoManager: entry.yUndoManager,
+            release: entry.release,
+        });
+    };
+
+    return (
+        <TaskRowView
+            ref={useCallback(
+                (taskRow: TaskRowViewRef) => {
+                    if (!taskRow) {
+                        taskRowByGridKeyRef.current.delete(gridKey);
+                    } else {
+                        taskRowByGridKeyRef.current.set(gridKey, taskRow);
+                    }
+                },
+                [gridKey, taskRowByGridKeyRef],
+            )}
+            capabilities={capabilities}
+            maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
+            stateKey={stateKey}
+            // It's important we use the `query` property from `item` since child tasks
+            // come from a different query than our root query.
+            query={query}
+            isQueryManuallySorted={isQueryManuallySorted}
+            undoManager={undoManager}
+            affinityManager={affinityManager}
+            cursor={cursor}
+            ghostTaskId={ghostTaskId}
+            onGhostTaskCreated={
+                isTopGhostTask ? events.onTopGhostTaskCreated : events.onBottomGhostTaskCreated
+            }
+            gridKey={gridKey}
+            parents={parents}
+            rowMaxWidth={rowMaxWidth}
+            disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
+            titlePlaceholder={titlePlaceholder}
+            isFirstRow={isFirstRow}
+            isFirstTaskInQuery={isFirstTaskInQuery}
+            nextIndentation={nextIndentation}
+            areChildTasksExpandedStore={areChildTasksExpandedStore}
+            onAreChildTasksExpandedToggle={() => {
+                if (!taskPath) return;
+                toggleAreChildTasksExpanded(taskPath);
+            }}
+            withoutPaddingLeft={withoutPaddingLeft}
+            withPaddingBottom={withPaddingBottom}
+            getMoveTaskToRootQueryActions={events.getMoveTaskToRootQueryActions}
+            getMoveTaskToQueryActions={getMoveTaskToQueryActions}
+            getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
+            createTaskAbove={createTaskAbove}
+            createTaskBelowAndFocus={createTaskBelowAndFocus}
+            nestWithPreviousTaskRowIfExistsAndExpand={nestWithPreviousTaskRowIfExistsAndExpand}
+            unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+            deleteTaskAndAllChildren={deleteTaskAndAllChildren}
+            deleteTaskAndAllChildrenAndFocusPreviousRow={
+                deleteTaskAndAllChildrenAndFocusPreviousRow
+            }
+            focusNextTaskTitleCoord={coord => events.focusNextTaskTitleCoord(gridKey, coord)}
+            focusPreviousTaskTitleCoord={coord =>
+                events.focusPreviousTaskTitleCoord(gridKey, coord)
+            }
+            focusNextTaskCell={column => events.focusNextTaskCell(gridKey, column)}
+            focusPreviousTaskCell={column => events.focusPreviousTaskCell(gridKey, column)}
+            preserveLastTaskTitleArrowNavigationCoord={
+                events.preserveLastTaskTitleArrowNavigationCoord
+            }
+            focusFirstVisibleTaskTitleStart={events.focusFirstVisibleTaskTitleStart}
+            focusFirstVisibleTaskCell={events.focusFirstVisibleTaskCell}
+            focusLastVisibleTaskTitleEnd={events.focusLastVisibleTaskTitleEnd}
+            focusLastVisibleTaskCell={events.focusLastVisibleTaskCell}
+            pushUndoStackYDocEntry={pushUndoStackYDocEntry}
+            pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
+            pushRedoStackYDocEntry={pushRedoStackYDocEntry}
+            setRowZIndex={useCallback(
+                zIndex => events.setTaskRowZIndex(gridKey, zIndex),
+                [events, gridKey],
+            )}
+            mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
+            scrollToAnchorPosition={events.scrollToAnchorPosition}
+        />
+    );
+});

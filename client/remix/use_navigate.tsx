@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {Location, Router} from "@remix-run/router";
 import {
     ContextType,

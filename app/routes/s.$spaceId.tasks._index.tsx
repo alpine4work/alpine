@@ -8,10 +8,8 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {
-    TaskNotepadView,
-    taskNotepadAssigneeActiveLoadLimit,
-} from "~/client/tasks/task_notepad_view.js";
+import {taskNotepadAssigneeActiveLoadLimit} from "~/client/tasks/task_notepad_assignee_active_limit.js";
+import {TaskNotepadView} from "~/client/tasks/task_notepad_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";

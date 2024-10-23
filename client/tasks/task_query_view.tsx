@@ -1,5 +1,5 @@
-import {IconContext, Plus, Trash} from "phosphor-react";
-import {ReactNode, useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {IconContext, Plus} from "phosphor-react";
+import {useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -15,7 +15,6 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -27,6 +26,7 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
+    defaultTaskQueryViewName,
     taskQueryViewCustomizationMobileLayoutMarginTop,
     taskQueryViewCustomizationMobileSectionMarginBottom,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -35,15 +35,9 @@ import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
-import {
-    TaskAccess,
-    getTaskCollectionEntryAccess,
-} from "~/client/tasks/internal/create_task_entry_access_store.js";
-import {
-    TaskGridViewVirtualizedListViewRef,
-    useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
+import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/internal/create_task_query_view_read_only_reason_store.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskQueryMobileEditor} from "~/client/tasks/internal/task_query_mobile_editor.js";
 import {
     TaskQueryViewCustomizationBar,
@@ -60,7 +54,6 @@ import {
 import {
     TaskQueryViewDesktopHeaderName,
     TaskQueryViewDesktopHeaderNameRef,
-    defaultTaskQueryViewName,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
@@ -70,12 +63,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
-import {Store} from "~/shared/store/store.js";
-import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskQueryFilter,
@@ -88,108 +76,6 @@ import {
 import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort, serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
-
-export {defaultTaskQueryViewName} from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
-
-/**
- * Determine whether our query is read-only. The query is read-only if one of
- * the filtered collections is read-only. The user may then remove the
- * collection causing the query to be read-only.
- */
-export function createTaskQueryViewReadOnlyReasonStore({
-    store,
-    filters,
-    filterReferences,
-    currentAccount,
-}: {
-    store: TaskClientStore;
-    filters: ReadonlyArray<TaskQueryFilter>;
-    filterReferences: TaskQueryFilterReferences;
-    currentAccount: AccountModel;
-}): Store<{
-    icon: ReactNode;
-    message: string;
-} | null> {
-    const filterCollectionsLowestAccess = Store.many(
-        filterMapArray(filters, filter => {
-            if (filter.type !== "Collections") return;
-
-            return createTaskQueryCollectionsFilterCollectionResultsStore({
-                store,
-                filter,
-                filterReferences,
-            }).map(collectionResults =>
-                collectionResults.map(collectionResult =>
-                    getTaskCollectionEntryAccess(currentAccount.id, collectionResult.entry),
-                ),
-            );
-        }),
-    ).map(_accesses => {
-        const accesses = _accesses.flat();
-
-        let lowestAccess: TaskAccess = {type: "PermissionGranted", level: "Manage"};
-
-        for (const access of accesses) {
-            switch (access.type) {
-                case "PermissionDenied": {
-                    lowestAccess = access;
-                    break;
-                }
-                case "Deleted": {
-                    if (lowestAccess.type === "PermissionDenied") break;
-                    lowestAccess = access;
-                    break;
-                }
-                case "PermissionGranted": {
-                    if (lowestAccess.type === "PermissionDenied") break;
-                    if (lowestAccess.type === "Deleted") break;
-
-                    if (!hasTaskCollectionAccessLevel(access.level, lowestAccess.level)) {
-                        lowestAccess = access;
-                    }
-                    break;
-                }
-                default:
-                    throw exhaustive(access);
-            }
-        }
-
-        return lowestAccess;
-    });
-
-    return filterCollectionsLowestAccess.map(access => {
-        switch (access.type) {
-            case "Deleted": {
-                return {
-                    icon: <Trash />,
-                    message: "A filtered collection was deleted. You can’t make changes",
-                };
-            }
-            case "PermissionDenied": {
-                // TODO(calebmer): If the user removed their own access by removing a
-                // collection or changing the assignee, we should hint to them that they're
-                // allowed to undo and give them an undo button.
-                return {
-                    icon: <PencilSimpleSlashIcon />,
-                    message: "You’ve lost access to a filtered collection. You can’t make changes",
-                };
-            }
-            case "PermissionGranted": {
-                if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
-
-                // TODO(calebmer): If the user removed their own access by removing a
-                // collection or changing the assignee, we should hint to them that they're
-                // allowed to undo and give them an undo button.
-                return {
-                    icon: <PencilSimpleSlashIcon />,
-                    message: "You’re aren’t allowed to make changes to a filtered collection",
-                };
-            }
-            default:
-                throw exhaustive(access);
-        }
-    });
-}
 
 export function TaskQueryView({
     withMobileLayout: withMobileLayoutProp,
@@ -252,6 +138,7 @@ export function TaskQueryView({
     // ahead and attempt to open.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!shouldOpenFirstCollectionsFilterOperationValueRef.current) return;
+        // eslint-disable-next-line react-compiler/react-compiler
         shouldOpenFirstCollectionsFilterOperationValueRef.current = false;
 
         if (!withMobileLayout) {

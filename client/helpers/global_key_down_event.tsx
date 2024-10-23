@@ -137,7 +137,9 @@ export function GlobalKeyDownEvent({
         () =>
             createListener(
                 childContext.childListeners,
+                // eslint-disable-next-line react-compiler/react-compiler
                 event => onGlobalKeyDownRef.current?.(event),
+                // eslint-disable-next-line react-compiler/react-compiler
                 event => onGlobalKeyDownBeforeChildrenRef.current?.(event),
             ),
         [childContext.childListeners],

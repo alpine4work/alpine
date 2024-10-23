@@ -16,6 +16,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {optimisticCreatePostEventEmitter} from "~/client/forum/internal/optimistic_create_post_event_emitter.js";
 import {PostContentViewHeaderBase} from "~/client/forum/internal/post_content_view_header.js";
 import {
     PostCreatorChannelSelectorInput,
@@ -37,37 +38,17 @@ import {
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentWithReferences,
     PostContentWithReferencesSchema,
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
-import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-
-const optimisticCreatePostEventEmitter = new EventEmitter<{
-    channelId: ChannelId;
-    readTime: Date;
-    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-}>();
-
-export function subscribeToOptimisticCreatePostEvent(
-    listener: (event: {
-        channelId: ChannelId;
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-    }) => void,
-): () => void {
-    return optimisticCreatePostEventEmitter.subscribe(listener);
-}
 
 const StateSchema = Schema.object({
     content: PostContentWithReferencesSchema,

@@ -5,12 +5,13 @@ import {CalendarBlank} from "phosphor-react";
 import {useRef, useState} from "react";
 import {useDateField, useDateSegment, usePress} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
-import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
+import {FocusRingBox} from "~/client/design/focus_ring.js";
 import {
     getLastFocusableElementIfExists,
     getNextFocusableElementIfExists,
 } from "~/client/design/helpers/get_next_focusable_element.js";
 import {Overlay} from "~/client/design/overlay.js";
+import {useIsFocusRingVisible} from "~/client/design/use_is_focus_ring_visible.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/client/styles/styles.js";

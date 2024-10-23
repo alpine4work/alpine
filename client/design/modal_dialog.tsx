@@ -1,10 +1,8 @@
 import {useEffect, useId, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {
-    ErrorDisplayMessageRenderer,
-    defaultErrorDisplayMessage,
-} from "~/client/design/error_display_message_renderer.js";
+import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
 import {ModalDialogProps} from "~/client/design/modal_dialog_props.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
 import {useReporter} from "~/client/design/reporter.js";

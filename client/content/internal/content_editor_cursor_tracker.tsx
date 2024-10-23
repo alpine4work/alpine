@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";

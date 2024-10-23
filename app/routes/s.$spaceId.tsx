@@ -25,10 +25,10 @@ import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_
 import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
-import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {
     attachDevConsoleForAccountInProduction,
@@ -58,7 +58,7 @@ import {
     spaceLayoutWebMobileTabBarHeight,
 } from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/layout/space_route_error_renderer.js";
-import {SpaceContextProvider} from "~/client/spaces/space_context.js";
+import {SpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     TaskRealtimeClientContextProvider,

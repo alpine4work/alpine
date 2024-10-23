@@ -204,6 +204,7 @@ export function TaskQueryFilterAccountOperationEditor({
                 }}
                 useSearchedItems={searchInputValue =>
                     // The `useSearchedItems()` callback follows the rules of hooks.
+                    // eslint-disable-next-line react-compiler/react-compiler
                     // eslint-disable-next-line react-hooks/rules-of-hooks
                     useTaskQueryFilterAccountOperationEditorSearchedItems({
                         searchInputValue,

@@ -46,6 +46,11 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/client/styles/styles.js";
+import {
+    taskCollectionChipBorderRadius,
+    taskCollectionChipHeight,
+    taskCollectionChipPaddingY,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -57,19 +62,14 @@ import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
 } from "~/client/tasks/internal/task_collection_chip.js";
-import {
-    TaskCollectionChipBase,
-    taskCollectionChipBorderRadius,
-    taskCollectionChipHeight,
-    taskCollectionChipPaddingY,
-} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {
     TaskCollectionComboBoxCollectionItem,
     TaskCollectionComboBoxItem,
-    TaskCollectionComboBoxListBox,
     renderTaskCollectionComboBoxItem,
-    useTaskCollectionComboBoxSearchState,
-} from "~/client/tasks/internal/task_collection_combo_box_base.js";
+} from "~/client/tasks/internal/task_collection_combo_box_item.js";
+import {TaskCollectionComboBoxListBox} from "~/client/tasks/internal/task_collection_combo_box_list_box.js";
+import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_search_state.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

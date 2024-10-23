@@ -1,7 +1,7 @@
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {contentStyles, fontSizes} from "~/client/styles/styles.js";
 
-export const contentParagraphShimmerFontSize = {
+const contentParagraphShimmerFontSize = {
     ...fontSizes["50"],
     lineHeight: contentStyles.paragraphFontSize.lineHeight,
 } as const;

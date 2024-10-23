@@ -39,7 +39,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {
     useRegisterBottomBarMobileKeyboardToolbarFrame,
     useWebMobileKeyboardToolbarSafeAreaInsetBottom,

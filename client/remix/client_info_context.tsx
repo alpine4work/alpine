@@ -54,7 +54,9 @@ export function getClientInfo(): ClientInfo {
     return clientInfo.get();
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const BrowserIdContext = createContext<BrowserId | null>(null);
+// eslint-disable-next-line react-refresh/only-export-components
 const ClientInfoContext = createContext<ClientInfo | null>(null);
 
 /**

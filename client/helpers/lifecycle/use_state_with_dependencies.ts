@@ -20,6 +20,7 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
             typeof initializeState === "function"
                 ? (initializeState as (...dependencies: Dependencies) => State)(...dependencies)
                 : initializeState,
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/exhaustive-deps
         dependencies,
     );
@@ -68,6 +69,7 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                 });
             }
         },
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/exhaustive-deps
         dependencies,
     );

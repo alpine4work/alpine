@@ -5,11 +5,11 @@ import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
+import {useInboxDeletedItemAnimationState} from "~/client/inbox/internal/use_inbox_deleted_item_animation_state.js";
 import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
-import {useInboxDeletedItemAnimationState} from "~/client/inbox/use_inbox_deleted_item_animation_state.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";

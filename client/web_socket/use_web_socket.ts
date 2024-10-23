@@ -59,6 +59,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
 
     const client = useMemo(() => {
         if (!url) return null;
+        // eslint-disable-next-line react-compiler/react-compiler
         return new WebSocketClient(() => contextRef.current, serviceName, protocol, url);
     }, [protocol, serviceName, url]);
 

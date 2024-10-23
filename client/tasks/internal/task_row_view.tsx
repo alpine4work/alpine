@@ -86,10 +86,8 @@ import {
     TaskRowViewDenseFields,
     TaskRowViewDenseFieldsRef,
 } from "~/client/tasks/internal/task_row_view_dense_fields.js";
-import {
-    TaskRowViewDroppable,
-    renderTaskRowViewDroppableIndentations,
-} from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
+import {TaskRowViewDroppable} from "~/client/tasks/internal/task_row_view_droppable.js";
+import {renderTaskRowViewDroppableIndentations} from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
@@ -1089,6 +1087,7 @@ function TaskRowView(
             }
 
             if (capabilities.hasDenseFields) {
+                // eslint-disable-next-line react-compiler/react-compiler
                 contextMenuActions.push([
                     {
                         label: task?.getAssignee() ? "Edit assignee" : "Add assignee",

@@ -34,16 +34,17 @@ import {
     mobileFullScreenModalAnimationDurationLongMs,
     mobileFullScreenModalAnimationDurationMs,
     mobileFullScreenModalAnimationEasingParsedCubicBezier,
-    useIsBehindMobileFullScreenModal,
 } from "~/client/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
@@ -71,7 +72,7 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
@@ -804,6 +805,7 @@ export function DocumentContentEditor({
             sidebarState.mobileState.onAnimationFinishedRef.current
         ) {
             const onAnimationFinished = sidebarState.mobileState.onAnimationFinishedRef.current;
+            // eslint-disable-next-line react-compiler/react-compiler
             sidebarState.mobileState.onAnimationFinishedRef.current = null;
             onAnimationFinished();
         }

@@ -152,6 +152,7 @@ function TaskQueryViewCustomizationBar(
                         filter.type === "Collections" &&
                         !hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef
                     ) {
+                        // eslint-disable-next-line react-compiler/react-compiler
                         hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = true;
                         collectionsOperationValueTriggerButtonRef =
                             firstCollectionsFilterOperationValueTriggerButtonRef;

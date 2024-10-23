@@ -15,7 +15,7 @@ import {writeContentToClipboard} from "~/client/content/write_content_to_clipboa
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";

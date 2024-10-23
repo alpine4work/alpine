@@ -40,14 +40,14 @@ import {FileId} from "~/shared/id/types/id_types.js";
 
 let isDisablingContentEditorFileToolbarInitialAnimation = false;
 
-export function withDisableContentEditorFileToolbarInitialAnimation(action: () => void) {
+ContentEditorFileToolbarController.withDisableInitialAnimation = (action: () => void) => {
     try {
         isDisablingContentEditorFileToolbarInitialAnimation = true;
         action();
     } finally {
         isDisablingContentEditorFileToolbarInitialAnimation = false;
     }
-}
+};
 
 export function ContentEditorFileToolbarController({
     state,

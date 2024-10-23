@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
-import {getPostMoreActions} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -99,6 +99,7 @@ export function PostView({
         // replace it when in a post editing state.
         replaceActions: null,
         titleJustifyContent: "flex-start",
+        // eslint-disable-next-line react-compiler/react-compiler
         menuActions: getPostMoreActions({
             currentAccount,
             post: postResult.post,

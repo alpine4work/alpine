@@ -2,7 +2,7 @@ import {useRouteError} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
-import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
+import {usePeekContext} from "~/client/peek/peek_context.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 

@@ -28,6 +28,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const DefaultContentWidthPx = 768;
 
 export type DocumentBlobFactorySettings = ReturnType<typeof useDocumentBlobSettings>;
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
     return useDevConsoleSettingsObject("blobs", {
         textFillEnabled: {

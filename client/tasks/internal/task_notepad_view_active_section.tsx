@@ -22,8 +22,8 @@ import {
     taskCardViewMinHeight,
     taskNotepadViewActiveSectionCardGap,
     taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-    taskNotepadViewActiveSectionMarginBottom,
     taskNotepadViewActiveSectionMarginTop,
+    taskNotepadViewActiveSectionMinHeight,
     taskNotepadViewActiveSectionPaddingY,
     taskNotepadViewActiveSectionTitleFontSize,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -37,6 +37,10 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
+import {
+    taskNotepadAssigneeActiveLoadLimit,
+    taskNotepadAssigneeActiveMinLimit,
+} from "~/client/tasks/task_notepad_assignee_active_limit.js";
 import {
     addRemLengths,
     parseRemLengthNumber,
@@ -55,43 +59,11 @@ import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_fi
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
-export const taskNotepadViewActiveSectionMinHeight = {
-    desktop: addRemLengths(
-        spacing[taskNotepadViewActiveSectionMarginTop.desktop],
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.desktop].lineHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        taskCardViewMinHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        spacing[taskNotepadViewActiveSectionMarginBottom],
-    ),
-    mobile: addRemLengths(
-        spacing[taskNotepadViewActiveSectionMarginTop.mobile],
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.mobile].lineHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        taskCardViewMinHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        spacing[taskNotepadViewActiveSectionMarginBottom],
-    ),
-};
-
 /**
  * The maximum number of cards to render before rendering a card saying you
  * have too many active tasks.
  */
 const maxTaskNotepadActiveCardCount = 7;
-
-/**
- * The minimum number of tasks we expect in our `assigneeActiveQuery`. If the
- * task count dips below this number we'll load more tasks.
- */
-export const taskNotepadAssigneeActiveMinLimit = 25;
-
-/**
- * When loading more tasks in `assigneeActiveQuery` we use this limit. It
- * includes more tasks than the min limit so we have some buffer room so in
- * case active tasks are removed we don't immediately need to load more tasks.
- */
-export const taskNotepadAssigneeActiveLoadLimit = taskNotepadAssigneeActiveMinLimit + 10;
 
 export const taskNotepadViewActiveSectionCardTranslateDurationMs = 200;
 

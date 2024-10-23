@@ -26,6 +26,7 @@ const UpdateMetaTitleContext = createContext<Memo<(title: string) => void> | nul
  * Lives in `app/internal` so you can only use it directly in route modules.
  * Try to avoid leaking knowledge of the meta title to sub-components.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUpdateMetaTitle(): Memo<(title: string) => void> {
     const updateMetaTitle = useContext(UpdateMetaTitleContext);
 

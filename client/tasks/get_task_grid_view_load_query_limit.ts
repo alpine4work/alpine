@@ -1,5 +1,5 @@
 import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 

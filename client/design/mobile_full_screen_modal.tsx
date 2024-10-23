@@ -1,7 +1,6 @@
 import {animate} from "motion";
 import {
     ReactNode,
-    createContext,
     useCallback,
     useContext,
     useEffect,
@@ -12,16 +11,15 @@ import {
 } from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
+import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
-import {
-    RootOverlayScopeContextProvider,
-    useOverlayRootPortalElement,
-} from "~/client/design/overlay.js";
+import {MobileFullScreenModalContext} from "~/client/design/internal/modal_full_screen_modal_context.js";
+import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {
     trackNavigationAnimationFinish,
     trackNavigationAnimationStart,
 } from "~/client/design/schedule_after_navigation_animation.js";
-import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
@@ -36,27 +34,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export const mobileFullScreenModalAnimationDurationMs = 250;
 export const mobileFullScreenModalAnimationDurationLongMs = 250 * 1.5;
+// eslint-disable-next-line react-refresh/only-export-components
 export const mobileFullScreenModalAnimationEasingParsedCubicBezier = parseCubicBezier(
     easeOutCubic.cubicBezier,
 );
 
 type MobileFullScreenModalAnimation = "Presenting" | "Dismissing" | null;
-
-type MobileFullScreenModalContext = {
-    readonly presentedCount: number;
-    onAfterPresent(): void;
-    onBeforeDismiss(): void;
-};
-
-const MobileFullScreenModalContext = createContext<MobileFullScreenModalContext | null>(null);
-
-/**
- * Has a `<MobileFullScreenModal>` been rendered on top of us?
- */
-export function useIsBehindMobileFullScreenModal(): boolean {
-    const modalContext = useContext(MobileFullScreenModalContext);
-    return (modalContext?.presentedCount ?? 0) > 0;
-}
 
 /**
  * Context provider for `<MobileFullScreenModal>`. Lets all children know whether
@@ -400,7 +383,8 @@ export function MobileFullScreenModal({
                                     data-ownedby={dataOwnedBy}
                                 >
                                     {typeof children === "function"
-                                        ? children({
+                                        ? // eslint-disable-next-line react-compiler/react-compiler
+                                          children({
                                               isAnimating: animation !== null,
                                               onCloseWithAnimation,
                                           })

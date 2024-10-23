@@ -15,6 +15,11 @@ import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_curre
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
+import {
+    WebMobileTab,
+    WebMobileTabSchema,
+    getWebMobileTabFromPathname,
+} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -30,36 +35,12 @@ import {
 } from "~/shared/helpers/string/safe_string.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 // A little bigger than the native iOS toolbar which is around height spacing
 // `10`. Spacing `10` just looks squished. In native iOS there's safe area at
 // the bottom of the screen which helps make the bottom bar not look squished.
 // We don't have that in web mobile so make the tab bar a little bigger.
 export const spaceLayoutWebMobileTabBarHeight = "12";
-
-type WebMobileTab = SchemaType<typeof WebMobileTabSchema>;
-const WebMobileTabSchema = Schema.enum(spaceLayoutStyles.webMobileTabs);
-
-export function getWebMobileTabFromPathname(pathname: string): WebMobileTab | null {
-    const match = pathname.match(/^\/s\/(?:[a-zA-Z0-9]+)(\/search|\/create|\/inbox|\/more)?$/);
-    if (!match) return null;
-
-    switch (match[1]) {
-        case undefined:
-            return "Home";
-        case "/search":
-            return "Search";
-        case "/create":
-            return "Create";
-        case "/inbox":
-            return "Inbox";
-        case "/more":
-            return "More";
-        default:
-            return null;
-    }
-}
 
 export function SpaceLayoutWebMobileTabBar({
     initialInbox,

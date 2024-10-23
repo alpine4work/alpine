@@ -16,10 +16,8 @@ import {ReactNode, RefObject, useId, useMemo, useRef} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_input_rules_plugin.js";
-import {
-    ContentEditorMobileLinkModalState,
-    getContentEditorMobileLinkModalSelectionSliceText,
-} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {getContentEditorMobileLinkModalSelectionSliceText} from "~/client/content/internal/get_content_editor_mobile_link_modal_selection_slice_text.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";

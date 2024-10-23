@@ -183,6 +183,7 @@ export function usePostEditing({
         if (!state.isEditing || !state.isSaving) return;
 
         if (state.isAwaitingSaveRef.current) return;
+        // eslint-disable-next-line react-compiler/react-compiler
         state.isAwaitingSaveRef.current = true;
 
         const {savePromiseResolver} = state;

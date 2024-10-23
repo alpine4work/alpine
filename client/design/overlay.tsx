@@ -4,7 +4,6 @@ import {
     ReactNode,
     Ref,
     RefObject,
-    createContext,
     forwardRef,
     useCallback,
     useContext,
@@ -19,6 +18,10 @@ import {createPortal, flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {
+    OverlaySinkContext,
+    overlaySinkContextForTest,
+} from "~/client/design/internal/overlay_sink_context.js";
 import {
     getElementSafeAreaInsetTopPx,
     getElementWindowSafeAreaInsetBottomPx,
@@ -36,7 +39,7 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
-import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
+import {Sprinkles} from "~/client/styles/styles.js";
 import {
     RemLength,
     Spacing,
@@ -800,16 +803,6 @@ function Overlay(
     );
 }
 
-type OverlaySinkContext = {
-    readonly getRootPortalElement: () => HTMLDivElement | null;
-    readonly getRootBlockingPortalElement: () => HTMLDivElement | null;
-    readonly getPortalElement: () => HTMLDivElement | null;
-    readonly insetLeft: RemLength | number | null;
-    readonly insetRight: RemLength | number | null;
-};
-
-const OverlaySinkContext = createContext<OverlaySinkContext | null>(null);
-
 function renderOverlayPortal(ref: RefObject<HTMLDivElement>, zIndex: Sprinkles["zIndex"] = "50") {
     return (
         <Box
@@ -885,9 +878,14 @@ export function RootOverlayScopeContextProvider({
             }
         >
             {children}
-            {!isDisabled && renderOverlayPortal(portalRef)}
             {!isDisabled &&
                 renderOverlayPortal(
+                    // eslint-disable-next-line react-compiler/react-compiler
+                    portalRef,
+                )}
+            {!isDisabled &&
+                renderOverlayPortal(
+                    // eslint-disable-next-line react-compiler/react-compiler
                     blockingPortalRef,
                     // Render at the absolute top of the page. Even over other overlays.
                     "70",
@@ -940,7 +938,10 @@ export function OverlayScopeContextProvider({
     return (
         <OverlaySinkContext.Provider value={overlaySink}>
             {children}
-            {renderOverlayPortal(portalRef)}
+            {renderOverlayPortal(
+                // eslint-disable-next-line react-compiler/react-compiler
+                portalRef,
+            )}
         </OverlaySinkContext.Provider>
     );
 }
@@ -970,7 +971,11 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
             )}
         >
             {children}
-            {renderOverlayPortal(blockingPortalRef, "70")}
+            {renderOverlayPortal(
+                // eslint-disable-next-line react-compiler/react-compiler
+                blockingPortalRef,
+                "70",
+            )}
         </OverlaySinkContext.Provider>
     );
 }
@@ -1137,117 +1142,3 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
         );
     }
 });
-
-// In Jest tests, create a portal element in the JSDOM `<body>`.
-const overlaySinkContextForTest = import.meta.jest
-    ? ((): OverlaySinkContext => {
-          const portalElement = document.createElement("div");
-
-          portalElement.className = sprinkles({
-              position: "absolute",
-              top: "0",
-              left: "0",
-              right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
-              height: "0",
-              // Render above anything on the page.
-              zIndex: "50",
-          });
-
-          const blockingPortalElement = document.createElement("div");
-
-          blockingPortalElement.className = sprinkles({
-              position: "absolute",
-              top: "0",
-              left: "0",
-              right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
-              height: "0",
-              // Render above anything on the page.
-              zIndex: "70",
-          });
-
-          document.body.appendChild(portalElement);
-          document.body.appendChild(blockingPortalElement);
-
-          const portalRef = {current: portalElement};
-          const blockingPortalRef = {current: blockingPortalElement};
-
-          return {
-              getRootPortalElement: () => portalRef.current,
-              getRootBlockingPortalElement: () => blockingPortalRef.current,
-              getPortalElement: () => portalRef.current,
-              insetLeft: null,
-              insetRight: null,
-          };
-      })()
-    : null;
-
-/**
- * Get the overlay portal element at the root of our app. We may have nested
- * portal overlay elements in, for instance, scroll views so overlays move with
- * the scroll view and can't escape.
- *
- * This allows you to portal into the root overlay element.
- */
-export function useOverlayRootPortalElement() {
-    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-
-    const [rootPortalElement, setRootPortalElement] = useState(overlaySink.getRootPortalElement);
-
-    useEffect(() => {
-        setRootPortalElement(overlaySink.getRootPortalElement);
-    }, [overlaySink.getRootPortalElement]);
-
-    return rootPortalElement;
-}
-
-/**
- * Get the _blocking_ overlay portal element at the root of our app. We may
- * have nested portal overlay elements in, for instance, scroll views so
- * overlays move with the scroll view and can't escape.
- */
-export function useOverlayRootBlockingPortalElement() {
-    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-
-    const [rootBlockingPortalElement, setRootBlockingPortalElement] = useState(
-        overlaySink.getRootBlockingPortalElement,
-    );
-
-    useEffect(() => {
-        setRootBlockingPortalElement(overlaySink.getRootBlockingPortalElement);
-    }, [overlaySink.getRootBlockingPortalElement]);
-
-    return rootBlockingPortalElement;
-}
-
-/**
- * If you have an `<Overlay>` element with a ref on the `overlay` prop then you
- * will not be able to access the ref until the overlay portal is ready. You
- * may use this hook for detecting this edge case.
- *
- * If your overlay's initial render is the same as the nearest
- * `<OverlayScopeContextProvider>`'s initial render and your overlay is
- * initially visible then this will start as `true` then return `false`.
- * Otherwise this always returns `false`.
- */
-export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean {
-    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-
-    const [isWaiting, setIsWaiting] = useState(() =>
-        isVisible ? !overlaySink.getPortalElement() : false,
-    );
-
-    useEffect(() => {
-        setIsWaiting(isVisible ? !overlaySink.getPortalElement() : false);
-    }, [isVisible, overlaySink]);
-
-    return isWaiting;
-}

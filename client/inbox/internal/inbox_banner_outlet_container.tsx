@@ -1,5 +1,5 @@
 import {ArrowUpRight, CaretDown, CaretUp, Check} from "phosphor-react";
-import {ReactElement, ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
+import {ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
 import {createPath, useLocation} from "react-router";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -11,15 +11,12 @@ import {useDynamoGeneralRealtimeItemBase} from "~/client/dynamo/use_dynamo_gener
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {
-    InboxContextNavigation,
-    InboxContextProvider,
-    useInboxContext,
-} from "~/client/inbox/inbox_context.js";
+import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
+import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
 import {
     getInboxEntryDisplay,
     printInboxEntryDisplaySummaryWithoutInteractivityStore,
-} from "~/client/inbox/inbox_entry_display.js";
+} from "~/client/inbox/internal/inbox_entry_display.js";
 import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
@@ -43,41 +40,7 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
-export function useInboxBannerOutletContainer<Children extends ReactNode>(
-    {
-        initialEntry,
-        ...props
-    }: {
-        initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-        withMobileLayout: boolean;
-        maxWidth: Spacing | "full";
-        sidebarRightWidth?: Spacing;
-    },
-    children: Children,
-): ReactElement | Children {
-    const inboxContext = useInboxContext();
-
-    const entry = inboxContext?.entry ?? initialEntry;
-
-    if (!entry) {
-        return children;
-    }
-
-    return (
-        <InboxBannerOutletContainer
-            {...props}
-            initialEntry={entry}
-            // Disable realtime if we have an entry from `useInboxContext()`. Our parent
-            // component is expected to keep the entry up-to-date in realtime.
-            withoutRealtime={!!inboxContext?.entry}
-            navigation={inboxContext?.navigation ?? null}
-        >
-            {children}
-        </InboxBannerOutletContainer>
-    );
-}
-
-function InboxBannerOutletContainer({
+export function InboxBannerOutletContainer({
     initialEntry,
     withoutRealtime,
     navigation,

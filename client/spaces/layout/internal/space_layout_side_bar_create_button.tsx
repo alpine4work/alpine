@@ -10,7 +10,7 @@ import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
-import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";

@@ -24,7 +24,7 @@ import {
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
-import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

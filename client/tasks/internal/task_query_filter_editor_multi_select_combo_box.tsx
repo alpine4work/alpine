@@ -172,6 +172,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
 }) {
     const [inputValue, setInputValue] = useState("");
 
+    // eslint-disable-next-line react-compiler/react-compiler
     const searchedItemsResult = useSearchedItems(inputValue);
     const searchedItems = searchedItemsResult.isLoading
         ? emptyArray

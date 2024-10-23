@@ -2,18 +2,16 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {
-    NavigationBarContent,
-    NavigationBarProps,
-    useNavigationBar,
-} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
+import {NavigationBarProps} from "~/client/design/navigation_bar_types.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
-import {subscribeToOptimisticCreatePostEvent} from "~/client/forum/post_creator.js";
+import {optimisticCreatePostEventEmitter} from "~/client/forum/internal/optimistic_create_post_event_emitter.js";
 import {
     PostListChannelHeader,
     PostQueryList,
@@ -25,7 +23,7 @@ import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
@@ -44,8 +42,6 @@ import {
     updateChannelName,
     updateChannelNameAndDescription,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-
-export {newChannelNamePlaceholder} from "~/client/forum/internal/channel_view_name_editor.js";
 
 export function ChannelView({
     withMobileLayout: withMobileLayoutProp,
@@ -142,7 +138,7 @@ export function ChannelView({
     // emits an event after a post has been successfully created and we handle
     // that event here.
     useEffect(() => {
-        return subscribeToOptimisticCreatePostEvent(event => {
+        return optimisticCreatePostEventEmitter.subscribe(event => {
             if (event.channelId !== channel.id) return;
 
             setPosts(posts =>

@@ -305,6 +305,7 @@ function ContentFileImageDesktopViewerInner({
         const imageContentElement = loaderDataResult.value.image;
         if (!imageContentElement) return;
 
+        // eslint-disable-next-line react-compiler/react-compiler
         imageContentElement.className = contentStyles.fileImagePreviewContentClassName;
         // TODO(calebmer): Support drag events with the same code we use for content
         // previews.

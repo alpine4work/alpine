@@ -1,22 +1,15 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import roundToNearestMinutes from "date-fns/roundToNearestMinutes/index.js";
-import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useContext} from "react";
+import {
+    CurrentDateContext,
+    CurrentTimeRoundedToHour,
+    CurrentTimeRoundedToNearestTenMinutes,
+    roundDateToHour,
+} from "~/client/remix/internal/current_time_context.js";
 import {InternalError} from "~/shared/error/error.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-
-/**
- * Round the provided date to the start of the current hour.
- */
-export function roundDateToHour(time: Date): Date {
-    return new Date(time.getFullYear(), time.getMonth(), time.getDate(), time.getHours(), 0, 0, 0);
-}
-
-const CurrentDateContext = createContext<CalendarDate | null>(null);
-const CurrentTimeRoundedToHour = createContext<Date | null>(null);
-const CurrentTimeRoundedToNearestTenMinutes = createContext<Date | null>(null);
 
 const currentTimeRoundedToNearestTenMinutesForTest = import.meta.jest
     ? roundToNearestMinutes(new Date(), {
@@ -124,88 +117,5 @@ export function getCurrentDate(context: {
             getCurrentTimeRoundedToHour(context),
             context.loader.getClientInfo().timeZone,
         ),
-    );
-}
-
-export function CurrentTimeContextProvider({
-    initialTime,
-    children,
-}: {
-    initialTime: Date;
-    children?: ReactNode;
-}) {
-    const {timeZone} = useClientInfo();
-
-    const [state, setState] = useState(() => {
-        const currentTimeRoundedToHour = roundDateToHour(initialTime);
-        const currentTimeRoundedToNearestTenMinutes = roundToNearestMinutes(initialTime, {
-            nearestTo: 10,
-            roundingMethod: "ceil",
-        });
-
-        const currentDate = toCalendarDate(
-            parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
-        );
-
-        return {currentTimeRoundedToHour, currentTimeRoundedToNearestTenMinutes, currentDate};
-    });
-
-    useEffect(() => {
-        let timeout: Timeout;
-
-        const update = () => {
-            const currentTime = new Date();
-            const currentTimeRoundedToHour = roundDateToHour(currentTime);
-            const currentTimeRoundedToNearestTenMinutes = roundToNearestMinutes(currentTime, {
-                nearestTo: 10,
-                roundingMethod: "ceil",
-            });
-
-            setState(previousState => {
-                if (
-                    currentTimeRoundedToHour.toISOString() ===
-                        previousState.currentTimeRoundedToHour.toISOString() &&
-                    currentTimeRoundedToNearestTenMinutes.toISOString() ===
-                        previousState.currentTimeRoundedToNearestTenMinutes.toISOString()
-                ) {
-                    return previousState;
-                }
-
-                return {
-                    currentTimeRoundedToHour,
-                    currentTimeRoundedToNearestTenMinutes,
-                    currentDate: toCalendarDate(
-                        parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
-                    ),
-                };
-            });
-
-            const nextTimeRoundedToNearestTenMinutes = new Date(
-                currentTimeRoundedToNearestTenMinutes.getTime() + 1000 * 60 * 10,
-            );
-
-            timeout = createTimeout(
-                update,
-                nextTimeRoundedToNearestTenMinutes.getTime() - Date.now(),
-            );
-        };
-
-        update();
-
-        return () => {
-            timeout.clear();
-        };
-    }, [initialTime, timeZone]);
-
-    return (
-        <CurrentDateContext.Provider value={state.currentDate}>
-            <CurrentTimeRoundedToHour.Provider value={state.currentTimeRoundedToHour}>
-                <CurrentTimeRoundedToNearestTenMinutes.Provider
-                    value={state.currentTimeRoundedToNearestTenMinutes}
-                >
-                    {children}
-                </CurrentTimeRoundedToNearestTenMinutes.Provider>
-            </CurrentTimeRoundedToHour.Provider>
-        </CurrentDateContext.Provider>
     );
 }

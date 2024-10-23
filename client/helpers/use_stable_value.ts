@@ -21,6 +21,7 @@ export function useStableValue<Value>(schema: Schema<Value>, value: Value): Memo
     // a package like `json-stable-stringify`.
     const valueString = useMemo(() => JSON.stringify(schema.serialize(value)), [schema, value]);
 
+    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const stableValue = useMemo(() => value, [valueString]);
 

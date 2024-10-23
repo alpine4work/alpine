@@ -16,7 +16,6 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
-    createContext,
     forwardRef,
     useCallback,
     useContext,
@@ -61,12 +60,13 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
+import {PeekStackContextDefinition} from "~/client/peek/internal/peek_stack_context_definition.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
-    PeekRemixEmbed,
     PeekRemixEmbedRouter,
     usePeekRemixEmbedRouter,
-} from "~/client/peek/peek_remix_embed.js";
+} from "~/client/peek/peek_remix_embed_router.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
@@ -279,12 +279,6 @@ const initialPeekStackState: PeekStackState = {
     wasLastInteractionOutside: true,
 };
 
-export type PeekStackContext = {
-    readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
-};
-
-const PeekStackContext = createContext<PeekStackContext | null>(null);
-
 export type PeekStackContextProviderRef = {
     readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
 };
@@ -478,7 +472,7 @@ function PeekStackContextProvider(
     useImperativeHandle(ref, () => ({push}), [push]);
 
     return (
-        <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
+        <PeekStackContextDefinition.Provider value={useMemo(() => ({push}), [push])}>
             <GlobalKeyDownEvent
                 onGlobalKeyDownBeforeChildren={event => {
                     // If the last interaction was inside the peek, then let the peek try to handle
@@ -610,29 +604,8 @@ function PeekStackContextProvider(
                     </GlobalKeyDownManualContextProvider>
                 )}
             </GlobalKeyDownEvent>
-        </PeekStackContext.Provider>
+        </PeekStackContextDefinition.Provider>
     );
-}
-
-const mockPeekStackContextForTest: PeekStackContext | null = import.meta.jest
-    ? {
-          push: () => {
-              throw new InternalError(
-                  "Can not push peeks in tests unless you render your component in `<PeekStackContext>`",
-              );
-          },
-      }
-    : null;
-
-export function usePeekStackContext(): PeekStackContext {
-    const peekStackContext = useContext(PeekStackContext);
-
-    // Provide a mock context implementation in unit tests so components don't throw.
-    if (import.meta.jest && mockPeekStackContextForTest) return mockPeekStackContextForTest;
-
-    assert(peekStackContext, "Must render in a `<PeekStackContext>` to use peeks");
-
-    return peekStackContext;
 }
 
 type PeekStackRef = {

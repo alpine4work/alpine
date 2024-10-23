@@ -16,16 +16,7 @@ import type {
     PointerEventHandlers,
     PointerSensorProps,
 } from "@dnd-kit/core/dist/sensors";
-import {
-    ReactElement,
-    ReactNode,
-    RefObject,
-    createContext,
-    useContext,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {ReactElement, ReactNode, RefObject, useContext, useMemo, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -42,6 +33,7 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
+import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
 import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -55,12 +47,6 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
-
-const TaskGridViewHasDndContext = createContext(false);
-
-export function useHasTaskGridViewDndContext() {
-    return useContext(TaskGridViewHasDndContext);
-}
 
 export type TaskGridViewDraggableData =
     | {

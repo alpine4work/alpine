@@ -5,11 +5,8 @@ import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
-import {
-    MessagingView,
-    MessagingViewRef,
-    getInitialLoadMessageCount,
-} from "~/client/messaging/messaging_view.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";

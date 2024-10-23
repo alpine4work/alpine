@@ -1,8 +1,8 @@
 import {Memo, Ref, RefObject, forwardRef} from "react";
 import {Box} from "~/client/design/box.js";
-import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useIsChildFocusRingVisible} from "~/client/design/use_is_focus_ring_visible.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {colorSchemeVars} from "~/client/styles/styles.js";
 import {

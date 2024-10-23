@@ -162,6 +162,7 @@ export function useDocumentContentEditorWebSocket(
         setClientState({
             type: "Exists",
             client: new DocumentContentEditorWebSocketClient(
+                // eslint-disable-next-line react-compiler/react-compiler
                 () => contextRef.current,
                 initialDocument.id,
                 getInitialDocumentContentEditorState(initialDocument),

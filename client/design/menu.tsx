@@ -1712,6 +1712,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         >
             <FocusRing isVisible={isFocusRingVisible} offset="0">
                 <Box
+                    // eslint-disable-next-line react-compiler/react-compiler
                     {...mergeProps(pressProps, {
                         onPointerEnter: (event: React.PointerEvent<HTMLDivElement>) => {
                             if (

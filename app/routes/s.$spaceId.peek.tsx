@@ -4,8 +4,8 @@ import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-rou
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
+import {usePeekContext} from "~/client/peek/peek_context.js";
 import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
-import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {SpinnerGap} from "phosphor-react";
 import {ReactElement, ReactNode, useCallback, useEffect, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";

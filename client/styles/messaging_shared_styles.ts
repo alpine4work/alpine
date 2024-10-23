@@ -84,3 +84,8 @@ export const messageInputMinHeight = mapObjectValues(
             spacing[messageInputPaddingY],
         ),
 );
+
+export const messagingViewMarginBottomCalcExpression =
+    "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
+
+export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcExpression})`;

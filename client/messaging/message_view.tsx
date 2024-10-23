@@ -115,10 +115,7 @@ const Box = null;
 /**
  * Should two messages merge together?
  */
-export function shouldMergeMessages(
-    message1: MessageModelBase,
-    message2: MessageModelBase,
-): boolean {
+function shouldMergeMessages(message1: MessageModelBase, message2: MessageModelBase): boolean {
     return (
         message1.author.id === message2.author.id &&
         Math.abs(differenceInMinutes(message1.createdTime, message2.createdTime)) <

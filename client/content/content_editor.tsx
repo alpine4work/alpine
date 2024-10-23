@@ -111,19 +111,17 @@ import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {
-    MobileFullScreenModal,
-    useIsBehindMobileFullScreenModal,
-} from "~/client/design/mobile_full_screen_modal.js";
+import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
     dispatchTriggeredOverlayCloseEvent,
     dispatchTriggeredOverlayOpenEvent,
-} from "~/client/design/overlay_trigger_button.js";
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {flushScrollbarResizeSync} from "~/client/design/scrollbar.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
@@ -621,6 +619,7 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     // Only preload space accounts outside of Jest unit tests! That way we don't
     // depend on space context in unit tests.
     if (!import.meta.jest) {
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useExpensivelyPreloadAllSpaceAccounts();
     }
@@ -4297,6 +4296,10 @@ const internalEditorViewKey = `__prosemirrorEditorView$${Math.random().toString(
 
 // We export null outside of Jest to avoid breaking fast refresh for
 // `<ContentEditor>`.
+//
+// Ok to export this since in development it's the constant `null` which won't
+// break hot reloading.
+// eslint-disable-next-line react-refresh/only-export-components
 export const getEditorViewForTest = import.meta.jest
     ? (element: unknown): EditorView => {
           assert(import.meta.jest);

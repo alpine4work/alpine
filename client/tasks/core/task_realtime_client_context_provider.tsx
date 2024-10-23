@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {useLoaderData} from "@remix-run/react";
 import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";

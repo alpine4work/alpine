@@ -48,11 +48,7 @@ import {
     VirtualizedScrollViewStateRenderItemProps,
     getVirtualizationWindowHeight,
 } from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {
-    RemLength,
-    convertRemLengthToPx,
-    getRemPxFromWindowWidth,
-} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -65,7 +61,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {ClientInfo} from "~/shared/remix/client_info.js";
 
 // NOTE(calebmer, 2023-02-17): An observation I've had after working on
 // scrolling for a while is it is better to have a scroll animation that drops
@@ -91,31 +86,6 @@ import {ClientInfo} from "~/shared/remix/client_info.js";
 //
 // [1]: https://engineering.monday.com/our-journey-to-understand-scrolling-across-different-browsers/
 // [2]: https://engineering.salesforce.com/native-scrolling-in-salesforce-mobile-app-4f334b6ad96e/
-
-/**
- * How many items will the virtualized scroll view initially render assuming
- * every item has the same minimum height? This function is used to determine
- * how much data we need to load on the server to fill the screen.
- */
-export function getInitialVirtualizedScrollViewRenderedItemCount(
-    clientInfo: ClientInfo,
-    minItemHeight: number | RemLength,
-) {
-    const maxRenderedHeight =
-        getVirtualizationWindowHeight(clientInfo.screenHeight) *
-        // Load a bit more data than's necessary to fill the initial virtualization
-        // window height. Since if an item is removed (e.g. you mark an entry as done
-        // in inbox) we don't want to immediately go load more.
-        1.05;
-
-    const remPx = getRemPxFromWindowWidth(clientInfo.screenWidth);
-    const minItemHeightPx =
-        typeof minItemHeight === "string"
-            ? convertRemLengthToPx(minItemHeight, remPx)
-            : minItemHeight;
-
-    return Math.ceil(maxRenderedHeight / minItemHeightPx);
-}
 
 type VirtualizedScrollViewItemBase = {
     /**

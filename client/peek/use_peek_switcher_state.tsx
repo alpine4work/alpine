@@ -4,7 +4,10 @@ import {Key, Memo, useEffect, useRef} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
-import {PeekRemixEmbedRouter, usePeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed.js";
+import {
+    PeekRemixEmbedRouter,
+    usePeekRemixEmbedRouter,
+} from "~/client/peek/peek_remix_embed_router.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";

@@ -18,7 +18,7 @@ import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overla
 import {
     getInboxEntryDisplay,
     renderInboxEntryDisplaySummary,
-} from "~/client/inbox/inbox_entry_display.js";
+} from "~/client/inbox/internal/inbox_entry_display.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";

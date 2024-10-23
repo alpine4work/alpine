@@ -13,7 +13,7 @@ import {
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {NavigationBarResult} from "~/client/design/navigation_bar.js";
+import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -29,11 +29,7 @@ import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
-import {
-    messagingViewMarginBottom,
-    messagingViewMarginBottomCalcExpression,
-    renderMessageListItem,
-} from "~/client/messaging/messaging_view.js";
+import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -44,7 +40,11 @@ import {
     documentCommentThreadHeaderPaddingY,
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
-import {messageInputMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {
+    messageInputMinHeight,
+    messagingViewMarginBottom,
+    messagingViewMarginBottomCalcExpression,
+} from "~/client/styles/messaging_shared_styles.js";
 import {
     documentCommentThreadsStyles,
     inputPlaceholderStyles,

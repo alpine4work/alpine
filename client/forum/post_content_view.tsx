@@ -13,14 +13,14 @@ import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -683,40 +683,4 @@ export function PostContentViewEditingActions({
             </IconButton>
         </Box>
     );
-}
-
-export function getPostMoreActions({
-    currentAccount,
-    post,
-    onStartEditingPost,
-}: {
-    currentAccount: AccountModel;
-    post: PostModel;
-    onStartEditingPost: () => void;
-}) {
-    return [
-        [
-            {
-                label: "Copy link",
-                pressErrorTitle: "Couldn’t copy post link",
-                onPress: async () => {
-                    const url = new URL(
-                        `/s/${post.spaceId}/posts/${post.id}`,
-                        window.location.href,
-                    );
-                    await writeTextToClipboard(url.toString());
-                },
-            },
-        ],
-        ...(currentAccount.id === post.author.id
-            ? [
-                  [
-                      {
-                          label: "Edit",
-                          onPress: onStartEditingPost,
-                      },
-                  ],
-              ]
-            : []),
-    ];
 }

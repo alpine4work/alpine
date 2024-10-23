@@ -71,6 +71,8 @@ const mobileTaskDateInputFooterHeight = addRemLengths(
     spacing[taskDateInputFooterPaddingY.mobile],
 );
 
+// Ok since this exports a string constant.
+// eslint-disable-next-line react-refresh/only-export-components
 export const mobileTaskDateInputCalendarHeight = addRemLengths(
     spacing[taskDateInputCalendarPadding.mobile],
     spacing[taskDateInputCalendarHeaderHeight.mobile],
@@ -81,6 +83,8 @@ export const mobileTaskDateInputCalendarHeight = addRemLengths(
     mobileTaskDateInputFooterHeight,
 );
 
+// Ok since this exports a string constant.
+// eslint-disable-next-line react-refresh/only-export-components
 export const desktopTaskDateInputCalendarHeight = addRemLengths(
     spacing[taskDateInputCalendarPadding.desktop],
     spacing[taskDateInputCalendarHeaderHeight.desktop],

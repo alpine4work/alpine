@@ -3,6 +3,7 @@ import {createPath} from "@remix-run/router";
 import {Fragment, useEffect, useRef} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
 import {Link} from "~/client/design/link.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -12,11 +13,6 @@ import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-
-// The same default error message is copied in
-// `WebNavigationController.swift`'s `showUnhealthyAlert()` function. If we
-// update the message here, we should update it there as well.
-export const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred, please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
 
 const isBrowserRuntime = typeof window !== "undefined";
 
@@ -88,6 +84,7 @@ export function ErrorDisplayMessageRenderer({
             (reportingContext ?? context).react.reportRenderedError(errorToReportRef.current.error);
         }
     } else {
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useEffect(() => {
             // If the error prop changed, then we need to log it again.

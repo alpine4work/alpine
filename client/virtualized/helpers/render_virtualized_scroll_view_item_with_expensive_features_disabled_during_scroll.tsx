@@ -24,6 +24,7 @@ export function renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuri
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function VirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll({
     props: {ref, offset, minHeight, shouldRenderWithRelativePositioning, isScrolling},
     render,

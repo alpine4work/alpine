@@ -45,6 +45,7 @@ export function useReporter(): Reporter {
     // We only return early in unit tests. So we're ok with breaking the rules of
     // hooks here.
     //
+    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const context = useAppContext();
 

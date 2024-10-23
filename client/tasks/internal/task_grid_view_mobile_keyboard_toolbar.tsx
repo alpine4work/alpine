@@ -16,7 +16,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     useRegisterBottomBarMobileKeyboardToolbarFrame,

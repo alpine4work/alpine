@@ -20,7 +20,7 @@ test("every space route has a shimmer in `client/shimmer/route_shimmer.tsx`", as
     // Sanity check: Make sure we found some routes.
     expect(spaceRouteIds.length).toBeGreaterThan(0);
 
-    expect(spaceRouteIds.sort()).toEqual(getRouteIdsWithDefinedShimmerForTest().sort());
+    expect(spaceRouteIds.sort()).toEqual(getRouteIdsWithDefinedShimmerForTest!().sort());
 });
 
 test("every space route has an error title in `client/spaces/route_error_title.ts`", async () => {

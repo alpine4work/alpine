@@ -4,6 +4,7 @@ import {Color, colors} from "~/shared/design/core/colors.js";
 import {FontSize, createFontStyles, fontSizesByPlatform} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/core/spacing.js";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const emailFontStyles = createFontStyles({
     interFontFamily: "Inter, Arial, sans-serif",
     commitMonoFontFamily: "monospace",

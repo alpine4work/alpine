@@ -6,7 +6,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
-import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
+import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";

@@ -11,22 +11,22 @@ import {
 import {mergeProps, useHover, usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {FocusRing, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
-import {
-    InputWithAutoGrowingWidth,
-    useInputWithAutoGrowingWidthSafeSpacerElement,
-} from "~/client/design/input_with_auto_growing_width.js";
+import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {useInputWithAutoGrowingWidthSafeSpacerElement} from "~/client/design/use_input_with_auto_growing_width_safe_spacer_element.js";
+import {useIsFocusRingVisible} from "~/client/design/use_is_focus_ring_visible.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {newTaskCollectionNamePlaceholder} from "~/client/styles/tasks_shared_styles.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
@@ -36,8 +36,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-
-export const newTaskCollectionNamePlaceholder = "New collection";
 
 export type TaskCollectionViewDesktopHeaderNameRef = {
     editName(): void;

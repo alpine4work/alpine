@@ -5,7 +5,8 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ChannelDesktopCreator} from "~/client/forum/channel_desktop_creator.js";
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
-import {ChannelView, newChannelNamePlaceholder} from "~/client/forum/channel_view.js";
+import {ChannelView} from "~/client/forum/channel_view.js";
+import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeholder.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -14,7 +15,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {
     authorizeChannelAccess,
     createChannel,

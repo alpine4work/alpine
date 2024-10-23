@@ -12,7 +12,10 @@ import {
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
-import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {
+    ContentFileViewerLoaderData,
+    hammerModulePromise,
+} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
@@ -38,7 +41,6 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
@@ -170,10 +172,6 @@ export function ContentFileImageViewerMobile({
         />
     );
 }
-
-// Must import `hammerjs` lazily since it references `window` so it's not
-// available on the server.
-export const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(import("hammerjs")));
 
 class ContentFileImageMobileViewerTransformState {
     public static readonly minZoomScale = 1;
@@ -547,6 +545,7 @@ function ContentFileImageMobileViewerInner({
         const imageContentElement = loaderDataResult.value.image;
         if (!imageContentElement) return;
 
+        // eslint-disable-next-line react-compiler/react-compiler
         imageContentElement.className = contentStyles.fileImagePreviewContentClassName;
 
         // Re-enable `-webkit-touch-callout` for this preview image. So the user can

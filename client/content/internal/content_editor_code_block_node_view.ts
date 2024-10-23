@@ -9,7 +9,7 @@ import {
     addTriggeredOverlayOpenEventListener,
     removeTriggeredOverlayCloseEventListener,
     removeTriggeredOverlayOpenEventListener,
-} from "~/client/design/overlay_trigger_button.js";
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";

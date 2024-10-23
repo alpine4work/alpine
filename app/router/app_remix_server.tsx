@@ -40,6 +40,8 @@ export function AppRemixServer({
     // render the fallback on the server so we clear our the `loaderData` during SSR.
     // Is it important not to change the `context` reference here since we use it
     // for context._deepestRenderedBoundaryId tracking
+    //
+    // eslint-disable-next-line react-compiler/react-compiler
     context.staticHandlerContext.loaderData = {
         ...context.staticHandlerContext.loaderData,
     };

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {flushSync} from "react-dom";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";

@@ -17,20 +17,17 @@ import {
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {
     desktopNavigationBarHeight,
     mobileNavigationBarHeight,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
+import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {
-    ChannelViewHeader,
-    channelViewHeaderMinHeight,
-} from "~/client/forum/internal/channel_view_header.js";
+import {ChannelViewHeader} from "~/client/forum/internal/channel_view_header.js";
 import {
     PostCommentInput,
     PostRealtimeProcedures,
@@ -47,6 +44,7 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
@@ -55,15 +53,12 @@ import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
 } from "~/client/messaging/messaging_typing_indicators.js";
-import {
-    getInitialLoadMessageCount,
-    messagingViewMarginBottom,
-} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
+    channelViewHeaderMinHeight,
     desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
@@ -75,6 +70,7 @@ import {
     messageInputMinHeight,
     messageViewMinHeight,
     messageViewTimestampDividerMarginTop,
+    messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,

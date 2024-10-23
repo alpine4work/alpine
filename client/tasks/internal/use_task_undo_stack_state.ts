@@ -69,6 +69,7 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     useEffect(() => {
         return () => {
             for (const entry of undoState.undoStackRef.current) entry.release();
+            // eslint-disable-next-line react-compiler/react-compiler
             undoState.undoStackRef.current = [];
 
             for (const entry of undoState.redoStackRef.current) entry.release();

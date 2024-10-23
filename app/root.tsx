@@ -23,17 +23,15 @@ import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {MobileFullScreenModalContextProvider} from "~/client/design/mobile_full_screen_modal.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {ReporterContextProvider} from "~/client/design/reporter_context_provider.js";
-import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
-import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
-import {
-    ColorSchemeManager,
-    getColorSchemeWithoutListeningIfBrowser,
-} from "~/client/helpers/color_scheme.js";
+import {TooltipCoordinationContextProvider} from "~/client/design/tooltip_coordination_context_provider.js";
+import {getColorSchemeWithoutListeningIfBrowser} from "~/client/helpers/color_scheme.js";
+import {ColorSchemeManager} from "~/client/helpers/color_scheme_manager.js";
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -41,9 +39,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useClientInfoContextProvider} from "~/client/remix/client_info_context.js";
+import {CurrentTimeContextProvider} from "~/client/remix/current_time_context_provider.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";

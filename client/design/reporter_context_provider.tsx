@@ -346,6 +346,7 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 
     const reporter: ReporterWithoutContext = useMemo(() => {
         const reporter: ReporterWithoutContext = {
+            // eslint-disable-next-line react-compiler/react-compiler
             cache: new DefaultWeakMap<AppContext, Reporter>(context => {
                 const newReporter = {
                     showDialog: reporter.showDialog.bind(undefined, context),

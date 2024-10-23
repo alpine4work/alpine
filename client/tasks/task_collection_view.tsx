@@ -36,6 +36,7 @@ import {
     TaskClientStoreSearchAffinityManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
+import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/internal/create_task_query_view_read_only_reason_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
     TaskCollectionViewDesktopHeader,
@@ -46,10 +47,10 @@ import {
     TaskCollectionViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
 import {
-    TaskGridViewVirtualizedListViewRef,
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -60,7 +61,6 @@ import {
 } from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskCollectionMobileEditor} from "~/client/tasks/task_collection_mobile_editor.js";
-import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
@@ -93,8 +93,6 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort, serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
-
-export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_desktop_header_name.js";
 
 export function TaskCollectionView({
     withMobileLayout: withMobileLayoutProp,
@@ -371,6 +369,8 @@ export function TaskCollectionView({
             //
             // Also, the color and name are not focusable. So the only way to edit
             // name/color via keyboard are these menu items.
+            //
+            // eslint-disable-next-line react-compiler/react-compiler
             menuActions.push([
                 {
                     label: "Edit name",
@@ -460,6 +460,7 @@ export function TaskCollectionView({
             ]);
 
             if (withMobileLayout) {
+                // eslint-disable-next-line react-compiler/react-compiler
                 menuActions.push([
                     {
                         label: "Add filter",

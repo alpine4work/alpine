@@ -276,6 +276,8 @@ def ts_lint_and_format_test(
                 "//:node_modules/eslint-plugin-jest",
                 "//:node_modules/eslint-plugin-jest-dom",
                 "//:node_modules/eslint-plugin-playwright",
+                "//:node_modules/eslint-plugin-react-compiler",
+                "//:node_modules/eslint-plugin-react-refresh",
                 "//:node_modules/eslint-plugin-testing-library",
                 "//:node_modules/react",
                 "//:node_modules/typescript",
