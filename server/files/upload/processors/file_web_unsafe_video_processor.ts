@@ -11,7 +11,7 @@ import {
     ffmpegExecutablePath,
     ffmpegImagePreviewContentOutputContentType,
     ffmpegImagePreviewContentOutputExtension,
-    ffmpegImagePreviewContentOutputOptions,
+    getFfmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
@@ -83,9 +83,19 @@ export function createFileWebUnsafeVideoProcessor(
                     parentTemporaryDirectoryPath,
                     `${fileId}_`,
                     async temporaryDirectoryPath => {
-                        const outputPath = joinPath(
+                        const output1Path = joinPath(
                             temporaryDirectoryPath,
-                            `output.${ffmpegImagePreviewContentOutputExtension}`,
+                            `output1.${ffmpegImagePreviewContentOutputExtension}`,
+                        );
+
+                        const output2Path = joinPath(
+                            temporaryDirectoryPath,
+                            `output2.${ffmpegImagePreviewContentOutputExtension}`,
+                        );
+
+                        const output3Path = joinPath(
+                            temporaryDirectoryPath,
+                            `output3.${ffmpegImagePreviewContentOutputExtension}`,
                         );
 
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
@@ -123,12 +133,16 @@ export function createFileWebUnsafeVideoProcessor(
                                 // in `FileUploadService`.
                                 "-threads",
                                 "2",
-                                // Capture a thumbnail from the first second of the video.
-                                ...ffmpegImagePreviewContentOutputOptions,
+                                // Capture thumbnails from the beginning of the video.
+                                //
                                 // We must output to a file. We can't output to stdout when taking a screenshot
                                 // or else we get the error "[avif] muxer does not support non seekable
                                 // output".
-                                outputPath,
+                                ...getFfmpegImagePreviewContentOutputOptions({
+                                    output1Path,
+                                    output2Path,
+                                    output3Path,
+                                }),
                             ],
                             {
                                 cwd: runfilesPath,
@@ -297,6 +311,30 @@ export function createFileWebUnsafeVideoProcessor(
                                     }
                                 });
 
+                                // Determine which thumbnail to use. If the second thumbnail (taken at 1s) is
+                                // empty then we need to use the third thumbnail (taken at 0s). If the first
+                                // thumbnail (taken at 10s) is empty but not the second thumbnail then we'll
+                                // use the second thumbnail (taken at 1s).
+                                //
+                                // This way if a video is longer than 10s we'll use the 10s thumbnail.
+                                // Otherwise we'll use the 1s thumbnail.
+                                let outputData;
+                                if (
+                                    /(?:^|\n)\[out#1\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
+                                        previewContentStderr,
+                                    )
+                                ) {
+                                    outputData = await fs.readFile(output3Path);
+                                } else if (
+                                    /(?:^|\n)\[out#0\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
+                                        previewContentStderr,
+                                    )
+                                ) {
+                                    outputData = await fs.readFile(output2Path);
+                                } else {
+                                    outputData = await fs.readFile(output1Path);
+                                }
+
                                 previewContentPromiseResolver.resolve({
                                     contentType: ffmpegImagePreviewContentOutputContentType,
                                     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
@@ -306,7 +344,7 @@ export function createFileWebUnsafeVideoProcessor(
                                     //
                                     // Reading the file into memory also allows our temporary directory to be
                                     // cleaned up.
-                                    data: await fs.readFile(outputPath),
+                                    data: outputData,
                                 });
                             })(),
                             span.withSpan("FFmpeg transcode video alternative", async span => {

@@ -71,6 +71,25 @@ const testCases: {
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
             },
         },
+        {
+            path: "blender_big_buck_bunny.webm",
+            imagePreviewVideoDuration: 15030,
+            imagePreviewSize: {
+                width: 100,
+                height: 56,
+                scale: 1,
+                hasAlpha: true,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "/9zd/93d/dze/ujd/+nh6eLY0eTMjamKhp9v/9zU/9vS/9vU/+HX/+3fm6OaeZ9yfZFleIhW7tDS3s3V08raytDJhKR2RGZnVWJeX3ZMW2tJlL5Ql8JNoMNdhLBpVXxDSGlDRlw7TGYzPFIqoa0LkakAmawAmKcNlKoAhqIAhp4OfJQHb4oA",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "blender_big_buck_bunny.avif",
+            },
+        },
     ],
     "video/quicktime": [
         {
@@ -189,6 +208,28 @@ const testCases: {
             imagePreviewContent: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "blender_big_buck_bunny.mkv",
+            alternative: {
+                contentType: "video/webm",
+                similarPath: "blender_big_buck_bunny.webm",
+            },
+            imagePreviewVideoDuration: 15000,
+            imagePreviewSize: {
+                width: 100,
+                height: 56,
+                scale: 1,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "/9zd/93d/dze/ujd/+nh6eLY0eTMjamKhp9v/9zU/9vS/9vU/+HX/+3fm6OaeZ9yfZFleIhW7tDS3s3V08raytDJhKR2RGZnVWJeX3ZMW2tJlL5Ql8JNoMNdhLBpVXxDSGlDRlw7TGYzPFIqoa0LkakAmawAmKcNlKoAhqIAhp4OfJQHb4oA",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "blender_big_buck_bunny.avif",
             },
         },
     ],
@@ -315,6 +356,24 @@ const testCases: {
             imagePreviewContent: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "blender_big_buck_bunny.mp4",
+            imagePreviewVideoDuration: 15000,
+            imagePreviewSize: {
+                width: 100,
+                height: 56,
+                scale: 1,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "/9zd/93d/dze/ujd/+nh6eLY0eTMjamKhp9v/9zU/9vS/9vU/+HX/+3fm6OaeZ9yfZFleIhW7tDS3s3V08raytDJhKR2RGZnVWJeX3ZMW2tJlL5Ql8JNoMNdhLBpVXxDSGlDRlw7TGYzPFIqoa0LkakAmawAmKcNlKoAhqIAhp4OfJQHb4oA",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "blender_big_buck_bunny.avif",
             },
         },
     ],

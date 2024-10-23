@@ -10,15 +10,7 @@ export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/
 export const ffmpegImagePreviewContentOutputExtension = "avif";
 export const ffmpegImagePreviewContentOutputContentType: FileContentType = "image/avif";
 
-/**
- * Options to generate a thumbnail. Should go after any inputs. After these
- * options you need to provide an output path. The output path should use the
- * file extension `ffmpegThumbnailOutputExtension`.
- */
-export const ffmpegImagePreviewContentOutputOptions = [
-    // Take our screenshot at the first second of the video.
-    "-ss",
-    "00:00:01.000",
+const ffmpegImagePreviewContentOutputOptionsBase = [
     // Only get one frame from the video.
     "-frames:v",
     "1",
@@ -39,6 +31,47 @@ export const ffmpegImagePreviewContentOutputOptions = [
     // https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality
     "-crf",
     "10",
+];
+
+/**
+ * Options to generate a thumbnail. Should go after any inputs. After these
+ * options you need to provide an output path. The output path should use the
+ * file extension `ffmpegThumbnailOutputExtension`.
+ */
+export const getFfmpegImagePreviewContentOutputOptions = ({
+    output1Path,
+    output2Path,
+    output3Path,
+}: {
+    output1Path: string;
+    output2Path: string;
+    output3Path: string;
+}) => [
+    // Take our screenshot at 10s into the video. At 10s we're most likely to get
+    // an interesting frame. The first second may be transitioning in. The optimal
+    // solution is to capture a couple images and use a machine learning model to
+    // pick the best one. [A 2015 blog post from YouTube describing there
+    // technique][1].
+    //
+    // [1]: https://research.google/blog/improving-youtube-video-thumbnails-with-deep-neural-nets
+    "-ss",
+    "00:00:10.000",
+    ...ffmpegImagePreviewContentOutputOptionsBase,
+    output1Path,
+
+    // If the video is less than 10s long then try taking a screenshot at 1s
+    // instead.
+    "-ss",
+    "00:00:01.000",
+    ...ffmpegImagePreviewContentOutputOptionsBase,
+    output2Path,
+
+    // If the video is less than 1s long then try taking a screenshot at the very
+    // beginning.
+    "-ss",
+    "00:00:00.000",
+    ...ffmpegImagePreviewContentOutputOptionsBase,
+    output3Path,
 ];
 
 /**
