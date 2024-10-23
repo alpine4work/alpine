@@ -27,7 +27,7 @@ import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_co
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {MobileFullScreenModalContextProvider} from "~/client/design/mobile_full_screen_modal.js";
-import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {ReporterContextProvider} from "~/client/design/reporter_context_provider.js";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip_coordination_context_provider.js";
 import {getColorSchemeWithoutListeningIfBrowser} from "~/client/helpers/color_scheme.js";

@@ -42,7 +42,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     trackNavigationAnimationFinish,

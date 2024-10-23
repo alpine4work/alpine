@@ -38,7 +38,7 @@ import {
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";

@@ -14,7 +14,7 @@ import {
     navigationBarDoneButtonActionWidth,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ShareButton} from "~/client/design/share_button.js";

@@ -21,7 +21,7 @@ import {
     unstable_scheduleCallback,
 } from "scheduler";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     ScrollbarInset,
     ScrollbarInsetDynamic,

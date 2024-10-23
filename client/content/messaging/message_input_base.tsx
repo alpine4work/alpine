@@ -35,7 +35,7 @@ import {
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {
     useRegisterBottomBarFrame,

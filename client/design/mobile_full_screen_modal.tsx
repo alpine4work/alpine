@@ -14,8 +14,8 @@ import {createPortal} from "react-dom";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModalContext} from "~/client/design/internal/modal_full_screen_modal_context.js";
-import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
+import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     trackNavigationAnimationFinish,
     trackNavigationAnimationStart,

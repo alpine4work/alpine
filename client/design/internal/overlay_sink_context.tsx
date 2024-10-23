@@ -1,5 +1,8 @@
-import {createContext} from "react";
-import {sprinkles} from "~/client/styles/styles.js";
+/* eslint-disable react-refresh/only-export-components */
+
+import {RefObject, createContext} from "react";
+import {Box} from "~/client/design/box.js";
+import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
 
 export type OverlaySinkContext = {
@@ -60,3 +63,25 @@ export const overlaySinkContextForTest = import.meta.jest
           };
       })()
     : null;
+
+export function renderOverlayPortal(
+    ref: RefObject<HTMLDivElement>,
+    zIndex: Sprinkles["zIndex"] = "50",
+) {
+    return (
+        <Box
+            ref={ref}
+            position="absolute"
+            top="0"
+            left="0"
+            right="0"
+            // The overlay portal element has a height of 0 because when you use it in a
+            // nested scroll view we don't want the overlay height to extend from the top
+            // to the bottom of the nested scroll view which is not the scroll view's
+            // content height.
+            height="0"
+            // Render above anything on the page.
+            zIndex={zIndex}
+        />
+    );
+}

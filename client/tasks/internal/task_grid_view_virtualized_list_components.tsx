@@ -18,7 +18,7 @@ import {
 import * as Y from "yjs";
 import {AppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";

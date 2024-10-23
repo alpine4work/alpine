@@ -9,7 +9,7 @@ import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";

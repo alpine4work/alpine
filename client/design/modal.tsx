@@ -5,8 +5,8 @@ import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     GlobalKeyDownEvent,
     GlobalKeyDownEventModal,

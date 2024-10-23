@@ -12,7 +12,7 @@ import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
