@@ -229,6 +229,9 @@ export class ContentFilePreviewExpirationTimers {
     }
 }
 
+const transparentImageDataUrl =
+    "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
+
 const spinnerGapIconClassName = `${spinAnimationClassName} ${sprinkles({
     width: "6",
     height: "6",
@@ -396,6 +399,8 @@ export function renderContentFilePreview(
                 backgroundColor: "grey-5",
             }),
         );
+
+        appendImageHtmlForSelection(blankHtml, isMobile);
     } else if (!reference.file.preview) {
         const containerHtml = new HtmlElementGenerator("div");
         html.appendChild(containerHtml);
@@ -432,6 +437,8 @@ export function renderContentFilePreview(
 
         processingHtml.appendChild(fileDottedIconHtmlGenerator);
         processingHtml.appendChild(new HtmlTextGenerator("Unknown file"));
+
+        appendImageHtmlForSelection(containerHtml, isMobile);
     } else {
         switch (reference.file.preview.type) {
             case "Image": {
@@ -466,6 +473,36 @@ export function renderContentFilePreview(
     }
 
     return html;
+}
+
+/**
+ * We add a transparent, invisible, image with `user-select: text` so that the
+ * browser renders a selection highlight over the image when it's selected.
+ * Since browsers like Chrome will render selection highlights over images.
+ *
+ * We don't add this image on mobile since Safari does weird things with a
+ * selectable image in `contenteditable="true"`. This is consistent with our
+ * `user-select` style for `fileImagePreviewContentClassName`.
+ */
+function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, isMobile: boolean) {
+    if (isMobile) return;
+
+    const imageHtmlForSelection = new HtmlElementGenerator("img");
+    containerHtml.appendChild(imageHtmlForSelection);
+    imageHtmlForSelection.setAttribute("aria-hidden", "true");
+    imageHtmlForSelection.setAttribute("src", transparentImageDataUrl);
+    imageHtmlForSelection.setAttribute(
+        "class",
+        sprinkles({
+            position: "absolute",
+            inset: "0",
+            width: "full",
+            height: "full",
+            userSelect: "text",
+            // `z-index` needs to render over code block line numbers.
+            zIndex: "20",
+        }),
+    );
 }
 
 function renderContentFileImagePreview(
@@ -823,6 +860,8 @@ function renderContentFileCodePreview({
     // to add this: Scale down a code preview by adding another file to its file
     // row. Then add a comment to the code preview.
     html.setAttribute("style", `height: ${layout.height}px`);
+
+    appendImageHtmlForSelection(html, isMobile);
 
     if (filePreview.content === "Processing") {
         const containerHtml = new HtmlElementGenerator("div");
