@@ -8,6 +8,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {
     DynamoTableItemKeyType,
     DynamoTableItemType,
@@ -478,7 +479,14 @@ export async function startUploadingAndProcessingFile(
 
         // We allow one file to be uploaded beyond the space's max content length. This
         // allows us to say "you've reached your limit" in our error message.
-        if (fileTotalsItem.contentLength > maxFileTotalContentLengthForSpace) {
+        //
+        // If we're in the default development space then we'll allow infinite file
+        // uploads so developers can test file uploads without limits.
+        if (
+            (process.env.NODE_ENV !== "development" ||
+                spaceId !== getDynamoSeedConstants().defaultSpaceId) &&
+            fileTotalsItem.contentLength > maxFileTotalContentLengthForSpace
+        ) {
             throw new InvalidArgumentError(
                 `Uploading files beyond our ${prettyBytes(
                     maxFileTotalContentLengthForSpace,
