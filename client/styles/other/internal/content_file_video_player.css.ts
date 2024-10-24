@@ -288,17 +288,20 @@ export const scrubberThumbTargetClassName = style({
             backgroundColor: colorSchemeVars["grey-5"],
         },
         [`${containerClassName}${draggingScrubberThumbClassName} &`]: {
-            backgroundColor: colorSchemeVars["grey-10"],
+            // Don't switch background color to `grey-10` while dragging since that's the
+            // color of our track.
+            backgroundColor: colorSchemeVars["grey-5"],
         },
     },
 });
 
 export const scrubberTrackClassName = style({
+    zIndex: "0",
     position: "absolute",
     top: "calc(50% - 2px)",
     width: "100%",
     height: "4px",
-    backgroundColor: colorSchemeVars["grey-20"],
+    backgroundColor: colorSchemeVars["grey-10"],
     borderRadius: borderRadius["full"],
     overflow: "hidden",
     // Don't interfere with thumb pointer events.
@@ -306,10 +309,26 @@ export const scrubberTrackClassName = style({
 });
 
 export const scrubberTrackProgressClassName = style({
+    zIndex: "20",
     position: "absolute",
     inset: "0",
     backgroundColor: colorSchemeVars["theme-40"],
     transformOrigin: "left",
+});
+
+export const scrubberTrackBufferedClassName = style({
+    zIndex: "10",
+    position: "absolute",
+    inset: "0",
+    backgroundColor: colorSchemeVars["grey-20"],
+    transformOrigin: "left",
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            // In the dark elevated color scheme, `grey-20` doesn't look different enough
+            // from `grey-10`.
+            backgroundColor: colorSchemeVars["grey-30"],
+        },
+    },
 });
 
 export const fullscreenButtonClassName = style({

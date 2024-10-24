@@ -197,6 +197,15 @@ export function renderContentFileVideoPlayer(
                             contentFileVideoPlayerStyles.scrubberTrackProgressClassName,
                         );
                     }
+
+                    {
+                        const scrubberTrackBufferedHtml = new HtmlElementGenerator("div");
+                        scrubberTrackHtml.appendChild(scrubberTrackBufferedHtml);
+                        scrubberTrackBufferedHtml.setAttribute(
+                            "class",
+                            contentFileVideoPlayerStyles.scrubberTrackBufferedClassName,
+                        );
+                    }
                 }
             }
         }
@@ -297,6 +306,12 @@ export function addContentFileVideoPlayerBehavior(
     const scrubberTrackProgressElement = assertExists(
         containerElement.getElementsByClassName(
             contentFileVideoPlayerStyles.scrubberTrackProgressClassName,
+        )[0],
+    ) as HTMLDivElement;
+
+    const scrubberTrackBufferedElement = assertExists(
+        containerElement.getElementsByClassName(
+            contentFileVideoPlayerStyles.scrubberTrackBufferedClassName,
         )[0],
     ) as HTMLDivElement;
 
@@ -576,6 +591,46 @@ export function addContentFileVideoPlayerBehavior(
         scrubberThumbTargetElement.style.transform = transform;
 
         scrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+
+        {
+            const progressTime = (durationMs * progress) / 1000;
+
+            let hasBufferedTimeRange = false;
+
+            // `videoElement.buffered` is a [normalized `TimeRanges` object][1] which
+            // means:
+            //
+            // > The ranges in such an object are ordered, don't overlap, and don't touch
+            // > (adjacent ranges are folded into one bigger range). A range can be empty
+            // > (referencing just a single moment in time).
+            //
+            // [1]: https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges#normalized_timeranges_objects
+            for (let i = 0; i < videoElement.buffered.length; i++) {
+                const bufferedTimeRangeStartTime = videoElement.buffered.start(i);
+                const bufferedTimeRangeEndTime = videoElement.buffered.end(i);
+
+                // There won't be any relevant buffered time ranges after this because all
+                // further time ranges in this array will be greater than `progressTime`.
+                if (progressTime < bufferedTimeRangeStartTime) {
+                    break;
+                }
+
+                if (
+                    bufferedTimeRangeStartTime <= progressTime &&
+                    progressTime <= bufferedTimeRangeEndTime
+                ) {
+                    hasBufferedTimeRange = true;
+                    const bufferedProgress = (bufferedTimeRangeEndTime * 1000) / durationMs;
+                    scrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+                    break;
+                }
+            }
+
+            if (!hasBufferedTimeRange) {
+                const bufferedProgress = 0;
+                scrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+            }
+        }
     };
 
     let playingAnimationState: {
@@ -805,15 +860,7 @@ export function addContentFileVideoPlayerBehavior(
     \* ========================================================================== */
 
     {
-        const handleTimeUpdate = () => {
-            // We can't edit DOM nodes since that'll interfere with
-            // `HtmlElementGenerator.patchNode()` so instead we update the `data-time`
-            // attribute and render it with CSS.
-            durationProgressCurrentElement.setAttribute(
-                "data-time",
-                formatDurationString(videoElement.currentTime * 1000, durationMs),
-            );
-
+        const maybeUpdateScrubberProgress = () => {
             // If our `requestAnimationFrame()` loop is not running then update the
             // scrubber position on every `timeupdate` event.
             //
@@ -825,25 +872,37 @@ export function addContentFileVideoPlayerBehavior(
             }
         };
 
+        const handleTimeUpdate = () => {
+            // We can't edit DOM nodes since that'll interfere with
+            // `HtmlElementGenerator.patchNode()` so instead we update the `data-time`
+            // attribute and render it with CSS.
+            durationProgressCurrentElement.setAttribute(
+                "data-time",
+                formatDurationString(videoElement.currentTime * 1000, durationMs),
+            );
+
+            maybeUpdateScrubberProgress();
+        };
+
+        // We listen to the `progress` event to update the buffered segment of our
+        // track. As more data loads more data may be buffered.
+        const handleProgress = () => {
+            maybeUpdateScrubberProgress();
+        };
+
         const handleScrubberResize = () => {
-            // If our `requestAnimationFrame()` loop is not running then update the
-            // scrubber position whenever the scrubber resizes.
-            //
-            // If we're dragging then we position the scrubber based on the user's current
-            // drag position. Not based on the video's actual time.
-            if (playingAnimationState === null && scrubberThumbDragState === null) {
-                const progress = (videoElement.currentTime * 1000) / durationMs;
-                updateScrubberProgress(progress);
-            }
+            maybeUpdateScrubberProgress();
         };
 
         handleTimeUpdate();
 
         videoElement.addEventListener("timeupdate", handleTimeUpdate);
+        videoElement.addEventListener("progress", handleProgress);
         addResizeListenerForElement(scrubberElement, handleScrubberResize);
 
         cleanupFunctions.push(() => {
             videoElement.removeEventListener("timeupdate", handleTimeUpdate);
+            videoElement.removeEventListener("progress", handleProgress);
             removeResizeListenerForElement(scrubberElement, handleScrubberResize);
         });
     }
