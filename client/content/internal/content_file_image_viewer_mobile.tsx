@@ -15,6 +15,7 @@ import {
 import {
     ContentFileViewerLoaderData,
     hammerModulePromise,
+    maxContentFileImageViewerMobilePreviewSize,
 } from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     ContentFilePreviewExpirationTimers,
@@ -43,13 +44,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-
-/**
- * The maximum number of pixels in a preview image we'll render on mobile. If
- * `preview.width * preview.height` is greater than this we won't render the
- * image.
- */
-export const maxContentFileImageViewerMobilePreviewSize = 35e6;
 
 export function ContentFileImageViewerMobile({
     file,
@@ -105,7 +99,7 @@ export function ContentFileImageViewerMobile({
                         size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.mobile]}
                         weight={contentFileViewerLargeProcessingIndicatorWeight.mobile}
                     />
-                    Processing
+                    Processing image
                 </Box>
             </Box>
         );

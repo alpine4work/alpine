@@ -1,5 +1,4 @@
 import {Tree} from "@lezer/common";
-import {maxContentFileImageViewerMobilePreviewSize} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
@@ -12,8 +11,21 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-// Must import `hammerjs` lazily since it references `window` so it's not
-// available on the server.
+/**
+ * The maximum number of pixels in a preview image we'll render on mobile. If
+ * `preview.width * preview.height` is greater than this we won't render the
+ * image.
+ */
+// This variable is here instead of `content_file_image_viewer_mobile.tsx` to
+// avoid a cyclic import.
+export const maxContentFileImageViewerMobilePreviewSize = 35e6;
+
+/**
+ * Must import `hammerjs` lazily since it references `window` so it's not
+ * available on the server.
+ */
+// This variable is here instead of `content_file_image_viewer_mobile.tsx` to
+// avoid a cyclic import.
 export const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(import("hammerjs")));
 
 export type ContentFileViewerLoaderData =

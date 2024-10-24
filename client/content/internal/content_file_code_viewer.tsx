@@ -123,7 +123,7 @@ export function ContentFileCodeViewer({
                             ]
                         }
                     />
-                    {file.isUploading ? "Processing" : "Loading"}
+                    {file.isUploading ? "Processing code" : "Loading"}
                 </Box>
             </Box>
         );

@@ -103,7 +103,7 @@ export function ContentFileImageViewerDesktop({
                         size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.desktop]}
                         weight={contentFileViewerLargeProcessingIndicatorWeight.desktop}
                     />
-                    Processing
+                    Processing image
                 </Box>
             </Box>
         );

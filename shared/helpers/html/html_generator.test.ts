@@ -780,3 +780,144 @@ test("can preserve class names while patching HTML element", () => {
     expect(nodeC_2).toBe(nodeB_2);
     expect(nodeC_2_1).toBe(nodeB_2_1);
 });
+
+test("can preserve attributes while patching HTML element", () => {
+    let node: Node;
+    let html: string;
+    let previousHtml: HtmlGenerator;
+    {
+        const html1 = new HtmlElementGenerator("div");
+        html1.setAttribute("data-a", "1");
+        html1.setAttribute("data-b", "2");
+
+        const html2 = new HtmlTextGenerator("foobar");
+        html1.appendChild(html2);
+
+        const html3 = new HtmlElementGenerator("strong");
+        html1.appendChild(html3);
+        html3.setAttribute("data-c", "3");
+        html3.setAttribute("data-d", "4");
+
+        const html4 = new HtmlTextGenerator("qux");
+        html3.appendChild(html4);
+
+        html = html1.generateHtml();
+        node = html1.generateNode();
+        previousHtml = html1;
+    }
+
+    assert(node instanceof HTMLElement);
+
+    expect(node.outerHTML).toEqual(
+        '<div data-a="1" data-b="2">foobar<strong data-c="3" data-d="4">qux</strong></div>',
+    );
+    expect(html).toEqual(
+        '<div data-a="1" data-b="2">foobar<strong data-c="3" data-d="4">qux</strong></div>',
+    );
+
+    const nodeA = node;
+    const nodeA_1 = node.childNodes[0];
+    const nodeA_2 = node.childNodes[1];
+    const nodeA_2_1 = node.childNodes[1]!.childNodes[0];
+
+    expect(nodeA).toBeInstanceOf(HTMLElement);
+    expect(nodeA_1).toBeInstanceOf(Text);
+    expect(nodeA_2).toBeInstanceOf(HTMLElement);
+    expect(nodeA_2_1).toBeInstanceOf(Text);
+
+    {
+        const html1 = new HtmlElementGenerator("div");
+        html1.setAttribute("data-b", "2");
+
+        const html2 = new HtmlTextGenerator("foobar");
+        html1.appendChild(html2);
+
+        const html3 = new HtmlElementGenerator("strong");
+        html1.appendChild(html3);
+        html3.setAttribute("data-e", "5");
+        html3.setAttribute("data-c", "3");
+        html3.setAttribute("data-d", "4");
+
+        const html4 = new HtmlTextGenerator("qux");
+        html3.appendChild(html4);
+
+        html = html1.generateHtml();
+        expect(html1.patchNode(previousHtml, node)).toEqual(true);
+        previousHtml = html1;
+    }
+
+    expect(node.outerHTML).toEqual(
+        '<div data-b="2">foobar<strong data-c="3" data-d="4" data-e="5">qux</strong></div>',
+    );
+    expect(html).toEqual(
+        '<div data-b="2">foobar<strong data-e="5" data-c="3" data-d="4">qux</strong></div>',
+    );
+
+    const nodeB = node;
+    const nodeB_1 = node.childNodes[0];
+    const nodeB_2 = node.childNodes[1];
+    const nodeB_2_1 = node.childNodes[1]!.childNodes[0];
+
+    expect(nodeB).toBeInstanceOf(HTMLElement);
+    expect(nodeB_1).toBeInstanceOf(Text);
+    expect(nodeB_2).toBeInstanceOf(HTMLElement);
+    expect(nodeB_2_1).toBeInstanceOf(Text);
+
+    expect(nodeB).toBe(nodeA);
+    expect(nodeB_1).toBe(nodeA_1);
+    expect(nodeB_2).toBe(nodeA_2);
+    expect(nodeB_2_1).toBe(nodeA_2_1);
+
+    nodeB.setAttribute("data-other", "1");
+    (nodeB_2 as HTMLElement).setAttribute("data-other", "2");
+
+    expect(node.outerHTML).toEqual(
+        '<div data-b="2" data-other="1">foobar<strong data-c="3" data-d="4" data-e="5" data-other="2">qux</strong></div>',
+    );
+    expect(html).toEqual(
+        '<div data-b="2">foobar<strong data-e="5" data-c="3" data-d="4">qux</strong></div>',
+    );
+
+    {
+        const html1 = new HtmlElementGenerator("div");
+        html1.setAttribute("data-b", "2");
+        html1.setAttribute("data-f", "6");
+
+        const html2 = new HtmlTextGenerator("foobar");
+        html1.appendChild(html2);
+
+        const html3 = new HtmlElementGenerator("strong");
+        html1.appendChild(html3);
+        html3.setAttribute("data-e", "5");
+        html3.setAttribute("data-d", "4");
+
+        const html4 = new HtmlTextGenerator("qux");
+        html3.appendChild(html4);
+
+        html = html1.generateHtml();
+        expect(html1.patchNode(previousHtml, node)).toEqual(true);
+        previousHtml = html1;
+    }
+
+    expect(node.outerHTML).toEqual(
+        '<div data-b="2" data-other="1" data-f="6">foobar<strong data-d="4" data-e="5" data-other="2">qux</strong></div>',
+    );
+    expect(html).toEqual(
+        '<div data-b="2" data-f="6">foobar<strong data-e="5" data-d="4">qux</strong></div>',
+    );
+
+    const nodeC = node;
+    const nodeC_1 = node.childNodes[0];
+    const nodeC_2 = node.childNodes[1];
+    const nodeC_2_1 = node.childNodes[1]!.childNodes[0];
+
+    expect(nodeC).toBeInstanceOf(HTMLElement);
+    expect(nodeC_1).toBeInstanceOf(Text);
+    expect(nodeC_2).toBeInstanceOf(HTMLElement);
+    expect(nodeC_2_1).toBeInstanceOf(Text);
+
+    expect(nodeC).toBe(nodeB);
+    expect(nodeC_1).toBe(nodeB_1);
+    expect(nodeC_2).toBe(nodeB_2);
+    expect(nodeC_2_1).toBe(nodeB_2_1);
+});

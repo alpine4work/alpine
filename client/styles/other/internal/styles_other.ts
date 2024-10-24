@@ -7,6 +7,7 @@
 export * from "~/client/styles/other/internal/animation.css.js";
 export * as buttonStyles from "~/client/styles/other/internal/button.css.js";
 export * as contentEditorStyles from "~/client/styles/other/internal/content_editor.css.js";
+export * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
 export * as contentViewStyles from "~/client/styles/other/internal/content_view.css.js";
 export * as contentStyles from "~/client/styles/other/internal/content.css.js";
 export * as documentBlobsStyles from "~/client/styles/other/internal/document_blobs.css.js";

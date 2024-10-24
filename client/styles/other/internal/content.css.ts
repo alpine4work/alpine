@@ -1232,7 +1232,8 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
             "&::after": {
                 content: '""',
                 pointerEvents: "none",
-                zIndex: "20",
+                // Should render over `<video>` element for video preview (`z-index` 30).
+                zIndex: "40",
                 position: "absolute",
                 top: "0",
                 bottom: "0",
@@ -1289,7 +1290,9 @@ const darkFileBorderColor = Color.rgb(
 globalStyle(`${fileClassName}:not(${fileViewerClassName})::before`, {
     content: '""',
     pointerEvents: "none",
-    zIndex: "20",
+    // Should render over `<video>` element for video preview (`z-index` 30) and
+    // `selectionFileClassNameByColor` (`z-index` 40).
+    zIndex: "50",
     position: "absolute",
     inset: "0",
     boxShadow: `inset 0 0 0 1px ${lightFileBorderColor}`,

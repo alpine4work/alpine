@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {ContentFileViewerModalDesktop} from "~/client/content/internal/content_file_viewer_modal_desktop.js";
 import {ContentFileViewerModalMobile} from "~/client/content/internal/content_file_viewer_modal_mobile.js";
+import {useHandoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
 import {
     ContentFileViewerLoaderData,
     loadContentFileViewerData,
@@ -8,14 +9,11 @@ import {
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useForceRevalidateRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileModel} from "~/shared/files/file_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {
     PromiseImmediateResolver,
     createPromiseImmediateResolver,
@@ -23,40 +21,8 @@ import {
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
-
-let handoffContentFileReferencesByFileId: Map<
-    FileId,
-    Set<{signedUrlSearch: string; file: FileModel}>
-> | null = null;
-
-/**
- * Handoff some previously loaded data to `<ContentFileViewerModal>` so
- * it doesn't have to fetch data from the server when it mounts.
- */
-function handoffContentFileReference(reference: {signedUrlSearch: string; file: FileModel}) {
-    handoffContentFileReferencesByFileId ??= new Map();
-
-    const handoffContentFileReferences = getOrSetDefaultMapValue(
-        handoffContentFileReferencesByFileId,
-        reference.file.id,
-        () => new Set(),
-    );
-
-    if (handoffContentFileReferences.has(reference)) return;
-
-    handoffContentFileReferences.add(reference);
-
-    setTimeout(() => {
-        handoffContentFileReferences.delete(reference);
-
-        if (handoffContentFileReferences.size === 0)
-            handoffContentFileReferencesByFileId?.delete(reference.file.id);
-    }, 1000);
-}
 
 export function ContentFileViewerModal({
     fileId,
@@ -71,9 +37,7 @@ export function ContentFileViewerModal({
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
-    const handoffFileReference = useConstant(() =>
-        iterableFirst(handoffContentFileReferencesByFileId?.get(fileId) ?? emptyArray),
-    );
+    const handoffFileReference = useHandoffContentFileReference();
 
     const fileFromAttachmentInput = useMemo(
         () => ({
@@ -282,5 +246,3 @@ export function ContentFileViewerModal({
         </>
     );
 }
-
-ContentFileViewerModal.handoffFileReference = handoffContentFileReference;

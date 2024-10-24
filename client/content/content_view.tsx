@@ -6,11 +6,11 @@ import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     dispatchParentScrollWhenPointerDownAndOverEvent,

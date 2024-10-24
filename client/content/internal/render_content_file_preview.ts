@@ -1,28 +1,39 @@
 import classNames from "classnames";
 import Color from "color";
 import {Node} from "prosemirror-model";
-import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {contentFileCodeViewerProcessingIndicatorColor} from "~/client/content/internal/content_file_viewer_shared_styles.js";
+import {handoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
+import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    addContentFileVideoPlayerBehavior,
+    renderContentFileVideoPlayer,
+} from "~/client/content/internal/render_content_file_video_player.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
 import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {warningIconSvg} from "~/client/icons/warning_icon_svg.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
-import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {
+    contentFileVideoPlayerStyles,
+    contentStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {
     ContentReferences,
     emptyContentReferences,
@@ -229,123 +240,6 @@ export class ContentFilePreviewExpirationTimers {
     }
 }
 
-const transparentImageDataUrl =
-    "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
-
-const spinnerGapIconClassName = `${spinAnimationClassName} ${sprinkles({
-    width: "6",
-    height: "6",
-})}`;
-
-let spinnerGapIconHtml: string | undefined;
-
-const spinnerGapIconHtmlGenerator: HtmlGenerator = {
-    generateHtml: () => {
-        spinnerGapIconHtml ??= spinnerGapIconSvg({className: spinnerGapIconClassName});
-        return spinnerGapIconHtml;
-    },
-    generateNode: () => {
-        const temporaryElement = document.createElement("div");
-        temporaryElement.innerHTML = spinnerGapIconHtmlGenerator.generateHtml();
-        assert(temporaryElement.firstElementChild?.tagName === "svg");
-        return temporaryElement.firstElementChild;
-    },
-    patchNode: (previous, node) => {
-        return (
-            previous === spinnerGapIconHtmlGenerator &&
-            node instanceof Element &&
-            node.tagName === "svg"
-        );
-    },
-};
-
-const warningIconClassName = sprinkles({
-    width: "4",
-    height: "4",
-});
-
-let warningIconHtml: string | undefined;
-
-const warningIconHtmlGenerator: HtmlGenerator = {
-    generateHtml: () => {
-        warningIconHtml ??= warningIconSvg({
-            className: warningIconClassName,
-            weight: "bold",
-        });
-        return warningIconHtml;
-    },
-    generateNode: () => {
-        const temporaryElement = document.createElement("div");
-        temporaryElement.innerHTML = warningIconHtmlGenerator.generateHtml();
-        assert(temporaryElement.firstElementChild?.tagName === "svg");
-        return temporaryElement.firstElementChild;
-    },
-    patchNode: (previous, node) => {
-        return (
-            previous === warningIconHtmlGenerator &&
-            node instanceof Element &&
-            node.tagName === "svg"
-        );
-    },
-};
-
-const lockIconClassName = sprinkles({
-    width: "4",
-    height: "4",
-});
-
-let lockIconHtml: string | undefined;
-
-const lockIconHtmlGenerator: HtmlGenerator = {
-    generateHtml: () => {
-        lockIconHtml ??= lockIconSvg({
-            className: lockIconClassName,
-            weight: "bold",
-        });
-        return lockIconHtml;
-    },
-    generateNode: () => {
-        const temporaryElement = document.createElement("div");
-        temporaryElement.innerHTML = lockIconHtmlGenerator.generateHtml();
-        assert(temporaryElement.firstElementChild?.tagName === "svg");
-        return temporaryElement.firstElementChild;
-    },
-    patchNode: (previous, node) => {
-        return (
-            previous === lockIconHtmlGenerator && node instanceof Element && node.tagName === "svg"
-        );
-    },
-};
-
-const fileDottedIconClassName = sprinkles({
-    width: "5",
-    height: "5",
-});
-
-let fileDottedIconHtml: string | undefined;
-
-const fileDottedIconHtmlGenerator: HtmlGenerator = {
-    generateHtml: () => {
-        fileDottedIconHtml ??= fileDottedSvg({
-            className: fileDottedIconClassName,
-        });
-        return fileDottedIconHtml;
-    },
-    generateNode: () => {
-        const temporaryElement = document.createElement("div");
-        temporaryElement.innerHTML = fileDottedIconHtmlGenerator.generateHtml();
-        assert(temporaryElement.firstElementChild?.tagName === "svg");
-        return temporaryElement.firstElementChild;
-    },
-    patchNode: (previous, node) => {
-        return (
-            previous === fileDottedIconHtmlGenerator &&
-            node instanceof Element &&
-            node.tagName === "svg"
-        );
-    },
-};
-
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
  * `HtmlElementGenerator` can either be used to render `<ContentEditor>` or
@@ -435,7 +329,16 @@ export function renderContentFilePreview(
             }),
         );
 
-        processingHtml.appendChild(fileDottedIconHtmlGenerator);
+        processingHtml.appendChild(
+            createSvgHtmlGenerator(
+                fileDottedSvg({
+                    className: sprinkles({
+                        width: "5",
+                        height: "5",
+                    }),
+                }),
+            ),
+        );
         processingHtml.appendChild(new HtmlTextGenerator("Unknown file"));
 
         appendImageHtmlForSelection(containerHtml, isMobile);
@@ -564,8 +467,19 @@ function renderContentFileImagePreview(
                 }),
             );
 
-            processingHtml.appendChild(spinnerGapIconHtmlGenerator);
-            processingHtml.appendChild(new HtmlTextGenerator("Processing"));
+            processingHtml.appendChild(
+                createSvgHtmlGenerator(
+                    spinnerGapIconSvg({
+                        className: `${spinAnimationClassName} ${sprinkles({
+                            width: "6",
+                            height: "6",
+                        })}`,
+                    }),
+                ),
+            );
+            processingHtml.appendChild(
+                new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
+            );
         } else {
             // Width at which we need to shrinking the error message so that it's still
             // readable.
@@ -610,10 +524,30 @@ function renderContentFileImagePreview(
             );
 
             if (filePreview.error.code === ErrorCode.PermissionDenied) {
-                errorTitleHtml.appendChild(lockIconHtmlGenerator);
+                errorTitleHtml.appendChild(
+                    createSvgHtmlGenerator(
+                        lockIconSvg({
+                            weight: "bold",
+                            className: sprinkles({
+                                width: "4",
+                                height: "4",
+                            }),
+                        }),
+                    ),
+                );
                 errorTitleHtml.appendChild(new HtmlTextGenerator("Protected file"));
             } else {
-                errorTitleHtml.appendChild(warningIconHtmlGenerator);
+                errorTitleHtml.appendChild(
+                    createSvgHtmlGenerator(
+                        warningIconSvg({
+                            weight: "bold",
+                            className: sprinkles({
+                                width: "4",
+                                height: "4",
+                            }),
+                        }),
+                    ),
+                );
                 errorTitleHtml.appendChild(new HtmlTextGenerator("Couldn’t open file"));
             }
 
@@ -832,8 +766,19 @@ function renderContentFileImagePreviewInner(
         html.appendChild(imageHtml);
     }
 
+    // If this is an image preview of a video then let's show a play button with
+    // the timestamp. When the user clicks on the video we'll start playing it.
     if (typeof filePreview.videoDuration === "number") {
-        // TODO(calebmer, #files): Implement
+        const videoPlayerHtml = new HtmlElementGenerator("div");
+        html.appendChild(videoPlayerHtml);
+        videoPlayerHtml.setAttribute("class", contentFileVideoPlayerStyles.containerClassName);
+
+        renderContentFileVideoPlayer(videoPlayerHtml, {
+            spaceId,
+            signedUrlSearch,
+            file,
+            durationMs: filePreview.videoDuration,
+        });
     }
 }
 
@@ -896,8 +841,17 @@ function renderContentFileCodePreview({
             }),
         );
 
-        processingHtml.appendChild(spinnerGapIconHtmlGenerator);
-        processingHtml.appendChild(new HtmlTextGenerator("Processing"));
+        processingHtml.appendChild(
+            createSvgHtmlGenerator(
+                spinnerGapIconSvg({
+                    className: `${spinAnimationClassName} ${sprinkles({
+                        width: "6",
+                        height: "6",
+                    })}`,
+                }),
+            ),
+        );
+        processingHtml.appendChild(new HtmlTextGenerator("Processing code"));
         return;
     }
 
@@ -1358,7 +1312,8 @@ export function addContentFilePreviewBehavior(
     const handlePointerDown = (event: PointerEvent) => {
         assert(!isInert);
 
-        isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
+        isPointerDownAndOver =
+            !event.defaultPrevented && event.button === 0 && !isModifiedPointerEvent(event);
 
         if (isPointerDownAndOver) {
             // Normally ProseMirror sets `element.draggable = true` on node selection
@@ -1456,7 +1411,16 @@ export function addContentFilePreviewBehavior(
         if (!reference) return;
         const {file} = reference;
 
-        ContentFileViewerModal.handoffFileReference(reference);
+        // TODO(calebmer, #files): Test preview of file that's web unsafe.
+
+        // If this is a video, then click doesn't open the file viewer but rather
+        // plays/pauses the video.
+        if (videoPlayerBehavior) {
+            videoPlayerBehavior?.onPress();
+            return;
+        }
+
+        handoffContentFileReference(reference);
 
         rootNavigate(location => {
             const searchParams = new URLSearchParams(location.search);
@@ -1675,8 +1639,26 @@ export function addContentFilePreviewBehavior(
         );
     }
 
+    let videoPlayerBehavior: {onPress: () => void; cleanup: () => void} | null = null;
+    if (
+        reference?.file.preview?.type === "Image" &&
+        typeof reference.file.preview.videoDuration === "number"
+    ) {
+        const containerElement = element.getElementsByClassName(
+            contentFileVideoPlayerStyles.containerClassName,
+        )[0];
+
+        if (containerElement) {
+            videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
+                durationMs: reference.file.preview.videoDuration,
+            });
+        }
+    }
+
     return () => {
         hasCleanedUp = true;
+
+        videoPlayerBehavior?.cleanup();
 
         if (!isInert) {
             element.removeEventListener("pointerdown", handlePointerDown);

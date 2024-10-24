@@ -2908,6 +2908,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewRef.current = Object.assign(view, {insertFiles});
 
         return () => {
+            viewRef.current = null;
             document.removeEventListener("selectionchange", handleDocumentSelectionChange);
             filePreviewExpirationTimers?.pause();
             tripleClickDragStateRef.current?.dispose();

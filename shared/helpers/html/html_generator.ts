@@ -237,7 +237,15 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         if (!(node instanceof HTMLElement)) return false;
         if (node.tagName.toLowerCase() !== this.tagName) return false;
 
-        for (const attributeName of node.getAttributeNames()) {
+        // If we have the previous `HtmlElementGenerator` then when updating the
+        // element's attributes only remove attributes that were in our previous
+        // `HtmlElementGenerator`.
+        //
+        // React does this as well. Our implementation may not be as smart as React's.
+        // We may leave around some incorrect attributes if child nodes are re-ordered.
+        for (const attributeName of previous instanceof HtmlElementGenerator
+            ? previous._attributes.keys()
+            : node.getAttributeNames()) {
             // If we have the previous `HtmlElementGenerator` then when updating the
             // `class` attribute only remove classes that were in our previous
             // `HtmlElementGenerator`. This way if a class was manually added to the
@@ -291,7 +299,11 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         }
 
         for (const [attributeName, attributeValue] of this._attributes) {
-            if (!node.hasAttribute(attributeName)) {
+            if (
+                previous instanceof HtmlElementGenerator
+                    ? !previous._attributes.has(attributeName)
+                    : !node.hasAttribute(attributeName)
+            ) {
                 node.setAttribute(attributeName, attributeValue);
             }
         }
