@@ -238,8 +238,69 @@ export const durationProgressCurrentClassName = style({
     },
 });
 
-export const scrubberClassName = style({
+export const scrubberContainerClassName = style({
     flexGrow: "1",
+    paddingLeft: spacing["4"],
+    paddingRight: spacing["3"],
+});
+
+export const scrubberClassName = style({
+    width: "100%",
+    // Larger height than our contents to provide a larger touch target for the
+    // mouse cursor.
+    height: spacing["3"],
+    position: "relative",
+    zIndex: "0",
+    cursor: "pointer",
+});
+
+export const scrubberThumbIndicatorClassName = style({
+    zIndex: "10",
+    position: "absolute",
+    top: `calc(50% - ${spacing["1"]})`,
+    left: `-${spacing["1"]}`,
+    width: spacing["2"],
+    height: spacing["2"],
+    borderRadius: borderRadius["full"],
+    backgroundColor: colorSchemeVars["grey-90"],
+    pointerEvents: "none",
+    boxShadow: "0px 1px 2px 0px rgb(18 18 20 / 0.1)",
+});
+
+export const scrubberThumbTargetClassName = style({
+    zIndex: "-10",
+    position: "absolute",
+    top: `calc(50% - ${spacing["3"]})`,
+    left: `-${spacing["3"]}`,
+    width: spacing["6"],
+    height: spacing["6"],
+    borderRadius: borderRadius["full"],
+    backgroundColor: "transparent",
+    cursor: "grab",
+    selectors: {
+        "&:hover": {
+            backgroundColor: colorSchemeVars["grey-5"],
+        },
+    },
+});
+
+export const scrubberTrackClassName = style({
+    position: "absolute",
+    top: "calc(50% - 2px)",
+    width: "100%",
+    height: "4px",
+    backgroundColor: colorSchemeVars["grey-10"],
+    borderRadius: borderRadius["full"],
+    overflow: "hidden",
+    // Don't interfere with thumb pointer events.
+    pointerEvents: "none",
+});
+
+export const scrubberTrackProgressClassName = style({
+    position: "absolute",
+    inset: "0",
+    backgroundColor: colorSchemeVars["theme-40"],
+    transformOrigin: "left",
 });
 
 export const fullscreenButtonClassName = style({

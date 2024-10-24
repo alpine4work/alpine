@@ -233,7 +233,7 @@ export async function run({
                 // "hmr update" events after a file changes it's probably from Bazel writing to
                 // a file in chunks.
                 watch: {
-                    atomic: 500,
+                    atomic: 1000,
                     awaitWriteFinish: {stabilityThreshold: 100, pollInterval: 10},
                     followSymlinks: false,
                     // - Ignore dependency files in `node_modules`.
