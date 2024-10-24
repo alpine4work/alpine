@@ -25,7 +25,7 @@ import {
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {ChannelViewHeader} from "~/client/forum/internal/channel_view_header.js";
 import {

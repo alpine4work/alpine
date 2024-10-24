@@ -11,9 +11,11 @@ import {cornersOutIconSvg} from "~/client/icons/corners_out_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {pauseIconSvg} from "~/client/icons/pause_icon_svg.js";
 import {playIconSvg} from "~/client/icons/play_icon_svg.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {
     contentFileVideoPlayerStyles,
     greyElevated2ClassName,
+    spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -65,6 +67,9 @@ export function renderContentFileVideoPlayer(
             contentFileVideoPlayerStyles.playIndicatorClassName,
         );
         playIndicatorHtml.appendChild(createSvgHtmlGenerator(playIconSvg({weight: "fill"})));
+        playIndicatorHtml.appendChild(
+            createSvgHtmlGenerator(spinnerGapIconSvg({className: spinAnimationClassName})),
+        );
     }
 
     {
@@ -643,10 +648,6 @@ export function addContentFileVideoPlayerBehavior(
         const handlePlay = () => {
             containerElement.classList.add(contentFileVideoPlayerStyles.playingClassName);
 
-            // Once we play our video for the first time we add the "has played" class and
-            // never remove it.
-            containerElement.classList.add(contentFileVideoPlayerStyles.hasPlayedClassName);
-
             if (playingAnimationState !== null) {
                 cancelAnimationFrame(playingAnimationState.frameId);
                 playingAnimationState = null;
@@ -670,6 +671,11 @@ export function addContentFileVideoPlayerBehavior(
             }
 
             updateStillPointerTimeout();
+
+            // If while waiting the user pauses we need to remove the waiting class name
+            // since we won't receive the `playing` event which normally removes this
+            // class.
+            containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
         };
 
         // While the video is playing we run a `requestAnimationFrame()` loop that
@@ -746,10 +752,47 @@ export function addContentFileVideoPlayerBehavior(
     };
 
     /* ========================================================================== *\
+     *                             Loading indicator                              *
+    \* ========================================================================== */
+
+    {
+        const handlePlaying = () => {
+            containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
+
+            // Once we actually start playing our video for the first time we add the "has
+            // played" class and never remove it. We don't show video controls until the
+            // video starts playing.
+            if (
+                !containerElement.classList.contains(
+                    contentFileVideoPlayerStyles.hasPlayedClassName,
+                )
+            ) {
+                containerElement.classList.add(contentFileVideoPlayerStyles.hasPlayedClassName);
+
+                // Reset the still pointer timeout after `hasPlayedClassName` has been added
+                // since the controls won't be visible until after `hasPlayedClassName` is
+                // added.
+                resetStillPointerTimeout();
+            }
+        };
+
+        const handleWaiting = () => {
+            containerElement.classList.add(contentFileVideoPlayerStyles.waitingClassName);
+        };
+
+        videoElement.addEventListener("playing", handlePlaying);
+        videoElement.addEventListener("waiting", handleWaiting);
+
+        cleanupFunctions.push(() => {
+            videoElement.removeEventListener("playing", handlePlaying);
+            videoElement.removeEventListener("waiting", handleWaiting);
+        });
+    }
+
+    /* ========================================================================== *\
      *                            Scrubber drag events                            *
     \* ========================================================================== */
 
-    // NOCOMMIT: Loading spinner if seek is slow?
     {
         const handleScrubberPointerDown = (event: PointerEvent) => {
             // Ignore presses on our scrubber thumb. That'll initiate a drag.

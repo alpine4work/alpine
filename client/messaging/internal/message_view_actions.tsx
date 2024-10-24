@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";

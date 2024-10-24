@@ -31,7 +31,7 @@ import {Menu, MenuSize} from "~/client/design/menu.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";

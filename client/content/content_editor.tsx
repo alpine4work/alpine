@@ -119,7 +119,7 @@ import {
 import {useReporter} from "~/client/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {flushScrollbarResizeSync} from "~/client/design/scrollbar.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";

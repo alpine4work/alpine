@@ -12,7 +12,7 @@ import {
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";

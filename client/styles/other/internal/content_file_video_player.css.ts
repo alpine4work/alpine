@@ -7,6 +7,7 @@ import {
     fontSizes,
 } from "~/client/styles/core/styles_core.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 
 /**
  * Class added to `containerClassName` that tells us if the video has played at
@@ -19,6 +20,12 @@ export const hasPlayedClassName = style({});
  * playing.
  */
 export const playingClassName = style({});
+
+/**
+ * Class added to `containerClassName` that tells us if video playback has stopped
+ * due to a temporary lack of data.
+ */
+export const waitingClassName = style({});
 
 /**
  * Class added to `containerClassName` that tells us if our video container
@@ -74,6 +81,14 @@ export const containerClassName = style({
     },
 });
 
+const playIndicatorWaitingAnimationKeyframesStartPercent = 0.99;
+
+const playIndicatorWaitingAnimationKeyframes = keyframes({
+    "0%": {opacity: 0},
+    [`${playIndicatorWaitingAnimationKeyframesStartPercent * 100}%`]: {opacity: 0},
+    "100%": {opacity: 1},
+});
+
 export const playIndicatorClassName = style({
     pointerEvents: "none",
     // Render above `videoClassName` and under `fileClassName`'s `::before` press
@@ -95,8 +110,15 @@ export const playIndicatorClassName = style({
     justifyContent: "center",
     alignItems: "center",
     selectors: {
-        [`${containerClassName}${playingClassName} &`]: {
+        [`${containerClassName}${playingClassName}:not(${waitingClassName}) &`]: {
             display: "none",
+        },
+        [`${containerClassName}${playingClassName}${waitingClassName} &`]: {
+            // Use a CSS animation as a way to delay showing our loading indicator.
+            animation: `${playIndicatorWaitingAnimationKeyframes} ${
+                delayLoadingIndicatorLimitMs *
+                (1 / playIndicatorWaitingAnimationKeyframesStartPercent)
+            }ms linear forwards`,
         },
         [`${darkColorSchemeSelector} &`]: {
             boxShadow: elevation["elevation-5"].darkElevated1,
@@ -108,6 +130,24 @@ globalStyle(`${playIndicatorClassName} > svg`, {
     width: spacing["7"],
     height: spacing["7"],
 });
+
+globalStyle(`${playIndicatorClassName} > svg:last-child`, {
+    color: colorSchemeVars["grey-60"],
+});
+
+globalStyle(
+    `${containerClassName}${waitingClassName} ${playIndicatorClassName} > svg:first-child`,
+    {
+        display: "none",
+    },
+);
+
+globalStyle(
+    `${containerClassName}:not(${waitingClassName}) ${playIndicatorClassName} > svg:last-child`,
+    {
+        display: "none",
+    },
+);
 
 export const durationPreviewClassName = style({
     pointerEvents: "none",
@@ -258,7 +298,6 @@ export const scrubberClassName = style({
     height: spacing["3"],
     position: "relative",
     zIndex: "0",
-    cursor: "pointer",
 });
 
 export const scrubberThumbIndicatorClassName = style({

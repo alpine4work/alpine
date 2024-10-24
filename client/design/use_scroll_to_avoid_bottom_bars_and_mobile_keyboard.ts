@@ -18,7 +18,7 @@ import {
     isMobileKeyboardFrameChangeEnabled,
     subscribeToMobileKeyboardFrameChange,
 } from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";

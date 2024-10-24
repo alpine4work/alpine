@@ -27,7 +27,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {

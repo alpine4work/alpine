@@ -1,6 +1,6 @@
 import {ProgressValueStoreWithCancel} from "~/client/content/internal/progress_store.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

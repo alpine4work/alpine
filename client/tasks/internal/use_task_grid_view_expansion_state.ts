@@ -2,7 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {getClientInfo, useBrowserId} from "~/client/remix/client_info_context.js";

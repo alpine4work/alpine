@@ -23,7 +23,7 @@ import {
     ReporterWithoutContext,
 } from "~/client/design/internal/reporter_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {greyElevated2ClassName, toastStyles} from "~/client/styles/styles.js";

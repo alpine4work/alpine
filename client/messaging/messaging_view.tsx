@@ -15,7 +15,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";

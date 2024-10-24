@@ -23,7 +23,7 @@ import {
 } from "~/client/design/internal/tooltip_coordination_context.js";
 import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay.js";
 import {useIsWaitingForOverlayPortalElement} from "~/client/design/overlay_helpers.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";

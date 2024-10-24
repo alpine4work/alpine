@@ -64,7 +64,7 @@ import {
 } from "~/client/design/mobile_full_screen_modal.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
 import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";

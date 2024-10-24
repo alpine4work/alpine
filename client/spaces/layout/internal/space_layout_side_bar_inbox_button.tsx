@@ -9,7 +9,7 @@ import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";

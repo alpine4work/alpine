@@ -52,7 +52,7 @@ import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";

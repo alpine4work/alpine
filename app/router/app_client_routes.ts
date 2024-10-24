@@ -1,7 +1,7 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/remix/process_loader_result.js";
 import {ErrorBase, FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
