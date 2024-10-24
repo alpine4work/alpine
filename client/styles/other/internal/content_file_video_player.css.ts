@@ -45,6 +45,11 @@ export const hoveredControlsClassName = style({});
  */
 export const stillPointerClassName = style({});
 
+/**
+ * Class added to `containerClassName` while we're dragging the scrubber thumb.
+ */
+export const draggingScrubberThumbClassName = style({});
+
 export const containerClassName = style({
     position: "absolute",
     inset: "0",
@@ -169,12 +174,14 @@ export const controlsContainerClassName = style({
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
             display: "none",
         },
-        [`${containerClassName}${playingClassName}:not(${hoveredClassName}) &`]: {
-            animation: `${controlsContainerHideKeyframes} 250ms 1000ms ease-out forwards`,
-        },
-        [`${containerClassName}${playingClassName}${stillPointerClassName} &`]: {
-            animation: `${controlsContainerHideKeyframes} 250ms ease-out forwards`,
-        },
+        [`${containerClassName}${playingClassName}:not(${hoveredClassName}):not(${draggingScrubberThumbClassName}) &`]:
+            {
+                animation: `${controlsContainerHideKeyframes} 250ms 1000ms ease-out forwards`,
+            },
+        [`${containerClassName}${playingClassName}${stillPointerClassName}:not(${draggingScrubberThumbClassName}) &`]:
+            {
+                animation: `${controlsContainerHideKeyframes} 250ms ease-out forwards`,
+            },
     },
 });
 
@@ -276,10 +283,12 @@ export const scrubberThumbTargetClassName = style({
     height: spacing["6"],
     borderRadius: borderRadius["full"],
     backgroundColor: "transparent",
-    cursor: "grab",
     selectors: {
         "&:hover": {
             backgroundColor: colorSchemeVars["grey-5"],
+        },
+        [`${containerClassName}${draggingScrubberThumbClassName} &`]: {
+            backgroundColor: colorSchemeVars["grey-10"],
         },
     },
 });
@@ -289,7 +298,7 @@ export const scrubberTrackClassName = style({
     top: "calc(50% - 2px)",
     width: "100%",
     height: "4px",
-    backgroundColor: colorSchemeVars["grey-10"],
+    backgroundColor: colorSchemeVars["grey-20"],
     borderRadius: borderRadius["full"],
     overflow: "hidden",
     // Don't interfere with thumb pointer events.

@@ -22,6 +22,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // TODO(calebmer, #files): Video should have `object-fit` style for small screens
@@ -569,6 +570,14 @@ export function addContentFileVideoPlayerBehavior(
      *                                 Play/pause                                 *
     \* ========================================================================== */
 
+    const updateScrubberProgress = (progress: number) => {
+        const transform = `translateX(${progress * scrubberElement.clientWidth}px)`;
+        scrubberThumbIndicatorElement.style.transform = transform;
+        scrubberThumbTargetElement.style.transform = transform;
+
+        scrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+    };
+
     let playingAnimationState: {
         anchorSessionTime: number;
         anchorVideoTime: number;
@@ -616,7 +625,10 @@ export function addContentFileVideoPlayerBehavior(
 
                 // If we've set `display: none` on the scrubber (which means
                 // `scrubberElement.clientWidth` will be 0) then don't animate our scrubber.
-                if (scrubberElement.clientWidth > 0) {
+                //
+                // If we're dragging then we position the scrubber based on the user's current
+                // drag position. Not based on the video's actual time.
+                if (scrubberThumbDragState === null && scrubberElement.clientWidth > 0) {
                     const currentSessionTime = performance.now();
 
                     const actualVideoTime = videoElement.currentTime * 1000;
@@ -641,11 +653,7 @@ export function addContentFileVideoPlayerBehavior(
                     }
 
                     const progress = videoTime / durationMs;
-                    const transform = `translateX(${progress * scrubberElement.clientWidth}px)`;
-
-                    scrubberThumbIndicatorElement.style.transform = transform;
-                    scrubberThumbTargetElement.style.transform = transform;
-                    scrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+                    updateScrubberProgress(progress);
                 }
 
                 playingAnimationState.frameId = runPlayAnimationLoop();
@@ -683,6 +691,116 @@ export function addContentFileVideoPlayerBehavior(
     };
 
     /* ========================================================================== *\
+     *                            Scrubber drag events                            *
+    \* ========================================================================== */
+
+    // NOCOMMIT: Loading spinner if seek is slow?
+    {
+        const handleScrubberPointerDown = (event: PointerEvent) => {
+            // Ignore presses on our scrubber thumb. That'll initiate a drag.
+            if (event.target instanceof Node && scrubberThumbTargetElement.contains(event.target)) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const scrubberRect = scrubberElement.getBoundingClientRect();
+
+            const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
+
+            // If the `fastSeek()` method is available then use that. Precision doesn't
+            // matter as much when moving by clicking on the scrubber. Speed matters more.
+            if (videoElement.fastSeek) {
+                videoElement.fastSeek((progress * durationMs) / 1000);
+            } else {
+                videoElement.currentTime = (progress * durationMs) / 1000;
+            }
+
+            // Optimistically the scrubber based on the click position. Instead of waiting
+            // for a `timeupdate` event which happens after the video has loaded.
+            updateScrubberProgress(progress);
+        };
+
+        scrubberElement.addEventListener("pointerdown", handleScrubberPointerDown);
+
+        cleanupFunctions.push(() => {
+            scrubberElement.removeEventListener("pointerdown", handleScrubberPointerDown);
+        });
+    }
+
+    let scrubberThumbDragState: {
+        coverElement: HTMLDivElement;
+    } | null = null;
+
+    {
+        const startScrubberThumbDrag = (event: PointerEvent) => {
+            event.preventDefault();
+
+            const dragCoverElement = document.createElement("div");
+
+            dragCoverElement.className = sprinkles({
+                position: "absolute",
+                inset: "0",
+                zIndex: "70",
+                cursor: "grabbing",
+            });
+
+            scrubberThumbDragState = {
+                coverElement: dragCoverElement,
+            };
+
+            containerElement.classList.add(
+                contentFileVideoPlayerStyles.draggingScrubberThumbClassName,
+            );
+            document.body.appendChild(dragCoverElement);
+            document.addEventListener("pointerup", handleDocumentPointerUp);
+            document.addEventListener("pointermove", handleDocumentPointerMove);
+        };
+
+        const cancelScrubberThumbDrag = () => {
+            if (!scrubberThumbDragState) return;
+
+            containerElement.classList.remove(
+                contentFileVideoPlayerStyles.draggingScrubberThumbClassName,
+            );
+            document.body.removeChild(scrubberThumbDragState.coverElement);
+            document.removeEventListener("pointerup", handleDocumentPointerUp);
+            document.removeEventListener("pointermove", handleDocumentPointerMove);
+
+            scrubberThumbDragState = null;
+        };
+
+        const handleDocumentPointerUp = () => {
+            cancelScrubberThumbDrag();
+        };
+
+        const handleDocumentPointerMove = (event: PointerEvent) => {
+            if (!scrubberThumbDragState) return;
+
+            const scrubberRect = scrubberElement.getBoundingClientRect();
+
+            const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
+
+            videoElement.currentTime = (progress * durationMs) / 1000;
+
+            // Update the scrubber based on our current drag position. While dragging we
+            // optimistically use the user's pointer position, not the video's actual
+            // current time.
+            updateScrubberProgress(progress);
+        };
+
+        scrubberThumbTargetElement.addEventListener("pointerdown", startScrubberThumbDrag);
+
+        cleanupFunctions.push(() => {
+            // We don't preserve our drag state in the DOM. It's ok to cancel our drag when
+            // the behavior function re-runs.
+            cancelScrubberThumbDrag();
+
+            scrubberThumbTargetElement.removeEventListener("pointerdown", startScrubberThumbDrag);
+        });
+    }
+
+    /* ========================================================================== *\
      *                             Duration progress                              *
     \* ========================================================================== */
 
@@ -698,26 +816,24 @@ export function addContentFileVideoPlayerBehavior(
 
             // If our `requestAnimationFrame()` loop is not running then update the
             // scrubber position on every `timeupdate` event.
-            if (playingAnimationState === null) {
-                const progress = videoElement.currentTime / durationMs;
-                const transform = `translateX(${progress * scrubberElement.clientWidth}px)`;
-
-                scrubberThumbIndicatorElement.style.transform = transform;
-                scrubberThumbTargetElement.style.transform = transform;
-                scrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+            //
+            // If we're dragging then we position the scrubber based on the user's current
+            // drag position. Not based on the video's actual time.
+            if (playingAnimationState === null && scrubberThumbDragState === null) {
+                const progress = (videoElement.currentTime * 1000) / durationMs;
+                updateScrubberProgress(progress);
             }
         };
 
         const handleScrubberResize = () => {
             // If our `requestAnimationFrame()` loop is not running then update the
             // scrubber position whenever the scrubber resizes.
-            if (playingAnimationState === null) {
-                const progress = videoElement.currentTime / durationMs;
-                const transform = `translateX(${progress * scrubberElement.clientWidth}px)`;
-
-                scrubberThumbIndicatorElement.style.transform = transform;
-                scrubberThumbTargetElement.style.transform = transform;
-                scrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+            //
+            // If we're dragging then we position the scrubber based on the user's current
+            // drag position. Not based on the video's actual time.
+            if (playingAnimationState === null && scrubberThumbDragState === null) {
+                const progress = (videoElement.currentTime * 1000) / durationMs;
+                updateScrubberProgress(progress);
             }
         };
 
