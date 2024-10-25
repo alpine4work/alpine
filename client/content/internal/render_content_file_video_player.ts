@@ -43,11 +43,13 @@ export function renderContentFileVideoPlayer(
         signedUrlSearch,
         file,
         durationMs,
+        layout,
     }: {
         spaceId: SpaceId;
         signedUrlSearch: string;
         file: FileModel;
         durationMs: number;
+        layout: {width: number; height: number};
     },
 ) {
     containerHtml.setAttribute(
@@ -103,7 +105,11 @@ export function renderContentFileVideoPlayer(
             contentFileVideoPlayerStyles.processingNoteEllipsisClassName,
         );
         processingNoteEllipsisHtml.appendChild(new HtmlTextGenerator("…"));
-    } else {
+    }
+    // Only render the `<video>` element inline if the area is large enough.
+    // Otherwise a press should open our file viewer where you'll be able to watch
+    // the video.
+    else if (layout.width > 250 && layout.height > 150) {
         const videoHtml = new HtmlElementGenerator("video");
         containerHtml.appendChild(videoHtml);
         videoHtml.setAttribute("class", contentFileVideoPlayerStyles.videoClassName);
@@ -299,6 +305,11 @@ export function addContentFileVideoPlayerBehavior(
     assert(containerElement.classList.contains(contentFileVideoPlayerStyles.containerClassName));
 
     const videoElement = containerElement.getElementsByTagName("video")[0] ?? null;
+
+    const processingNoteElement =
+        containerElement.getElementsByClassName(
+            contentFileVideoPlayerStyles.processingNoteClassName,
+        )[0] ?? null;
 
     const controlsContainerElement = assertExists(
         containerElement.getElementsByClassName(
@@ -820,11 +831,13 @@ export function addContentFileVideoPlayerBehavior(
     \* ========================================================================== */
 
     if (videoElement === null) {
-        containerElement.classList.add(contentFileVideoPlayerStyles.waitingClassName);
+        if (processingNoteElement) {
+            containerElement.classList.add(contentFileVideoPlayerStyles.waitingClassName);
 
-        cleanupFunctions.push(() => {
-            containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
-        });
+            cleanupFunctions.push(() => {
+                containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
+            });
+        }
     } else {
         const handlePlaying = () => {
             containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);

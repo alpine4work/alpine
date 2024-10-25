@@ -845,6 +845,7 @@ function renderContentFileImagePreviewInner(
             signedUrlSearch,
             file,
             durationMs: filePreview.videoDuration,
+            layout,
         });
 
         // We disable `user-select: text` on

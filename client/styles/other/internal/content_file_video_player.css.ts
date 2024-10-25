@@ -179,8 +179,6 @@ export const durationPreviewClassName = style({
     paddingBottom: spacing["1"],
     ...fontSizes["50"],
     fontVariantNumeric: "tabular-nums",
-    display: "flex",
-    alignItems: "center",
     selectors: {
         [`${containerClassName}${hasPlayedClassName} &`]: {
             display: "none",
@@ -197,8 +195,9 @@ export const processingNoteClassName = style({
     // pseudo element.
     zIndex: "30",
     position: "absolute",
-    left: spacing["1"],
-    bottom: spacing["1"],
+    left: "50%",
+    top: spacing["1"],
+    transform: "translateX(-50%)",
     color: colorSchemeVars["grey-90"],
     backgroundColor: colorSchemeVars["grey-0"],
     borderRadius: borderRadius["0.5"],
@@ -211,8 +210,7 @@ export const processingNoteClassName = style({
     paddingBottom: spacing["1"],
     ...fontSizes["50"],
     fontVariantNumeric: "tabular-nums",
-    display: "flex",
-    alignItems: "center",
+    whiteSpace: "nowrap",
     selectors: {
         [`${darkColorSchemeSelector} &`]: {
             boxShadow: elevation["elevation-5"].darkElevated1,
