@@ -362,6 +362,7 @@ export function renderContentFilePreview(
                     file: reference.file,
                     filePreview: reference.file.preview,
                     layout,
+                    isMobile,
                     expirationTimers,
                     html,
                 });
@@ -414,8 +415,10 @@ function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, isMobi
             width: "full",
             height: "full",
             userSelect: "text",
-            // `z-index` needs to render over code block line numbers.
-            zIndex: "20",
+            pointerEvents: "none",
+            // `z-index` needs to render over code block line numbers and floating video
+            // player UI.
+            zIndex: "70",
         }),
     );
 }
@@ -504,6 +507,7 @@ function renderContentFileImagePreview(
         file,
         filePreview,
         layout,
+        isMobile,
         expirationTimers,
         html,
     }: {
@@ -512,6 +516,7 @@ function renderContentFileImagePreview(
         file: FileModel;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
+        isMobile: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
         html: HtmlElementGenerator;
     },
@@ -662,6 +667,7 @@ function renderContentFileImagePreview(
         filePreviewSize: filePreview.size,
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
+        isMobile,
         expirationTimers,
         html,
     });
@@ -678,6 +684,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize,
         filePreviewPlaceholder,
         layout,
+        isMobile,
         expirationTimers,
         html,
     }: {
@@ -689,6 +696,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize: FileImagePreviewSize;
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
+        isMobile: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
         html: HtmlElementGenerator;
     },
@@ -838,6 +846,17 @@ function renderContentFileImagePreviewInner(
             file,
             durationMs: filePreview.videoDuration,
         });
+
+        // We disable `user-select: text` on
+        // `contentStyles.fileImagePreviewContentClassName` when
+        // `contentStyles.fileClassName` has
+        // `contentFileVideoPlayerStyles.containerClassName` because we want to render
+        // a transparent `<img>` that covers video player controls. If the browser
+        // renders a selection highlight over
+        // `contentStyles.fileImagePreviewContentClassName` then it'll render under the
+        // video controls and under the `<video>` element itself once the video is
+        // playing.
+        appendImageHtmlForSelection(html, isMobile);
     }
 }
 

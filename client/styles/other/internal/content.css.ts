@@ -32,6 +32,7 @@ import {
     mobileNavigationBarHeight,
 } from "~/client/styles/other/internal/navigation_bar.css.js";
 import * as sharedClassNames from "~/shared/content/content_styles.js";
+import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
@@ -1169,10 +1170,17 @@ export const fileImagePreviewContentClassName = style({
             // happens when the file source is replaced).
             transition: `opacity ${loadedFileImageAnimationDurationMs}ms ease-in-out`,
         },
-        // Turn off selection on mobile. Specifically for mobile Safari where allowing
-        // text selection for images leads us to some weird states where Safari renders
-        // a text selection in addition to our ProseMirror `NodeSelection`.
         [`${mobilePlatformSelector} &`]: {
+            // Turn off selection on mobile. Specifically for mobile Safari where allowing
+            // text selection for images leads us to some weird states where Safari renders
+            // a text selection in addition to our ProseMirror `NodeSelection`.
+            userSelect: "none",
+        },
+        [`${fileClassName}:has(${contentFileVideoPlayerStyles.containerClassName}) &`]: {
+            // Turn off selection styles if our preview has a video player. Since for video
+            // players we render an invisible `<img>` with `user-select: text` that renders
+            // on top of the video controls. Otherwise video controls would render over
+            // the selection style which looks wrong.
             userSelect: "none",
         },
     },
@@ -1232,8 +1240,9 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
             "&::after": {
                 content: '""',
                 pointerEvents: "none",
-                // Should render over `<video>` element for video preview (`z-index` 30).
-                zIndex: "40",
+                // Should render over `<video>` element for video preview (`z-index` 30) and
+                // video controls (`z-index` 50).
+                zIndex: "60",
                 position: "absolute",
                 top: "0",
                 bottom: "0",
@@ -1290,9 +1299,8 @@ const darkFileBorderColor = Color.rgb(
 globalStyle(`${fileClassName}:not(${fileViewerClassName})::before`, {
     content: '""',
     pointerEvents: "none",
-    // Should render over `<video>` element for video preview (`z-index` 30) and
-    // `selectionFileClassNameByColor` (`z-index` 40).
-    zIndex: "50",
+    // Should render over `<video>` element for video preview (`z-index` 30).
+    zIndex: "40",
     position: "absolute",
     inset: "0",
     boxShadow: `inset 0 0 0 1px ${lightFileBorderColor}`,

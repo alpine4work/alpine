@@ -223,8 +223,8 @@ const controlsContainerHideKeyframes = keyframes({
 
 export const controlsContainerClassName = style({
     // Render above `videoClassName` and above `fileClassName`'s `::before` press
-    // pseudo element.
-    zIndex: "60",
+    // pseudo element. But under `fileClassName`'s `::after` pseudo element.
+    zIndex: "50",
     position: "absolute",
     left: "0",
     right: "0",
@@ -233,6 +233,7 @@ export const controlsContainerClassName = style({
     paddingRight: spacing["1"],
     paddingBottom: spacing["1"],
     cursor: "default",
+    pointerEvents: "auto",
     selectors: {
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
             display: "none",
