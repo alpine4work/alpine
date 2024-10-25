@@ -287,8 +287,8 @@ export const durationProgressCurrentClassName = style({
 
 export const scrubberContainerClassName = style({
     flexGrow: "1",
-    paddingLeft: spacing["4"],
-    paddingRight: spacing["3"],
+    paddingLeft: spacing["3"],
+    paddingRight: spacing["2"],
 });
 
 export const scrubberClassName = style({
@@ -366,6 +366,22 @@ export const scrubberTrackBufferedClassName = style({
             // In the dark elevated color scheme, `grey-20` doesn't look different enough
             // from `grey-10`.
             backgroundColor: colorSchemeVars["grey-30"],
+        },
+    },
+});
+
+export const playbackRateButtonClassName = style({
+    width: spacing["7"],
+    height: spacing["6"],
+    borderRadius: borderRadius["0.5"],
+    ...fontSizes["50"],
+    fontVariantNumeric: "tabular-nums",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    selectors: {
+        "&::after": {
+            content: "attr(data-rate)",
         },
     },
 });

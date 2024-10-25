@@ -216,6 +216,15 @@ export function renderContentFileVideoPlayer(
         }
 
         {
+            const playbackRateButtonHtml = new HtmlElementGenerator("div");
+            controlsHtml.appendChild(playbackRateButtonHtml);
+            playbackRateButtonHtml.setAttribute(
+                "class",
+                contentFileVideoPlayerStyles.playbackRateButtonClassName,
+            );
+        }
+
+        {
             const fullscreenButtonHtml = new HtmlElementGenerator("div");
             controlsHtml.appendChild(fullscreenButtonHtml);
             fullscreenButtonHtml.setAttribute(
@@ -320,6 +329,12 @@ export function addContentFileVideoPlayerBehavior(
         )[0],
     ) as HTMLDivElement;
 
+    const playbackRateButtonElement = assertExists(
+        containerElement.getElementsByClassName(
+            contentFileVideoPlayerStyles.playbackRateButtonClassName,
+        )[0],
+    ) as HTMLDivElement;
+
     const fullscreenButtonElement = assertExists(
         containerElement.getElementsByClassName(
             contentFileVideoPlayerStyles.fullscreenButtonClassName,
@@ -398,6 +413,31 @@ export function addContentFileVideoPlayerBehavior(
                     containerElement.requestFullscreen();
                 } else {
                     document.exitFullscreen();
+                }
+            },
+        }),
+    );
+
+    cleanupFunctions.push(
+        addUnfocusableButtonBehaviorToElement(playbackRateButtonElement, {
+            defaultClassName: sprinkles({
+                color: "grey-70",
+            }),
+            hoverClassName: sprinkles({
+                color: "grey-70",
+                backgroundColor: "grey-5",
+            }),
+            pressClassName: sprinkles({
+                color: "grey-100",
+                backgroundColor: "grey-10",
+            }),
+            onPress: () => {
+                if (videoElement.playbackRate === 1) {
+                    videoElement.playbackRate = 1.5;
+                } else if (videoElement.playbackRate === 1.5) {
+                    videoElement.playbackRate = 2;
+                } else {
+                    videoElement.playbackRate = 1;
                 }
             },
         }),
@@ -971,6 +1011,24 @@ export function addContentFileVideoPlayerBehavior(
 
         cleanupFunctions.push(() => {
             document.removeEventListener("fullscreenchange", handleFullscreenChange);
+        });
+    }
+
+    /* ========================================================================== *\
+     *                               Playback rate                                *
+    \* ========================================================================== */
+
+    {
+        const handleRateChange = () => {
+            playbackRateButtonElement.setAttribute("data-rate", `${videoElement.playbackRate}x`);
+        };
+
+        handleRateChange();
+
+        videoElement.addEventListener("ratechange", handleRateChange);
+
+        cleanupFunctions.push(() => {
+            videoElement.removeEventListener("ratechange", handleRateChange);
         });
     }
 
