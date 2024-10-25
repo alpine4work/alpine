@@ -3,7 +3,7 @@
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     contentFileViewerDesktopMarginBottom,
@@ -58,6 +58,7 @@ export function ContentFileImageViewerDesktop({
     viewerSize,
     zoomScale,
     maxZoomScale,
+    extraChildrenForVideo,
 }: {
     file: FileModel;
     signedUrlSearch: string;
@@ -67,6 +68,7 @@ export function ContentFileImageViewerDesktop({
     viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
+    extraChildrenForVideo?: ReactNode;
 }) {
     assert(file.preview?.type === "Image");
 
@@ -103,7 +105,7 @@ export function ContentFileImageViewerDesktop({
                         size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.desktop]}
                         weight={contentFileViewerLargeProcessingIndicatorWeight.desktop}
                     />
-                    Processing image
+                    Processing {getFileContentTypeNoun(file.contentType)}
                 </Box>
             </Box>
         );
@@ -120,6 +122,7 @@ export function ContentFileImageViewerDesktop({
             viewerSize={viewerSize}
             zoomScale={zoomScale}
             maxZoomScale={maxZoomScale}
+            extraChildrenForVideo={extraChildrenForVideo}
         />
     );
 }
@@ -134,6 +137,7 @@ function ContentFileImageDesktopViewerInner({
     viewerSize,
     zoomScale,
     maxZoomScale,
+    extraChildrenForVideo,
 }: {
     file: FileModel;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
@@ -144,6 +148,7 @@ function ContentFileImageDesktopViewerInner({
     viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
+    extraChildrenForVideo: ReactNode;
 }) {
     const remPx = useRemPx();
     const {space} = useSpaceContext();
@@ -465,6 +470,7 @@ function ContentFileImageDesktopViewerInner({
                                 scaledFileWidth,
                             ],
                         )}
+                        {extraChildrenForVideo}
                     </div>
                 </ContextMenuActions>
             </Box>

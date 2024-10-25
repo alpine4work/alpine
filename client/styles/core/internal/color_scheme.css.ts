@@ -237,7 +237,7 @@ const specialGreyColorVars: {
     "grey-0-opacity-60": `${colors["grey-0"]}99`,
     "grey-0-opacity-80": `${colors["grey-0"]}cc`,
     "grey-0-opacity-90": `${colors["grey-0"]}e6`,
-    "grey-content-file-viewer-modal": `${colors["grey-70"]}f2`,
+    "grey-content-file-viewer-modal": `${colors["grey-70"]}cc`,
 });
 
 globalStyle(darkColorSchemeSelector, {
@@ -248,7 +248,7 @@ globalStyle(darkColorSchemeSelector, {
         "grey-0-opacity-60": `${invertedColorsWithShade["grey-0"]}99`,
         "grey-0-opacity-80": `${invertedColorsWithShade["grey-0"]}cc`,
         "grey-0-opacity-90": `${invertedColorsWithShade["grey-0"]}e6`,
-        "grey-content-file-viewer-modal": `${colors["grey-80"]}f2`,
+        "grey-content-file-viewer-modal": `${colors["grey-80"]}cc`,
     }),
 });
 

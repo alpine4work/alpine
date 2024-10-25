@@ -328,7 +328,7 @@ export class HtmlFragmentGenerator extends HtmlContainerGenerator {
     }
 
     public patchNode(previous: HtmlGenerator | null, node: Node) {
-        if (!(node instanceof DocumentFragment)) return false;
+        if (!(node instanceof DocumentFragment) && !(node instanceof Element)) return false;
 
         this._patchChildNodes(previous, node);
 

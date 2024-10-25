@@ -12,6 +12,7 @@ import {useState} from "react";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {ContentFileVideoViewerDesktop} from "~/client/content/internal/content_file_video_viewer_desktop.js";
 import {
     contentFileViewerDesktopMarginBottom,
     contentFileViewerDesktopMarginTop,
@@ -151,6 +152,7 @@ export function ContentFileViewerModalDesktop({
             withoutElevatedGrey
             borderRadius="2"
             withoutCloseButton
+            withBlurBackdropFilter
             onClose={onClose}
         >
             <GlobalKeyDownEvent
@@ -434,8 +436,7 @@ function ContentFileDesktopViewer(props: {
         case "video/quicktime":
         case "video/mpeg":
         case "video/x-matroska": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileVideoViewerDesktop {...props} />;
         }
         case "audio/mpeg":
         case "audio/wav":

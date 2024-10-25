@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
@@ -15,7 +14,6 @@ import {playIconSvg} from "~/client/icons/play_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {
     contentFileVideoPlayerStyles,
-    greyElevated2ClassName,
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -25,7 +23,11 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlContainerGenerator,
+    HtmlElementGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -36,11 +38,11 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * video player. See that function's documentation for more information.
  *
  * The provided container HTML must have the class
- * `contentFileVideoPlayerStyles.containerClassName`. We will append to the
- * container element.
+ * `contentFileVideoPlayerStyles.containerClassName` and
+ * `greyElevated2ClassName`. We will append to the container element.
  */
 export function renderContentFileVideoPlayer(
-    containerHtml: HtmlElementGenerator,
+    containerHtml: HtmlContainerGenerator,
     {
         spaceId,
         signedUrlSearch,
@@ -52,14 +54,9 @@ export function renderContentFileVideoPlayer(
         signedUrlSearch: string;
         file: FileModel;
         durationMs: number;
-        layout: {width: number; height: number};
+        layout: {width: number; height: number} | null;
     },
 ) {
-    containerHtml.setAttribute(
-        "class",
-        classNames(containerHtml.getAttribute("class"), greyElevated2ClassName),
-    );
-
     const durationString = formatDurationString(durationMs, durationMs);
 
     {
@@ -112,7 +109,7 @@ export function renderContentFileVideoPlayer(
     // Only render the `<video>` element inline if the area is large enough.
     // Otherwise a press should open our file viewer where you'll be able to watch
     // the video.
-    else if (layout.width > 250 && layout.height > 150) {
+    else if (layout === null || (layout.width > 250 && layout.height > 150)) {
         const videoHtml = new HtmlElementGenerator("video");
         containerHtml.appendChild(videoHtml);
         videoHtml.setAttribute("class", contentFileVideoPlayerStyles.videoClassName);
@@ -398,16 +395,24 @@ export function addContentFileVideoPlayerBehavior(
             event.preventDefault();
         };
 
+        const handleControlsContainerClick = (event: MouseEvent) => {
+            // When clicking on the control bar prevent default so we don't perform the
+            // default click logic (don't pause/play).
+            event.preventDefault();
+        };
+
         controlsContainerElement.addEventListener(
             "pointerdown",
             handleControlsContainerPointerDown,
         );
+        controlsContainerElement.addEventListener("click", handleControlsContainerClick);
 
         cleanupFunctions.push(() => {
             controlsContainerElement.removeEventListener(
                 "pointerdown",
                 handleControlsContainerPointerDown,
             );
+            controlsContainerElement.removeEventListener("click", handleControlsContainerClick);
         });
     }
 

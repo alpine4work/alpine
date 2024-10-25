@@ -42,6 +42,7 @@ export function Modal({
     withoutCloseButton,
     withoutCloseInteractions,
     withoutElevatedGrey,
+    withBlurBackdropFilter,
 }: {
     /**
      * The contents of the modal. If the contents are too big for the screen then
@@ -139,6 +140,12 @@ export function Modal({
      * dark mode to make it appear closer to the user.
      */
     withoutElevatedGrey?: boolean;
+
+    /**
+     * Should we add a `backdrop-filter` style to the modal? Only useful if you set
+     * `backgroundColor` to something semi-transparent.
+     */
+    withBlurBackdropFilter?: boolean;
 } & (
     | {
           /**
@@ -279,6 +286,7 @@ export function Modal({
                                 animation: !withoutOpenAnimation
                                     ? modalStyles.modalOverlayFadeInAnimation
                                     : undefined,
+                                backdropFilter: withBlurBackdropFilter ? "blur(15px)" : undefined,
                             }}
                         >
                             <Box

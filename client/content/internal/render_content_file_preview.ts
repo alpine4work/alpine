@@ -32,6 +32,7 @@ import {
     colorSchemeVars,
     contentFileVideoPlayerStyles,
     contentStyles,
+    greyElevated2ClassName,
     pulseAnimationClassName,
     spinAnimationClassName,
     sprinkles,
@@ -839,7 +840,10 @@ function renderContentFileImagePreviewInner(
     if (typeof filePreview.videoDuration === "number") {
         const videoPlayerHtml = new HtmlElementGenerator("div");
         html.appendChild(videoPlayerHtml);
-        videoPlayerHtml.setAttribute("class", contentFileVideoPlayerStyles.containerClassName);
+        videoPlayerHtml.setAttribute(
+            "class",
+            classNames(contentFileVideoPlayerStyles.containerClassName, greyElevated2ClassName),
+        );
 
         renderContentFileVideoPlayer(videoPlayerHtml, {
             spaceId,

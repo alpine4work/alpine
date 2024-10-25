@@ -49,14 +49,17 @@ export type ContentFileViewerLoaderData =
  * conceptually similar but this has nothing to do with Remix's loader data
  * implementation.
  */
-export async function loadContentFileViewerData(options: {
+export async function loadContentFileViewerData({
+    spaceId,
+    signedUrlSearch,
+    file,
+}: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
 }): Promise<ContentFileViewerLoaderData | null> {
-    switch (options.file.contentType) {
+    switch (file.contentType) {
         case "application/octet-stream": {
-            // TODO(calebmer, #files): Implement
             return null;
         }
         case "image/apng":
@@ -70,7 +73,11 @@ export async function loadContentFileViewerData(options: {
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return loadContentFileImageViewer(options);
+            return loadContentFileImageViewer({
+                spaceId,
+                signedUrlSearch,
+                file,
+            });
         }
         case "application/pdf":
         case "application/msword":
@@ -90,8 +97,14 @@ export async function loadContentFileViewerData(options: {
         case "video/quicktime":
         case "video/mpeg":
         case "video/x-matroska": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return loadContentFileImageViewer({
+                spaceId,
+                signedUrlSearch,
+                file,
+                // Load the preview image when loading videos. We don't load the video itself
+                // until the user presses play.
+                asPreview: true,
+            });
         }
         case "audio/mpeg":
         case "audio/wav":
@@ -138,10 +151,14 @@ export async function loadContentFileViewerData(options: {
         case "text/x-clojure":
         case "text/x-erlang":
         case "text/x-ocaml": {
-            return loadContentFileCodeViewer(options);
+            return loadContentFileCodeViewer({
+                spaceId,
+                signedUrlSearch,
+                file,
+            });
         }
         default:
-            throw exhaustive(options.file.contentType);
+            throw exhaustive(file.contentType);
     }
 }
 
@@ -149,11 +166,20 @@ export function getContentFileViewerSrc({
     spaceId,
     signedUrlSearch,
     file,
+    asPreview = false,
 }: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
+    asPreview?: boolean;
 }): string | null {
+    if (asPreview) {
+        if (file.preview?.type !== "Image") return null;
+        if (file.preview.content === "Processing" || file.preview.content === "Error") return null;
+
+        return `/files/${spaceId}/${file.id}${signedUrlSearch}&variant=preview`;
+    }
+
     if (file.alternative) {
         if (file.alternative.isProcessing) return null;
 
@@ -171,10 +197,12 @@ async function loadContentFileImageViewer({
     spaceId,
     signedUrlSearch,
     file,
+    asPreview = false,
 }: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
+    asPreview?: boolean;
 }): Promise<ContentFileViewerLoaderData> {
     // Don't load images that exceed the maximum size we support on mobile. We
     // won't render them so don't bother loading them.
@@ -192,6 +220,7 @@ async function loadContentFileImageViewer({
         spaceId,
         signedUrlSearch,
         file,
+        asPreview,
     });
     if (!src) return {type: "Image", image: null};
 
