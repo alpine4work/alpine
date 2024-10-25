@@ -1596,13 +1596,11 @@ export function addContentFilePreviewBehavior(
         if (!reference) return;
         const {file} = reference;
 
-        // TODO(calebmer, #files): Test preview of file that's web unsafe.
-
         // If this is a video, then click doesn't open the file viewer but rather
         // plays/pauses the video.
         if (videoPlayerBehavior) {
-            videoPlayerBehavior?.onPress();
-            return;
+            const result = videoPlayerBehavior?.onPress();
+            if (result?.preventDefault) return;
         }
 
         handoffContentFileReference(reference);
@@ -1824,7 +1822,10 @@ export function addContentFilePreviewBehavior(
         );
     }
 
-    let videoPlayerBehavior: {onPress: () => void; cleanup: () => void} | null = null;
+    let videoPlayerBehavior: {
+        onPress: () => {preventDefault: boolean} | void;
+        cleanup: () => void;
+    } | null = null;
     if (
         reference?.file.preview?.type === "Image" &&
         typeof reference.file.preview.videoDuration === "number"

@@ -1,5 +1,6 @@
 import {globalStyle, keyframes, style} from "@vanilla-extract/css";
 import {
+    backgroundColorVar,
     borderRadius,
     colorSchemeVars,
     darkColorSchemeSelector,
@@ -62,14 +63,18 @@ export const containerClassName = style({
     inset: "0",
     width: "100%",
     height: "100%",
-    // We need this to allow pointer events on the video element when full
-    // screened. Clicking on the video when fullscreen-ed should cause the video
-    // to pause/play.
-    //
-    // This also allows our `controlsClassName` element to be clickable and lets us
-    // receive `pointerenter`/`pointerleave` events.
-    pointerEvents: "auto",
     selectors: {
+        // Beat the specificity of `${fileClassName} > *` setting
+        // `pointer-events: none`.
+        [`&&&`]: {
+            // We need this to allow pointer events on the video element when full
+            // screened. Clicking on the video when fullscreen-ed should cause the video
+            // to pause/play.
+            //
+            // This also allows our `controlsClassName` element to be clickable and lets us
+            // receive `pointerenter`/`pointerleave` events.
+            pointerEvents: "auto",
+        },
         [`&${fullscreenClassName}`]: {
             // Override our parent's `cursor: pointer` style when fullscreen. Clicking on
             // the video won't select the file element in the document anymore.
@@ -168,10 +173,11 @@ export const durationPreviewClassName = style({
     // Add elevation so we can easily see our floating elements on a white
     // background.
     boxShadow: elevation["elevation-5"].light,
-    paddingLeft: spacing["1"],
-    paddingRight: spacing["1"],
-    paddingTop: spacing["0.5"],
-    paddingBottom: spacing["0.5"],
+    paddingLeft: spacing["1.5"],
+    paddingRight: spacing["1.5"],
+    paddingTop: spacing["1"],
+    paddingBottom: spacing["1"],
+    ...fontSizes["50"],
     fontVariantNumeric: "tabular-nums",
     display: "flex",
     alignItems: "center",
@@ -181,6 +187,54 @@ export const durationPreviewClassName = style({
         },
         [`${darkColorSchemeSelector} &`]: {
             boxShadow: elevation["elevation-5"].darkElevated1,
+        },
+    },
+});
+
+export const processingNoteClassName = style({
+    pointerEvents: "none",
+    // Render above `videoClassName` and under `fileClassName`'s `::before` press
+    // pseudo element.
+    zIndex: "30",
+    position: "absolute",
+    left: spacing["1"],
+    bottom: spacing["1"],
+    color: colorSchemeVars["grey-90"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    borderRadius: borderRadius["0.5"],
+    // Add elevation so we can easily see our floating elements on a white
+    // background.
+    boxShadow: elevation["elevation-5"].light,
+    paddingLeft: spacing["1.5"],
+    paddingRight: spacing["1.5"],
+    paddingTop: spacing["1"],
+    paddingBottom: spacing["1"],
+    ...fontSizes["50"],
+    fontVariantNumeric: "tabular-nums",
+    display: "flex",
+    alignItems: "center",
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            boxShadow: elevation["elevation-5"].darkElevated1,
+        },
+    },
+});
+
+const processingNoteEllipsisAnimationKeyframes = keyframes({
+    from: {width: `${100 / (3 / 4)}%`},
+});
+
+export const processingNoteEllipsisClassName = style({
+    position: "relative",
+    selectors: {
+        "&::after": {
+            content: '""',
+            position: "absolute",
+            top: "0",
+            right: "0",
+            bottom: "0",
+            backgroundColor: backgroundColorVar,
+            animation: `${processingNoteEllipsisAnimationKeyframes} steps(4, start) 2000ms infinite`,
         },
     },
 });

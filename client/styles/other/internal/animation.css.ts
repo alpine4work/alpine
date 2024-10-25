@@ -15,8 +15,10 @@ const pulseAnimationKeyframes = keyframes({
 
 // The pulse animation is taken directly from Tailwind CSS.
 // https://github.com/tailwindlabs/tailwindcss/blob/8e60a3c7e81ea0e44f127aa30df6d5676c60133d/stubs/defaultConfig.stub.js#L15
+export const pulseAnimation = `${pulseAnimationKeyframes} 2s cubic-bezier(0.4, 0, 0.6, 1) infinite`;
+
 export const pulseAnimationClassName = style({
-    animation: `${pulseAnimationKeyframes} 2s cubic-bezier(0.4, 0, 0.6, 1) infinite`,
+    animation: pulseAnimation,
 });
 
 const pingAnimationKeyframes = keyframes({

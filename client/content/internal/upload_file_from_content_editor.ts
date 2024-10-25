@@ -858,16 +858,28 @@ function estimateUploadFileDurationMs(contentType: FileContentType, contentLengt
             contentLengthPerMs = 874.4886418;
             break;
         case "video/mpeg":
-            contentLengthPerMs = 195.85926;
+            // NOTE(calebmer): From trying to upload actual files, seems to take FFmpeg a
+            // long time to transcode videos so I added the `/ 100`. Maybe we should stop
+            // showing the upload spinner after uploading has finished but while
+            // transcoding is occurring?
+            contentLengthPerMs = 195.85926 / 100;
             break;
         case "video/quicktime":
-            contentLengthPerMs = 430.7018572;
+            // NOTE(calebmer): From trying to upload actual files, seems to take FFmpeg a
+            // long time to transcode videos so I added the `/ 100`. Maybe we should stop
+            // showing the upload spinner after uploading has finished but while
+            // transcoding is occurring?
+            contentLengthPerMs = 430.7018572 / 100;
             break;
         case "video/webm":
             contentLengthPerMs = 684.892905;
             break;
         case "video/x-matroska":
-            contentLengthPerMs = 186.0862023;
+            // NOTE(calebmer): From trying to upload actual files, seems to take FFmpeg a
+            // long time to transcode videos so I added the `/ 100`. Maybe we should stop
+            // showing the upload spinner after uploading has finished but while
+            // transcoding is occurring?
+            contentLengthPerMs = 186.0862023 / 100;
             break;
 
         // Since this is based on our test suite I only got measurements for

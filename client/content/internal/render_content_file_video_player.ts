@@ -82,7 +82,28 @@ export function renderContentFileVideoPlayer(
         durationPreviewHtml.appendChild(new HtmlTextGenerator(durationString));
     }
 
-    {
+    const videoSrc = getContentFileViewerSrc({spaceId, signedUrlSearch, file});
+
+    if (videoSrc === null) {
+        const processingNoteHtml = new HtmlElementGenerator("div");
+        containerHtml.appendChild(processingNoteHtml);
+        processingNoteHtml.setAttribute(
+            "class",
+            contentFileVideoPlayerStyles.processingNoteClassName,
+        );
+
+        processingNoteHtml.appendChild(
+            new HtmlTextGenerator("Processing video, this may take a few minutes"),
+        );
+
+        const processingNoteEllipsisHtml = new HtmlElementGenerator("span");
+        processingNoteHtml.appendChild(processingNoteEllipsisHtml);
+        processingNoteEllipsisHtml.setAttribute(
+            "class",
+            contentFileVideoPlayerStyles.processingNoteEllipsisClassName,
+        );
+        processingNoteEllipsisHtml.appendChild(new HtmlTextGenerator("…"));
+    } else {
         const videoHtml = new HtmlElementGenerator("video");
         containerHtml.appendChild(videoHtml);
         videoHtml.setAttribute("class", contentFileVideoPlayerStyles.videoClassName);
@@ -97,9 +118,7 @@ export function renderContentFileVideoPlayer(
         // user hits play.
         videoHtml.setAttribute("preload", "none");
 
-        // TODO(calebmer, #files): `null` here should keep us in an is processing
-        // state.
-        videoHtml.setAttribute("src", getContentFileViewerSrc({spaceId, signedUrlSearch, file}));
+        videoHtml.setAttribute("src", videoSrc);
     }
 
     {
@@ -270,7 +289,7 @@ export function addContentFileVideoPlayerBehavior(
         durationMs: number;
     },
 ): {
-    onPress: () => void;
+    onPress: () => {preventDefault: boolean} | void;
     cleanup: () => void;
 } {
     /* ========================================================================== *\
@@ -279,7 +298,7 @@ export function addContentFileVideoPlayerBehavior(
 
     assert(containerElement.classList.contains(contentFileVideoPlayerStyles.containerClassName));
 
-    const videoElement = assertExists(containerElement.getElementsByTagName("video")[0]);
+    const videoElement = containerElement.getElementsByTagName("video")[0] ?? null;
 
     const controlsContainerElement = assertExists(
         containerElement.getElementsByClassName(
@@ -430,6 +449,8 @@ export function addContentFileVideoPlayerBehavior(
                 backgroundColor: "grey-10",
             }),
             onPress: () => {
+                if (videoElement === null) return;
+
                 if (videoElement.playbackRate === 1) {
                     videoElement.playbackRate = 1.5;
                 } else if (videoElement.playbackRate === 1.5) {
@@ -457,7 +478,7 @@ export function addContentFileVideoPlayerBehavior(
         // If the video is paused, the pointer isn't hovering our video, or the pointer
         // is hovering our controls then we won't ever consider the pointer to be
         // still.
-        if (videoElement.paused || !isPointerOver || isPointerOverControls) {
+        if (!videoElement || videoElement.paused || !isPointerOver || isPointerOverControls) {
             const stillPointerTimeout =
                 stillPointerTimeoutByContentFileVideoPlayerContainerElement?.get(containerElement);
             if (stillPointerTimeout) {
@@ -649,24 +670,26 @@ export function addContentFileVideoPlayerBehavior(
             // > (referencing just a single moment in time).
             //
             // [1]: https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges#normalized_timeranges_objects
-            for (let i = 0; i < videoElement.buffered.length; i++) {
-                const bufferedTimeRangeStartTime = videoElement.buffered.start(i);
-                const bufferedTimeRangeEndTime = videoElement.buffered.end(i);
+            if (videoElement !== null) {
+                for (let i = 0; i < videoElement.buffered.length; i++) {
+                    const bufferedTimeRangeStartTime = videoElement.buffered.start(i);
+                    const bufferedTimeRangeEndTime = videoElement.buffered.end(i);
 
-                // There won't be any relevant buffered time ranges after this because all
-                // further time ranges in this array will be greater than `progressTime`.
-                if (progressTime < bufferedTimeRangeStartTime) {
-                    break;
-                }
+                    // There won't be any relevant buffered time ranges after this because all
+                    // further time ranges in this array will be greater than `progressTime`.
+                    if (progressTime < bufferedTimeRangeStartTime) {
+                        break;
+                    }
 
-                if (
-                    bufferedTimeRangeStartTime <= progressTime &&
-                    progressTime <= bufferedTimeRangeEndTime
-                ) {
-                    hasBufferedTimeRange = true;
-                    const bufferedProgress = (bufferedTimeRangeEndTime * 1000) / durationMs;
-                    scrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
-                    break;
+                    if (
+                        bufferedTimeRangeStartTime <= progressTime &&
+                        progressTime <= bufferedTimeRangeEndTime
+                    ) {
+                        hasBufferedTimeRange = true;
+                        const bufferedProgress = (bufferedTimeRangeEndTime * 1000) / durationMs;
+                        scrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+                        break;
+                    }
                 }
             }
 
@@ -683,7 +706,7 @@ export function addContentFileVideoPlayerBehavior(
         frameId: number;
     } | null = null;
 
-    {
+    if (videoElement !== null) {
         const handlePlay = () => {
             containerElement.classList.add(contentFileVideoPlayerStyles.playingClassName);
 
@@ -783,6 +806,8 @@ export function addContentFileVideoPlayerBehavior(
     }
 
     const togglePlay = () => {
+        if (!videoElement) return;
+
         if (videoElement.paused) {
             videoElement.play();
         } else {
@@ -794,7 +819,13 @@ export function addContentFileVideoPlayerBehavior(
      *                             Loading indicator                              *
     \* ========================================================================== */
 
-    {
+    if (videoElement === null) {
+        containerElement.classList.add(contentFileVideoPlayerStyles.waitingClassName);
+
+        cleanupFunctions.push(() => {
+            containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
+        });
+    } else {
         const handlePlaying = () => {
             containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
 
@@ -832,7 +863,7 @@ export function addContentFileVideoPlayerBehavior(
      *                            Scrubber drag events                            *
     \* ========================================================================== */
 
-    {
+    if (videoElement !== null) {
         const handleScrubberPointerDown = (event: PointerEvent) => {
             // Ignore presses on our scrubber thumb. That'll initiate a drag.
             if (event.target instanceof Node && scrubberThumbTargetElement.contains(event.target)) {
@@ -869,7 +900,7 @@ export function addContentFileVideoPlayerBehavior(
         coverElement: HTMLDivElement;
     } | null = null;
 
-    {
+    if (videoElement !== null) {
         const startScrubberThumbDrag = (event: PointerEvent) => {
             event.preventDefault();
 
@@ -949,7 +980,7 @@ export function addContentFileVideoPlayerBehavior(
             // If we're dragging then we position the scrubber based on the user's current
             // drag position. Not based on the video's actual time.
             if (playingAnimationState === null && scrubberThumbDragState === null) {
-                const progress = (videoElement.currentTime * 1000) / durationMs;
+                const progress = ((videoElement?.currentTime ?? 0) * 1000) / durationMs;
                 updateScrubberProgress(progress);
             }
         };
@@ -960,7 +991,7 @@ export function addContentFileVideoPlayerBehavior(
             // attribute and render it with CSS.
             durationProgressCurrentElement.setAttribute(
                 "data-time",
-                formatDurationString(videoElement.currentTime * 1000, durationMs),
+                formatDurationString((videoElement?.currentTime ?? 0) * 1000, durationMs),
             );
 
             maybeUpdateScrubberProgress();
@@ -978,15 +1009,17 @@ export function addContentFileVideoPlayerBehavior(
 
         handleTimeUpdate();
 
-        videoElement.addEventListener("timeupdate", handleTimeUpdate);
-        videoElement.addEventListener("progress", handleProgress);
-        addResizeListenerForElement(scrubberElement, handleScrubberResize);
+        if (videoElement !== null) {
+            videoElement.addEventListener("timeupdate", handleTimeUpdate);
+            videoElement.addEventListener("progress", handleProgress);
+            addResizeListenerForElement(scrubberElement, handleScrubberResize);
 
-        cleanupFunctions.push(() => {
-            videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-            videoElement.removeEventListener("progress", handleProgress);
-            removeResizeListenerForElement(scrubberElement, handleScrubberResize);
-        });
+            cleanupFunctions.push(() => {
+                videoElement.removeEventListener("timeupdate", handleTimeUpdate);
+                videoElement.removeEventListener("progress", handleProgress);
+                removeResizeListenerForElement(scrubberElement, handleScrubberResize);
+            });
+        }
     }
 
     /* ========================================================================== *\
@@ -1019,20 +1052,30 @@ export function addContentFileVideoPlayerBehavior(
 
     {
         const handleRateChange = () => {
-            playbackRateButtonElement.setAttribute("data-rate", `${videoElement.playbackRate}x`);
+            playbackRateButtonElement.setAttribute(
+                "data-rate",
+                `${videoElement?.playbackRate ?? 1}x`,
+            );
         };
 
         handleRateChange();
 
-        videoElement.addEventListener("ratechange", handleRateChange);
+        if (videoElement !== null) {
+            videoElement.addEventListener("ratechange", handleRateChange);
 
-        cleanupFunctions.push(() => {
-            videoElement.removeEventListener("ratechange", handleRateChange);
-        });
+            cleanupFunctions.push(() => {
+                videoElement.removeEventListener("ratechange", handleRateChange);
+            });
+        }
     }
 
     return {
-        onPress: togglePlay,
+        onPress: () => {
+            if (!videoElement) return;
+
+            togglePlay();
+            return {preventDefault: true};
+        },
         cleanup: () => {
             for (const cleanup of cleanupFunctions) {
                 cleanup();
