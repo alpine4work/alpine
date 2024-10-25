@@ -947,6 +947,7 @@ export function ContentView({
                         isOurEditorUploading: false,
                         isEditorInitialAppRender,
                         rootNavigate,
+                        getReporter: () => reporter,
                         onUpdate: (file, signedUrlSearch) => {
                             setUpdatedContentReferencesFileById(fileById => {
                                 return mergeContentReferencesFileById(

@@ -18,6 +18,7 @@ import {
 } from "~/client/content/internal/render_content_file_video_player.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
@@ -1354,6 +1355,7 @@ export function addContentFilePreviewBehavior(
         isOurEditorUploading,
         isEditorInitialAppRender,
         rootNavigate,
+        getReporter,
         onUpdate,
         onSignedUrlRefresh,
         onShiftMouseDown,
@@ -1369,6 +1371,7 @@ export function addContentFilePreviewBehavior(
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
         isEditorInitialAppRender: boolean;
         rootNavigate: NavigateFunction;
+        getReporter: () => Reporter;
         onUpdate: (file: FileModel, signedUrlSearch: string) => void;
         onSignedUrlRefresh: (fileId: FileId, signedUrlSearch: string) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
@@ -1838,6 +1841,7 @@ export function addContentFilePreviewBehavior(
         if (containerElement) {
             videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
                 durationMs: reference.file.preview.videoDuration,
+                getReporter,
             });
         }
     }

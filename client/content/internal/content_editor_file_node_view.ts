@@ -16,6 +16,7 @@ import {
     renderContentFilePreview,
 } from "~/client/content/internal/render_content_file_preview.js";
 import {AppContext} from "~/client/context/app_context.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getIsMobileWithoutListening,
@@ -53,6 +54,7 @@ export function createContentEditorFileNodeViewConstructor({
     getLayoutScreenWidth,
     getContext,
     getSpaceId,
+    getReporter,
     getAttachmentTarget,
     getExpirationTimers,
     subscribeToReferencesUpdate,
@@ -63,6 +65,7 @@ export function createContentEditorFileNodeViewConstructor({
     getLayoutScreenWidth: () => number;
     getContext: () => AppContext;
     getSpaceId: () => SpaceId;
+    getReporter: () => Reporter;
     getAttachmentTarget: () => FileAttachmentTarget;
     getExpirationTimers: () => ContentFilePreviewExpirationTimers;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
@@ -150,6 +153,7 @@ export function createContentEditorFileNodeViewConstructor({
                     isOurEditorUploading,
                     isEditorInitialAppRender: false,
                     rootNavigate,
+                    getReporter,
                     onUpdate: (file, signedUrlSearch) => {
                         view.dispatch(
                             updateContentEditorReferences(view.state.tr, {

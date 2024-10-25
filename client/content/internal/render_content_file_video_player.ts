@@ -2,6 +2,7 @@ import classNames from "classnames";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -18,6 +19,8 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -291,8 +294,10 @@ export function addContentFileVideoPlayerBehavior(
     containerElement: Element,
     {
         durationMs,
+        getReporter,
     }: {
         durationMs: number;
+        getReporter: () => Reporter;
     },
 ): {
     onPress: () => {preventDefault: boolean} | void;
@@ -438,9 +443,24 @@ export function addContentFileVideoPlayerBehavior(
             }),
             onPress: () => {
                 if (!document.fullscreenElement) {
-                    containerElement.requestFullscreen();
+                    containerElement.requestFullscreen({navigationUI: "hide"}).catch(error => {
+                        getReporter().displayError(
+                            "Couldn’t fullscreen video",
+                            new PermissionDeniedError(
+                                error instanceof Error ? error.message : String(error),
+                                {
+                                    displayMessage: errorDisplayMessage`Your browser blocked this video from being fullscreened. Try checking your browser’s permissions for this website.`,
+                                },
+                            ),
+                        );
+                    });
                 } else {
-                    document.exitFullscreen();
+                    document.exitFullscreen().catch(error => {
+                        getReporter().logErrorWithoutDisplaying(
+                            "Couldn't exit video fullscreen",
+                            error,
+                        );
+                    });
                 }
             },
         }),
@@ -820,7 +840,20 @@ export function addContentFileVideoPlayerBehavior(
         if (!videoElement) return;
 
         if (videoElement.paused) {
-            videoElement.play();
+            videoElement.play().catch(error => {
+                // Chrome throws an abort error if `pause()` is called before `play()` has
+                // returned. Ignore play abort errors from Chrome. It's reasonable for the user
+                // to pause if play is taking a long time to load.
+                if (
+                    error instanceof Error &&
+                    error.name === "AbortError" &&
+                    error.message.includes("pause")
+                ) {
+                    return;
+                }
+
+                getReporter().displayError("Couldn’t play video", error);
+            });
         } else {
             videoElement.pause();
         }

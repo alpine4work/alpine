@@ -1163,6 +1163,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getLayoutScreenWidth: getFileLayoutScreenWidth,
                 getContext: () => assertExists(contextRef.current),
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getReporter: () => reporterRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
                 getExpirationTimers: () => assertExists(filePreviewExpirationTimers),
                 subscribeToReferencesUpdate: listener => {
