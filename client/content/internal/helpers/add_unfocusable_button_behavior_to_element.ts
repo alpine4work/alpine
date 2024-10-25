@@ -8,7 +8,6 @@ import {
     removeTriggeredOverlayCloseEventListener,
     removeTriggeredOverlayOpenEventListener,
 } from "~/client/design/overlay_trigger_button_event_listeners.js";
-import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function addUnfocusableButtonBehaviorToElement(
@@ -26,7 +25,7 @@ export function addUnfocusableButtonBehaviorToElement(
         pressClassName?: string;
         onHoverStart?: () => void;
         onHoverEnd?: () => void;
-        onPress?: () => void;
+        onPress?: (event: PointerEvent) => void;
     } = {},
 ): () => void {
     const defaultClassList = defaultClassName.length > 0 ? defaultClassName.split(" ") : [];
@@ -83,23 +82,21 @@ export function addUnfocusableButtonBehaviorToElement(
     };
 
     const handlePointerDown = (event: PointerEvent) => {
-        isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
+        isPointerDownAndOver = event.button === 0;
         maybeUpdateStyle();
 
-        // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-        // modifier.
-        if (event.button !== 0 || isModifiedPointerEvent(event)) return;
+        if (!isPointerDownAndOver) return;
 
         // Prevent focus from moving or text from being selected.
         event.preventDefault();
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (event: PointerEvent) => {
         const wasPointerDownAndOver = isPointerDownAndOver;
         isPointerDownAndOver = false;
         maybeUpdateStyle();
 
-        if (wasPointerDownAndOver) onPress?.();
+        if (wasPointerDownAndOver) onPress?.(event);
     };
 
     const handlePointerEnter = () => {

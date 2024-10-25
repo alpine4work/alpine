@@ -1501,8 +1501,12 @@ export function addContentFilePreviewBehavior(
     const handlePointerDown = (event: PointerEvent) => {
         assert(!isInert);
 
+        const wasEventPreviouslyDefaultPrevented = event.defaultPrevented;
+
         isPointerDownAndOver =
-            !event.defaultPrevented && event.button === 0 && !isModifiedPointerEvent(event);
+            !wasEventPreviouslyDefaultPrevented &&
+            event.button === 0 &&
+            !isModifiedPointerEvent(event);
 
         if (isPointerDownAndOver) {
             // Normally ProseMirror sets `element.draggable = true` on node selection
@@ -1553,7 +1557,11 @@ export function addContentFilePreviewBehavior(
         // of opening the file viewer. This interaction is not obvious. You can also
         // use keyboard shortcuts or right click to select a file. The user should be
         // able to figure out one of these three methods.
-        if (event.pointerType === "mouse" && (event.altKey || event.shiftKey)) {
+        if (
+            !wasEventPreviouslyDefaultPrevented &&
+            event.pointerType === "mouse" &&
+            (event.altKey || event.shiftKey)
+        ) {
             onShiftMouseDown?.(event);
         } else if (isPointerDownAndOver && onLongPress) {
             // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
@@ -1597,8 +1605,6 @@ export function addContentFilePreviewBehavior(
         resetPointerState();
         if (!wasPointerDownAndOver) return;
         if (wasLongPress) return;
-        if (!reference) return;
-        const {file} = reference;
 
         // If this is a video, then click doesn't open the file viewer but rather
         // plays/pauses the video.
@@ -1606,6 +1612,13 @@ export function addContentFilePreviewBehavior(
             const result = videoPlayerBehavior?.onPress();
             if (result?.preventDefault) return;
         }
+
+        openViewer();
+    };
+
+    const openViewer = () => {
+        if (!reference) return;
+        const {file} = reference;
 
         handoffContentFileReference(reference);
 
@@ -1842,6 +1855,7 @@ export function addContentFilePreviewBehavior(
             videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
                 durationMs: reference.file.preview.videoDuration,
                 getReporter,
+                onOpenViewer: openViewer,
             });
         }
     }
