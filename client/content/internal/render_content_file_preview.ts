@@ -6,7 +6,6 @@ import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
-import {contentFileCodeViewerProcessingIndicatorColor} from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {handoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {
@@ -29,8 +28,10 @@ import {warningIconSvg} from "~/client/icons/warning_icon_svg.js";
 import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
+    colorSchemeVars,
     contentFileVideoPlayerStyles,
     contentStyles,
+    pulseAnimationClassName,
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -47,7 +48,9 @@ import {
     fileClassName,
 } from "~/shared/content/content_styles.js";
 import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -56,7 +59,10 @@ import {
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
 import {getFileContentTypePreferredExtension} from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {
+    FileImagePreviewPlaceholder,
+    fileImagePreviewPlaceholderBaseSize,
+} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     FileCodePreview,
@@ -69,6 +75,9 @@ import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -85,6 +94,8 @@ import {
 } from "~/shared/helpers/html/html_generator.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
@@ -362,6 +373,7 @@ export function renderContentFilePreview(
             }
             case "Code": {
                 renderContentFileCodePreview({
+                    file: reference.file,
                     filePreview: reference.file.preview,
                     layout,
                     screenWidth,
@@ -408,6 +420,82 @@ function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, isMobi
     );
 }
 
+function renderContentFileProcessingPreview(
+    html: HtmlElementGenerator,
+    {
+        file,
+        layout,
+    }: {
+        file: FileModel;
+        layout: {width: number; height: number};
+    },
+) {
+    const containerHtml = new HtmlElementGenerator("div");
+    html.appendChild(containerHtml);
+
+    containerHtml.setAttribute(
+        "class",
+        sprinkles({
+            position: "absolute",
+            inset: "0",
+            backgroundColor: "grey-0",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "grey-30",
+        }),
+    );
+
+    const placeholder = generateFileProcessingPreviewPlaceholder(file);
+    const svg = renderFileProcessingPreviewPlaceholder(placeholder, {
+        className: classNames(
+            pulseAnimationClassName,
+            sprinkles({
+                zIndex: "10",
+                position: "absolute",
+                inset: "0",
+                width: "full",
+                height: "full",
+            }),
+        ),
+    });
+
+    containerHtml.appendChild(createSvgHtmlGenerator(svg));
+
+    const processingHtml = new HtmlElementGenerator("div");
+    containerHtml.appendChild(processingHtml);
+
+    processingHtml.setAttribute(
+        "class",
+        sprinkles({
+            zIndex: "20",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.5",
+            fontSize: layout.width < 150 ? "25" : "50",
+            // Push the loading spinner into the center with some
+            // padding top.
+            paddingTop: "4",
+        }),
+    );
+
+    processingHtml.appendChild(
+        createSvgHtmlGenerator(
+            spinnerGapIconSvg({
+                className: `${spinAnimationClassName} ${sprinkles({
+                    width: "6",
+                    height: "6",
+                })}`,
+            }),
+        ),
+    );
+    processingHtml.appendChild(
+        new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
+    );
+}
+
 function renderContentFileImagePreview(
     get: <Value>(store: Store<Value>) => Value,
     {
@@ -433,54 +521,24 @@ function renderContentFileImagePreview(
         filePreview.placeholder === "Processing" ||
         filePreview.size === "Processing"
     ) {
-        const containerHtml = new HtmlElementGenerator("div");
-        html.appendChild(containerHtml);
-
-        containerHtml.setAttribute(
-            "class",
-            sprinkles({
-                position: "absolute",
-                inset: "0",
-                backgroundColor: "grey-5",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                color: "grey-30",
-            }),
-        );
-
         if (filePreview.isProcessing || filePreview.ok) {
-            const processingHtml = new HtmlElementGenerator("div");
-            containerHtml.appendChild(processingHtml);
+            renderContentFileProcessingPreview(html, {file, layout});
+        } else {
+            const containerHtml = new HtmlElementGenerator("div");
+            html.appendChild(containerHtml);
 
-            processingHtml.setAttribute(
+            containerHtml.setAttribute(
                 "class",
                 sprinkles({
+                    position: "absolute",
+                    inset: "0",
+                    backgroundColor: "grey-0",
                     display: "flex",
-                    flexDirection: "column",
+                    justifyContent: "center",
                     alignItems: "center",
-                    gap: "1.5",
-                    fontSize: layout.width < 150 ? "25" : "50",
-                    // Push the loading spinner into the center with some
-                    // padding top.
-                    paddingTop: "2",
                 }),
             );
 
-            processingHtml.appendChild(
-                createSvgHtmlGenerator(
-                    spinnerGapIconSvg({
-                        className: `${spinAnimationClassName} ${sprinkles({
-                            width: "6",
-                            height: "6",
-                        })}`,
-                    }),
-                ),
-            );
-            processingHtml.appendChild(
-                new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
-            );
-        } else {
             // Width at which we need to shrinking the error message so that it's still
             // readable.
             const minWidth = 250;
@@ -499,6 +557,8 @@ function renderContentFileImagePreview(
             errorHtml.setAttribute(
                 "class",
                 sprinkles({
+                    zIndex: "20",
+                    position: "relative",
                     maxWidth: "64",
                     paddingX: "6",
                     paddingY: "4",
@@ -519,7 +579,7 @@ function renderContentFileImagePreview(
                     gap: "1.5",
                     fontSize: "200",
                     fontStyle: "semi-bold",
-                    color: "grey-60",
+                    color: "grey-70",
                 }),
             );
 
@@ -783,12 +843,14 @@ function renderContentFileImagePreviewInner(
 }
 
 function renderContentFileCodePreview({
+    file,
     filePreview,
     layout,
     screenWidth,
     isMobile,
     html,
 }: {
+    file: FileModel;
     filePreview: FileCodePreview;
     layout: ContentFileLayout;
     screenWidth: number;
@@ -809,49 +871,7 @@ function renderContentFileCodePreview({
     appendImageHtmlForSelection(html, isMobile);
 
     if (filePreview.content === "Processing") {
-        const containerHtml = new HtmlElementGenerator("div");
-        html.appendChild(containerHtml);
-
-        containerHtml.setAttribute(
-            "class",
-            sprinkles({
-                position: "absolute",
-                inset: "0",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                color: contentFileCodeViewerProcessingIndicatorColor,
-            }),
-        );
-
-        const processingHtml = new HtmlElementGenerator("div");
-        containerHtml.appendChild(processingHtml);
-
-        processingHtml.setAttribute(
-            "class",
-            sprinkles({
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "1.5",
-                fontSize: layout.width < 150 ? "25" : "50",
-                // Push the loading spinner into the center with some
-                // padding top.
-                paddingTop: "2",
-            }),
-        );
-
-        processingHtml.appendChild(
-            createSvgHtmlGenerator(
-                spinnerGapIconSvg({
-                    className: `${spinAnimationClassName} ${sprinkles({
-                        width: "6",
-                        height: "6",
-                    })}`,
-                }),
-            ),
-        );
-        processingHtml.appendChild(new HtmlTextGenerator("Processing code"));
+        renderContentFileProcessingPreview(html, {file, layout});
         return;
     }
 
@@ -1124,7 +1144,7 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
 
     svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round6(
         blurStdDeviation,
-    )}" /></filter><g filter="url(#blur)">`;
+    )}" color-interpolation-filters="sRGB" /></filter><g filter="url(#blur)">`;
 
     for (let y = 0; y < pixelGrid.length; y++) {
         const pixelRow = pixelGrid[y]!;
@@ -1148,6 +1168,153 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;
+        }
+    }
+
+    svg += "</g></svg>";
+    return svg;
+}
+
+/**
+ * Generate a blobby loading placeholder that looks like one of our image
+ * preview placeholders that we'll render before we have the real data for the
+ * image.
+ */
+function generateFileProcessingPreviewPlaceholder(
+    file: FileModel,
+): ReadonlyArray<ReadonlyArray<ColorWithShade>> {
+    const fileSize = getFilePreviewSize(file);
+
+    const baseSize = Math.floor(fileImagePreviewPlaceholderBaseSize * 0.6);
+
+    const aspectRatio = clamp(
+        minFilePreviewAspectRatio,
+        fileSize.width / fileSize.height,
+        maxFilePreviewAspectRatio,
+    );
+    const width = fileSize.width < fileSize.height ? baseSize : Math.round(baseSize * aspectRatio);
+    const height = fileSize.width < fileSize.height ? Math.round(baseSize / aspectRatio) : baseSize;
+
+    const stableRandom = new StableRandom(`FileLoadingPlaceholder:${file.id}-${width}-${height}`);
+
+    const pixelCount = width * height;
+    const backgroundPixelCount = Math.round((4 / 5) * pixelCount);
+    const backgroundColor = "grey-0";
+
+    const pixels = createArrayWithLength(pixelCount, (index): ColorWithShade => {
+        if (index < backgroundPixelCount) return backgroundColor;
+
+        const themeColor =
+            themeColors[
+                stableRandom.randomInteger("pixelThemeColor", index, 0, themeColors.length)
+            ]!;
+
+        return `${themeColor}-10`;
+    });
+
+    stableShuffleArray(stableRandom, "pixelShuffle", pixels);
+
+    // Move any colored pixels out of the middle of the placeholder. Since we'll
+    // have the loading indicator in the middle of the placeholder.
+    {
+        const middlePixelStartX = Math.floor((width - 1) / 2);
+        const middlePixelEndX = Math.ceil((width - 1) / 2);
+
+        const middlePixelStartY = Math.floor((height - 1) / 2);
+        const middlePixelEndY = Math.ceil((height - 1) / 2);
+
+        for (let middleY = middlePixelStartY; middleY <= middlePixelEndY; middleY++) {
+            for (let middleX = middlePixelStartX; middleX <= middlePixelEndX; middleX++) {
+                const pixelIndex = middleY * width + middleX;
+                const pixelColor = pixels[pixelIndex]!;
+                if (pixelColor === backgroundColor) continue;
+
+                // Get any pixels with background pixels not in the middle we can swap our
+                // colored pixel for.
+                const backgroundPixelIndexes = filterMapArray(pixels, (pixel, index) => {
+                    if (pixel !== backgroundColor) return;
+
+                    const pixelY = Math.floor(index / width);
+                    const pixelX = index % width;
+
+                    if (
+                        middlePixelStartX <= pixelX &&
+                        middlePixelEndX <= pixelX &&
+                        middlePixelStartY <= pixelY &&
+                        pixelY <= middlePixelEndY
+                    ) {
+                        return;
+                    }
+
+                    return index;
+                });
+                if (backgroundPixelIndexes.length === 0) continue;
+
+                const backgroundPixelIndex =
+                    backgroundPixelIndexes[
+                        stableRandom.randomInteger(
+                            "pixelReshuffle",
+                            pixelIndex,
+                            0,
+                            backgroundPixelIndexes.length,
+                        )
+                    ]!;
+
+                pixels[backgroundPixelIndex] = pixelColor;
+                pixels[pixelIndex] = backgroundColor;
+            }
+        }
+    }
+
+    const pixelGrid: Array<Array<ColorWithShade>> = [[]];
+
+    for (const pixel of pixels) {
+        const lastPixelRow = pixelGrid[pixelGrid.length - 1]!;
+
+        if (lastPixelRow.length < width) {
+            lastPixelRow.push(pixel);
+        } else {
+            pixelGrid.push([pixel]);
+        }
+    }
+
+    return pixelGrid;
+}
+
+function renderFileProcessingPreviewPlaceholder(
+    pixelGrid: ReadonlyArray<ReadonlyArray<ColorWithShade>>,
+    {className = ""}: {className?: string} = {},
+) {
+    const pixelGridWidth = pixelGrid[0]!.length;
+    const pixelGridHeight = pixelGrid.length;
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" class="${className}" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}">`;
+
+    const blurStdDeviation = 1 / 2;
+    const translateX = -blurStdDeviation * 2;
+    const translateY = -blurStdDeviation * 2;
+    const scaleX = (pixelGridWidth + -translateX * 2) / pixelGridWidth;
+    const scaleY = (pixelGridHeight + -translateY * 2) / pixelGridHeight;
+
+    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round6(
+        blurStdDeviation,
+    )}" color-interpolation-filters="sRGB" /></filter><g filter="url(#blur)">`;
+
+    for (let y = 0; y < pixelGrid.length; y++) {
+        const pixelRow = pixelGrid[y]!;
+
+        for (let x = 0; x < pixelRow.length; x++) {
+            const pixel = pixelRow[x]!;
+
+            svg +=
+                `<rect ` +
+                `x="${round6(x * scaleX + translateX)}" ` +
+                `y="${round6(y * scaleY + translateY)}" ` +
+                // Have `width` and `height` fill the remainder of the image so we don't get
+                // any gaps between `<rect>`s from rounding errors when rendering the SVG.
+                `width="${round6(scaleX)}" ` +
+                `height="${round6(scaleY)}" ` +
+                `style="fill: ${colorSchemeVars[pixel]}" />`;
         }
     }
 

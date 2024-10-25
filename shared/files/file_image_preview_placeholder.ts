@@ -4,6 +4,16 @@ import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_sch
 import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 
 /**
+ * A placeholder of base size 5 generates at most 60 pixels (if width is 5, then
+ * max height is `round(5 / minFilePreviewAspectRatio)` which equals 12 as of
+ * 2024-10-04).
+ *
+ * A pixel is 3 or 4 bytes depending on whether there's an alpha channel. So
+ * the max number of bytes in a placeholder is 240 bytes.
+ */
+export const fileImagePreviewPlaceholderBaseSize = 5;
+
+/**
  * File preview placeholder blur image.
  *
  * When displaying a file preview it might take a second for us to download the

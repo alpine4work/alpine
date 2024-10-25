@@ -9,7 +9,10 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileImageContentType} from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {
+    FileImagePreviewPlaceholder,
+    fileImagePreviewPlaceholderBaseSize,
+} from "~/shared/files/file_image_preview_placeholder.js";
 import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
@@ -34,14 +37,6 @@ export async function processFileImagePreviewPlaceholder(
     input: Buffer | ArrayBuffer | Uint8Array,
     options?: sharp.SharpOptions,
 ): Promise<FileImagePreviewPlaceholder> {
-    // A placeholder of size 5 generates at most 60 pixels (if width is 5, then max
-    // height is `round(5 / minFilePreviewAspectRatio)` which equals 12 as of
-    // 2024-10-04).
-    //
-    // A pixel is 3 or 4 bytes depending on whether there's an alpha channel. So
-    // the max number of bytes in a placeholder is 240 bytes.
-    const placeholderSize = 5;
-
     const {
         data: outputData,
         info: {channels, width, height},
@@ -66,7 +61,9 @@ export async function processFileImagePreviewPlaceholder(
         // further away from the aspect ratio 1:1. Ideally we'd have about the same
         // number of pixels no matter the aspect ratio. Unfortunately, at this point we
         // don't know the image's dimensions.
-        .resize(placeholderSize, placeholderSize, {fit: "outside"})
+        .resize(fileImagePreviewPlaceholderBaseSize, fileImagePreviewPlaceholderBaseSize, {
+            fit: "outside",
+        })
         .toFormat("png")
         .modulate({brightness: 1, saturation: 1.2})
         .raw()
