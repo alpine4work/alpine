@@ -186,6 +186,8 @@ export const videoClassName = style({
     inset: "0",
     width: "100%",
     height: "100%",
+    objectPosition: "center top",
+    objectFit: "cover",
     selectors: {
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
             display: "none",

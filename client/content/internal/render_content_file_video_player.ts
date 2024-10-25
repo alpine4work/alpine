@@ -27,8 +27,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-// TODO(calebmer, #files): Video should have `object-fit` style for small screens
-
 /**
  * Render the elements needed for a content video player. You must also use
  * `addContentFileVideoPlayerBehavior()` to add event listeners for the content
