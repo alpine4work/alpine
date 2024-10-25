@@ -18,9 +18,13 @@ const fallbackFileAspectRatio = 3 / 2;
 
 // Use the larger `remPx` size (mobile) and the larger block max width
 // (mobile). The file will be scaled down as necessary.
-const fallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxByPlatform.mobile;
-const fallbackFileHeight = fallbackFileWidth / fallbackFileAspectRatio;
-const fallbackFileSize = {width: fallbackFileWidth, height: fallbackFileHeight};
+const largeFallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxByPlatform.mobile;
+const largeFallbackFileHeight = largeFallbackFileWidth / fallbackFileAspectRatio;
+const largeFallbackFileSize = {width: largeFallbackFileWidth, height: largeFallbackFileHeight};
+
+const smallFallbackFileWidth = 200;
+const smallFallbackFileHeight = smallFallbackFileWidth / fallbackFileAspectRatio;
+const smallFallbackFileSize = {width: smallFallbackFileWidth, height: smallFallbackFileHeight};
 
 // Round numbers to 3 decimal places so we sending less data over the
 // network in our generated HTML.
@@ -494,7 +498,7 @@ const fileImagePreviewSizeDownScale = 2;
  */
 export function getFilePreviewSize(file: FileModel | null): {width: number; height: number} {
     if (!file?.preview) {
-        return fallbackFileSize;
+        return smallFallbackFileSize;
     }
 
     switch (file.preview.type) {
@@ -518,14 +522,17 @@ export function getFilePreviewSize(file: FileModel | null): {width: number; heig
 
             // Use the larger `remPx` size (mobile) and the larger block max width
             // (mobile). The file will be scaled down as necessary.
-            const width = fallbackFileWidth;
-            const height = fallbackFileWidth / aspectRatio;
+            const width = largeFallbackFileWidth;
+            const height = largeFallbackFileWidth / aspectRatio;
             return {width, height};
         }
         case "Image": {
-            if (file.preview.size === "Processing" || file.preview.size === "Error") {
-                return fallbackFileSize;
-            }
+            if (file.preview.size === "Processing") return largeFallbackFileSize;
+            if (file.preview.size === "Error") return smallFallbackFileSize;
+
+            // Don't downscale SVG vector images. Since they can scale up
+            const downScale =
+                file.contentType === "image/svg+xml" ? 1 : fileImagePreviewSizeDownScale;
 
             return {
                 width:
@@ -533,13 +540,13 @@ export function getFilePreviewSize(file: FileModel | null): {width: number; heig
                     // Files that already are at a scale of 2 or more don't need to be downscaled.
                     // We render PDFs at 2x their actual width/height so they look good on retina
                     // displays at their proper size.
-                    Math.max(fileImagePreviewSizeDownScale, file.preview.size.scale),
+                    Math.max(downScale, file.preview.size.scale),
                 height:
                     file.preview.size.height /
                     // Files that already are at a scale of 2 or more don't need to be downscaled.
                     // We render PDFs at 2x their actual width/height so they look good on retina
                     // displays at their proper size.
-                    Math.max(fileImagePreviewSizeDownScale, file.preview.size.scale),
+                    Math.max(downScale, file.preview.size.scale),
             };
         }
         default:

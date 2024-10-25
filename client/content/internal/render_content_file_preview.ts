@@ -301,7 +301,7 @@ export function renderContentFilePreview(
             sprinkles({
                 position: "absolute",
                 inset: "0",
-                backgroundColor: "grey-5",
+                backgroundColor: "grey-0",
             }),
         );
 
@@ -315,7 +315,7 @@ export function renderContentFilePreview(
             sprinkles({
                 position: "absolute",
                 inset: "0",
-                backgroundColor: "grey-5",
+                backgroundColor: "grey-0",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
@@ -560,11 +560,12 @@ function renderContentFileImagePreview(
                     zIndex: "20",
                     position: "relative",
                     maxWidth: "64",
-                    paddingX: "6",
-                    paddingY: "4",
+                    paddingX: "8",
+                    paddingTop: "5",
+                    paddingBottom: "4",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "2",
+                    gap: "1.5",
                 }),
             );
 
@@ -617,9 +618,7 @@ function renderContentFileImagePreview(
             errorMessageHtml.setAttribute(
                 "class",
                 sprinkles({
-                    // If we're shrinking the error then increase the size of the message text so
-                    // that it stays readable instead of using the minimum size.
-                    fontSize: layout.width < minWidth ? "75" : "50",
+                    fontSize: "75",
                     color: "grey-50",
                 }),
             );
