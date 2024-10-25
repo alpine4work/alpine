@@ -74,6 +74,11 @@ export const containerClassName = style({
             // Override our parent's `cursor: pointer` style when fullscreen. Clicking on
             // the video won't select the file element in the document anymore.
             cursor: "default",
+            // Pure black background color for the container when fullscreened. In case the
+            // video needs to be [letter-boxed][1].
+            //
+            // [1]: https://en.wikipedia.org/wiki/Letterboxing_(filming)
+            backgroundColor: "black",
         },
         [`&${playingClassName}${stillPointerClassName}`]: {
             cursor: "none",
@@ -191,6 +196,22 @@ export const videoClassName = style({
     selectors: {
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
             display: "none",
+        },
+        [`${containerClassName}${fullscreenClassName} &`]: {
+            // When full screened, make sure the user can see the entire video even if it
+            // doesn't perfectly fit. We'll show a black box outside the video's bounds.
+            objectPosition: "center",
+            objectFit: "contain",
+        },
+        [`${containerClassName}:not(${fullscreenClassName}) &`]: {
+            // Make sure the video has `pointer-events: none` when not fullscreened. This
+            // is because we've observed `dragleave` events with an `event.relatedTarget`
+            // of a pseudo element not in the DOM when hovering over video elements that
+            // breaks our drag/drop handling.
+            //
+            // When not fullscreened pressing on the preview will handle play/pause for the
+            // video.
+            pointerEvents: "none",
         },
     },
 });

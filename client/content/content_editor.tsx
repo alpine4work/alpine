@@ -119,7 +119,6 @@ import {
 import {useReporter} from "~/client/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {flushScrollbarResizeSync} from "~/client/design/scrollbar.js";
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
@@ -155,6 +154,7 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {
@@ -2894,7 +2894,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     getDraggingPos: () => draggingFileRef.current?.getPos() ?? null,
                     onDropTargetChange: setFileDropTarget,
                     onDispose: () => {
-                        if (fileDragState === state) fileDragState = null;
+                        if (fileDragState === state) {
+                            fileDragState = null;
+                        }
                     },
                 });
 

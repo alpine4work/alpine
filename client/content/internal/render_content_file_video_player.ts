@@ -533,8 +533,6 @@ export function addContentFileVideoPlayerBehavior(
         );
     };
 
-    updateStillPointerTimeout();
-
     // If this behavior function unmounts/remounts in response to some change,
     // check our hover state by looking at the DOM.
     let isPointerOver = containerElement.classList.contains(
@@ -623,6 +621,9 @@ export function addContentFileVideoPlayerBehavior(
             );
         });
     }
+
+    // Must be initialized after `isPointerOver`.
+    updateStillPointerTimeout();
 
     /* ========================================================================== *\
      *                                 Play/pause                                 *
