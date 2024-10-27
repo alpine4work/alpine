@@ -4,6 +4,7 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
@@ -60,6 +61,7 @@ export function SpaceLayoutSideBar({
 }) {
     const rootNavigate = useRootNavigate();
     const reporter = useReporter();
+    const {isAppleDevice} = useClientInfo();
 
     // Preload affinitive search entities so they're ready when the search modal
     // opens. We expect search to be the primary way users navigate around the
@@ -127,7 +129,7 @@ export function SpaceLayoutSideBar({
                             size="lg"
                             description="Search"
                             tooltipPlacement="right"
-                            keyboardShortcutHint="shift+shift"
+                            keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
                             onPress={onSearchPress}
                         >
                             <MagnifyingGlass />

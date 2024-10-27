@@ -68,7 +68,6 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";
@@ -371,8 +370,6 @@ function SpaceLayoutRouteInner({
             }),
     }));
 
-    const lastShiftKeyDownRef = useRef<{location: number; time: number} | null>(null);
-
     // Listen for double shift events. We don't use `<GlobalKeyDownEvent>` since we
     // need to attach a capture `keydown` listener. Since any `keydown` that's not
     // `Shift` should cancel our double shift timer. However, by convention if a
@@ -386,38 +383,17 @@ function SpaceLayoutRouteInner({
     // product-wide global shortcut.
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Double shift opens the search modal.
+            // Ctrl+P opens the search modal.
             if (
-                event.key === "Shift" &&
-                !event.altKey &&
-                !event.metaKey &&
-                !event.ctrlKey &&
+                event.key === "p" &&
+                (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey) &&
                 // Don't open the search modal on mobile.
                 !isMobile
             ) {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const currentTime = Date.now();
-                const lastShiftKeyDown = lastShiftKeyDownRef.current;
-
-                if (lastShiftKeyDown === null) {
-                    lastShiftKeyDownRef.current = {
-                        location: event.location,
-                        time: currentTime,
-                    };
-                } else {
-                    lastShiftKeyDownRef.current = null;
-
-                    if (currentTime - lastShiftKeyDown.time < doubleClickDelayMs) {
-                        setSearchQueryText("");
-                    }
-                }
-            } else {
-                // If the user presses a key other than `Shift` then reset the double shift
-                // timer. This happens often when typing text like “I <3 NY” fast. Since you
-                // type `Shift`, `I`, `Shift`, `,` (since `Shift+,` is `<`).
-                lastShiftKeyDownRef.current = null;
+                setSearchQueryText("");
             }
         };
 
@@ -425,7 +401,7 @@ function SpaceLayoutRouteInner({
         return () => {
             window.removeEventListener("keydown", handleKeyDown, true);
         };
-    }, [isMobile, setSearchQueryText]);
+    }, [clientInfo.isAppleDevice, isMobile, setSearchQueryText]);
 
     // In native mobile iOS apps, save any iOS device tokens to the server. We'll
     // use the device token to actually send the user push notifications.
