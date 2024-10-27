@@ -2,7 +2,6 @@ import {CalendarDate} from "@internationalized/date";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {getClientInfo, useBrowserId} from "~/client/remix/client_info_context.js";
@@ -13,6 +12,7 @@ import {
     getParentTaskIdIfChildrenQuery,
 } from "~/client/tasks/core/task_client_store.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

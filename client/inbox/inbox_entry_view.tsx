@@ -10,7 +10,6 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
@@ -34,6 +33,7 @@ import {
 } from "~/client/styles/styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

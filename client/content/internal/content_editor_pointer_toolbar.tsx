@@ -52,7 +52,6 @@ import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
@@ -70,6 +69,7 @@ import {
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";

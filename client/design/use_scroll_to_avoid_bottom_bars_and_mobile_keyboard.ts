@@ -18,7 +18,6 @@ import {
     isMobileKeyboardFrameChangeEnabled,
     subscribeToMobileKeyboardFrameChange,
 } from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
@@ -30,6 +29,7 @@ import {
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";

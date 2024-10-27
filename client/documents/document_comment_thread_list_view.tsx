@@ -15,7 +15,6 @@ import {MessageInputRef} from "~/client/content/messaging/message_input_base.js"
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
 import {DocumentCommentThreadHeader} from "~/client/documents/internal/document_comment_thread_header.js";
@@ -64,6 +63,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";

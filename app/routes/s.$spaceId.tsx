@@ -27,7 +27,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {
@@ -69,6 +68,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";

@@ -21,7 +21,6 @@ import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
@@ -38,6 +37,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";

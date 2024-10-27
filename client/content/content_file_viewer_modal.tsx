@@ -8,11 +8,11 @@ import {
 } from "~/client/content/internal/load_content_file_viewer_data.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useForceRevalidateRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     PromiseImmediateResolver,
@@ -37,7 +37,7 @@ export function ContentFileViewerModal({
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
-    const handoffFileReference = useHandoffContentFileReference();
+    const handoffFileReference = useHandoffContentFileReference(fileId);
 
     const fileFromAttachmentInput = useMemo(
         () => ({

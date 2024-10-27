@@ -1,5 +1,5 @@
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {Easing, easeOutQuint} from "~/shared/design/core/easing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";

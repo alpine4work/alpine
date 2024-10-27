@@ -23,11 +23,11 @@ import {
     ReporterWithoutContext,
 } from "~/client/design/internal/reporter_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {greyElevated2ClassName, toastStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

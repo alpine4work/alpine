@@ -17,6 +17,7 @@ import {
     mobilePlatformSelector,
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
+import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
 import {approximateOpacityForShiftingGreyColor} from "~/client/styles/other/internal/helpers/approximate_opacity_for_shifting_grey_color.js";
 import {
     extrapolateHighlightColor,
@@ -32,7 +33,6 @@ import {
     mobileNavigationBarHeight,
 } from "~/client/styles/other/internal/navigation_bar.css.js";
 import * as sharedClassNames from "~/shared/content/content_styles.js";
-import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";

@@ -24,7 +24,6 @@ import {
 } from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -32,6 +31,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

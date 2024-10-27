@@ -9,7 +9,6 @@ import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
@@ -31,6 +30,7 @@ import {
 } from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,

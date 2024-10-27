@@ -25,7 +25,6 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -72,6 +71,7 @@ import {TaskCollectionComboBoxListBox} from "~/client/tasks/internal/task_collec
 import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_search_state.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

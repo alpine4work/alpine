@@ -48,7 +48,6 @@ import {
     trackNavigationAnimationFinish,
     trackNavigationAnimationStart,
 } from "~/client/design/schedule_after_navigation_animation.js";
-import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {
     GlobalKeyDownEvent,
@@ -83,6 +82,7 @@ import {
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";

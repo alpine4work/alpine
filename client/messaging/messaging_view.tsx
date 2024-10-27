@@ -15,7 +15,6 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
@@ -39,6 +38,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
