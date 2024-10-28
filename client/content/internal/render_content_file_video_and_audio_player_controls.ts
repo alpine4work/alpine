@@ -200,6 +200,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     onPlay,
     onPause,
     onHasPlayed,
+    onSeek,
+    onPlayAnimationFrame,
 }: {
     durationMs: number;
     containerElement: Element;
@@ -209,6 +211,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     onPlay?: () => void;
     onPause?: () => void;
     onHasPlayed?: () => void;
+    onSeek?: () => void;
+    onPlayAnimationFrame?: () => void;
 }) {
     assert(
         containerElement.classList.contains(
@@ -325,6 +329,9 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     \* ========================================================================== */
 
     const updateScrubberProgress = (progress: number) => {
+        if (progress < 0) progress = 0;
+        if (progress > 1) progress = 1;
+
         const transform = `translateX(${progress * scrubberElement.clientWidth}px)`;
         scrubberThumbIndicatorElement.style.transform = transform;
         scrubberThumbTargetElement.style.transform = transform;
@@ -441,7 +448,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
 
                     const expectedVideoTime =
                         playingAnimationState.anchorVideoTime +
-                        (currentSessionTime - playingAnimationState.anchorSessionTime);
+                        (currentSessionTime - playingAnimationState.anchorSessionTime) *
+                            (mediaElement?.playbackRate ?? 1);
 
                     // Since `videoElement.currentTime` doesn't update as quickly as we'd like
                     // (`timeupdate` fires every ~200ms) we estimate the correct time using a high
@@ -461,6 +469,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                     const progress = videoTime / durationMs;
                     updateScrubberProgress(progress);
                 }
+
+                onPlayAnimationFrame?.();
 
                 playingAnimationState.frameId = runPlayAnimationLoop();
             });
@@ -585,6 +595,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             // Optimistically the scrubber based on the click position. Instead of waiting
             // for a `timeupdate` event which happens after the video has loaded.
             updateScrubberProgress(progress);
+
+            onSeek?.();
         };
 
         scrubberElement.addEventListener("pointerdown", handleScrubberPointerDown);
@@ -653,6 +665,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             // optimistically use the user's pointer position, not the video's actual
             // current time.
             updateScrubberProgress(progress);
+
+            onSeek?.();
         };
 
         scrubberThumbTargetElement.addEventListener("pointerdown", startScrubberThumbDrag);

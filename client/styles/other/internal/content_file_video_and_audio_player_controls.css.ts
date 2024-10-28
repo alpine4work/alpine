@@ -84,8 +84,8 @@ export const durationProgressCurrentClassName = style({
 
 export const scrubberContainerClassName = style({
     flexGrow: "1",
-    paddingLeft: spacing["3"],
-    paddingRight: spacing["2"],
+    paddingLeft: spacing["4"],
+    paddingRight: spacing["3"],
 });
 
 export const scrubberClassName = style({

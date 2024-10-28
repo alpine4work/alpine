@@ -404,6 +404,7 @@ export function renderContentFilePreview(
                         filePreview: reference.file.preview,
                         audioSrc,
                         isInitialAppRender,
+                        layout,
                     });
                 }
 
