@@ -8,10 +8,15 @@ import {
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {handoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
+import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    addContentFileAudioPlayerBehavior,
+    renderContentFileAudioPlayer,
+} from "~/client/content/internal/render_content_file_audio_player.js";
 import {
     addContentFileVideoPlayerBehavior,
     renderContentFileVideoPlayer,
@@ -30,6 +35,8 @@ import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
     colorSchemeVars,
+    contentFileAudioPlayerStyles,
+    contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
     contentStyles,
     greyElevated2ClassName,
@@ -273,6 +280,7 @@ export function renderContentFilePreview(
         layout,
         screenWidth,
         isMobile,
+        isInitialAppRender,
         expirationTimers,
     }: {
         spaceId: SpaceId;
@@ -281,6 +289,7 @@ export function renderContentFilePreview(
         layout: ContentFileLayout;
         screenWidth: number;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
     },
 ): HtmlElementGenerator {
@@ -365,13 +374,40 @@ export function renderContentFilePreview(
                     filePreview: reference.file.preview,
                     layout,
                     isMobile,
+                    isInitialAppRender,
                     expirationTimers,
                     html,
                 });
                 break;
             }
             case "Audio": {
-                // TODO(calebmer, #files): Implement
+                const audioSrc = getContentFileViewerSrc({
+                    spaceId,
+                    signedUrlSearch: reference.signedUrlSearch,
+                    file: reference.file,
+                });
+
+                if (reference.file.preview.isProcessing || audioSrc === null) {
+                    renderContentFileProcessingPreview(html, {file: reference.file, layout});
+                } else {
+                    const containerHtml = new HtmlElementGenerator("div");
+                    html.appendChild(containerHtml);
+                    containerHtml.setAttribute(
+                        "class",
+                        classNames(
+                            contentFileAudioPlayerStyles.containerClassName,
+                            contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
+                        ),
+                    );
+
+                    renderContentFileAudioPlayer(containerHtml, {
+                        filePreview: reference.file.preview,
+                        audioSrc,
+                        isInitialAppRender,
+                    });
+                }
+
+                appendImageHtmlForSelection(html, isMobile);
                 break;
             }
             case "Code": {
@@ -510,6 +546,7 @@ function renderContentFileImagePreview(
         filePreview,
         layout,
         isMobile,
+        isInitialAppRender,
         expirationTimers,
         html,
     }: {
@@ -519,6 +556,7 @@ function renderContentFileImagePreview(
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
         html: HtmlElementGenerator;
     },
@@ -670,6 +708,7 @@ function renderContentFileImagePreview(
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
         isMobile,
+        isInitialAppRender,
         expirationTimers,
         html,
     });
@@ -687,6 +726,7 @@ function renderContentFileImagePreviewInner(
         filePreviewPlaceholder,
         layout,
         isMobile,
+        isInitialAppRender,
         expirationTimers,
         html,
     }: {
@@ -699,6 +739,7 @@ function renderContentFileImagePreviewInner(
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
         html: HtmlElementGenerator;
     },
@@ -842,7 +883,11 @@ function renderContentFileImagePreviewInner(
         html.appendChild(videoPlayerHtml);
         videoPlayerHtml.setAttribute(
             "class",
-            classNames(contentFileVideoPlayerStyles.containerClassName, greyElevated2ClassName),
+            classNames(
+                contentFileVideoPlayerStyles.containerClassName,
+                contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
+                greyElevated2ClassName,
+            ),
         );
 
         renderContentFileVideoPlayer(videoPlayerHtml, {
@@ -852,6 +897,7 @@ function renderContentFileImagePreviewInner(
             durationMs: filePreview.videoDuration,
             layout,
             isMobile,
+            isInitialAppRender,
         });
 
         // We disable `user-select: text` on
@@ -1357,6 +1403,7 @@ export function addContentFilePreviewBehavior(
         attachmentTarget,
         expirationTimers,
         isInert,
+        isInitialAppRender,
         isOurEditorUploading,
         isEditorInitialAppRender,
         rootNavigate,
@@ -1373,6 +1420,7 @@ export function addContentFilePreviewBehavior(
         attachmentTarget: FileAttachmentTarget;
         expirationTimers: ContentFilePreviewExpirationTimers;
         isInert: boolean;
+        isInitialAppRender: boolean;
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
         isEditorInitialAppRender: boolean;
         rootNavigate: NavigateFunction;
@@ -1618,6 +1666,13 @@ export function addContentFilePreviewBehavior(
             if (result?.preventDefault) return;
         }
 
+        // If this is audio, then click doesn't open the file viewer but rather
+        // plays/pauses the audio.
+        if (audioPlayerBehavior) {
+            const result = audioPlayerBehavior?.onPress();
+            if (result?.preventDefault) return;
+        }
+
         openViewer();
     };
 
@@ -1859,8 +1914,27 @@ export function addContentFilePreviewBehavior(
         if (containerElement) {
             videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
                 durationMs: reference.file.preview.videoDuration,
+                isInitialAppRender,
                 getReporter,
                 onOpenViewer: openViewer,
+            });
+        }
+    }
+
+    let audioPlayerBehavior: {
+        onPress: () => {preventDefault: boolean} | void;
+        cleanup: () => void;
+    } | null = null;
+    if (reference?.file.preview?.type === "Audio" && !reference.file.preview.isProcessing) {
+        const containerElement = element.getElementsByClassName(
+            contentFileAudioPlayerStyles.containerClassName,
+        )[0];
+
+        if (containerElement) {
+            audioPlayerBehavior = addContentFileAudioPlayerBehavior(containerElement, {
+                filePreview: reference.file.preview,
+                isInitialAppRender,
+                getReporter,
             });
         }
     }
@@ -1869,6 +1943,7 @@ export function addContentFilePreviewBehavior(
         hasCleanedUp = true;
 
         videoPlayerBehavior?.cleanup();
+        audioPlayerBehavior?.cleanup();
 
         if (!isInert) {
             element.removeEventListener("pointerdown", handlePointerDown);

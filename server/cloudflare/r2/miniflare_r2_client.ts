@@ -12,7 +12,7 @@ import {
 // source files in production. We're just using the types in this module.
 import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
-import {Readable as ReadableStream} from "stream";
+import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
 import {Headers} from "undici";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
@@ -284,7 +284,18 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
 
             const object = await this._getBucket(bucketName).put(
                 assertExists(key),
-                body instanceof ReadableStream ? ReadableStream.toWeb(body) : body,
+                body instanceof ReadableStream
+                    ? ReadableStream.toWeb(
+                          body.pipe(
+                              // NOTE(calebmer): I have no idea why but sometimes `put()` calls for
+                              // large audio files aren't finishing even though the stream has been fully
+                              // read unless there's a pass-through stream here. My best guess is Miniflare
+                              // is checking to see if the stream is an HTTP request stream and doing
+                              // something differently that isn't terminating?
+                              new PassThroughStream(),
+                          ),
+                      )
+                    : body,
                 {
                     httpMetadata: {
                         contentType,

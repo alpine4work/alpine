@@ -1,18 +1,19 @@
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {Reporter} from "~/client/design/reporter.js";
 import {
-    addResizeListenerForElement,
-    removeResizeListenerForElement,
-} from "~/client/helpers/use_resize_observer.js";
+    addContentFileVideoAndAudioPlayerControlsBehavior,
+    formatContentFileVideoAndAudioPlayerDurationString,
+    renderContentFileVideoAndAudioPlayerControls,
+} from "~/client/content/internal/render_content_file_video_and_audio_player_controls.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {cornersInIconSvg} from "~/client/icons/corners_in_icon_svg.js";
 import {cornersOutIconSvg} from "~/client/icons/corners_out_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
-import {pauseIconSvg} from "~/client/icons/pause_icon_svg.js";
 import {playIconSvg} from "~/client/icons/play_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {
+    contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
     spinAnimationClassName,
     sprinkles,
@@ -23,13 +24,13 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {
     HtmlContainerGenerator,
     HtmlElementGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -50,6 +51,7 @@ export function renderContentFileVideoPlayer(
         durationMs,
         layout,
         isMobile,
+        isInitialAppRender,
     }: {
         spaceId: SpaceId;
         signedUrlSearch: string;
@@ -57,9 +59,13 @@ export function renderContentFileVideoPlayer(
         durationMs: number;
         layout: {width: number; height: number} | null;
         isMobile: boolean;
+        isInitialAppRender: boolean;
     },
 ) {
-    const durationString = formatDurationString(durationMs, durationMs);
+    const durationString = formatContentFileVideoAndAudioPlayerDurationString(
+        durationMs,
+        durationMs,
+    );
 
     {
         const playIndicatorHtml = new HtmlElementGenerator("div");
@@ -104,6 +110,7 @@ export function renderContentFileVideoPlayer(
             contentFileVideoPlayerStyles.processingNoteClassName,
         );
 
+        // NOCOMMIT: Consider blurring and darkening background a bit as the processing UI?
         processingNoteHtml.appendChild(
             new HtmlTextGenerator("Processing video, this may take a few minutes"),
         );
@@ -143,117 +150,11 @@ export function renderContentFileVideoPlayer(
             contentFileVideoPlayerStyles.controlsContainerClassName,
         );
 
-        const controlsHtml = new HtmlElementGenerator("div");
+        const controlsHtml = renderContentFileVideoAndAudioPlayerControls({
+            durationMs,
+            isInitialAppRender,
+        });
         controlsContainerHtml.appendChild(controlsHtml);
-        controlsHtml.setAttribute("class", contentFileVideoPlayerStyles.controlsClassName);
-
-        {
-            const playButtonHtml = new HtmlElementGenerator("div");
-            controlsHtml.appendChild(playButtonHtml);
-            playButtonHtml.setAttribute("class", contentFileVideoPlayerStyles.playButtonClassName);
-
-            playButtonHtml.appendChild(createSvgHtmlGenerator(playIconSvg({weight: "fill"})));
-            playButtonHtml.appendChild(createSvgHtmlGenerator(pauseIconSvg({weight: "fill"})));
-        }
-
-        {
-            const durationProgressHtml = new HtmlElementGenerator("div");
-            controlsHtml.appendChild(durationProgressHtml);
-            durationProgressHtml.setAttribute(
-                "class",
-                contentFileVideoPlayerStyles.durationProgressClassName,
-            );
-
-            {
-                const durationProgressCurrentHtml = new HtmlElementGenerator("div");
-                durationProgressHtml.appendChild(durationProgressCurrentHtml);
-                durationProgressCurrentHtml.setAttribute(
-                    "class",
-                    contentFileVideoPlayerStyles.durationProgressCurrentClassName,
-                );
-            }
-
-            {
-                const durationProgressDividerHtml = new HtmlElementGenerator("div");
-                durationProgressHtml.appendChild(durationProgressDividerHtml);
-                durationProgressDividerHtml.appendChild(new HtmlTextGenerator("/"));
-            }
-
-            {
-                const durationProgressTotalHtml = new HtmlElementGenerator("div");
-                durationProgressHtml.appendChild(durationProgressTotalHtml);
-                durationProgressTotalHtml.appendChild(new HtmlTextGenerator(durationString));
-            }
-        }
-
-        {
-            const scrubberContainerHtml = new HtmlElementGenerator("div");
-            controlsHtml.appendChild(scrubberContainerHtml);
-            scrubberContainerHtml.setAttribute(
-                "class",
-                contentFileVideoPlayerStyles.scrubberContainerClassName,
-            );
-
-            {
-                const scrubberHtml = new HtmlElementGenerator("div");
-                scrubberContainerHtml.appendChild(scrubberHtml);
-                scrubberHtml.setAttribute("class", contentFileVideoPlayerStyles.scrubberClassName);
-
-                {
-                    const scrubberThumbIndicatorHtml = new HtmlElementGenerator("div");
-                    scrubberHtml.appendChild(scrubberThumbIndicatorHtml);
-                    scrubberThumbIndicatorHtml.setAttribute(
-                        "class",
-                        contentFileVideoPlayerStyles.scrubberThumbIndicatorClassName,
-                    );
-                }
-
-                {
-                    const scrubberThumbTargetHtml = new HtmlElementGenerator("div");
-                    scrubberHtml.appendChild(scrubberThumbTargetHtml);
-                    scrubberThumbTargetHtml.setAttribute(
-                        "class",
-                        contentFileVideoPlayerStyles.scrubberThumbTargetClassName,
-                    );
-                }
-
-                {
-                    const scrubberTrackHtml = new HtmlElementGenerator("div");
-                    scrubberHtml.appendChild(scrubberTrackHtml);
-                    scrubberTrackHtml.setAttribute(
-                        "class",
-                        contentFileVideoPlayerStyles.scrubberTrackClassName,
-                    );
-
-                    {
-                        const scrubberTrackProgressHtml = new HtmlElementGenerator("div");
-                        scrubberTrackHtml.appendChild(scrubberTrackProgressHtml);
-                        scrubberTrackProgressHtml.setAttribute(
-                            "class",
-                            contentFileVideoPlayerStyles.scrubberTrackProgressClassName,
-                        );
-                    }
-
-                    {
-                        const scrubberTrackBufferedHtml = new HtmlElementGenerator("div");
-                        scrubberTrackHtml.appendChild(scrubberTrackBufferedHtml);
-                        scrubberTrackBufferedHtml.setAttribute(
-                            "class",
-                            contentFileVideoPlayerStyles.scrubberTrackBufferedClassName,
-                        );
-                    }
-                }
-            }
-        }
-
-        {
-            const playbackRateButtonHtml = new HtmlElementGenerator("div");
-            controlsHtml.appendChild(playbackRateButtonHtml);
-            playbackRateButtonHtml.setAttribute(
-                "class",
-                contentFileVideoPlayerStyles.playbackRateButtonClassName,
-            );
-        }
 
         {
             const fullscreenButtonHtml = new HtmlElementGenerator("div");
@@ -299,10 +200,12 @@ export function addContentFileVideoPlayerBehavior(
     containerElement: Element,
     {
         durationMs,
+        isInitialAppRender,
         getReporter,
         onOpenViewer,
     }: {
         durationMs: number;
+        isInitialAppRender: boolean;
         getReporter: () => Reporter;
         onOpenViewer?: () => void;
     },
@@ -323,61 +226,13 @@ export function addContentFileVideoPlayerBehavior(
             contentFileVideoPlayerStyles.processingNoteClassName,
         )[0] ?? null;
 
-    const controlElements =
-        videoElement !== null
-            ? {
-                  controlsContainer: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.controlsContainerClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  playButton: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.playButtonClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  durationProgressCurrent: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.durationProgressCurrentClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  scrubber: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.scrubberClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  scrubberThumbIndicator: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.scrubberThumbIndicatorClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  scrubberThumbTarget: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.scrubberThumbTargetClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  scrubberTrackProgress: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.scrubberTrackProgressClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  scrubberTrackBuffered: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.scrubberTrackBufferedClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  playbackRateButton: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.playbackRateButtonClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-                  fullscreenButton: assertExists(
-                      containerElement.getElementsByClassName(
-                          contentFileVideoPlayerStyles.fullscreenButtonClassName,
-                      )[0],
-                  ) as HTMLDivElement,
-              }
-            : null;
+    const controlsContainerElement = (containerElement.getElementsByClassName(
+        contentFileVideoPlayerStyles.controlsContainerClassName,
+    )[0] ?? null) as HTMLDivElement | null;
+
+    const fullscreenButtonElement = (containerElement.getElementsByClassName(
+        contentFileVideoPlayerStyles.fullscreenButtonClassName,
+    )[0] ?? null) as HTMLDivElement | null;
 
     const cleanupFunctions: Array<() => void> = [];
 
@@ -385,7 +240,7 @@ export function addContentFileVideoPlayerBehavior(
      *                              Control buttons                               *
     \* ========================================================================== */
 
-    if (controlElements !== null) {
+    if (controlsContainerElement !== null) {
         const handleControlsContainerPointerDown = (event: PointerEvent) => {
             // When clicking on the control bar:
             //
@@ -407,46 +262,22 @@ export function addContentFileVideoPlayerBehavior(
             event.preventDefault();
         };
 
-        controlElements.controlsContainer.addEventListener(
+        controlsContainerElement.addEventListener(
             "pointerdown",
             handleControlsContainerPointerDown,
         );
-        controlElements.controlsContainer.addEventListener("click", handleControlsContainerClick);
+        controlsContainerElement.addEventListener("click", handleControlsContainerClick);
 
         cleanupFunctions.push(() => {
-            controlElements.controlsContainer.removeEventListener(
+            controlsContainerElement.removeEventListener(
                 "pointerdown",
                 handleControlsContainerPointerDown,
             );
-            controlElements.controlsContainer.removeEventListener(
-                "click",
-                handleControlsContainerClick,
-            );
+            controlsContainerElement.removeEventListener("click", handleControlsContainerClick);
         });
-    }
-
-    if (controlElements !== null) {
-        cleanupFunctions.push(
-            addUnfocusableButtonBehaviorToElement(controlElements.playButton, {
-                defaultClassName: sprinkles({
-                    color: "grey-90",
-                }),
-                hoverClassName: sprinkles({
-                    color: "grey-90",
-                    backgroundColor: "grey-5",
-                }),
-                pressClassName: sprinkles({
-                    color: "grey-100",
-                    backgroundColor: "grey-10",
-                }),
-                onPress: () => {
-                    togglePlay();
-                },
-            }),
-        );
 
         cleanupFunctions.push(
-            addUnfocusableButtonBehaviorToElement(controlElements.fullscreenButton, {
+            addUnfocusableButtonBehaviorToElement(assertExists(fullscreenButtonElement), {
                 defaultClassName: sprinkles({
                     color: "grey-70",
                 }),
@@ -487,33 +318,6 @@ export function addContentFileVideoPlayerBehavior(
                                 error,
                             );
                         });
-                    }
-                },
-            }),
-        );
-
-        cleanupFunctions.push(
-            addUnfocusableButtonBehaviorToElement(controlElements.playbackRateButton, {
-                defaultClassName: sprinkles({
-                    color: "grey-70",
-                }),
-                hoverClassName: sprinkles({
-                    color: "grey-70",
-                    backgroundColor: "grey-5",
-                }),
-                pressClassName: sprinkles({
-                    color: "grey-100",
-                    backgroundColor: "grey-10",
-                }),
-                onPress: () => {
-                    if (videoElement === null) return;
-
-                    if (videoElement.playbackRate === 1) {
-                        videoElement.playbackRate = 1.5;
-                    } else if (videoElement.playbackRate === 1.5) {
-                        videoElement.playbackRate = 2;
-                    } else {
-                        videoElement.playbackRate = 1;
                     }
                 },
             }),
@@ -618,12 +422,12 @@ export function addContentFileVideoPlayerBehavior(
         contentFileVideoPlayerStyles.hoveredClassName,
     );
     let isPointerOverControls =
-        controlElements !== null &&
-        controlElements.controlsContainer.classList.contains(
+        controlsContainerElement !== null &&
+        controlsContainerElement.classList.contains(
             contentFileVideoPlayerStyles.hoveredControlsClassName,
         );
 
-    if (controlElements !== null) {
+    if (controlsContainerElement !== null) {
         const handleContainerPointerMove = () => {
             resetStillPointerTimeout();
         };
@@ -655,7 +459,7 @@ export function addContentFileVideoPlayerBehavior(
             isPointerOverControls = true;
 
             if (!wasPointerOverControls) {
-                controlElements.controlsContainer.classList.add(
+                controlsContainerElement.classList.add(
                     contentFileVideoPlayerStyles.hoveredControlsClassName,
                 );
             }
@@ -668,7 +472,7 @@ export function addContentFileVideoPlayerBehavior(
             isPointerOverControls = false;
 
             if (wasPointerOverControls) {
-                controlElements.controlsContainer.classList.remove(
+                controlsContainerElement.classList.remove(
                     contentFileVideoPlayerStyles.hoveredControlsClassName,
                 );
             }
@@ -679,11 +483,11 @@ export function addContentFileVideoPlayerBehavior(
         containerElement.addEventListener("pointermove", handleContainerPointerMove);
         containerElement.addEventListener("pointerenter", handleContainerPointerEnter);
         containerElement.addEventListener("pointerleave", handleContainerPointerLeave);
-        controlElements.controlsContainer.addEventListener(
+        controlsContainerElement.addEventListener(
             "pointerenter",
             handleControlsContainerPointerEnter,
         );
-        controlElements.controlsContainer.addEventListener(
+        controlsContainerElement.addEventListener(
             "pointerleave",
             handleControlsContainerPointerLeave,
         );
@@ -692,11 +496,11 @@ export function addContentFileVideoPlayerBehavior(
             containerElement.removeEventListener("pointermove", handleContainerPointerMove);
             containerElement.removeEventListener("pointerenter", handleContainerPointerEnter);
             containerElement.removeEventListener("pointerleave", handleContainerPointerLeave);
-            controlElements.controlsContainer.removeEventListener(
+            controlsContainerElement.removeEventListener(
                 "pointerenter",
                 handleControlsContainerPointerEnter,
             );
-            controlElements.controlsContainer.removeEventListener(
+            controlsContainerElement.removeEventListener(
                 "pointerleave",
                 handleControlsContainerPointerLeave,
             );
@@ -707,408 +511,19 @@ export function addContentFileVideoPlayerBehavior(
     updateStillPointerTimeout();
 
     /* ========================================================================== *\
-     *                                 Play/pause                                 *
-    \* ========================================================================== */
-
-    const updateScrubberProgress = (progress: number) => {
-        if (controlElements === null) return;
-
-        const transform = `translateX(${progress * controlElements.scrubber.clientWidth}px)`;
-        controlElements.scrubberThumbIndicator.style.transform = transform;
-        controlElements.scrubberThumbTarget.style.transform = transform;
-
-        controlElements.scrubberTrackProgress.style.transform = `scaleX(${progress})`;
-
-        {
-            const progressTime = (durationMs * progress) / 1000;
-
-            let hasBufferedTimeRange = false;
-
-            // `videoElement.buffered` is a [normalized `TimeRanges` object][1] which
-            // means:
-            //
-            // > The ranges in such an object are ordered, don't overlap, and don't touch
-            // > (adjacent ranges are folded into one bigger range). A range can be empty
-            // > (referencing just a single moment in time).
-            //
-            // [1]: https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges#normalized_timeranges_objects
-            if (videoElement !== null) {
-                for (let i = 0; i < videoElement.buffered.length; i++) {
-                    const bufferedTimeRangeStartTime = videoElement.buffered.start(i);
-                    const bufferedTimeRangeEndTime = videoElement.buffered.end(i);
-
-                    // There won't be any relevant buffered time ranges after this because all
-                    // further time ranges in this array will be greater than `progressTime`.
-                    if (progressTime < bufferedTimeRangeStartTime) {
-                        break;
-                    }
-
-                    if (
-                        bufferedTimeRangeStartTime <= progressTime &&
-                        progressTime <= bufferedTimeRangeEndTime
-                    ) {
-                        hasBufferedTimeRange = true;
-                        const bufferedProgress = (bufferedTimeRangeEndTime * 1000) / durationMs;
-                        controlElements.scrubberTrackBuffered.style.transform = `scaleX(${bufferedProgress})`;
-                        break;
-                    }
-                }
-            }
-
-            if (!hasBufferedTimeRange) {
-                const bufferedProgress = 0;
-                controlElements.scrubberTrackBuffered.style.transform = `scaleX(${bufferedProgress})`;
-            }
-        }
-    };
-
-    let playingAnimationState: {
-        anchorSessionTime: number;
-        anchorVideoTime: number;
-        frameId: number;
-    } | null = null;
-
-    if (videoElement !== null) {
-        assert(controlElements !== null);
-
-        const handlePlay = () => {
-            containerElement.classList.add(contentFileVideoPlayerStyles.playingClassName);
-
-            if (playingAnimationState !== null) {
-                cancelAnimationFrame(playingAnimationState.frameId);
-                playingAnimationState = null;
-            }
-
-            playingAnimationState = {
-                anchorSessionTime: performance.now(),
-                anchorVideoTime: videoElement.currentTime * 1000,
-                frameId: runPlayAnimationLoop(),
-            };
-
-            updateStillPointerTimeout();
-        };
-
-        const handlePause = () => {
-            containerElement.classList.remove(contentFileVideoPlayerStyles.playingClassName);
-
-            if (playingAnimationState !== null) {
-                cancelAnimationFrame(playingAnimationState.frameId);
-                playingAnimationState = null;
-            }
-
-            updateStillPointerTimeout();
-
-            // If while waiting the user pauses we need to remove the waiting class name
-            // since we won't receive the `playing` event which normally removes this
-            // class.
-            containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
-        };
-
-        // While the video is playing we run a `requestAnimationFrame()` loop that
-        // animates our scrubber.
-        const runPlayAnimationLoop = () => {
-            return requestAnimationFrame(() => {
-                if (playingAnimationState === null) return;
-
-                // If we've set `display: none` on the scrubber (which means
-                // `scrubberElement.clientWidth` will be 0) then don't animate our scrubber.
-                //
-                // If we're dragging then we position the scrubber based on the user's current
-                // drag position. Not based on the video's actual time.
-                if (scrubberThumbDragState === null && controlElements.scrubber.clientWidth > 0) {
-                    const currentSessionTime = performance.now();
-
-                    const actualVideoTime = videoElement.currentTime * 1000;
-
-                    const expectedVideoTime =
-                        playingAnimationState.anchorVideoTime +
-                        (currentSessionTime - playingAnimationState.anchorSessionTime);
-
-                    // Since `videoElement.currentTime` doesn't update as quickly as we'd like
-                    // (`timeupdate` fires every ~200ms) we estimate the correct time using a high
-                    // resolution clock. If our estimated time is within a 1.5s window of
-                    // `videoElement.currentTime` then we use it. If our estimated time isn't in a
-                    // 1.5s window that's probably because the user skipped ahead or backwards in
-                    // the video.
-                    let videoTime;
-                    if (Math.abs(actualVideoTime - expectedVideoTime) < 1500 / 2) {
-                        videoTime = expectedVideoTime;
-                    } else {
-                        videoTime = actualVideoTime;
-                        playingAnimationState.anchorSessionTime = currentSessionTime;
-                        playingAnimationState.anchorVideoTime = actualVideoTime;
-                    }
-
-                    const progress = videoTime / durationMs;
-                    updateScrubberProgress(progress);
-                }
-
-                playingAnimationState.frameId = runPlayAnimationLoop();
-            });
-        };
-
-        // When we re-initialize the effect, make sure we update the playing class
-        // name state.
-        if (!videoElement.paused) {
-            handlePlay();
-        } else {
-            handlePause();
-        }
-
-        videoElement.addEventListener("play", handlePlay);
-        videoElement.addEventListener("pause", handlePause);
-
-        cleanupFunctions.push(() => {
-            if (playingAnimationState !== null) {
-                cancelAnimationFrame(playingAnimationState.frameId);
-                playingAnimationState = null;
-            }
-
-            videoElement.removeEventListener("play", handlePlay);
-            videoElement.removeEventListener("pause", handlePause);
-        });
-    }
-
-    const togglePlay = () => {
-        if (!videoElement) return;
-
-        if (videoElement.paused) {
-            videoElement.play().catch(error => {
-                // Chrome throws an abort error if `pause()` is called before `play()` has
-                // returned. Ignore play abort errors from Chrome. It's reasonable for the user
-                // to pause if play is taking a long time to load.
-                if (
-                    error instanceof Error &&
-                    error.name === "AbortError" &&
-                    error.message.includes("pause")
-                ) {
-                    return;
-                }
-
-                getReporter().displayError("Couldn’t play video", error);
-            });
-        } else {
-            videoElement.pause();
-        }
-    };
-
-    /* ========================================================================== *\
      *                             Loading indicator                              *
     \* ========================================================================== */
 
-    if (videoElement === null) {
-        if (processingNoteElement) {
-            containerElement.classList.add(contentFileVideoPlayerStyles.waitingClassName);
-
-            cleanupFunctions.push(() => {
-                containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
-            });
-        }
-    } else {
-        const handlePlaying = () => {
-            containerElement.classList.remove(contentFileVideoPlayerStyles.waitingClassName);
-
-            // Once we actually start playing our video for the first time we add the "has
-            // played" class and never remove it. We don't show video controls until the
-            // video starts playing.
-            if (
-                !containerElement.classList.contains(
-                    contentFileVideoPlayerStyles.hasPlayedClassName,
-                )
-            ) {
-                containerElement.classList.add(contentFileVideoPlayerStyles.hasPlayedClassName);
-
-                // Reset the still pointer timeout after `hasPlayedClassName` has been added
-                // since the controls won't be visible until after `hasPlayedClassName` is
-                // added.
-                resetStillPointerTimeout();
-            }
-        };
-
-        const handleWaiting = () => {
-            containerElement.classList.add(contentFileVideoPlayerStyles.waitingClassName);
-        };
-
-        videoElement.addEventListener("playing", handlePlaying);
-        videoElement.addEventListener("waiting", handleWaiting);
+    if (videoElement === null && processingNoteElement) {
+        containerElement.classList.add(
+            contentFileVideoAndAudioPlayerControlsStyles.waitingClassName,
+        );
 
         cleanupFunctions.push(() => {
-            videoElement.removeEventListener("playing", handlePlaying);
-            videoElement.removeEventListener("waiting", handleWaiting);
-        });
-    }
-
-    /* ========================================================================== *\
-     *                            Scrubber drag events                            *
-    \* ========================================================================== */
-
-    if (videoElement !== null) {
-        assert(controlElements !== null);
-
-        const handleScrubberPointerDown = (event: PointerEvent) => {
-            // Ignore presses on our scrubber thumb. That'll initiate a drag.
-            if (
-                event.target instanceof Node &&
-                controlElements.scrubberThumbTarget.contains(event.target)
-            ) {
-                return;
-            }
-
-            event.preventDefault();
-
-            const scrubberRect = controlElements.scrubber.getBoundingClientRect();
-
-            const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
-
-            // If the `fastSeek()` method is available then use that. Precision doesn't
-            // matter as much when moving by clicking on the scrubber. Speed matters more.
-            if (videoElement.fastSeek) {
-                videoElement.fastSeek((progress * durationMs) / 1000);
-            } else {
-                videoElement.currentTime = (progress * durationMs) / 1000;
-            }
-
-            // Optimistically the scrubber based on the click position. Instead of waiting
-            // for a `timeupdate` event which happens after the video has loaded.
-            updateScrubberProgress(progress);
-        };
-
-        controlElements.scrubber.addEventListener("pointerdown", handleScrubberPointerDown);
-
-        cleanupFunctions.push(() => {
-            controlElements.scrubber.removeEventListener("pointerdown", handleScrubberPointerDown);
-        });
-    }
-
-    let scrubberThumbDragState: {
-        coverElement: HTMLDivElement;
-    } | null = null;
-
-    if (videoElement !== null) {
-        assert(controlElements !== null);
-
-        const startScrubberThumbDrag = (event: PointerEvent) => {
-            event.preventDefault();
-
-            const dragCoverElement = document.createElement("div");
-
-            dragCoverElement.className = sprinkles({
-                position: "absolute",
-                inset: "0",
-                zIndex: "70",
-                cursor: "grabbing",
-            });
-
-            scrubberThumbDragState = {
-                coverElement: dragCoverElement,
-            };
-
-            containerElement.classList.add(
-                contentFileVideoPlayerStyles.draggingScrubberThumbClassName,
-            );
-            document.body.appendChild(dragCoverElement);
-            document.addEventListener("pointerup", handleDocumentPointerUp);
-            document.addEventListener("pointermove", handleDocumentPointerMove);
-        };
-
-        const cancelScrubberThumbDrag = () => {
-            if (!scrubberThumbDragState) return;
-
             containerElement.classList.remove(
-                contentFileVideoPlayerStyles.draggingScrubberThumbClassName,
-            );
-            document.body.removeChild(scrubberThumbDragState.coverElement);
-            document.removeEventListener("pointerup", handleDocumentPointerUp);
-            document.removeEventListener("pointermove", handleDocumentPointerMove);
-
-            scrubberThumbDragState = null;
-        };
-
-        const handleDocumentPointerUp = () => {
-            cancelScrubberThumbDrag();
-        };
-
-        const handleDocumentPointerMove = (event: PointerEvent) => {
-            if (!scrubberThumbDragState) return;
-
-            const scrubberRect = controlElements.scrubber.getBoundingClientRect();
-
-            const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
-
-            videoElement.currentTime = (progress * durationMs) / 1000;
-
-            // Update the scrubber based on our current drag position. While dragging we
-            // optimistically use the user's pointer position, not the video's actual
-            // current time.
-            updateScrubberProgress(progress);
-        };
-
-        controlElements.scrubberThumbTarget.addEventListener("pointerdown", startScrubberThumbDrag);
-
-        cleanupFunctions.push(() => {
-            // We don't preserve our drag state in the DOM. It's ok to cancel our drag when
-            // the behavior function re-runs.
-            cancelScrubberThumbDrag();
-
-            controlElements.scrubberThumbTarget.removeEventListener(
-                "pointerdown",
-                startScrubberThumbDrag,
+                contentFileVideoAndAudioPlayerControlsStyles.waitingClassName,
             );
         });
-    }
-
-    /* ========================================================================== *\
-     *                             Duration progress                              *
-    \* ========================================================================== */
-
-    if (controlElements !== null) {
-        const maybeUpdateScrubberProgress = () => {
-            // If our `requestAnimationFrame()` loop is not running then update the
-            // scrubber position on every `timeupdate` event.
-            //
-            // If we're dragging then we position the scrubber based on the user's current
-            // drag position. Not based on the video's actual time.
-            if (playingAnimationState === null && scrubberThumbDragState === null) {
-                const progress = ((videoElement?.currentTime ?? 0) * 1000) / durationMs;
-                updateScrubberProgress(progress);
-            }
-        };
-
-        const handleTimeUpdate = () => {
-            // We can't edit DOM nodes since that'll interfere with
-            // `HtmlElementGenerator.patchNode()` so instead we update the `data-time`
-            // attribute and render it with CSS.
-            controlElements.durationProgressCurrent.setAttribute(
-                "data-time",
-                formatDurationString((videoElement?.currentTime ?? 0) * 1000, durationMs),
-            );
-
-            maybeUpdateScrubberProgress();
-        };
-
-        // We listen to the `progress` event to update the buffered segment of our
-        // track. As more data loads more data may be buffered.
-        const handleProgress = () => {
-            maybeUpdateScrubberProgress();
-        };
-
-        const handleScrubberResize = () => {
-            maybeUpdateScrubberProgress();
-        };
-
-        handleTimeUpdate();
-
-        if (videoElement !== null) {
-            videoElement.addEventListener("timeupdate", handleTimeUpdate);
-            videoElement.addEventListener("progress", handleProgress);
-            addResizeListenerForElement(controlElements.scrubber, handleScrubberResize);
-
-            cleanupFunctions.push(() => {
-                videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-                videoElement.removeEventListener("progress", handleProgress);
-                removeResizeListenerForElement(controlElements.scrubber, handleScrubberResize);
-            });
-        }
     }
 
     /* ========================================================================== *\
@@ -1136,26 +551,28 @@ export function addContentFileVideoPlayerBehavior(
     }
 
     /* ========================================================================== *\
-     *                               Playback rate                                *
+     *                              Shared behavior                               *
     \* ========================================================================== */
 
-    if (videoElement !== null) {
-        assert(controlElements !== null);
+    let togglePlay: () => void;
+    let cleanupControls: () => void;
 
-        const handleRateChange = () => {
-            controlElements.playbackRateButton.setAttribute(
-                "data-rate",
-                `${videoElement?.playbackRate ?? 1}x`,
-            );
-        };
-
-        handleRateChange();
-
-        videoElement.addEventListener("ratechange", handleRateChange);
-
-        cleanupFunctions.push(() => {
-            videoElement.removeEventListener("ratechange", handleRateChange);
-        });
+    if (videoElement === null || controlsContainerElement === null) {
+        togglePlay = noop;
+        cleanupControls = noop;
+    } else {
+        ({togglePlay, cleanup: cleanupControls} = addContentFileVideoAndAudioPlayerControlsBehavior(
+            {
+                durationMs,
+                containerElement,
+                mediaElement: videoElement,
+                isInitialAppRender,
+                getReporter,
+                onPlay: updateStillPointerTimeout,
+                onPause: updateStillPointerTimeout,
+                onHasPlayed: updateStillPointerTimeout,
+            },
+        ));
     }
 
     return {
@@ -1166,29 +583,11 @@ export function addContentFileVideoPlayerBehavior(
             return {preventDefault: true};
         },
         cleanup: () => {
+            cleanupControls();
+
             for (const cleanup of cleanupFunctions) {
                 cleanup();
             }
         },
     };
-}
-
-function formatDurationString(durationMs: number, totalDurationMs: number): string {
-    const durationSeconds = Math.floor(durationMs / 1000);
-    const totalDurationSeconds = Math.floor(totalDurationMs / 1000);
-
-    const durationSecondsPlace = durationSeconds % 60;
-    const durationMinutesPlace = Math.floor(durationSeconds / 60) % 60;
-    const durationHoursPlace = Math.floor(durationSeconds / (60 * 60));
-
-    const totalDurationHoursPlace = Math.floor(totalDurationSeconds / (60 * 60));
-
-    return (
-        (totalDurationMs > 1000 * 60 * 60
-            ? String(durationHoursPlace).padStart(String(totalDurationHoursPlace).length, "0") + ":"
-            : "") +
-        String(durationMinutesPlace).padStart(2, "0") +
-        ":" +
-        String(durationSecondsPlace).padStart(2, "0")
-    );
 }

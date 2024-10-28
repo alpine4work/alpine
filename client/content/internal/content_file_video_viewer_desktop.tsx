@@ -10,7 +10,11 @@ import {
 import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentFileVideoPlayerStyles, greyElevated2ClassName} from "~/client/styles/styles.js";
+import {
+    contentFileVideoAndAudioPlayerControlsStyles,
+    contentFileVideoPlayerStyles,
+    greyElevated2ClassName,
+} from "~/client/styles/styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -80,6 +84,7 @@ function ContentFileVideoViewerDesktopInner({
             durationMs,
             layout: null,
             isMobile: false,
+            isInitialAppRender: false,
         });
 
         return containerHtml;
@@ -107,6 +112,7 @@ function ContentFileVideoViewerDesktopInner({
 
         const {onPress, cleanup} = addContentFileVideoPlayerBehavior(containerElement, {
             durationMs,
+            isInitialAppRender: false,
             getReporter: () => reporter,
         });
 
@@ -132,6 +138,7 @@ function ContentFileVideoViewerDesktopInner({
             ref={containerRef}
             className={classNames(
                 contentFileVideoPlayerStyles.containerClassName,
+                contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
                 greyElevated2ClassName,
             )}
         />

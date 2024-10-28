@@ -49,6 +49,7 @@ export function renderContentToHtmlStore(
         currentAccount: AccountModel | null;
         screenWidth: number;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
@@ -79,6 +80,7 @@ export function renderContentFragmentToHtmlStore(
         currentAccount,
         screenWidth,
         isMobile,
+        isInitialAppRender,
         withPosAttribute,
         isInert,
         placeholder,
@@ -91,6 +93,7 @@ export function renderContentFragmentToHtmlStore(
         currentAccount: AccountModel | null;
         screenWidth: number;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         isInert?: boolean;
         placeholder?: string;
@@ -384,6 +387,7 @@ export function renderContentFragmentToHtmlStore(
                         layout,
                         screenWidth,
                         isMobile,
+                        isInitialAppRender,
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                     });
 

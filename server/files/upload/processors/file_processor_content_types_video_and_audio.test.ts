@@ -381,18 +381,21 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme.mp3",
             audioPreviewDuration: 5538,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],
     "audio/wav": [
         {
             path: "pokemon_regirock_un_un_un_meme.wav",
             audioPreviewDuration: 5510,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],
     "audio/webm": [
         {
             path: "pokemon_regirock_un_un_un_meme.weba",
-            audioPreviewDuration: 5519,
+            audioPreviewDuration: 5528,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
         {
             path: "pokemon_regirock_un_un_un_meme_without_metadata.weba",
@@ -419,11 +422,13 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme_with_aac_audio_codec.m4a",
             audioPreviewDuration: 5512,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
         {
             path: "pokemon_regirock_un_un_un_meme_with_alac_audio_codec.m4a",
             alternative: {contentType: "audio/webm"},
             audioPreviewDuration: 5510,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],
 };

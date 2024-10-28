@@ -750,7 +750,7 @@ function SpaceLayoutRouteInner({
 
                 modals.push(
                     <ModalErrorBoundary
-                        key={`${searchParamName}-${fileId}`}
+                        key={`${searchParamName}-${fileId}-${isMobile}`}
                         type="file"
                         error={error}
                     >

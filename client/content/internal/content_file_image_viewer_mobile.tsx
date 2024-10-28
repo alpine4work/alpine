@@ -630,7 +630,7 @@ function ContentFileImageMobileViewerInner({
                 className={classNames(
                     fileClassName,
                     isLoaded && contentStyles.loadedFileImagePreviewClassName,
-                    contentStyles.fileViewerClassName,
+                    contentStyles.fileImageViewerClassName,
                     sprinkles({
                         boxShadow: !adjustments.hasTransparentBackground
                             ? "elevation-20-above-content-file-viewer-modal"

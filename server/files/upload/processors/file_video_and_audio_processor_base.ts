@@ -1,8 +1,9 @@
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
+import {FileAudioPreviewMetadata, FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 
 export const ffmpegExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffmpeg");
 export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffprobe");
@@ -248,4 +249,39 @@ export function parseFfmpegStderrInputCodecNames(stderr: string): string | undef
         .join("/");
 
     return codecNames;
+}
+
+const defaultFileAudioPreviewMetadata: FileAudioPreviewMetadata = {
+    title: null,
+    artist: null,
+    album: null,
+};
+
+export function getFileAudioPreviewMetadataFromFfprobeMetadata(
+    metadata: unknown,
+): FileAudioPreviewMetadata {
+    if (!isObject(metadata)) return defaultFileAudioPreviewMetadata;
+    if (!isObject(metadata.format)) return defaultFileAudioPreviewMetadata;
+    if (!isObject(metadata.format.tags)) return defaultFileAudioPreviewMetadata;
+
+    return {
+        title:
+            typeof metadata.format.tags.title === "string"
+                ? metadata.format.tags.title
+                : typeof metadata.format.tags.TITLE === "string"
+                ? metadata.format.tags.TITLE
+                : null,
+        artist:
+            typeof metadata.format.tags.artist === "string"
+                ? metadata.format.tags.artist
+                : typeof metadata.format.tags.ARTIST === "string"
+                ? metadata.format.tags.ARTIST
+                : null,
+        album:
+            typeof metadata.format.tags.album === "string"
+                ? metadata.format.tags.album
+                : typeof metadata.format.tags.ALBUM === "string"
+                ? metadata.format.tags.ALBUM
+                : null,
+    };
 }

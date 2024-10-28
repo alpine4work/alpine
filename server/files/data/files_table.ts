@@ -38,6 +38,7 @@ import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_conten
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
 import {
+    FileAudioPreviewMetadata,
     FileHasPreview,
     FileImagePreviewSize,
     FilePreview,
@@ -521,6 +522,7 @@ export async function startUploadingAndProcessingFile(
                         type: "Audio",
                         isProcessing: true,
                         duration: "Processing",
+                        metadata: "Processing",
                     };
                     break;
                 }
@@ -993,9 +995,7 @@ export class FileUploader {
 
     /**
      * When we're done processing `preview.duration` for a file with an audio
-     * preview this function is called. Since audio previews only need a duration
-     * the file is immediately considered to have finished processing after
-     * this function is called.
+     * preview this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
         context: ServerSessionActionContext,
@@ -1032,11 +1032,81 @@ export class FileUploader {
 
                     return {
                         ...item,
-                        preview: {
-                            type: "Audio",
-                            isProcessing: false,
-                            duration,
-                        },
+                        preview:
+                            item.preview.metadata !== "Processing"
+                                ? {
+                                      type: "Audio",
+                                      isProcessing: false,
+                                      duration,
+                                      metadata: item.preview.metadata,
+                                  }
+                                : {
+                                      type: "Audio",
+                                      isProcessing: true,
+                                      duration,
+                                      metadata: item.preview.metadata,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * When we're done processing `preview.metadata` for a file with an audio
+     * preview this function is called.
+     */
+    // NOCOMMIT: Tests!
+    public async finishProcessingAudioPreviewMetadata(
+        context: ServerSessionActionContext,
+        metadata: FileAudioPreviewMetadata,
+    ): Promise<void> {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        return this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn't have a preview");
+                    }
+                    if (item.preview.type !== "Audio") {
+                        throw new InternalError("File doesn't have an audio preview");
+                    }
+                    if (!item.preview.isProcessing) {
+                        throw new InternalError("File has already finished processing its preview");
+                    }
+                    if (item.preview.metadata !== "Processing") {
+                        throw new InternalError(
+                            "File has already finished processing its audio preview metadata",
+                        );
+                    }
+
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.duration !== "Processing"
+                                ? {
+                                      type: "Audio",
+                                      isProcessing: false,
+                                      duration: item.preview.duration,
+                                      metadata,
+                                  }
+                                : {
+                                      type: "Audio",
+                                      isProcessing: true,
+                                      duration: item.preview.duration,
+                                      metadata,
+                                  },
                     };
                 },
                 {initialItem: itemRef.current},

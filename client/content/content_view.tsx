@@ -511,6 +511,7 @@ export function ContentView({
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
                     isMobile,
+                    isInitialAppRender,
                     isInert,
                     withPosAttribute: true,
                     placeholder,
@@ -541,6 +542,7 @@ export function ContentView({
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
                 isMobile,
+                isInitialAppRender,
                 isInert,
                 withPosAttribute: true,
                 placeholder,
@@ -572,8 +574,9 @@ export function ContentView({
         spaceId,
         accountStore,
         spaceContext?.currentAccount,
-        placeholder,
+        isInitialAppRender,
         isInert,
+        placeholder,
         shouldHighlightComment,
         filePreviewExpirationTimers,
     ]);
@@ -944,6 +947,7 @@ export function ContentView({
                         attachmentTarget: assertExists(fileAttachmentTarget),
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                         isInert,
+                        isInitialAppRender,
                         isOurEditorUploading: false,
                         isEditorInitialAppRender,
                         rootNavigate,
@@ -998,6 +1002,7 @@ export function ContentView({
         filePreviewExpirationTimers,
         isEditorInitialAppRender,
         rootNavigate,
+        isInitialAppRender,
     ]);
 
     // Watch all parent elements of our content editor for scroll events. When a

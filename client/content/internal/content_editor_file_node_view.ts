@@ -121,6 +121,7 @@ export function createContentEditorFileNodeViewConstructor({
                         layout,
                         screenWidth,
                         isMobile,
+                        isInitialAppRender: false,
                         expirationTimers: getExpirationTimers(),
                     }),
                 );
@@ -148,6 +149,7 @@ export function createContentEditorFileNodeViewConstructor({
                     attachmentTarget: getAttachmentTarget(),
                     expirationTimers: getExpirationTimers(),
                     isInert: false,
+                    isInitialAppRender: false,
                     // If we're currently uploading this `FileId` then disable polling.
                     // `FileUploadService` will push us updates immediately when they're available.
                     isOurEditorUploading,

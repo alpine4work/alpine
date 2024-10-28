@@ -503,16 +503,10 @@ export function getFilePreviewSize(file: FileModel | null): {width: number; heig
 
     switch (file.preview.type) {
         case "Audio": {
-            // Same aspect ratio as an [Ultrawide monitor][1]. Which is about the widest
-            // aspect ratio we allow. We need some wide space to render an audio player.
-            //
-            // [1]: https://en.wikipedia.org/wiki/Ultrawide_formats
-            const aspectRatio = 21 / 9;
-
             // Use the larger `remPx` size (mobile). The file will be scaled down as
             // necessary.
-            const height = contentStyles.fileMinSizeRem * remPxByPlatform.mobile;
-            const width = height * aspectRatio;
+            const width = largeFallbackFileWidth;
+            const height = width / maxFilePreviewAspectRatio;
             return {width, height};
         }
         case "Code": {

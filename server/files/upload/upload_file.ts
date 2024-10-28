@@ -394,6 +394,7 @@ async function uploadAndProcessFile(
                 imagePreviewContentPromise,
                 imagePreviewVideoDurationPromise,
                 audioPreviewDurationPromise,
+                audioPreviewMetadataPromise,
                 codePreviewContentPromise,
             } = fileProcessor.process(stream, signal, {
                 span,
@@ -692,6 +693,21 @@ async function uploadAndProcessFile(
                   })().catch(createAbortCatcher("File audio preview duration processing failed"))
                 : null;
 
+            const actualAudioPreviewMetadataPromise = audioPreviewMetadataPromise
+                ? (async () => {
+                      const metadata = await audioPreviewMetadataPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingAudioPreviewMetadata(context, metadata);
+
+                      sendEvent({
+                          type: "AudioPreviewMetadata",
+                          metadata,
+                      });
+                  })().catch(createAbortCatcher("File audio preview metadata processing failed"))
+                : null;
+
             const actualCodePreviewContentPromise = codePreviewContentPromise
                 ? (async () => {
                       const content = await codePreviewContentPromise;
@@ -783,6 +799,12 @@ async function uploadAndProcessFile(
                               childSpan.addData(spanData);
                               span.addData(spanData);
                           }
+                      })
+                    : null,
+                actualAudioPreviewMetadataPromise
+                    ? span.withSpan("Process file audio preview metadata", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          await actualAudioPreviewMetadataPromise;
                       })
                     : null,
                 actualCodePreviewContentPromise

@@ -17,6 +17,7 @@ import {
     mobilePlatformSelector,
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
+import * as contentFileAudioPlayerStyles from "~/client/styles/other/internal/content_file_audio_player.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
 import {approximateOpacityForShiftingGreyColor} from "~/client/styles/other/internal/helpers/approximate_opacity_for_shifting_grey_color.js";
 import {
@@ -1110,7 +1111,7 @@ globalStyle(`${fileClassName} > *`, {
     pointerEvents: "none",
 });
 
-export const fileViewerClassName = style({
+export const fileImageViewerClassName = style({
     selectors: {
         [`${fileClassName}&`]: {
             minWidth: "auto",
@@ -1296,7 +1297,7 @@ const darkFileBorderColor = Color.rgb(
 //
 // We use `&::before` to avoid competing with the `&::after` selector for
 // `selectionFileClassNameByColor`.
-globalStyle(`${fileClassName}:not(${fileViewerClassName})::before`, {
+globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     content: '""',
     pointerEvents: "none",
     // Should render over `<video>` element for video preview (`z-index` 30).
