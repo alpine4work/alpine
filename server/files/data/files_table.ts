@@ -1057,7 +1057,6 @@ export class FileUploader {
      * When we're done processing `preview.metadata` for a file with an audio
      * preview this function is called.
      */
-    // NOCOMMIT: Tests!
     public async finishProcessingAudioPreviewMetadata(
         context: ServerSessionActionContext,
         metadata: FileAudioPreviewMetadata,

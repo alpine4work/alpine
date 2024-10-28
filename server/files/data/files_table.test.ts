@@ -4677,49 +4677,168 @@ test("can't finish processing file alternative preview image if alternative is a
     );
 });
 
-test("can finish processing file audio preview duration", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
+test("can finish processing file audio preview", async () => {
+    {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "audio/mpeg",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
-    });
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
+        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+            spaceId: space.id,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Audio",
-                isProcessing: true,
-                duration: "Processing",
-            },
-        }),
-    );
+            hasAlternative: false,
+            hasPreview: {type: "Audio"},
+        });
 
-    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: "Processing",
+                    metadata: "Processing",
+                },
+            }),
+        );
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
+        await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: 2000,
+                    metadata: "Processing",
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: false,
+                    duration: 2000,
+                    metadata: {
+                        title: "A",
+                        artist: "B",
+                        album: "C",
+                    },
+                },
+            }),
+        );
+    }
+
+    {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+            spaceId: space.id,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Audio",
-                isProcessing: false,
-                duration: 2000,
-            },
-        }),
-    );
+            hasAlternative: false,
+            hasPreview: {type: "Audio"},
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: "Processing",
+                    metadata: "Processing",
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: "Processing",
+                    metadata: {
+                        title: "A",
+                        artist: "B",
+                        album: "C",
+                    },
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: false,
+                    duration: 2000,
+                    metadata: {
+                        title: "A",
+                        artist: "B",
+                        album: "C",
+                    },
+                },
+            }),
+        );
+    }
 });
 
 test("can't finish processing file audio preview duration with the wrong session", async () => {
@@ -4746,6 +4865,7 @@ test("can't finish processing file audio preview duration with the wrong session
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4765,6 +4885,7 @@ test("can't finish processing file audio preview duration with the wrong session
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4793,6 +4914,7 @@ test("can't finish processing file audio preview duration twice", async () => {
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4808,8 +4930,104 @@ test("can't finish processing file audio preview duration twice", async () => {
             alternative: null,
             preview: {
                 type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
+    ).rejects.toThrow(
+        new InternalError("File has already finished processing its audio preview duration"),
+    );
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview duration when preview is finished processing", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A",
+        artist: "B",
+        album: "C",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
                 isProcessing: false,
                 duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
             },
         }),
     );
@@ -4829,6 +5047,11 @@ test("can't finish processing file audio preview duration twice", async () => {
                 type: "Audio",
                 isProcessing: false,
                 duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
             },
         }),
     );
@@ -4922,6 +5145,342 @@ test("can't finish processing file audio preview duration for file with an image
     );
 });
 
+test("can't finish processing file audio preview metadata with the wrong session", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(otherSession.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata twice", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A",
+        artist: "B",
+        album: "C",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(
+        new InternalError("File has already finished processing its audio preview metadata"),
+    );
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata when preview is finished processing", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A",
+        artist: "B",
+        album: "C",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata for file without preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata for file with an image preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new InternalError("File doesn't have an audio preview"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+});
+
 test("can't finish processing file image preview size for file with an audio preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -4945,6 +5504,7 @@ test("can't finish processing file image preview size for file with an audio pre
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4969,6 +5529,7 @@ test("can't finish processing file image preview size for file with an audio pre
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4997,6 +5558,7 @@ test("can't finish processing file image preview placeholder for file with an au
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5019,6 +5581,7 @@ test("can't finish processing file image preview placeholder for file with an au
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5047,6 +5610,7 @@ test("can't finish processing file image preview content for file with an audio 
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5070,6 +5634,7 @@ test("can't finish processing file image preview content for file with an audio 
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5098,6 +5663,7 @@ test("can't finish processing file image preview video duration for file with an
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5117,6 +5683,7 @@ test("can't finish processing file image preview video duration for file with an
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
