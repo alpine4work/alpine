@@ -28,31 +28,39 @@ const {
     fftSize: contentFileAudioPlayerVisualizationFftSize,
     viewboxHeight: contentFileAudioPlayerVisualizationSvgViewboxHeight,
     barWidth: contentFileAudioPlayerVisualizationSvgBarWidth,
+    minBarHeight: contentFileAudioPlayerVisualizationSvgMinBarHeight,
     svg: contentFileAudioPlayerVisualizationSvg,
 } = (() => {
-    const fftSize = 128;
+    const fftSize = 256;
     const viewboxWidth = 600;
     const viewboxHeight = 100;
 
     // Cut off the last x% of bars as it seems that in practice they rarely
     // have data.
-    const barCount = Math.round((fftSize / 2) * 0.7);
+    const barCount = Math.round((fftSize / 2) * 0.65);
 
-    const barWidth = viewboxWidth / (barCount * 2 - 1);
+    const gapWidthRatio = 1.5;
+    const barWidth = viewboxWidth / (barCount + (barCount - 1) * gapWidthRatio);
+    const minBarHeight = barWidth * 2.5;
 
     return {
         fftSize,
         viewboxHeight,
         barWidth: round3(barWidth),
+        minBarHeight: round3(minBarHeight),
+        // We add 1 around the viewbox since we were sometimes getting rendering
+        // artifacts in Chrome near the edge of the viewbox during an animation. Adding the
+        // padding seems to fix it.
         svg: `\
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewboxWidth} ${viewboxHeight}">\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 ${viewboxWidth + 1} ${viewboxHeight + 1}">\
 ${createArrayWithLength(barCount, index => {
-    const size = round3(barWidth);
-    const x = round3(barWidth * index * 2);
-    const y = round3(viewboxHeight / 2 - size / 2);
+    const width = round3(barWidth);
+    const height = round3(minBarHeight);
+    const x = round3(barWidth * index + barWidth * gapWidthRatio * index);
+    const y = round3(viewboxHeight / 2 - height / 2);
     const radius = round3(barWidth / 2);
 
-    return `<rect width="${size}" height="${size}" x="${x}" y="${y}" rx="${radius}" ry="${radius}" />`;
+    return `<rect width="${width}" height="${height}" x="${x}" y="${y}" rx="${radius}" ry="${radius}" />`;
 }).join("")}\
 </svg>`,
     };
@@ -380,7 +388,7 @@ export function addContentFileAudioPlayerBehavior(
                 const bytePercent = byteFrequency / 255;
 
                 const barHeight = clamp(
-                    contentFileAudioPlayerVisualizationSvgBarWidth,
+                    contentFileAudioPlayerVisualizationSvgMinBarHeight,
                     bytePercent * contentFileAudioPlayerVisualizationSvgViewboxHeight,
                     contentFileAudioPlayerVisualizationSvgViewboxHeight,
                 );

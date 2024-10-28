@@ -2,6 +2,7 @@ import {globalStyle, keyframes, style} from "@vanilla-extract/css";
 import {
     borderRadius,
     colorSchemeVars,
+    darkColorSchemeSelector,
     fontSizes,
     fontStyles,
 } from "~/client/styles/core/styles_core.js";
@@ -39,7 +40,13 @@ export const visualizationClassName = style({
 globalStyle(`${visualizationClassName} > svg`, {
     width: "fit-content",
     maxWidth: "100%",
-    fill: colorSchemeVars["grey-10"],
+    fill: colorSchemeVars["theme-40-const"],
+});
+
+globalStyle(`${darkColorSchemeSelector} ${visualizationClassName} > svg`, {
+    width: "fit-content",
+    maxWidth: "100%",
+    fill: colorSchemeVars["theme-50-const"],
 });
 
 const loadingIndicatorSize = spacing["10"];
