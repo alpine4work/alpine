@@ -31,11 +31,15 @@ export const hammerModulePromise = new Lazy(() => PromiseImmediate.resolve(impor
 export type ContentFileViewerLoaderData =
     | {
           readonly type: "Image";
-          readonly image: InstanceType<typeof Image> | null;
+          readonly imageElement: HTMLImageElement | null;
       }
     | {
           readonly type: "VideoMobile";
           readonly videoElement: HTMLVideoElement | null;
+      }
+    | {
+          readonly type: "AudioMobile";
+          readonly audioElement: HTMLAudioElement | null;
       }
     | {
           readonly type: "Code";
@@ -127,8 +131,13 @@ export async function loadContentFileViewerData({
         case "audio/webm":
         case "audio/ogg":
         case "audio/mp4": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            if (!isMobile) return null;
+
+            return loadContentFileAudioViewerMobile({
+                spaceId,
+                signedUrlSearch,
+                file,
+            });
         }
         case "text/plain":
         case "text/javascript":
@@ -231,7 +240,7 @@ async function loadContentFileImageViewer({
         file.preview.size.width * file.preview.size.height >
             maxContentFileImageViewerMobilePreviewSize
     ) {
-        return {type: "Image", image: null};
+        return {type: "Image", imageElement: null};
     }
 
     const src = getContentFileViewerSrc({
@@ -240,7 +249,7 @@ async function loadContentFileImageViewer({
         file,
         asPreview,
     });
-    if (!src) return {type: "Image", image: null};
+    if (!src) return {type: "Image", imageElement: null};
 
     const image = new Image();
     image.decoding = "async";
@@ -254,7 +263,7 @@ async function loadContentFileImageViewer({
         isMobile ? hammerModulePromise.get() : null,
     ]);
 
-    return {type: "Image", image};
+    return {type: "Image", imageElement: image};
 }
 
 async function loadContentFileVideoViewerMobile({
@@ -295,6 +304,38 @@ async function loadContentFileVideoViewerMobile({
     });
 
     return {type: "VideoMobile", videoElement};
+}
+
+async function loadContentFileAudioViewerMobile({
+    spaceId,
+    signedUrlSearch,
+    file,
+}: {
+    spaceId: SpaceId;
+    signedUrlSearch: string;
+    file: FileModel;
+}): Promise<ContentFileViewerLoaderData> {
+    const src = getContentFileViewerSrc({
+        spaceId,
+        signedUrlSearch,
+        file,
+    });
+    if (!src) return {type: "AudioMobile", audioElement: null};
+
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audio.controls = true;
+    audio.src = src;
+
+    await new Promise((resolve, reject) => {
+        audio.addEventListener("loadedmetadata", resolve);
+
+        audio.addEventListener("error", () => {
+            reject(new UnknownError(quote`Error loading video with source ${src}`));
+        });
+    });
+
+    return {type: "AudioMobile", audioElement: audio};
 }
 
 async function loadContentFileCodeViewer({

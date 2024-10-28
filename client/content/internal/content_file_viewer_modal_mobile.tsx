@@ -1,6 +1,7 @@
 import {DownloadSimple, Export, FileDotted, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useCallback, useState} from "react";
+import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_file_audio_viewer_mobile.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
@@ -449,8 +450,7 @@ function ContentFileViewerMobile(props: {
         case "audio/webm":
         case "audio/ogg":
         case "audio/mp4": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileAudioViewerMobile {...props} />;
         }
         case "text/plain":
         case "text/javascript":

@@ -1345,6 +1345,15 @@ export const pressedFileClassName = style({
                 buttonPressedOverlayOpacity / 2,
             ]).hexa(),
         },
+        // Any preview in dark mode that doesn't have an image is rendered directly on
+        // `grey-0`. So apply a color that should change the background color to
+        // `grey-5` on press.
+        [`&:not(:has(${fileImagePreviewContentClassName}))::before`]: {
+            backgroundColor: lightFileBorderColor,
+        },
+        [`${darkColorSchemeSelector} &:not(:has(${fileImagePreviewContentClassName}))::before`]: {
+            backgroundColor: darkFileBorderColor,
+        },
     },
 });
 

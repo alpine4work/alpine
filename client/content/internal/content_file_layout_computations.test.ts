@@ -8,6 +8,7 @@ import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 const screenWidth = 1920;
+const mobileScreenWidth = 390;
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -195,6 +196,34 @@ const file11 = new FileModel({
     },
 });
 
+const audioFile1 = new FileModel({
+    id: generateChronologicalId<FileId>(),
+    contentType: "audio/mp4",
+    contentLength: 100,
+    isUploading: false,
+    alternative: null,
+    preview: {
+        isProcessing: false,
+        type: "Audio",
+        duration: 1000,
+        metadata: {title: null, artist: null, album: null},
+    },
+});
+
+const audioFile2 = new FileModel({
+    id: generateChronologicalId<FileId>(),
+    contentType: "audio/mp4",
+    contentLength: 100,
+    isUploading: false,
+    alternative: null,
+    preview: {
+        isProcessing: false,
+        type: "Audio",
+        duration: 1000,
+        metadata: {title: null, artist: null, album: null},
+    },
+});
+
 test("can layout a file row", () => {
     expect(computeContentFileRowLayout([file1], {screenWidth, isMobile: false})).toEqual([
         {height: 449.699, width: 600, widthFr: 1},
@@ -294,6 +323,23 @@ test("can layout a file row", () => {
     expect(computeContentFileRowLayout([file7, file3], {screenWidth, isMobile: false})).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
         {height: 80, width: 80, widthFr: 0.135593},
+    ]);
+
+    expect(
+        computeContentFileRowLayout([audioFile1, audioFile2], {screenWidth, isMobile: false}),
+    ).toEqual([
+        {height: 123.9, width: 295, widthFr: 0.5},
+        {height: 123.9, width: 295, widthFr: 0.5},
+    ]);
+
+    expect(
+        computeContentFileRowLayout([audioFile1, audioFile2], {
+            screenWidth: mobileScreenWidth,
+            isMobile: true,
+        }),
+    ).toEqual([
+        {height: 100, width: 173.75, widthFr: 0.5},
+        {height: 100, width: 173.75, widthFr: 0.5},
     ]);
 });
 

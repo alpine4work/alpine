@@ -76,7 +76,8 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
 
     const solver = new kiwi.Solver();
 
-    const sizeVariables: Array<{width: kiwi.Variable; height: kiwi.Variable}> = [];
+    const sizeVariables: Array<{width: kiwi.Variable; height: kiwi.Variable; actualSize: number}> =
+        [];
     let firstHeightVariable: kiwi.Variable | null = null;
 
     for (const file of files) {
@@ -85,7 +86,11 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
         const widthVariable = new kiwi.Variable();
         const heightVariable = new kiwi.Variable();
 
-        sizeVariables.push({width: widthVariable, height: heightVariable});
+        sizeVariables.push({
+            width: widthVariable,
+            height: heightVariable,
+            actualSize: width * height,
+        });
 
         // All files in a row must have the same height.
         if (firstHeightVariable === null) {
@@ -239,6 +244,46 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
                 kiwi.Strength.medium,
             ),
         );
+    }
+
+    // Helps in tie-breaking scenarios. Try to preserve the size of each file
+    // relative to each other.
+    const weakerStrength = kiwi.Strength.create(0.0, 0.0, 0.5);
+
+    for (let i = 0; i < sizeVariables.length; i++) {
+        for (let j = i + 1; j < sizeVariables.length; j++) {
+            const sizeVariable1 = sizeVariables[i]!;
+            const sizeVariable2 = sizeVariables[j]!;
+
+            if (sizeVariable1.actualSize < sizeVariable2.actualSize) {
+                solver.addConstraint(
+                    new kiwi.Constraint(
+                        sizeVariable1.width,
+                        kiwi.Operator.Le,
+                        sizeVariable2.width,
+                        weakerStrength,
+                    ),
+                );
+            } else if (sizeVariable1.actualSize > sizeVariable2.actualSize) {
+                solver.addConstraint(
+                    new kiwi.Constraint(
+                        sizeVariable1.width,
+                        kiwi.Operator.Ge,
+                        sizeVariable2.width,
+                        weakerStrength,
+                    ),
+                );
+            } else {
+                solver.addConstraint(
+                    new kiwi.Constraint(
+                        sizeVariable1.width,
+                        kiwi.Operator.Eq,
+                        sizeVariable2.width,
+                        weakerStrength,
+                    ),
+                );
+            }
+        }
     }
 
     solver.updateVariables();

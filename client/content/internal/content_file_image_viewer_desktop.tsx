@@ -307,7 +307,7 @@ function ContentFileImageDesktopViewerInner({
 
         const imageElement = assertExists(imageRef.current);
 
-        const imageContentElement = loaderDataResult.value.image;
+        const imageContentElement = loaderDataResult.value.imageElement;
         if (!imageContentElement) return;
 
         // eslint-disable-next-line react-compiler/react-compiler
@@ -366,7 +366,7 @@ function ContentFileImageDesktopViewerInner({
         if (loaderDataResult.isPending) return;
         assert(loaderDataResult.value?.type === "Image");
 
-        const imageContentElement = loaderDataResult.value.image;
+        const imageContentElement = loaderDataResult.value.imageElement;
         if (!imageContentElement) return;
 
         // When the user zooms all the way in we want to show them the image's pixels

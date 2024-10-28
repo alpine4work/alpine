@@ -22,7 +22,7 @@ import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-export function ContentFileVideoViewerMobile({
+export function ContentFileAudioViewerMobile({
     file,
     signedUrlSearch,
     expirationTimers,
@@ -35,14 +35,14 @@ export function ContentFileVideoViewerMobile({
 }) {
     const loaderDataResult = usePromise(loaderDataPromise);
 
-    assert(loaderDataResult.isPending || loaderDataResult.value?.type === "VideoMobile");
+    assert(loaderDataResult.isPending || loaderDataResult.value?.type === "AudioMobile");
 
-    const videoElement =
-        !loaderDataResult.isPending && loaderDataResult.value?.type === "VideoMobile"
-            ? loaderDataResult.value.videoElement
+    const audioElement =
+        !loaderDataResult.isPending && loaderDataResult.value?.type === "AudioMobile"
+            ? loaderDataResult.value.audioElement
             : null;
 
-    if (!videoElement) {
+    if (!audioElement) {
         return (
             <Box
                 width="full"
@@ -79,23 +79,23 @@ export function ContentFileVideoViewerMobile({
     }
 
     return (
-        <ContentFileVideoViewerMobileInner
+        <ContentFileAudioViewerMobileInner
             signedUrlSearch={signedUrlSearch}
             expirationTimers={expirationTimers}
-            videoElement={videoElement}
+            audioElement={audioElement}
         />
     );
 }
 
-function ContentFileVideoViewerMobileInner({
+function ContentFileAudioViewerMobileInner({
     signedUrlSearch,
     expirationTimers,
-    videoElement,
+    audioElement,
 }: {
     signedUrlSearch: string;
     expirationTimers: ContentFilePreviewExpirationTimers;
 
-    videoElement: HTMLVideoElement;
+    audioElement: HTMLAudioElement;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -108,12 +108,12 @@ function ContentFileVideoViewerMobileInner({
 
         const containerElement = assertExists(containerRef.current);
 
-        containerElement.appendChild(videoElement);
+        containerElement.appendChild(audioElement);
 
         return () => {
-            videoElement.remove();
+            audioElement.remove();
         };
-    }, [isSignedUrlSearchExpired, videoElement]);
+    }, [isSignedUrlSearchExpired, audioElement]);
 
     return (
         <Box
