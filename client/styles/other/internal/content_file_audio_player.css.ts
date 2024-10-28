@@ -1,6 +1,16 @@
-import {globalStyle, style} from "@vanilla-extract/css";
-import {colorSchemeVars, fontSizes, fontStyles} from "~/client/styles/core/styles_core.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {globalStyle, keyframes, style} from "@vanilla-extract/css";
+import {
+    borderRadius,
+    colorSchemeVars,
+    fontSizes,
+    fontStyles,
+} from "~/client/styles/core/styles_core.js";
+import {
+    playingClassName,
+    waitingClassName,
+} from "~/client/styles/other/internal/content_file_video_and_audio_player_controls.css.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 
 export const containerClassName = style({
     width: "100%",
@@ -11,6 +21,8 @@ export const containerClassName = style({
 });
 
 export const visualizationClassName = style({
+    zIndex: "0",
+    position: "relative",
     flexGrow: "1",
     display: "flex",
     flexDirection: "column",
@@ -28,6 +40,53 @@ globalStyle(`${visualizationClassName} > svg`, {
     width: "fit-content",
     maxWidth: "100%",
     fill: colorSchemeVars["grey-10"],
+});
+
+const loadingIndicatorSize = spacing["10"];
+const loadingIndicatorIconSize = spacing["7"];
+
+const loadingIndicatorAnimationKeyframesStartPercent = 0.99;
+
+const loadingIndicatorAnimationKeyframes = keyframes({
+    "0%": {opacity: 0},
+    [`${loadingIndicatorAnimationKeyframesStartPercent * 100}%`]: {opacity: 0},
+    "100%": {opacity: 1},
+});
+
+export const loadingIndicatorClassName = style({
+    zIndex: "10",
+    position: "absolute",
+    top: `calc(50% - ${
+        parseRemLengthNumber(loadingIndicatorSize) / 2 - parseRemLengthNumber(spacing["4"]) / 2
+    }rem)`,
+    left: `calc(50% - ${parseRemLengthNumber(loadingIndicatorSize) / 2}rem)`,
+    width: loadingIndicatorSize,
+    height: loadingIndicatorSize,
+    color: colorSchemeVars["grey-90"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    borderRadius: borderRadius["full"],
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    selectors: {
+        [`${containerClassName}:not(${playingClassName}) &`]: {
+            display: "none",
+        },
+        [`${containerClassName}${playingClassName}:not(${waitingClassName}) &`]: {
+            display: "none",
+        },
+        [`${containerClassName}${playingClassName}${waitingClassName} &`]: {
+            // Use a CSS animation as a way to delay showing our loading indicator.
+            animation: `${loadingIndicatorAnimationKeyframes} ${
+                delayLoadingIndicatorLimitMs * (1 / loadingIndicatorAnimationKeyframesStartPercent)
+            }ms linear forwards`,
+        },
+    },
+});
+
+globalStyle(`${loadingIndicatorClassName} > svg`, {
+    width: loadingIndicatorIconSize,
+    height: loadingIndicatorIconSize,
 });
 
 export const controlsContainerClassName = style({

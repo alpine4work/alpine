@@ -5,8 +5,9 @@ import {
 } from "~/client/content/internal/render_content_file_video_and_audio_player_controls.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {waveformIconSvg} from "~/client/icons/waveform_icon_svg.js";
-import {contentFileAudioPlayerStyles} from "~/client/styles/styles.js";
+import {contentFileAudioPlayerStyles, spinAnimationClassName} from "~/client/styles/styles.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -18,8 +19,6 @@ import {
 } from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-
-// NOCOMMIT: Loading state
 
 // NOTE(calebmer, 2024-10-28): All of the audio visualization code in this file
 // is based off of some [old code I wrote for a podcast recording app][1].
@@ -108,6 +107,19 @@ export function renderContentFileAudioPlayer(
         visualizationHtml.appendChild(
             createSvgHtmlGenerator(contentFileAudioPlayerVisualizationSvg),
         );
+
+        {
+            const loadingIndicatorHtml = new HtmlElementGenerator("div");
+            visualizationHtml.appendChild(loadingIndicatorHtml);
+            loadingIndicatorHtml.setAttribute(
+                "class",
+                contentFileAudioPlayerStyles.loadingIndicatorClassName,
+            );
+
+            loadingIndicatorHtml.appendChild(
+                createSvgHtmlGenerator(spinnerGapIconSvg({className: spinAnimationClassName})),
+            );
+        }
     }
 
     {
