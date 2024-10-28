@@ -182,8 +182,9 @@ export function ContentFileViewerModal({
             spaceId: space.id,
             signedUrlSearch: fileFromAttachmentOutput.output.signedUrlSearch,
             file: fileFromAttachmentOutput.output.file,
+            isMobile,
         }).then(loaderDataPromiseResolver.resolve, loaderDataPromiseResolver.reject);
-    }, [fileFromAttachmentOutput.output, loaderDataPromiseResolver, space.id]);
+    }, [fileFromAttachmentOutput.output, isMobile, loaderDataPromiseResolver, space.id]);
 
     const [delayState, setDelayState] = useState<{startTime: number} | null>(() => ({
         startTime: Date.now(),

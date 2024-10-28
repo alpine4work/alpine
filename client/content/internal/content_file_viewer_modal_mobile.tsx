@@ -4,6 +4,7 @@ import {useCallback, useState} from "react";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {ContentFileVideoViewerMobile} from "~/client/content/internal/content_file_video_viewer_mobile.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -441,8 +442,7 @@ function ContentFileViewerMobile(props: {
         case "video/quicktime":
         case "video/mpeg":
         case "video/x-matroska": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileVideoViewerMobile {...props} />;
         }
         case "audio/mpeg":
         case "audio/wav":

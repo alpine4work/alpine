@@ -79,6 +79,7 @@ function ContentFileVideoViewerDesktopInner({
             file,
             durationMs,
             layout: null,
+            isMobile: false,
         });
 
         return containerHtml;

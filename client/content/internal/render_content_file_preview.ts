@@ -851,6 +851,7 @@ function renderContentFileImagePreviewInner(
             file,
             durationMs: filePreview.videoDuration,
             layout,
+            isMobile,
         });
 
         // We disable `user-select: text` on

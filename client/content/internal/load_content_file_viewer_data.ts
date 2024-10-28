@@ -1,14 +1,14 @@
 import {Tree} from "@lezer/common";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
-import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -34,6 +34,10 @@ export type ContentFileViewerLoaderData =
           readonly image: InstanceType<typeof Image> | null;
       }
     | {
+          readonly type: "VideoMobile";
+          readonly videoElement: HTMLVideoElement | null;
+      }
+    | {
           readonly type: "Code";
           readonly code: string;
           readonly codeTree: Tree | null;
@@ -53,10 +57,12 @@ export async function loadContentFileViewerData({
     spaceId,
     signedUrlSearch,
     file,
+    isMobile,
 }: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
+    isMobile: boolean;
 }): Promise<ContentFileViewerLoaderData | null> {
     switch (file.contentType) {
         case "application/octet-stream": {
@@ -77,6 +83,7 @@ export async function loadContentFileViewerData({
                 spaceId,
                 signedUrlSearch,
                 file,
+                isMobile,
             });
         }
         case "application/pdf":
@@ -97,14 +104,23 @@ export async function loadContentFileViewerData({
         case "video/quicktime":
         case "video/mpeg":
         case "video/x-matroska": {
-            return loadContentFileImageViewer({
-                spaceId,
-                signedUrlSearch,
-                file,
-                // Load the preview image when loading videos. We don't load the video itself
-                // until the user presses play.
-                asPreview: true,
-            });
+            if (isMobile) {
+                return loadContentFileVideoViewerMobile({
+                    spaceId,
+                    signedUrlSearch,
+                    file,
+                });
+            } else {
+                return loadContentFileImageViewer({
+                    spaceId,
+                    signedUrlSearch,
+                    file,
+                    isMobile,
+                    // Load the preview image when loading videos. We don't load the video itself
+                    // until the user presses play.
+                    asPreview: true,
+                });
+            }
         }
         case "audio/mpeg":
         case "audio/wav":
@@ -197,17 +213,19 @@ async function loadContentFileImageViewer({
     spaceId,
     signedUrlSearch,
     file,
+    isMobile,
     asPreview = false,
 }: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
+    isMobile: boolean;
     asPreview?: boolean;
 }): Promise<ContentFileViewerLoaderData> {
     // Don't load images that exceed the maximum size we support on mobile. We
     // won't render them so don't bother loading them.
     if (
-        getIsMobileWithoutListening() &&
+        isMobile &&
         file.preview?.type === "Image" &&
         typeof file.preview.size === "object" &&
         file.preview.size.width * file.preview.size.height >
@@ -233,10 +251,50 @@ async function loadContentFileImageViewer({
 
         // Make sure `hammerjs` is imported as well. We only need it for zoomable
         // images.
-        getIsMobileWithoutListening() ? hammerModulePromise.get() : null,
+        isMobile ? hammerModulePromise.get() : null,
     ]);
 
     return {type: "Image", image};
+}
+
+async function loadContentFileVideoViewerMobile({
+    spaceId,
+    signedUrlSearch,
+    file,
+}: {
+    spaceId: SpaceId;
+    signedUrlSearch: string;
+    file: FileModel;
+}): Promise<ContentFileViewerLoaderData> {
+    const src = getContentFileViewerSrc({
+        spaceId,
+        signedUrlSearch,
+        file,
+    });
+    if (!src) return {type: "VideoMobile", videoElement: null};
+
+    const previewSrc = getContentFileViewerSrc({
+        spaceId,
+        signedUrlSearch,
+        file,
+        asPreview: true,
+    });
+
+    const videoElement = document.createElement("video");
+    videoElement.preload = "metadata";
+    videoElement.controls = true;
+    if (previewSrc !== null) videoElement.poster = previewSrc;
+    videoElement.src = src;
+
+    await new Promise((resolve, reject) => {
+        videoElement.addEventListener("loadedmetadata", resolve);
+
+        videoElement.addEventListener("error", () => {
+            reject(new UnknownError(quote`Error loading video with source ${src}`));
+        });
+    });
+
+    return {type: "VideoMobile", videoElement};
 }
 
 async function loadContentFileCodeViewer({
