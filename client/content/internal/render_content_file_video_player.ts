@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
@@ -21,6 +22,7 @@ import {
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -62,6 +64,45 @@ export function renderContentFileVideoPlayer(
         isInitialAppRender: boolean;
     },
 ) {
+    const videoSrc = getContentFileViewerSrc({spaceId, signedUrlSearch, file});
+
+    if (videoSrc === null) {
+        const processingHtml = new HtmlElementGenerator("div");
+        containerHtml.appendChild(processingHtml);
+        processingHtml.setAttribute(
+            "class",
+            classNames(
+                contentFileVideoPlayerStyles.processingClassName,
+                sprinkles({fontSize: layout !== null && layout.width < 150 ? "25" : "50"}),
+            ),
+        );
+
+        processingHtml.appendChild(
+            createSvgHtmlGenerator(
+                spinnerGapIconSvg({
+                    className: `${spinAnimationClassName} ${sprinkles({
+                        width: "6",
+                        height: "6",
+                    })}`,
+                }),
+            ),
+        );
+
+        const processingNoteHtml = new HtmlElementGenerator("div");
+        processingHtml.appendChild(processingNoteHtml);
+
+        processingNoteHtml.appendChild(
+            new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
+        );
+
+        const processingNodeSpacerHtml = new HtmlElementGenerator("div");
+        processingNoteHtml.appendChild(processingNodeSpacerHtml);
+        processingNodeSpacerHtml.setAttribute("class", sprinkles({width: "0.5", height: "0.5"}));
+
+        processingNoteHtml.appendChild(new HtmlTextGenerator("This may take a few minutes…"));
+        return;
+    }
+
     const durationString = formatContentFileVideoAndAudioPlayerDurationString(
         durationMs,
         durationMs,
@@ -98,30 +139,6 @@ export function renderContentFileVideoPlayer(
     // the video.
     if (isMobile || (layout !== null && (layout.width < 250 || layout.height < 150))) {
         return;
-    }
-
-    const videoSrc = getContentFileViewerSrc({spaceId, signedUrlSearch, file});
-
-    if (videoSrc === null) {
-        const processingNoteHtml = new HtmlElementGenerator("div");
-        containerHtml.appendChild(processingNoteHtml);
-        processingNoteHtml.setAttribute(
-            "class",
-            contentFileVideoPlayerStyles.processingNoteClassName,
-        );
-
-        // NOCOMMIT: Consider blurring and darkening background a bit as the processing UI?
-        processingNoteHtml.appendChild(
-            new HtmlTextGenerator("Processing video, this may take a few minutes"),
-        );
-
-        const processingNoteEllipsisHtml = new HtmlElementGenerator("span");
-        processingNoteHtml.appendChild(processingNoteEllipsisHtml);
-        processingNoteEllipsisHtml.setAttribute(
-            "class",
-            contentFileVideoPlayerStyles.processingNoteEllipsisClassName,
-        );
-        processingNoteEllipsisHtml.appendChild(new HtmlTextGenerator("…"));
     }
 
     {
@@ -220,11 +237,6 @@ export function addContentFileVideoPlayerBehavior(
     assert(containerElement.classList.contains(contentFileVideoPlayerStyles.containerClassName));
 
     const videoElement = containerElement.getElementsByTagName("video")[0] ?? null;
-
-    const processingNoteElement =
-        containerElement.getElementsByClassName(
-            contentFileVideoPlayerStyles.processingNoteClassName,
-        )[0] ?? null;
 
     const controlsContainerElement = (containerElement.getElementsByClassName(
         contentFileVideoPlayerStyles.controlsContainerClassName,
@@ -500,22 +512,6 @@ export function addContentFileVideoPlayerBehavior(
 
     // Must be initialized after `isPointerOver`.
     updateStillPointerTimeout();
-
-    /* ========================================================================== *\
-     *                             Loading indicator                              *
-    \* ========================================================================== */
-
-    if (videoElement === null && processingNoteElement) {
-        containerElement.classList.add(
-            contentFileVideoAndAudioPlayerControlsStyles.waitingClassName,
-        );
-
-        cleanupFunctions.push(() => {
-            containerElement.classList.remove(
-                contentFileVideoAndAudioPlayerControlsStyles.waitingClassName,
-            );
-        });
-    }
 
     /* ========================================================================== *\
      *                                 Fullscreen                                 *

@@ -1,6 +1,5 @@
 import {globalStyle, keyframes, style} from "@vanilla-extract/css";
 import {
-    backgroundColorVar,
     borderRadius,
     colorSchemeVars,
     darkColorSchemeSelector,
@@ -173,52 +172,24 @@ export const durationPreviewClassName = style({
     },
 });
 
-export const processingNoteClassName = style({
+export const processingClassName = style({
     pointerEvents: "none",
     // Render above `videoClassName` and under `fileClassName`'s `::before` press
     // pseudo element.
     zIndex: "30",
     position: "absolute",
-    left: "50%",
-    top: spacing["1"],
-    transform: "translateX(-50%)",
-    color: colorSchemeVars["grey-90"],
-    backgroundColor: colorSchemeVars["grey-0"],
-    borderRadius: borderRadius["0.5"],
-    // Add elevation so we can easily see our floating elements on a white
-    // background.
-    boxShadow: elevation["elevation-5"].light,
-    paddingLeft: spacing["1.5"],
-    paddingRight: spacing["1.5"],
-    paddingTop: spacing["1"],
-    paddingBottom: spacing["1"],
-    ...fontSizes["50"],
-    fontVariantNumeric: "tabular-nums",
-    whiteSpace: "nowrap",
-    selectors: {
-        [`${darkColorSchemeSelector} &`]: {
-            boxShadow: elevation["elevation-5"].darkElevated1,
-        },
-    },
-});
-
-const processingNoteEllipsisAnimationKeyframes = keyframes({
-    from: {width: `${100 / (3 / 4)}%`},
-});
-
-export const processingNoteEllipsisClassName = style({
-    position: "relative",
-    selectors: {
-        "&::after": {
-            content: '""',
-            position: "absolute",
-            top: "0",
-            right: "0",
-            bottom: "0",
-            backgroundColor: backgroundColorVar,
-            animation: `${processingNoteEllipsisAnimationKeyframes} steps(4, start) 2000ms infinite`,
-        },
-    },
+    inset: "0",
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    gap: spacing["1.5"],
+    color: colorSchemeVars["grey-40"],
+    backgroundColor: colorSchemeVars["grey-0-opacity-80"],
+    backdropFilter: "blur(10px)",
 });
 
 export const videoClassName = style({

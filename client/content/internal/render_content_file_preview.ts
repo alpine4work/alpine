@@ -484,7 +484,7 @@ function renderContentFileProcessingPreview(
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            color: "grey-30",
+            color: "grey-40",
         }),
     );
 
