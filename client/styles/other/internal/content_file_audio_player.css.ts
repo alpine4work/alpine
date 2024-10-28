@@ -27,7 +27,7 @@ export const visualizationClassName = style({
 globalStyle(`${visualizationClassName} > svg`, {
     width: "fit-content",
     maxWidth: "100%",
-    fill: colorSchemeVars["theme-50"],
+    fill: colorSchemeVars["grey-10"],
 });
 
 export const controlsContainerClassName = style({
@@ -43,8 +43,8 @@ export const metadataClassName = style({
     flexShrink: "0",
     width: "100%",
     overflow: "hidden",
-    paddingTop: spacing["1.5"],
-    paddingBottom: spacing["1.5"],
+    paddingTop: spacing["1"],
+    paddingBottom: spacing["1"],
     paddingLeft: spacing["4"],
     paddingRight: spacing["4"],
     display: "flex",
@@ -73,6 +73,11 @@ export const metadataContentClassName = style({
 export const metadataTitleClassName = style({
     ...fontSizes["300"],
     ...fontStyles["truncate-semi-bold"],
+    selectors: {
+        [`${metadataWithoutVisualizationClassName} &`]: {
+            ...fontSizes["200"],
+        },
+    },
 });
 
 export const metadataArtistClassName = style({

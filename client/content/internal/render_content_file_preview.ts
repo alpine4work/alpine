@@ -1936,6 +1936,7 @@ export function addContentFilePreviewBehavior(
                 filePreview: reference.file.preview,
                 isInitialAppRender,
                 getReporter,
+                onOpenViewer: openViewer,
             });
         }
     }

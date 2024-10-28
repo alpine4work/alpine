@@ -9,6 +9,7 @@ import {
 } from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useState} from "react";
+import {ContentFileAudioViewerDesktop} from "~/client/content/internal/content_file_audio_viewer_desktop.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
@@ -443,8 +444,7 @@ function ContentFileDesktopViewer(props: {
         case "audio/webm":
         case "audio/ogg":
         case "audio/mp4": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileAudioViewerDesktop {...props} />;
         }
         case "text/plain":
         case "text/javascript":

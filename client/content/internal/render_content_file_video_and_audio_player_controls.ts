@@ -197,6 +197,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     mediaElement,
     isInitialAppRender,
     getReporter,
+    onOpenViewer,
     onPlay,
     onPause,
     onHasPlayed,
@@ -208,6 +209,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     mediaElement: HTMLMediaElement | null;
     isInitialAppRender: boolean;
     getReporter: () => Reporter;
+    onOpenViewer: (() => void) | undefined;
     onPlay?: () => void;
     onPause?: () => void;
     onHasPlayed?: () => void;
@@ -291,7 +293,20 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                 color: "grey-100",
                 backgroundColor: "grey-10",
             }),
-            onPress: () => {
+            onPress: event => {
+                // Secret feature! If you shift click the fullscreen button in a video preview
+                // it'll open the file viewer. This feature is really only for developers. We
+                // need to support videos in the file viewer even though basically all
+                // functionality is available inline.
+                if (event.shiftKey && onOpenViewer) {
+                    if (mediaElement && !mediaElement.paused) {
+                        mediaElement.pause();
+                    }
+
+                    onOpenViewer();
+                    return;
+                }
+
                 togglePlay();
             },
         }),

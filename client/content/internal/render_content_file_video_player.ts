@@ -289,16 +289,7 @@ export function addContentFileVideoPlayerBehavior(
                     color: "grey-100",
                     backgroundColor: "grey-10",
                 }),
-                onPress: event => {
-                    // Secret feature! If you shift click the fullscreen button in a video preview
-                    // it'll open the file viewer. This feature is really only for developers. We
-                    // need to support videos in the file viewer even though basically all
-                    // functionality is available inline.
-                    if (event.shiftKey && !document.fullscreenElement && onOpenViewer) {
-                        onOpenViewer();
-                        return;
-                    }
-
+                onPress: () => {
                     if (!document.fullscreenElement) {
                         containerElement.requestFullscreen({navigationUI: "hide"}).catch(error => {
                             getReporter().displayError(
@@ -571,6 +562,7 @@ export function addContentFileVideoPlayerBehavior(
                 onPlay: updateStillPointerTimeout,
                 onPause: updateStillPointerTimeout,
                 onHasPlayed: updateStillPointerTimeout,
+                onOpenViewer,
             },
         ));
     }

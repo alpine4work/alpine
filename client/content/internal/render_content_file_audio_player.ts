@@ -10,7 +10,6 @@ import {contentFileAudioPlayerStyles} from "~/client/styles/styles.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {
     HtmlContainerGenerator,
@@ -19,6 +18,8 @@ import {
 } from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+
+// NOCOMMIT: Loading state
 
 // NOTE(calebmer, 2024-10-28): All of the audio visualization code in this file
 // is based off of some [old code I wrote for a podcast recording app][1].
@@ -82,17 +83,19 @@ export function renderContentFileAudioPlayer(
         filePreview: FileAudioPreview & {isProcessing: false};
         audioSrc: string;
         isInitialAppRender: boolean;
-        layout: {width: number; height: number};
+        layout: {width: number; height: number} | null;
     },
 ) {
-    const audioHtml = new HtmlElementGenerator("audio");
-    containerHtml.appendChild(audioHtml);
-    audioHtml.setAttribute("preload", "none");
-    audioHtml.setAttribute("style", "pointer-events: none; width: 0; height: 0; opacity: 0");
-    audioHtml.setAttribute("src", audioSrc);
+    const withoutControls = layout !== null && layout.width < 250;
+    const withoutVisualization = layout !== null && layout.width < 350;
 
-    const withoutControls = layout.width < 250;
-    const withoutVisualization = layout.width < 350;
+    if (!withoutControls) {
+        const audioHtml = new HtmlElementGenerator("audio");
+        containerHtml.appendChild(audioHtml);
+        audioHtml.setAttribute("preload", "none");
+        audioHtml.setAttribute("style", "pointer-events: none; width: 0; height: 0; opacity: 0");
+        audioHtml.setAttribute("src", audioSrc);
+    }
 
     if (!withoutControls && !withoutVisualization) {
         const visualizationHtml = new HtmlElementGenerator("div");
@@ -243,15 +246,17 @@ export function addContentFileAudioPlayerBehavior(
         filePreview,
         isInitialAppRender,
         getReporter,
+        onOpenViewer,
     }: {
         filePreview: FileAudioPreview & {isProcessing: false};
         isInitialAppRender: boolean;
         getReporter: () => Reporter;
+        onOpenViewer?: () => void;
     },
 ) {
     assert(containerElement.classList.contains(contentFileAudioPlayerStyles.containerClassName));
 
-    const audioElement = assertExists(containerElement.getElementsByTagName("audio")[0]);
+    const audioElement = containerElement.getElementsByTagName("audio")[0] ?? null;
 
     const controlsContainerElement = (containerElement.getElementsByClassName(
         contentFileAudioPlayerStyles.controlsContainerClassName,
@@ -310,7 +315,7 @@ export function addContentFileAudioPlayerBehavior(
     let handlePlayAnimationFrame;
     let handleSeek;
 
-    if (visualizationSvgElement !== null) {
+    if (audioElement !== null && visualizationSvgElement !== null) {
         let visualizationState: ContentFileAudioVisualizationState | undefined;
 
         handlePlay = () => {
@@ -412,27 +417,33 @@ export function addContentFileAudioPlayerBehavior(
      *                              Shared behavior                               *
     \* ========================================================================== */
 
+    let togglePlay: () => void;
     let cleanupControls: () => void;
     if (controlsContainerElement === null) {
+        togglePlay = noop;
         cleanupControls = noop;
     } else {
-        ({cleanup: cleanupControls} = addContentFileVideoAndAudioPlayerControlsBehavior({
-            durationMs: filePreview.duration,
-            containerElement,
-            mediaElement: audioElement,
-            isInitialAppRender,
-            getReporter,
-            onPlay: handlePlay,
-            onSeek: handleSeek,
-            onPlayAnimationFrame: handlePlayAnimationFrame,
-        }));
+        ({togglePlay, cleanup: cleanupControls} = addContentFileVideoAndAudioPlayerControlsBehavior(
+            {
+                durationMs: filePreview.duration,
+                containerElement,
+                mediaElement: audioElement,
+                isInitialAppRender,
+                getReporter,
+                onPlay: handlePlay,
+                onSeek: handleSeek,
+                onPlayAnimationFrame: handlePlayAnimationFrame,
+                onOpenViewer,
+            },
+        ));
     }
 
     return {
         onPress: () => {
-            if (!audioElement.paused) {
-                audioElement.pause();
-            }
+            if (!audioElement) return;
+
+            togglePlay();
+            return {preventDefault: true};
         },
         cleanup: () => {
             cleanupControls();
