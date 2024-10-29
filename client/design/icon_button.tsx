@@ -534,7 +534,12 @@ function IconButton(
             isDisabled={isDisabled || withoutTooltip || isPending}
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
         >
-            <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
+            <FocusRing
+                offset={isQuietVariant ? "0" : "0.5"}
+                // Make sure the `<FocusRing>` doesn't render around the touch slop area. Just
+                // the button area.
+                inset={touchSlop.slop}
+            >
                 {createElement(
                     isFocusable ? "button" : "div",
                     // eslint-disable-next-line react-compiler/react-compiler

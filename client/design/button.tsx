@@ -575,7 +575,7 @@ function Button(
     }, [isFocusable]);
 
     let node = (
-        <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
+        <FocusRing offset={isQuietVariant ? "0" : "0.5"} insetY={touchSlop.slop}>
             {createElement(
                 isFocusable ? "button" : "div",
                 // eslint-disable-next-line react-compiler/react-compiler

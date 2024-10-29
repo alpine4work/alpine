@@ -267,10 +267,10 @@ export function FocusRingBox({
             const targetStyle = getComputedStyle(targetRef.current);
 
             const ringStyle = {
-                borderTopLeftRadius: parseBorderRadius(targetStyle.borderTopLeftRadius),
-                borderTopRightRadius: parseBorderRadius(targetStyle.borderTopRightRadius),
-                borderBottomLeftRadius: parseBorderRadius(targetStyle.borderBottomLeftRadius),
-                borderBottomRightRadius: parseBorderRadius(targetStyle.borderBottomRightRadius),
+                borderTopLeftRadius: parseCssLength(targetStyle.borderTopLeftRadius, remPx),
+                borderTopRightRadius: parseCssLength(targetStyle.borderTopRightRadius, remPx),
+                borderBottomLeftRadius: parseCssLength(targetStyle.borderBottomLeftRadius, remPx),
+                borderBottomRightRadius: parseCssLength(targetStyle.borderBottomRightRadius, remPx),
             };
 
             // Tweak border radius because of our ring offset. Using formula:
@@ -338,7 +338,7 @@ export function FocusRingBox({
         return () => {
             isCancelled = true;
         };
-    }, [ringOffsetBasePx, targetRef]);
+    }, [remPx, ringOffsetBasePx, targetRef]);
 
     return (
         <div
@@ -356,9 +356,16 @@ export function FocusRingBox({
     );
 }
 
-function parseBorderRadius(borderRadiusStyle: string): number | string {
-    if (!borderRadiusStyle.endsWith("px")) return borderRadiusStyle;
+function parseCssLength(cssLength: string, remPx: number): number | string {
+    if (cssLength.endsWith("px")) {
+        const cssLengthPx = parseInt(cssLength.slice(0, -2), 10);
+        return isNaN(cssLengthPx) ? cssLength : cssLengthPx;
+    }
 
-    const borderRadiusPx = parseInt(borderRadiusStyle.slice(0, -2), 10);
-    return isNaN(borderRadiusPx) ? borderRadiusStyle : borderRadiusPx;
+    if (cssLength.endsWith("rem")) {
+        const cssLengthRem = parseInt(cssLength.slice(0, -3), 10);
+        return isNaN(cssLengthRem) ? cssLength : cssLengthRem * remPx;
+    }
+
+    return cssLength;
 }
