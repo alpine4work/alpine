@@ -613,6 +613,7 @@ function PeekStackContextProvider(
                         />
                     </GlobalKeyDownManualContextProvider>
                 ) : (
+                    !isMobile &&
                     globalLoadingIndicator && (
                         <Box
                             pointerEvents="none"

@@ -403,6 +403,7 @@ export function renderContentFilePreview(
                     renderContentFileAudioPlayer(containerHtml, {
                         filePreview: reference.file.preview,
                         audioSrc,
+                        isMobile,
                         isInitialAppRender,
                         layout,
                     });

@@ -6,6 +6,7 @@ import {
     ReactElement,
     ReactNode,
     useContext,
+    useId,
     useMemo,
 } from "react";
 import {
@@ -17,8 +18,11 @@ import {
     UNSAFE_RouteContext as RouteContext,
     renderMatches,
 } from "react-router";
+import {Box} from "~/client/design/box.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
+import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
+import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -30,6 +34,7 @@ export function NativeMobileOutlet({
     tracer,
     isInert: isInertFromProps = false,
     inertRouterState,
+    globalLoadingIndicator,
     onUpdateMetaTitle,
     className,
     style,
@@ -39,11 +44,14 @@ export function NativeMobileOutlet({
     tracer: TracerRoot;
     isInert?: boolean;
     inertRouterState: RouterState | null;
+    globalLoadingIndicator: GlobalLoadingIndicator | null;
     onUpdateMetaTitle: Memo<(title: string) => void>;
     className?: string;
     style?: CSSProperties;
     renderOutlet?: (outlet: ReactElement | null) => ReactNode;
 }) {
+    const id = useId();
+
     const isInert = isInertFromProps || inertRouterState !== null;
 
     const currentDataRouterContext = assertExists(useContext(DataRouterContext));
@@ -335,6 +343,42 @@ export function NativeMobileOutlet({
                     </NavigationContext.Provider>
                 </DataRouterStateContext.Provider>
             </DataRouterContext.Provider>
+            {globalLoadingIndicator && (
+                <Box
+                    id={`nmbb-gli-${id}`}
+                    pointerEvents="none"
+                    position="absolute"
+                    zIndex="10"
+                    bottom="0"
+                    // We need to add enough padding that we're not clipped by the edge of the
+                    // screen when rendering in safe area.
+                    right="6"
+                    borderTopRadius="1"
+                    backgroundColor="grey-0"
+                    style={{
+                        // Our native mobile wrapper looks for compositing layers created from an
+                        // element with an ID that starts with `nmbb-` and ties their position to
+                        // the tab bar and software keyboard. So we get smooth animations while the
+                        // keyboard opens or the tab bar shifts offscreen. To create a compositing
+                        // layer we need to set `will-change: transform`. It's not specified that
+                        // `will-change: transform` MUST create a compositing layer, instead some
+                        // browser engines implement this hint themselves as an optimization.
+                        //
+                        // It so happens that WebKit is one of those browsers. Here's the code in
+                        // WebKit that does this: [part 1][1], [part 2][2].
+                        //
+                        // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                        // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                        willChange: "transform",
+                    }}
+                    // Suppress React hydration warnings in our native mobile app. The native
+                    // mobile app sets the `transform` property on this element. Sometimes before
+                    // React finishes hydrating. This is expected, React can ignore the difference.
+                    suppressHydrationWarning={true}
+                >
+                    <GlobalLoadingIndicatorChip indicator={globalLoadingIndicator} />
+                </Box>
+            )}
         </div>
     );
 }

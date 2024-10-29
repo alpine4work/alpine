@@ -21,6 +21,7 @@ import {
     getWebMobileTabFromPathname,
 } from "~/client/spaces/layout/web_mobile_tab.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {spaceLayoutWebMobileTabBarHeight} from "~/client/styles/space_layout_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -35,12 +36,6 @@ import {
 } from "~/shared/helpers/string/safe_string.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
-
-// A little bigger than the native iOS toolbar which is around height spacing
-// `10`. Spacing `10` just looks squished. In native iOS there's safe area at
-// the bottom of the screen which helps make the bottom bar not look squished.
-// We don't have that in web mobile so make the tab bar a little bigger.
-export const spaceLayoutWebMobileTabBarHeight = "12";
 
 export function SpaceLayoutWebMobileTabBar({
     initialInbox,

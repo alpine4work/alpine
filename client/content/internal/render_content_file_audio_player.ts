@@ -89,12 +89,13 @@ export function renderContentFileAudioPlayer(
     }: {
         filePreview: FileAudioPreview & {isProcessing: false};
         audioSrc: string;
+        isMobile: boolean;
         isInitialAppRender: boolean;
         layout: {width: number; height: number} | null;
     },
 ) {
     const withoutControls = layout !== null && layout.width < 250;
-    const withoutVisualization = layout !== null && layout.width < 350;
+    const withoutVisualization = layout !== null && (layout.width < 350 || layout.height < 200);
 
     if (!withoutControls) {
         const audioHtml = new HtmlElementGenerator("audio");

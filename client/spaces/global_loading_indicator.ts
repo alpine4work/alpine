@@ -19,6 +19,11 @@ const mockGlobalLoadingIndicatorContextForTest: GlobalLoadingIndicatorContext | 
 
 /**
  * Renders a global loading indicator for the duration of the provided promise.
+ *
+ * IMPORTANT: You should prefer inline loading indicators in all situations if
+ * possible. Only use global loading indicators if there's no good inline
+ * loading indicator design. For example, saving indicator on a document after
+ * optimistic updates.
  */
 export function useAddGlobalLoadingIndicator(): Memo<
     (promise: Promise<unknown>, indicator: GlobalLoadingIndicator) => void
@@ -42,6 +47,11 @@ export function useAddGlobalLoadingIndicator(): Memo<
 /**
  * While this hook has a non-null `indicator` argument we'll show the provided
  * loading indicator.
+ *
+ * IMPORTANT: You should prefer inline loading indicators in all situations if
+ * possible. Only use global loading indicators if there's no good inline
+ * loading indicator design. For example, saving indicator on a document after
+ * optimistic updates.
  */
 export function useGlobalLoadingIndicator(indicator: Memo<GlobalLoadingIndicator> | null) {
     const add = useAddGlobalLoadingIndicator();

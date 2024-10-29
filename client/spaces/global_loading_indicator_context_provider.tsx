@@ -139,6 +139,8 @@ export function GlobalLoadingIndicatorContextProvider({
     );
 }
 
+export const globalLoadingIndicatorChipHeight = "7";
+
 export function GlobalLoadingIndicatorChip({indicator}: {indicator: GlobalLoadingIndicator}) {
     let indicatorText: string;
 
@@ -163,11 +165,12 @@ export function GlobalLoadingIndicatorChip({indicator}: {indicator: GlobalLoadin
 
     return (
         <Box
+            height={globalLoadingIndicatorChipHeight}
             paddingX="2"
-            paddingY="1.5"
             color="grey-40"
             fontSize="75"
             display="flex"
+            alignItems="center"
             gap="1"
             style={{fontVariantNumeric: "tabular-nums"}}
         >

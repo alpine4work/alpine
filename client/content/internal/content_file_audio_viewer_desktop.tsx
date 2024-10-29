@@ -112,6 +112,7 @@ function ContentFileAudioViewerDesktopInner({
         renderContentFileAudioPlayer(containerHtml, {
             filePreview,
             audioSrc,
+            isMobile: false,
             isInitialAppRender: false,
             layout: null,
         });
