@@ -50,6 +50,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
+import {GlobalLoadingIndicatorContextProvider} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {
@@ -370,39 +371,6 @@ function SpaceLayoutRouteInner({
             }),
     }));
 
-    // Listen for double shift events. We don't use `<GlobalKeyDownEvent>` since we
-    // need to attach a capture `keydown` listener. Since any `keydown` that's not
-    // `Shift` should cancel our double shift timer. However, by convention if a
-    // component handles a keypress it calls `event.preventDefault()` and
-    // `event.stopPropagation()`. Which means or search event handler won't see if
-    // and so can't cancel a pending double shift.
-    //
-    // As a capture listener, double shift can't be stopped with
-    // `event.stopPropagation()` by a child element. But we're ok with that, it
-    // would be strange to the user if search sometimes didn't open given it's a
-    // product-wide global shortcut.
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            // Ctrl+P opens the search modal.
-            if (
-                event.key === "p" &&
-                (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey) &&
-                // Don't open the search modal on mobile.
-                !isMobile
-            ) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                setSearchQueryText("");
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyDown, true);
-        return () => {
-            window.removeEventListener("keydown", handleKeyDown, true);
-        };
-    }, [clientInfo.isAppleDevice, isMobile, setSearchQueryText]);
-
     // In native mobile iOS apps, save any iOS device tokens to the server. We'll
     // use the device token to actually send the user push notifications.
     useEffect(() => {
@@ -679,7 +647,7 @@ function SpaceLayoutRouteInner({
         [],
     );
 
-    const modals = [];
+    const modals: Array<ReactNode> = [];
     let hasAddedSearchModal = false;
     let hasAddedContentFileViewerModal = false;
 
@@ -811,33 +779,56 @@ function SpaceLayoutRouteInner({
                         }
                         break;
                     }
+                    case "p": {
+                        if (
+                            !isMobile &&
+                            (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            setSearchQueryText("");
+                        }
+                        break;
+                    }
                 }
             }}
         >
-            <ContextMenuContextProvider>
-                <SpaceContextProvider
-                    // Re-render everything when the space changes.
-                    key={space.id}
-                    space={space}
-                    currentAccount={currentAccount}
-                >
-                    <TaskRealtimeClientContextProvider
-                        spaceId={space.id}
-                        currentAccountId={currentAccount.id}
-                    >
-                        <PeekStackContextProvider ref={peekStackRef}>
-                            {nodes}
-                        </PeekStackContextProvider>
-                        {modals}
-                        {isMobile && !clientInfo.isNativeMobile && (
-                            <SpaceLayoutWebMobileTabBar initialInbox={initialInbox} />
-                        )}
-                        {clientInfo.isNativeMobile && (
-                            <SpaceLayoutNativeMobileInboxController initialInbox={initialInbox} />
-                        )}
-                    </TaskRealtimeClientContextProvider>
-                </SpaceContextProvider>
-            </ContextMenuContextProvider>
+            <GlobalLoadingIndicatorContextProvider>
+                {globalLoadingIndicator => (
+                    <ContextMenuContextProvider>
+                        <SpaceContextProvider
+                            // Re-render everything when the space changes.
+                            key={space.id}
+                            space={space}
+                            currentAccount={currentAccount}
+                        >
+                            <TaskRealtimeClientContextProvider
+                                spaceId={space.id}
+                                currentAccountId={currentAccount.id}
+                            >
+                                <PeekStackContextProvider
+                                    ref={peekStackRef}
+                                    // The peek stack component is responsible for rendering our global loading
+                                    // indicator so it can make sure the loading indicator avoids the peek stack.
+                                    globalLoadingIndicator={globalLoadingIndicator}
+                                >
+                                    {nodes}
+                                </PeekStackContextProvider>
+                                {modals}
+                                {isMobile && !clientInfo.isNativeMobile && (
+                                    <SpaceLayoutWebMobileTabBar initialInbox={initialInbox} />
+                                )}
+                                {clientInfo.isNativeMobile && (
+                                    <SpaceLayoutNativeMobileInboxController
+                                        initialInbox={initialInbox}
+                                    />
+                                )}
+                            </TaskRealtimeClientContextProvider>
+                        </SpaceContextProvider>
+                    </ContextMenuContextProvider>
+                )}
+            </GlobalLoadingIndicatorContextProvider>
         </GlobalKeyDownEvent>
     );
 }

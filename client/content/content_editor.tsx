@@ -104,7 +104,6 @@ import {
 } from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {selectFiles} from "~/client/content/select_files.js";
-import {ContentEditorLoadingIndicatorSummary} from "~/client/content/use_content_editor_loading_indicator.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
@@ -136,6 +135,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
@@ -523,21 +523,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onArrowUp?: (event: KeyboardEvent) => void;
 
     /**
-     * If the `<ContentEditor>` is processing some asynchronous data then it'll
-     * call this function with a promise so the parent component can show a
-     * loading indicator for the duration of the promise.
-     *
-     * If the `<ContentEditor>` supports files then this prop is required. You must
-     * show a loading indicator while a file is uploading or else the user may not
-     * know what's going on.
-     */
-    onLoadingIndicator?: (
-        summary: ContentEditorLoadingIndicatorSummary,
-        promise: Promise<void>,
-        progressStore: Store<number> | null,
-    ) => void;
-
-    /**
      * Opens a comment thread when clicked. If your schema supports comment marks
      * you must provide this function to open them. `<ContentEditor>` knows almost
      * nothing about how comments are implemented, only how they are styled.
@@ -784,6 +769,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -837,6 +823,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const navigateRef = useRef(navigate);
     const reporterRef = useRef(reporter);
     const contextRef = useRef(context);
+    const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
@@ -851,6 +838,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         navigateRef.current = navigate;
         reporterRef.current = reporter;
         contextRef.current = context;
+        addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
         spaceContextRef.current = spaceContext;
     });
 
@@ -1697,7 +1685,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // both asynchronous pastes and asynchronous drops. I feel like the copy
             // "Dropping" might confuse the user since they might not associate the word
             // "drop" with their drag operation.
-            propsRef.current.onLoadingIndicator?.("Pasting", promise, null);
+            addGlobalLoadingIndicatorRef.current(promise, {type: "Pasting"});
 
             promise.catch(error => {
                 reporter.displayError(
@@ -1834,13 +1822,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             // While a file is uploading show an "Uploading" loading indicator with the
                             // progress percentage. If multiple files are uploading at once then the
-                            // implementation of `onLoadingIndicator` is responsible for putting together
+                            // global loading indicator implementation is responsible for putting together
                             // an aggregated summary.
-                            propsRef.current.onLoadingIndicator?.(
-                                "Uploading",
-                                promise,
-                                progressCompositeStore,
-                            );
+                            addGlobalLoadingIndicatorRef.current(promise, {
+                                type: "Uploading",
+                                progressStore: progressCompositeStore,
+                            });
 
                             const {signedUrlSearch, fileStore} =
                                 await fileReferencePromiseResolver.promise;
@@ -3676,8 +3663,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const {schema} = unwrappedState;
 
     assert(
-        !schema.nodes.file || (fileAttachmentTarget && props.onLoadingIndicator),
-        "When the ProseMirror schema supports files then the props `fileAttachmentTarget` and `onLoadingIndicator` are required",
+        !schema.nodes.file || fileAttachmentTarget,
+        "When the ProseMirror schema supports files then the prop `fileAttachmentTarget` is required",
     );
 
     const floaterState = state.getFloaterState();

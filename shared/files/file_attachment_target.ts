@@ -44,8 +44,8 @@ export type FileAttachmentTargetByArea = {
     | {readonly type: "Post"; readonly postId: PostId}
         // TODO(calebmer, #files): Implement attachments
         | {readonly type: "PostComment"; readonly postId: PostId; readonly commentIndex: number};
-    Task: // TODO(calebmer, #files): Implement attachments
-    | {readonly type: "TaskNotes"; readonly taskId: TaskId}
+    Task:
+        | {readonly type: "TaskNotes"; readonly taskId: TaskId}
         // TODO(calebmer, #files): Implement attachments
         | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
 };

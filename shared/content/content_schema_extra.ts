@@ -100,7 +100,7 @@ export const contentStructuralProsemirrorNodeSpecs = createProsemirrorNodesSpec(
     },
 });
 
-export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: string}) =>
+export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: string} = {}) =>
     createProsemirrorNodesSpec({
         /**
          * Renders one or more files in content in a horizontal row. When the user
@@ -193,7 +193,9 @@ export const createContentFileProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: 
         },
     });
 
-export const createContentFileFloatProsemirrorNodeSpecs = ({fileMarks}: {fileMarks?: string}) =>
+export const createContentFileFloatProsemirrorNodeSpecs = ({
+    fileMarks,
+}: {fileMarks?: string} = {}) =>
     createProsemirrorNodesSpec({
         /**
          * Renders a single file floating to the left or right. Text will wrap around
@@ -212,8 +214,6 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({fileMarks}: {fileMar
          * we accept the user can get into some weird states with floating files and
          * leave them to it.
          */
-        // TODO(calebmer, #files): Floats shouldn't be allowed in `MessageContent`.
-        // Only file rows should be allowed in `MessageContent`.
         fileFloat: {
             group: "block",
             content: "file",

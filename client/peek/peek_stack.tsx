@@ -69,10 +69,13 @@ import {
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
+import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
+import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     greyElevated1ClassName,
+    spaceLayoutStyles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
@@ -287,7 +290,13 @@ const PeekStackContextProviderForwardRef = forwardRef(PeekStackContextProvider);
 export {PeekStackContextProviderForwardRef as PeekStackContextProvider};
 
 function PeekStackContextProvider(
-    {children}: {children?: ReactNode},
+    {
+        globalLoadingIndicator,
+        children,
+    }: {
+        globalLoadingIndicator: GlobalLoadingIndicator | null;
+        children?: ReactNode;
+    },
     ref: Ref<PeekStackContextProviderRef>,
 ) {
     const dataRouterContext = useContext(DataRouterContext);
@@ -590,7 +599,7 @@ function PeekStackContextProvider(
                 >
                     {children}
                 </NavigationEventContextProvider>
-                {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
+                {state.stack.length > 0 || state.unmountingStack.length > 0 ? (
                     <GlobalKeyDownManualContextProvider
                         ref={peekStackGlobalKeyDownManualContextRef}
                     >
@@ -600,8 +609,23 @@ function PeekStackContextProvider(
                             dispatch={dispatch}
                             peekRoutes={peekRoutes}
                             createPeekRouter={createPeekRouter}
+                            globalLoadingIndicator={globalLoadingIndicator}
                         />
                     </GlobalKeyDownManualContextProvider>
+                ) : (
+                    globalLoadingIndicator && (
+                        <Box
+                            pointerEvents="none"
+                            position="absolute"
+                            zIndex="10"
+                            bottom="0"
+                            right="0"
+                            borderTopLeftRadius="1"
+                            backgroundColor="grey-0"
+                        >
+                            <GlobalLoadingIndicatorChip indicator={globalLoadingIndicator} />
+                        </Box>
+                    )
                 )}
             </GlobalKeyDownEvent>
         </PeekStackContextDefinition.Provider>
@@ -618,6 +642,7 @@ const PeekStack = forwardRef(function PeekStack(
         dispatch,
         peekRoutes,
         createPeekRouter,
+        globalLoadingIndicator,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
@@ -626,6 +651,7 @@ const PeekStack = forwardRef(function PeekStack(
             history: MemoryHistory;
             hydrationData?: HydrationState;
         }) => PeekRemixEmbedRouter;
+        globalLoadingIndicator: GlobalLoadingIndicator | null;
     },
     ref: Ref<PeekStackRef>,
 ) {
@@ -697,6 +723,7 @@ const PeekStack = forwardRef(function PeekStack(
                 peekRoutes={peekRoutes}
                 createPeekRouter={createPeekRouter}
                 deltaXPercentage={deltaXPercentage}
+                globalLoadingIndicator={globalLoadingIndicator}
             />
         </DndContext>
     );
@@ -709,6 +736,7 @@ function PeekStackDraggable({
     peekRoutes,
     createPeekRouter,
     deltaXPercentage,
+    globalLoadingIndicator,
 }: {
     parentRef: Ref<PeekStackRef>;
     state: PeekStackState;
@@ -719,6 +747,7 @@ function PeekStackDraggable({
         hydrationData?: HydrationState;
     }) => PeekRemixEmbedRouter;
     deltaXPercentage: number;
+    globalLoadingIndicator: GlobalLoadingIndicator | null;
 }) {
     const {
         listeners: draggableListeners,
@@ -819,7 +848,7 @@ function PeekStackDraggable({
                 )}
                 position="absolute"
                 bottom="0"
-                zIndex="10"
+                zIndex="20"
                 style={{
                     right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
                     width: spacing[peekMobileLayoutWidth],
@@ -874,6 +903,23 @@ function PeekStackDraggable({
                     />,
                     document.body,
                 )}
+            {globalLoadingIndicator && (
+                <Box
+                    pointerEvents="none"
+                    position="absolute"
+                    zIndex="10"
+                    bottom="0"
+                    borderTopRightRadius={deltaXPercentage < -0.25 ? undefined : "1"}
+                    borderTopLeftRadius={deltaXPercentage < -0.25 ? "1" : undefined}
+                    backgroundColor="grey-0"
+                    style={{
+                        left: deltaXPercentage < -0.25 ? undefined : spaceLayoutStyles.sideBarWidth,
+                        right: deltaXPercentage < -0.25 ? "0" : undefined,
+                    }}
+                >
+                    <GlobalLoadingIndicatorChip indicator={globalLoadingIndicator} />
+                </Box>
+            )}
         </>
     );
 }

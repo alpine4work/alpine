@@ -214,7 +214,7 @@ function ContentFileImageDesktopViewerInner({
                     const schema = new ProsemirrorSchema({
                         nodes: {
                             ...contentBaseProsemirrorSchemaSpec.nodes,
-                            ...createContentFileProsemirrorNodeSpecs({}),
+                            ...createContentFileProsemirrorNodeSpecs(),
                         },
                         marks: contentBaseProsemirrorSchemaSpec.marks,
                     });

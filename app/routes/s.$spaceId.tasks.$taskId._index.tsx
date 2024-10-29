@@ -13,6 +13,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -247,13 +248,18 @@ export default function TaskRoute({
     );
     const context = useAppContext();
     const reporter = useReporter();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
     const events = useEvents({
         getContext: () => context,
         getReporter: () => reporter,
+        addGlobalLoadingIndicator,
     });
 
     const [notesClient, setNotesClient] = useState(() => {
-        return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+        return new TaskDetailNotesContentEditorWebSocketClient({
+            getContext: events.getContext,
+            addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
             taskId,
             initialNotesVersion,
             initialNotesContent,
@@ -264,7 +270,9 @@ export default function TaskRoute({
     // Re-initialize state if the `TaskId` changes.
     if (notesClient.taskId !== taskId) {
         setNotesClient(() => {
-            return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+            return new TaskDetailNotesContentEditorWebSocketClient({
+                getContext: events.getContext,
+                addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
                 taskId,
                 initialNotesVersion,
                 initialNotesContent,

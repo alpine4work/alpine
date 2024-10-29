@@ -10,6 +10,7 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {
     WebSocketClient,
     WebSocketClientProcedures,
@@ -17,6 +18,7 @@ import {
 } from "~/client/web_socket/web_socket_client.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -93,6 +95,10 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     >;
     private readonly _displayError: (title: string, error: unknown) => void;
     private readonly _getContext: () => AppContext;
+    private readonly _addGlobalLoadingIndicator: (
+        promise: Promise<void>,
+        indicator: GlobalLoadingIndicator,
+    ) => void;
     private readonly _client: WebSocketClient<typeof TaskNotesCollaborationProtocol>;
     private readonly _state: ValueStore<TaskNotesContentEditorState>;
     private _disconnect: (() => void) | null = null;
@@ -107,22 +113,27 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         return this._client.state;
     }
 
-    constructor(
-        getContext: () => AppContext,
-        {
-            taskId,
-            initialNotesVersion,
-            initialNotesContent,
-            displayError,
-        }: {
-            taskId: TaskId;
-            initialNotesVersion: number;
-            initialNotesContent: TaskNotesContentWithReferences;
-            displayError: (title: string, error: unknown) => void;
-        },
-    ) {
+    constructor({
+        getContext,
+        addGlobalLoadingIndicator,
+        taskId,
+        initialNotesVersion,
+        initialNotesContent,
+        displayError,
+    }: {
+        getContext: () => AppContext;
+        addGlobalLoadingIndicator: (
+            promise: Promise<void>,
+            indicator: GlobalLoadingIndicator,
+        ) => void;
+        taskId: TaskId;
+        initialNotesVersion: number;
+        initialNotesContent: TaskNotesContentWithReferences;
+        displayError: (title: string, error: unknown) => void;
+    }) {
         this.taskId = taskId;
         this._getContext = getContext;
+        this._addGlobalLoadingIndicator = addGlobalLoadingIndicator;
         this._client = new WebSocketClient(
             getContext,
             "TaskNotesCollaborationService",
@@ -266,17 +277,11 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                     });
                     break;
                 }
-                // NOTE(maximchen) We do not care about task comments when processing task notes
+                // NOTE(maximchen): We do not care about task comments when processing task notes
                 case "Comments": {
                     break;
                 }
                 case "PersistedContent": {
-                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                    // content has persisted!
-                    //
-                    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                    // close the page if we haven't finished saving their notes. It will
-                    // look ok on their machine but might not be on the server.
                     this._dispatch({type: "Persisted", newVersion: event.newVersion});
                     break;
                 }
@@ -285,7 +290,26 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             }
         });
 
+        let savingPromiseResolver: PromiseResolver<void> | null = null;
+
         const unsubscribeFromState = this._state.subscribe(() => {
+            const state = this._state.getSnapshot();
+
+            const isSaving =
+                state.pendingSendableSteps !== null ||
+                (state.lastReceivedSendableStepsVersion !== null &&
+                    state.lastReceivedSendableStepsVersion > state.persistedVersion);
+
+            if (savingPromiseResolver === null && isSaving) {
+                savingPromiseResolver = createPromiseResolver();
+                this._addGlobalLoadingIndicator(savingPromiseResolver.promise, {type: "Saving"});
+            }
+
+            if (savingPromiseResolver !== null && !isSaving) {
+                savingPromiseResolver.resolve();
+                savingPromiseResolver = null;
+            }
+
             maybeSendUpdatesToServer();
         });
 
@@ -358,7 +382,27 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             unsubscribeFromClientState();
             unsubscribeFromClientMessages();
             unsubscribeFromState();
-            this._client.disconnect();
+
+            void this._client.disconnect().finally(() => {
+                // Only resolve our saving promise once the client actually disconnects. Since
+                // if we're soft closing the connection we want to wait for any
+                // `updateNotesContent` procedures to finish. Two downsides here:
+                //
+                // 1. If there are other pending procedures besides `updateNotesContent` we'll
+                //    have to wait for those to finish too.
+                //
+                // 2. Just because `updateNotesContent` finished doesn't mean our content has
+                //    persisted. A soft closed client won't receive a `PersistedContent`
+                //    message.
+                //
+                // A better approach is to leave a phantom WebSocket connection until we see a
+                // `PersistedContent` message and then disconnect. But that's complicated so
+                // I'm writing it like this for now.
+                if (savingPromiseResolver !== null) {
+                    savingPromiseResolver.resolve();
+                    savingPromiseResolver = null;
+                }
+            });
         };
     }
 

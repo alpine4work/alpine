@@ -3,11 +3,16 @@ import {useContext, useMemo} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {usePeekContext} from "~/client/peek/peek_context.js";
 import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
+import {
+    GlobalLoadingIndicatorChip,
+    GlobalLoadingIndicatorContextProvider,
+} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -125,7 +130,28 @@ export default function PeekLayout() {
                     routeId="routes/s.$spaceId.peek"
                     withMobileLayout={peekContext.withMobileLayout}
                 >
-                    <Outlet />
+                    <GlobalLoadingIndicatorContextProvider>
+                        {globalLoadingIndicator => (
+                            <>
+                                <Outlet />
+                                {globalLoadingIndicator && (
+                                    <Box
+                                        pointerEvents="none"
+                                        position="absolute"
+                                        zIndex="10"
+                                        bottom="0"
+                                        right="0"
+                                        borderTopLeftRadius="1"
+                                        backgroundColor="grey-0"
+                                    >
+                                        <GlobalLoadingIndicatorChip
+                                            indicator={globalLoadingIndicator}
+                                        />
+                                    </Box>
+                                )}
+                            </>
+                        )}
+                    </GlobalLoadingIndicatorContextProvider>
                 </LoadingIndicatorSpaceOutletContainer>
             </NavigationContextProvider>
         </AppContextProvider>

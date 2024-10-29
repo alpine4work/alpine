@@ -170,6 +170,7 @@ function createTask(
 
 const noopAffinityManager: TaskClientStoreSearchAffinityManager = {
     markLowIntentUpdateInteraction: () => {},
+    addGlobalLoadingIndicator: () => {},
 };
 
 async function resolveLastRpcExecution<Input, Output>(

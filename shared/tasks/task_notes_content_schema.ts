@@ -7,7 +7,11 @@ import {
     contentBaseProsemirrorSchemaSpec,
     createProsemirrorSchemaSpec,
 } from "~/shared/content/content_schema.js";
-import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
+import {
+    contentStructuralProsemirrorNodeSpecs,
+    createContentFileFloatProsemirrorNodeSpecs,
+    createContentFileProsemirrorNodeSpecs,
+} from "~/shared/content/content_schema_extra.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -16,6 +20,8 @@ const taskNotesContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
         ...contentBaseProsemirrorSchemaSpec.nodes,
         ...contentStructuralProsemirrorNodeSpecs,
+        ...createContentFileProsemirrorNodeSpecs(),
+        ...createContentFileFloatProsemirrorNodeSpecs(),
     },
     marks: {
         ...contentBaseProsemirrorSchemaSpec.marks,
