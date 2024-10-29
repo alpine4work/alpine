@@ -499,6 +499,20 @@ function PostCreatorChannelSelectorInput(
                             if (document.activeElement === event.target && !comboBoxState.isOpen) {
                                 comboBoxState.open();
                             }
+
+                            // When using the mouse, if the user clicks the input and the input isn't
+                            // focused then prevent default and open the combobox. We `preventDefault()`
+                            // since the browser default is to focus on `pointerdown` then set the
+                            // selection on `pointerup`. However, on initial tap we want to focus
+                            // everything (we call `inputElement.select()` in `onOpenChange`) so the
+                            // browser changing the selection in `pointerup` breaks that.
+                            if (
+                                event.pointerType === "mouse" &&
+                                document.activeElement !== event.target
+                            ) {
+                                event.preventDefault();
+                                comboBoxState.open();
+                            }
                         }}
                     />
                 </FocusRing>

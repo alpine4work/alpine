@@ -224,6 +224,12 @@ export type OverlayProps = {
     withoutBlockingTarget?: boolean;
 
     /**
+     * Called when there's a `pointerdown` event on our blocking cover. Will only
+     * be called if `isBlocking` is true.
+     */
+    onBlockingCoverPointerDown?: () => void;
+
+    /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
      *
@@ -273,6 +279,7 @@ function Overlay(
         isBlocking = false,
         withoutRootBlockingScope = false,
         withoutBlockingTarget = false,
+        onBlockingCoverPointerDown,
         children,
         targetElement,
     }: OverlayProps,
@@ -794,6 +801,7 @@ function Overlay(
                         ref={blockingCoverRef}
                         shouldExcludeTarget={withoutBlockingTarget}
                         shouldExcludeOverlay={withoutRootBlockingScope}
+                        onPointerDown={onBlockingCoverPointerDown}
                     />,
                     blockingCoverPortalElement,
                 )}
@@ -852,9 +860,11 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
     {
         shouldExcludeTarget,
         shouldExcludeOverlay,
+        onPointerDown,
     }: {
         shouldExcludeTarget: boolean;
         shouldExcludeOverlay: boolean;
+        onPointerDown: (() => void) | undefined;
     },
     ref: Ref<OverlayBlockingCoverRef>,
 ) {
@@ -944,6 +954,8 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                     // `<ContentEditor>` maintained focus the entire time then the pointer toolbar
                     // should reappear.
                     event.preventDefault();
+
+                    onPointerDown?.();
                 }}
             />
         );
@@ -973,6 +985,8 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                     // `<ContentEditor>` maintained focus the entire time then the pointer toolbar
                     // should reappear.
                     event.preventDefault();
+
+                    onPointerDown?.();
                 }}
             >
                 {coverRects.map((coverRect, i) => (
