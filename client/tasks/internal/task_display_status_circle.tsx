@@ -178,6 +178,10 @@ export function TaskDisplayStatusCircle({
                 <Check
                     weight="bold"
                     size={addRemLengths(spacing["2"], spacing["0.5"])}
+                    // We need this to make sure we don't inherit the color from
+                    // `<IconContext.Provider>` (e.g. when used as a menu item in
+                    // `getTaskStatusMenuActions()`).
+                    color="currentColor"
                     style={{transform: `scale(${sizeInt / 4})`}}
                 />
             )}

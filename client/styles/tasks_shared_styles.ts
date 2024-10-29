@@ -132,3 +132,23 @@ export const taskNotepadViewPaginatorHeight = {desktop: "6", mobile: "7"} as con
 
 export const newTaskCollectionNamePlaceholder = "New collection";
 export const defaultTaskQueryViewName = "New view";
+
+export const desktopTaskRowViewStatusButtonWidth = "6";
+export const desktopTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
+    spacing[desktopTaskRowViewStatusButtonWidth],
+);
+
+export const mobileTaskRowViewStatusButtonWidth = "7";
+export const mobileTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
+    spacing[mobileTaskRowViewStatusButtonWidth],
+);
+
+export const taskRowViewExpandButtonWidth = "5";
+export const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(
+    spacing[taskRowViewExpandButtonWidth],
+);
+
+export const taskRowViewDragHandleWidth = "5";
+export const taskRowViewDragHandleWidthRem = parseRemLengthNumber(
+    spacing[taskRowViewDragHandleWidth],
+);

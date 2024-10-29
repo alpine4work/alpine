@@ -227,7 +227,7 @@ function TaskRowViewDenseFields(
     const fieldMaxWidth = `${100 / fieldCount}%`;
 
     const node = (
-        <Box display="flex" alignItems="stretch" paddingRight={screenPaddingX}>
+        <Box display="flex" alignItems="stretch">
             <Box
                 flexShrink="0"
                 cursor={!isReadOnly ? "text" : undefined}
@@ -416,6 +416,16 @@ function TaskRowViewDenseFields(
                     </Box>
                 )}
             </Box>
+            <Box
+                flexShrink="0"
+                cursor={!isReadOnly ? "text" : undefined}
+                width={screenPaddingX}
+                {...useOutOfBoundsClickSelection({
+                    isDisabled: isReadOnly,
+                    onSelect: focusTitleEnd,
+                    onSelectAll: focusTitleAll,
+                })}
+            />
         </Box>
     );
 

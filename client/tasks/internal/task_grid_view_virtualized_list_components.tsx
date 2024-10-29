@@ -26,11 +26,14 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
+    desktopTaskRowViewStatusButtonWidthRem,
     taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
+    taskRowViewDragHandleWidthRem,
+    taskRowViewExpandButtonWidthRem,
     taskRowViewFirstColumnPaddingLeft,
     taskRowViewFirstColumnWidth,
     taskRowViewLastColumnPaddingRight,
@@ -126,7 +129,7 @@ function TaskGridViewColumnHeader(
                     <Box
                         position="absolute"
                         bottom="0"
-                        left={screenPaddingX}
+                        left="0"
                         right={screenPaddingX}
                         backgroundColor="grey-5"
                         style={{height: 1}}
@@ -150,10 +153,15 @@ function TaskGridViewColumnHeader(
                             <Box
                                 flexShrink="0"
                                 width="32"
-                                paddingLeft="5"
                                 paddingBottom="1"
                                 color="grey-40"
                                 fontSize="50"
+                                style={{
+                                    paddingLeft: `${
+                                        taskRowViewDragHandleWidthRem +
+                                        taskRowViewExpandButtonWidthRem
+                                    }rem`,
+                                }}
                             >
                                 Name
                             </Box>

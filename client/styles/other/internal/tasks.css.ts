@@ -54,7 +54,7 @@ export const rowTitleInputIsNotEditableClassName = style({});
 // Make sure we have higher CSS precedence than
 // `sprinkles({userSelect: "text"})`.
 globalStyle(`${rowTitleInputIsNotEditableClassName}${rowTitleInputIsNotEditableClassName}`, {
-    userSelect: "none",
+    userSelect: "text",
     cursor: "text",
 });
 

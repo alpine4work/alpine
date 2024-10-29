@@ -145,7 +145,7 @@ export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSe
     if (client) loadTaskDataIntoClient(client, data);
 }
 
-export function useTaskStoreLoaderDataWithoutRetainingButOnlyStore() {
+function useTaskStoreLoaderDataWithoutRetainingButOnlyStore() {
     const store = useContext(TaskClientStoreContext);
 
     if (!store) {
