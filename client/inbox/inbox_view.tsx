@@ -403,6 +403,7 @@ function InboxViewEntries({
                                                 onPressStart={() => {}}
                                                 withMarginTop={isFirstItem}
                                                 withMarginBottom={isLastItem}
+                                                withBorderTop={isFirstItem}
                                                 deletedItemAnimation={
                                                     animation ===
                                                     deletedItemAnimationsState.activeAnimations
@@ -453,6 +454,7 @@ function InboxViewEntries({
                                                 }}
                                                 withMarginTop={isFirstItem}
                                                 withMarginBottom={isLastItem}
+                                                withBorderTop={isFirstItem}
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
                                                 deletedItemAnimation={deletedItemAnimation}

@@ -46,7 +46,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 
 export type OverlayTriggerButtonRef = {
-    open(options?: {stopPropagation?: boolean}): void;
+    open(options?: {
+        initiallyFocus?: "FirstFocusableElement" | "LastFocusableElement";
+        stopPropagation?: boolean;
+    }): void;
 };
 
 export type OverlayTriggerButtonState =
@@ -188,7 +191,7 @@ function OverlayTriggerButton(
         onClose: _onClose ?? noop,
         onStateChange: _onStateChange ?? noop,
 
-        open: ({stopPropagation = false} = {}) => {
+        open: ({initiallyFocus, stopPropagation = false} = {}) => {
             if (state.isExpanded) return;
 
             // Borrowing the language of DOM event handling here. `onOpen` may
@@ -196,13 +199,13 @@ function OverlayTriggerButton(
             // call `open()` you may `stopPropagation` to prevent the `onOpen` callback
             // (which may `preventDefault`) from being called.
             if (stopPropagation) {
-                setState({isExpanded: true});
+                setState({isExpanded: true, initiallyFocus});
             } else {
                 const result = _onOpen?.();
                 if (typeof result === "object" && result.preventDefault) {
                     // Do nothing if default was prevented...
                 } else {
-                    setState({isExpanded: true});
+                    setState({isExpanded: true, initiallyFocus});
                 }
             }
         },

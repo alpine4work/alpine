@@ -428,6 +428,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
             withBackgroundIfPressed={true}
             withMarginTop={isFirstItem}
             withMarginBottom={isLastItem}
+            withBorderTop={isFirstItem}
             onPress={() => {
                 if (isPending) return;
                 setIsPending(true);
