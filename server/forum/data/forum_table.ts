@@ -25,7 +25,12 @@ import {
     DynamoGeneralRealtimeTableItemType,
     DynamoGeneralRealtimeTableSchema,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {
+    FileAuthorizer,
+    attachFileFromAttachment,
+    detachFile,
+    getPostDraftFileAttachments,
+} from "~/server/files/data/files_table.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -41,6 +46,7 @@ import {
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -60,7 +66,11 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
-import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {
+    PostContent,
+    PostContentSchema,
+    PostContentWithReferences,
+} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
@@ -89,6 +99,7 @@ import {
     AccountId,
     ChannelId,
     ContentMentionAccountId,
+    PostDraftId,
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
@@ -531,6 +542,34 @@ const ForumTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            name: "Account",
+            partitionKeyAttributes: {
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                /**
+                 * When the user creates a post we create a `PostDraft` item for them on the
+                 * backend. That way the content in their post is saved across reloads and
+                 * across devices. We also can attach files to post drafts.
+                 *
+                 * As of 2024-10-30 we're introducing `PostDraft`s only to have a backend
+                 * entity to attach files to. In the future we should show drafts in the UI and
+                 * let the user resume writing a post from a draft.
+                 */
+                {
+                    name: "PostDraft",
+                    sortKeyAttributes: {
+                        draftId: DynamoKeyAttributeSchema.id<PostDraftId>(),
+                    },
+                    attributes: Schema.object({
+                        channelId: Schema.id<ChannelId>().nullable(),
+                        content: PostContentSchema,
+                    }),
+                },
+            ],
+        },
     ],
 });
 
@@ -566,6 +605,8 @@ type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
 
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
+type PostDraftItem = DynamoTableItemType<typeof ForumTable, "Account", "PostDraft">;
+
 export const FileChannelAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Channel",
@@ -577,10 +618,13 @@ export const FileChannelAuthorizer = FileAuthorizer.new(
 export const FilePostAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Post",
-    async (context, target, expectedAccessLevel) => {
+    async (context, target, spaceId, expectedAccessLevel) => {
         switch (target.type) {
             case "Post":
                 await authorizePostAccess(context, target.postId, expectedAccessLevel);
+                break;
+            case "PostDraft":
+                await authorizePostDraftAccess(context, spaceId, target.accountId, target.draftId);
                 break;
             case "PostComment":
                 await authorizePostAccess(context, target.postId, "View");
@@ -1417,10 +1461,21 @@ export async function backfillChannelPosts(
 
 /**
  * Create a new post by the current account in the provided channel.
+ *
+ * If we're creating a post from a draft then a `draftId` parameter should be
+ * provided so we can delete the draft.
  */
 export async function createPost(
     context: ForumSessionActionContextWithBroadcast,
-    {channelId, content}: {channelId: ChannelId; content: PostContent},
+    {
+        channelId,
+        draftId = null,
+        content,
+    }: {
+        channelId: ChannelId;
+        draftId?: PostDraftId | null;
+        content: PostContent;
+    },
 ): Promise<{
     id: PostId;
     spaceId: SpaceId;
@@ -1455,9 +1510,90 @@ export async function createPost(
         },
     };
 
+    // Add our new post to the authorization cache BEFORE we create the post. That
+    // way when we attach files with `attachFileFromAttachment()` they'll read the
+    // post from this cache and won't throw a not found error.
+    PostItemAuthorizationCache.set(context, postItem.postId, postItem);
+
+    const {fileIds} = getContentReferencedIdsForNode(postItem.content);
+
+    // Make sure to attach all files to the post. So when someone else sees the
+    // post they can load the files.
+    await runAllPromises(
+        mapIterable(fileIds, async fileId => {
+            if (draftId === null) {
+                throw new FailedPreconditionError("Must create post from draft to attach files");
+            }
+
+            await attachFileFromAttachment(context, postItem.spaceId, fileId, {
+                from: FilePostAuthorizer.bind({
+                    type: "PostDraft",
+                    accountId: postItem.authorId,
+                    draftId,
+                }),
+                to: FilePostAuthorizer.bind({
+                    type: "Post",
+                    postId: postItem.postId,
+                }),
+            });
+        }),
+    );
+
     const readTime = new Date();
 
     const result = await ForumRealtimeTable.createItem(context, postItem);
+
+    // We don't delete our post draft in a transaction with post creation.
+    // It's ok if we don't successfully delete the draft. It'll stay in the user's
+    // draft list which is a glitch but it's fine if the glitch happens every 1 in
+    // 1 million times a post is created.
+    //
+    // We also make a best effort to detach files. There may be race conditions
+    // which prevent us from detaching all files. For example,
+    // `getPostDraftFileAttachments()` is run with eventual consistency so may not
+    // return a file attached a second ago. When we implement our file garbage
+    // collector it'll be able to fully cleanup files from deleted drafts. (As of
+    // 2024-10-30 we haven't implemented the file garbage collector. When we add a
+    // file garbage collector, actually maybe it doesn't make sense to call
+    // `detachFile()` here. The garbage collector will collect anyway.)
+    if (draftId !== null) {
+        context.process.waitUntil(async () => {
+            const [, fileIds] = await runAllPromises([
+                ForumTable.deleteItemWithKeyIfExists(context, {
+                    partitionType: "Account",
+                    sortRangeType: "PostDraft",
+                    spaceId: postItem.spaceId,
+                    accountId: postItem.authorId,
+                    draftId,
+                }),
+                getPostDraftFileAttachments(
+                    context,
+                    postItem.spaceId,
+                    postItem.authorId,
+                    draftId,
+                    FilePostAuthorizer,
+                ),
+            ]);
+
+            // Must run after the post draft has been successfully deleted. We don't want
+            // to delete attachments until after we know for certain the post draft has
+            // been deleted.
+            await runAllPromises(
+                fileIds.map(fileId =>
+                    detachFile(
+                        context,
+                        postItem.spaceId,
+                        fileId,
+                        FilePostAuthorizer.bind({
+                            type: "PostDraft",
+                            accountId: postItem.authorId,
+                            draftId,
+                        }),
+                    ),
+                ),
+            );
+        });
+    }
 
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
     const contentSnippet = getNotificationPostContentSnippet(content);
@@ -3178,4 +3314,174 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     );
 
     return {type: "Available", changes};
+}
+
+async function authorizePostDraftAccessEvenIfNotExists(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<void> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    switch (context.actor.type) {
+        case "System": {
+            // We don't have a use case for system actions looking at drafts right now. So
+            // block it.
+            throw new PermissionDeniedError("System actors can't access post drafts");
+        }
+        case "Session": {
+            if (accountId !== context.actor.getAccountId()) {
+                throw new PermissionDeniedError("Can't access drafts from other accounts");
+            }
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+}
+
+/**
+ * Authorizes whether our session has access to the provided post draft.
+ */
+export async function authorizePostDraftAccess(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    draftId: PostDraftId,
+): Promise<void> {
+    await authorizePostDraftAccessEvenIfNotExists(context, spaceId, accountId);
+
+    // Throws an error if the draft item doesn't exist. That's all we need to
+    // check. Whether the draft exists or not.
+    const draftItem = await getPostDraftItemForAuthorization(context, spaceId, accountId, draftId);
+    if (!draftItem) throw new NotFoundError("Post draft not found");
+
+    // Note that we don't authorize whether you have access to
+    // `draftItem.channelId`. The draft author may have had access to the provided
+    // channel when they created the draft then subsequently lost access to the
+    // channel. If the user has lost access to the channel then we should consider
+    // `channelId` to be null.
+}
+
+const PostDraftItemAuthorizationCache = new ContextCache<
+    `${SpaceId}:${AccountId}:${PostDraftId}`,
+    PostDraftItem | null
+>();
+
+async function getPostDraftItemForAuthorization(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    draftId: PostDraftId,
+): Promise<PostDraftItem | null> {
+    return PostDraftItemAuthorizationCache.get(
+        context,
+        `${spaceId}:${accountId}:${draftId}`,
+        async () => {
+            const draftItem = await ForumTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Account",
+                    sortRangeType: "PostDraft",
+                    spaceId,
+                    accountId,
+                    draftId,
+                },
+                {
+                    // It's ok to call this function when expecting strong read consistency.
+                    // Authorization is mostly strongly consistent since we retry with strong
+                    // consistency if our eventually consistent read fails.
+                    allowsEventualReadConsistency: true,
+                },
+            );
+            if (draftItem) return draftItem;
+
+            return ForumTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Account",
+                    sortRangeType: "PostDraft",
+                    spaceId,
+                    accountId,
+                    draftId,
+                },
+                {
+                    consistency: "Strong",
+                },
+            );
+        },
+    );
+}
+
+/**
+ * Create or replace the contents of a post draft.
+ */
+export async function createOrReplacePostDraft(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    draftId: PostDraftId,
+    {channelId, content}: {channelId: ChannelId | null; content: PostContent},
+): Promise<void> {
+    await authorizePostDraftAccessEvenIfNotExists(context, spaceId, accountId);
+
+    await ForumTable.createOrReplaceItem(context, {
+        partitionType: "Account",
+        sortRangeType: "PostDraft",
+        spaceId,
+        accountId,
+        draftId,
+        channelId,
+        content,
+    });
+}
+
+/**
+ * Get the post draft with the provided `PostDraftId` if it exists.
+ */
+export async function getPostDraftIfExists(
+    context: ServerContentActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    draftId: PostDraftId,
+): Promise<{
+    channel: ChannelPreviewModel | null;
+    content: PostContentWithReferences;
+} | null> {
+    await authorizePostDraftAccessEvenIfNotExists(context, spaceId, accountId);
+
+    const draftItem = await ForumTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "PostDraft",
+        spaceId,
+        accountId,
+        draftId,
+    });
+
+    if (!draftItem) return null;
+
+    PostDraftItemAuthorizationCache.set(context, `${spaceId}:${accountId}:${draftId}`, draftItem);
+
+    const [channel, contentReferences] = await runAllPromises([
+        draftItem.channelId
+            ? await getChannelPreviewIfExists(context, draftItem.channelId).catch(error => {
+                  // Ignore permission denied errors. If the user lost access to the channel then treat the
+                  // channel as null.
+                  if (error instanceof PermissionDeniedError) return null;
+
+                  throw error;
+              })
+            : null,
+        getContentReferencesForNode(
+            context,
+            spaceId,
+            FilePostAuthorizer.bind({type: "PostDraft", accountId, draftId}),
+            draftItem.content,
+        ),
+    ]);
+
+    return {
+        channel,
+        content: {doc: draftItem.content, references: contentReferences},
+    };
 }

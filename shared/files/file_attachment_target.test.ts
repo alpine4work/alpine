@@ -4,6 +4,7 @@ import {
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 
 const fileAttachmentTargetByType: {
@@ -31,6 +32,11 @@ const fileAttachmentTargetByType: {
     Post: {
         type: "Post",
         postId: generateId(),
+    },
+    PostDraft: {
+        type: "PostDraft",
+        accountId: generateId(),
+        draftId: generateChronologicalId(),
     },
     PostComment: {
         type: "PostComment",

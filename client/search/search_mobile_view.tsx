@@ -199,6 +199,7 @@ export function SearchMobileView({
                         <SearchMobileViewResult
                             spaceId={space.id}
                             searchKey={output.key}
+                            searchTime={output.queryTime}
                             result={result}
                             isFirstItem={isFirstItem}
                             isLastItem={isLastItem}
@@ -213,6 +214,7 @@ export function SearchMobileView({
             maxWidth,
             onQueryTextChange,
             output.key,
+            output.queryTime,
             queryText,
             results,
             shouldShowLoadingIndicator,
@@ -268,12 +270,14 @@ export function SearchMobileView({
 function SearchMobileViewResult({
     spaceId,
     searchKey,
+    searchTime,
     result,
     isFirstItem,
     isLastItem,
 }: {
     spaceId: SpaceId;
     searchKey: string;
+    searchTime: Date;
     result: SearchResult;
     isFirstItem: boolean;
     isLastItem: boolean;
@@ -286,10 +290,9 @@ function SearchMobileViewResult({
                 getSearchResultDestinationPath({
                     spaceId: spaceId,
                     resultId: result.id,
-                    options: {
-                        searchKey,
-                        withDesktopLayout: false,
-                    },
+                    searchKey,
+                    searchTime,
+                    withDesktopLayout: false,
                 }),
             );
         },

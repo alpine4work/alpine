@@ -29,6 +29,7 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//server/dynamo/core/general_realtime",
+        "//server/files/data",
         "//server/messaging/helpers",
         "//server/notifications/core",
         "//server/search/data/table",

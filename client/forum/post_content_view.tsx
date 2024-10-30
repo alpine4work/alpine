@@ -1,12 +1,11 @@
 import {ChatCircle, ChatCircleDots, Check, DotsThree, Smiley, X} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
@@ -33,12 +32,11 @@ import {
     mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postCommentSectionGuidelineStartHeight,
-    postContentEditorPaddingX,
-    postContentEditorPaddingY,
+    postContentEditorPadding,
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
-    postContentViewInnerMarginYWithoutContentEditorPaddingY,
+    postContentViewInnerMarginYWithoutContentEditorPadding,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
     postContentViewOuterMarginBottom,
@@ -46,12 +44,13 @@ import {
     postContentViewOuterOpenCommentSectionMarginBottom,
     screenPaddingXWithoutPostContentEditorPadding,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
@@ -133,6 +132,11 @@ export function PostContentView({
 
     const [isShowingAllContent, setIsShowingAllContent] = useState(!isPostSnippetTruncated);
     if (!isShowingAllContent && !isPostSnippetTruncated) setIsShowingAllContent(true);
+
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
+        [post.id],
+    );
 
     return (
         <Box
@@ -216,8 +220,8 @@ export function PostContentView({
             <Box
                 paddingX={screenPaddingXWithoutPostContentEditorPadding}
                 style={{
-                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
-                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,
+                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPadding,
+                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPadding,
                 }}
             >
                 {!isEditingPost ? (
@@ -226,18 +230,18 @@ export function PostContentView({
                             withMobileLayout={withMobileLayout}
                             content={post.content}
                             contentUpdatedTime={post.contentUpdatedTime}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({
-                                paddingX: postContentEditorPaddingX,
-                                paddingY: postContentEditorPaddingY,
+                                padding: postContentEditorPadding,
                             })}
                         />
                     ) : (
                         <ContentView
                             withMobileLayout={withMobileLayout}
                             contentUpdatedTime={post.contentUpdatedTime}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({
-                                paddingX: postContentEditorPaddingX,
-                                paddingY: postContentEditorPaddingY,
+                                padding: postContentEditorPadding,
                             })}
                             content={
                                 isPostSnippetTruncated && !isShowingAllContent && postSnippet
@@ -261,6 +265,7 @@ export function PostContentView({
                         withMobileLayout={withMobileLayout}
                         idBase={idBase}
                         postEditingForThisPost={postEditingForThisPost}
+                        fileAttachmentTarget={fileAttachmentTarget}
                     />
                 )}
             </Box>
@@ -560,10 +565,12 @@ function PostContentViewEditor({
     withMobileLayout,
     idBase,
     postEditingForThisPost,
+    fileAttachmentTarget,
 }: {
     withMobileLayout: boolean;
     idBase: string;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
 }) {
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
 
@@ -578,63 +585,60 @@ function PostContentViewEditor({
     }, []);
 
     return (
-        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
-            <Box
-                id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-                borderRadius="1.5"
-                style={{
-                    // Use box shadow to draw the border so it doesn't add 1px to layout like
-                    // `border` CSS would.
-                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                }}
-                ref={useConfirmSaveAfterLosingFocus({
-                    shouldConfirmSave:
-                        postEditingForThisPost.state.contentEditorState.getDoc() !==
-                        postEditingForThisPost.state.initialContent,
-                    isConfirmingSave:
-                        postEditingForThisPost.state.isEditing &&
-                        postEditingForThisPost.state.confirmationDialog === "Save",
-                    onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
-                    onConfirmSave: () =>
-                        postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
-                })}
-            >
-                <ContentEditor
-                    ref={editorRef}
-                    aria-label="Post"
-                    withMobileLayout={withMobileLayout}
-                    state={postEditingForThisPost.state.contentEditorState}
-                    onChange={(contentEditorState, transaction) => {
-                        if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
+        <Box
+            id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
+            // We picked this border radius because it looks good with a selected file's
+            // `<FocusRing>` when they line up in the bottom corners.
+            borderRadius="2.5"
+            // Use box shadow to draw the border so it doesn't add 1px to layout like
+            // `border` CSS would.
+            boxShadow="elevation-10-inset-with-grey-10-border"
+            ref={useConfirmSaveAfterLosingFocus({
+                shouldConfirmSave:
+                    postEditingForThisPost.state.contentEditorState.getDoc() !==
+                    postEditingForThisPost.state.initialContent,
+                isConfirmingSave:
+                    postEditingForThisPost.state.isEditing &&
+                    postEditingForThisPost.state.confirmationDialog === "Save",
+                onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
+                onConfirmSave: () => postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
+            })}
+        >
+            <ContentEditor
+                ref={editorRef}
+                aria-label="Post"
+                withMobileLayout={withMobileLayout}
+                state={postEditingForThisPost.state.contentEditorState}
+                onChange={(contentEditorState, transaction) => {
+                    if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
 
-                        postEditingForThisPost.dispatch({
-                            type: "ContentEditorStateChange",
-                            contentEditorState,
-                        });
-                    }}
-                    // On mobile, don't allow interactions when unfocused. We're already in an
-                    // editing modality.
-                    withoutMobileDualModality={true}
-                    placeholder="Share your ideas…"
-                    className={sprinkles({
-                        paddingX: postContentEditorPaddingX,
-                        paddingY: postContentEditorPaddingY,
-                    })}
-                    onModEnter={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (postEditingForThisPost.state.isSaving) return;
-                        postEditingForThisPost.dispatch({type: "SaveEditedContent"});
-                    }}
-                    onEscape={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (postEditingForThisPost.state.isSaving) return;
-                        postEditingForThisPost.dispatch({type: "CancelEditing"});
-                    }}
-                />
-            </Box>
-        </FocusRing>
+                    postEditingForThisPost.dispatch({
+                        type: "ContentEditorStateChange",
+                        contentEditorState,
+                    });
+                }}
+                // On mobile, don't allow interactions when unfocused. We're already in an
+                // editing modality.
+                withoutMobileDualModality={true}
+                placeholder="Share your ideas…"
+                fileAttachmentTarget={fileAttachmentTarget}
+                className={sprinkles({
+                    padding: postContentEditorPadding,
+                })}
+                onModEnter={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (postEditingForThisPost.state.isSaving) return;
+                    postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                }}
+                onEscape={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (postEditingForThisPost.state.isSaving) return;
+                    postEditingForThisPost.dispatch({type: "CancelEditing"});
+                }}
+            />
+        </Box>
     );
 }
 

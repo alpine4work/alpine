@@ -1,5 +1,6 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
@@ -10,14 +11,17 @@ import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort
 export function getSearchResultDestinationPath({
     spaceId,
     resultId,
-    options,
+    searchKey,
+    searchTime,
+    withDesktopLayout,
 }: {
     spaceId: SpaceId;
     resultId: SearchResultId;
-    options: {searchKey: string; withDesktopLayout: boolean};
+    searchKey: string;
+    searchTime: Date;
+    withDesktopLayout: boolean;
 }): string {
-    const getStableRandom = () =>
-        new StableRandom(`getSearchResultDestinationPath:${options.searchKey}`);
+    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
 
     switch (resultId) {
         case "CreateChatMessage": {
@@ -26,7 +30,11 @@ export function getSearchResultDestinationPath({
         case "CreatePost": {
             // Make sure we use the same `draftId` consistently for the current search
             // result list.
-            const draftId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const draftId = unsafelyGenerateStableChronologicalId(
+                getStableRandom(),
+                resultId,
+                searchTime.getTime(),
+            );
 
             return `/s/${spaceId}/posts/new/${draftId}`;
         }
@@ -171,7 +179,7 @@ export function getSearchResultDestinationPath({
         }
         default: {
             const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchEntityPath(spaceId, entityIdObject, options.withDesktopLayout);
+            return getSearchEntityPath(spaceId, entityIdObject, withDesktopLayout);
         }
     }
 }

@@ -9,7 +9,7 @@ import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js"
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -121,6 +121,7 @@ export const createPost = defineRpc({
     name: "createPost",
     input: {
         channelId: Schema.id<ChannelId>(),
+        draftId: Schema.id<PostDraftId>().optional(),
         content: PostContentSchema,
     },
     output: {
@@ -269,4 +270,15 @@ export const backfillPostComments = defineRpc({
             }),
         }),
     },
+});
+
+export const createOrReplacePostDraft = defineRpc({
+    name: "createOrReplacePostDraft",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        draftId: Schema.id<PostDraftId>(),
+        channelId: Schema.id<ChannelId>().nullable(),
+        content: PostContentSchema,
+    },
+    output: {},
 });

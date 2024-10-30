@@ -19,6 +19,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
@@ -74,7 +75,7 @@ export function SpaceLayoutSideBarCreateButton() {
                             withCustomLayout: true,
                             pressErrorTitle: "Couldn’t create post",
                             onPress: async () => {
-                                const draftId = generateId();
+                                const draftId = generateChronologicalId();
 
                                 await peekStackContext.push(
                                     `/s/${space.id}/posts/new/${draftId}?focus=channel`,

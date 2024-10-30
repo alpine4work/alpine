@@ -4,10 +4,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
+    AccountId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
+    PostDraftId,
     PostId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -40,8 +42,9 @@ export type FileAttachmentTargetByArea = {
               readonly commentThreadId: DocumentCommentThreadId;
               readonly commentIndex: number;
           };
-    Post: // TODO(calebmer, #files): Implement attachments
-    | {readonly type: "Post"; readonly postId: PostId}
+    Post:
+        | {readonly type: "Post"; readonly postId: PostId}
+        | {readonly type: "PostDraft"; readonly accountId: AccountId; readonly draftId: PostDraftId}
         // TODO(calebmer, #files): Implement attachments
         | {readonly type: "PostComment"; readonly postId: PostId; readonly commentIndex: number};
     Task:
@@ -73,6 +76,11 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
     Post: Schema.object({
         type: Schema.value("Post"),
         postId: Schema.id<PostId>(),
+    }),
+    PostDraft: Schema.object({
+        type: Schema.value("PostDraft"),
+        accountId: Schema.id<AccountId>(),
+        draftId: Schema.id<PostDraftId>(),
     }),
     PostComment: Schema.object({
         type: Schema.value("PostComment"),
@@ -171,11 +179,26 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             return bytes;
         }
+        case "PostDraft": {
+            const bytes = new Uint8Array(1 + idByteLength);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 6;
+            byteOffset += 1;
+
+            decodeIdInto(target.accountId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            decodeIdInto(target.draftId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return bytes;
+        }
         case "PostComment": {
             const bytes = new Uint8Array(1 + idByteLength + 8);
             let byteOffset = 0;
 
-            bytes[byteOffset] = 6;
+            bytes[byteOffset] = 7;
             byteOffset += 1;
 
             decodeIdInto(target.postId, bytes, byteOffset);
@@ -190,7 +213,7 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
             const bytes = new Uint8Array(1 + idByteLength);
             let byteOffset = 0;
 
-            bytes[byteOffset] = 7;
+            bytes[byteOffset] = 8;
             byteOffset += 1;
 
             decodeIdInto(target.taskId, bytes, byteOffset);
@@ -202,7 +225,7 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
             const bytes = new Uint8Array(1 + idByteLength + 8);
             let byteOffset = 0;
 
-            bytes[byteOffset] = 8;
+            bytes[byteOffset] = 9;
             byteOffset += 1;
 
             decodeIdInto(target.taskId, bytes, byteOffset);
@@ -267,6 +290,15 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             return {type: "Post", postId};
         }
         case 6: {
+            const accountId = encodeId<AccountId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const draftId = encodeId<PostDraftId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return {type: "PostDraft", accountId, draftId};
+        }
+        case 7: {
             const postId = encodeId<PostId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
@@ -275,13 +307,13 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
 
             return {type: "PostComment", postId, commentIndex};
         }
-        case 7: {
+        case 8: {
             const taskId = encodeId<TaskId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
             return {type: "TaskNotes", taskId};
         }
-        case 8: {
+        case 9: {
             const taskId = encodeId<TaskId>(bytes, byteOffset);
             byteOffset += idByteLength;
 

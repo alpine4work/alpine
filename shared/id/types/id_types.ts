@@ -45,6 +45,7 @@ export type TaskRealtimeClientId = NominalRandomIdType<"TaskRealtimeClient">;
 export type TaskActionTransactionLeaseId = NominalRandomIdType<"TaskActionTransactionLease">;
 export type ApnsConnectionId = NominalRandomIdType<"ApnsConnectionId">;
 export type FileId = NominalChronologicalIdType<"File">;
+export type PostDraftId = NominalChronologicalIdType<"PostDraft">;
 
 /**
  * A specialization of `AccountId`. We use this as the type of a

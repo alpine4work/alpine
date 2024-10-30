@@ -7,11 +7,19 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {
+    attachFileAsUploader,
+    getFileFromAttachment,
+    startUploadingAndProcessingFile,
+} from "~/server/files/data/files_table.js";
+import {
+    FilePostAuthorizer,
     authorizeChannelAccess,
     authorizePostAccess,
+    authorizePostDraftAccess,
     backfillChannelPosts,
     createAlphaSpaceAsAdmin,
     createChannel,
+    createOrReplacePostDraft,
     createPost,
     createPostComment,
     deletePostComment,
@@ -24,6 +32,7 @@ import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     getPostContentAndChannelPreview,
+    getPostDraftIfExists,
     getPostNotificationSubscribers,
     updateChannelDescription,
     updateChannelName,
@@ -47,6 +56,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {
     PostContentProsemirrorSchema,
     PostContentWithReferences,
@@ -55,8 +65,9 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -3961,7 +3972,7 @@ test("authorizing post access after getting post as session actor is cached", as
 
 test("authorizing post access after getting post as system actor is cached", async () => {
     const space = await TestSpace.create(context);
-    const [session1] = await space.createSessions(2);
+    const [session1] = await space.createSessions(1);
 
     const channel = await createChannel(session1.action(), {
         spaceId: space.id,
@@ -4142,6 +4153,253 @@ test("authorizing post access after getting post as system actor is cached", asy
 
         expect(getCount()).toEqual(3);
     }
+});
+
+test("can create, get, update, and authorize a post draft", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const otherSession = await otherSpace.createSession();
+
+    const draftId = generateChronologicalId<PostDraftId>();
+
+    await expect(
+        authorizePostDraftAccess(session1.action(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Post draft not found");
+
+    expect(
+        await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
+    ).toEqual(null);
+
+    await createOrReplacePostDraft(session1.action(), space.id, session1.account.id, draftId, {
+        channelId: null,
+        content: createSimplePostContent("Test post content 1"),
+    });
+
+    await authorizePostDraftAccess(session1.action(), space.id, session1.account.id, draftId);
+
+    expect(
+        await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
+    ).toEqual({
+        channel: null,
+        content: {
+            doc: createSimplePostContent("Test post content 1"),
+            references: emptyContentReferences,
+        },
+    });
+
+    await expect(
+        authorizePostDraftAccess(session1.action(), space.id, session2.account.id, draftId),
+    ).rejects.toThrow("Can't access drafts from other accounts");
+
+    await expect(
+        authorizePostDraftAccess(space.systemAction(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("System actors can't access post drafts");
+
+    await expect(
+        authorizePostDraftAccess(otherSession.action(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        authorizePostDraftAccess(otherSpace.systemAction(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("System action doesn't have access to space");
+
+    await expect(
+        createOrReplacePostDraft(session2.action(), space.id, session1.account.id, draftId, {
+            channelId: null,
+            content: createSimplePostContent("Test post content 2"),
+        }),
+    ).rejects.toThrow("Can't access drafts from other accounts");
+
+    await expect(
+        createOrReplacePostDraft(space.systemAction(), space.id, session1.account.id, draftId, {
+            channelId: null,
+            content: createSimplePostContent("Test post content 2"),
+        }),
+    ).rejects.toThrow("System actors can't access post drafts");
+
+    await expect(
+        createOrReplacePostDraft(otherSession.action(), space.id, session1.account.id, draftId, {
+            channelId: null,
+            content: createSimplePostContent("Test post content 2"),
+        }),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        createOrReplacePostDraft(
+            otherSpace.systemAction(),
+            space.id,
+            session1.account.id,
+            draftId,
+            {
+                channelId: null,
+                content: createSimplePostContent("Test post content 2"),
+            },
+        ),
+    ).rejects.toThrow("System action doesn't have access to space");
+
+    expect(
+        await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
+    ).toEqual({
+        channel: null,
+        content: {
+            doc: createSimplePostContent("Test post content 1"),
+            references: emptyContentReferences,
+        },
+    });
+
+    await createOrReplacePostDraft(session1.action(), space.id, session1.account.id, draftId, {
+        channelId: null,
+        content: createSimplePostContent("Test post content 3"),
+    });
+
+    expect(
+        await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
+    ).toEqual({
+        channel: null,
+        content: {
+            doc: createSimplePostContent("Test post content 3"),
+            references: emptyContentReferences,
+        },
+    });
+
+    await expect(
+        getPostDraftIfExists(session2.action(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Can't access drafts from other accounts");
+
+    await expect(
+        getPostDraftIfExists(space.systemAction(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("System actors can't access post drafts");
+
+    await expect(
+        getPostDraftIfExists(otherSession.action(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("Account doesn't have access to space");
+
+    await expect(
+        getPostDraftIfExists(otherSpace.systemAction(), space.id, session1.account.id, draftId),
+    ).rejects.toThrow("System action doesn't have access to space");
+});
+
+test("will delete draft when creating post", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await createChannel(session.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const draftId = generateChronologicalId<PostDraftId>();
+
+    expect(
+        await getPostDraftIfExists(session.action(), space.id, session.account.id, draftId),
+    ).toBeNull();
+
+    await createOrReplacePostDraft(session.action(), space.id, session.account.id, draftId, {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 1"),
+    });
+
+    expect(
+        await getPostDraftIfExists(session.action(), space.id, session.account.id, draftId),
+    ).not.toBeNull();
+
+    await createPost(session.action(), {
+        channelId: channel.id,
+        draftId,
+        content: createSimplePostContent("Test post content 2"),
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await getPostDraftIfExists(session.action(), space.id, session.account.id, draftId),
+    ).toBeNull();
+});
+
+test("will attach referenced files to post when creating from draft", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await createChannel(session.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const draftId = generateChronologicalId<PostDraftId>();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session.action());
+
+    const postContent = assertPostContent(
+        PostContentProsemirrorSchema.node("doc", {}, [
+            PostContentProsemirrorSchema.node("paragraph", {}, [
+                PostContentProsemirrorSchema.text("Hello, world!"),
+            ]),
+            PostContentProsemirrorSchema.node("fileRow", {}, [
+                PostContentProsemirrorSchema.node("file", {fileId: fileUploader.fileId}),
+            ]),
+        ]),
+    );
+
+    await createOrReplacePostDraft(session.action(), space.id, session.account.id, draftId, {
+        channelId: channel.id,
+        content: postContent,
+    });
+
+    await expect(
+        createPost(session.action(), {
+            channelId: channel.id,
+            draftId: null,
+            content: postContent,
+        }),
+    ).rejects.toThrow(new FailedPreconditionError("Must create post from draft to attach files"));
+
+    await expect(
+        createPost(session.action(), {
+            channelId: channel.id,
+            draftId,
+            content: postContent,
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session.action(),
+        space.id,
+        fileUploader.fileId,
+        FilePostAuthorizer.bind({type: "PostDraft", accountId: session.account.id, draftId}),
+    );
+
+    const post = await createPost(session.action(), {
+        channelId: channel.id,
+        draftId,
+        content: postContent,
+    });
+
+    expect(
+        await getFileFromAttachment(
+            session.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
 });
 
 describe("Notification subscribers", () => {

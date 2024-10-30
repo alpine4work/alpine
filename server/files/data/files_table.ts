@@ -48,6 +48,8 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {If} from "~/shared/helpers/types/if.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
@@ -58,6 +60,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     FileId,
+    PostDraftId,
     PostId,
     SpaceId,
     TaskId,
@@ -262,6 +265,16 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
+                    name: "PostDraftAttachmentTarget",
+                    sortKeyAttributes: {
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+                        draftId: DynamoKeyAttributeSchema.id<PostDraftId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
                     name: "PostCommentAttachmentTarget",
                     sortKeyAttributes: {
                         postId: DynamoKeyAttributeSchema.id<PostId>(),
@@ -293,6 +306,19 @@ const FilesTable = DynamoTableSchema.new({
             ],
         },
     ],
+});
+
+const PostDraftFileAttachmentsIndex = FilesTable.addIndex({
+    name: "PostDraftFileAttachments",
+    itemTypes: [{partitionType: "File", sortRangeType: "PostDraftAttachmentTarget"}],
+    partitionKeyAttributes: {
+        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+        draftId: DynamoKeyAttributeSchema.id<PostDraftId>(),
+    },
+    sortKeyAttributes: {
+        fileId: DynamoKeyAttributeSchema.id<FileId>(),
+    },
 });
 
 type FileItem = DynamoTableItemType<typeof FilesTable, "Space", "File">;
@@ -355,6 +381,16 @@ function getFileAttachmentTargetItemKey(
                 spaceId,
                 fileId,
                 postId: target.postId,
+            };
+        }
+        case "PostDraft": {
+            return {
+                partitionType: "File",
+                sortRangeType: "PostDraftAttachmentTarget",
+                spaceId,
+                fileId,
+                accountId: target.accountId,
+                draftId: target.draftId,
             };
         }
         case "PostComment": {
@@ -1518,7 +1554,11 @@ export class FileAuthorizer<Bound extends boolean = true> {
     public readonly target: If<Bound, FileAttachmentTarget, null>;
     public readonly authorizeTargetAccess: If<
         Bound,
-        (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
+        (
+            context: ServerActionContext,
+            spaceId: SpaceId,
+            expectedAccessLevel: "View" | "Edit",
+        ) => Promise<void>,
         null
     >;
 
@@ -1526,7 +1566,11 @@ export class FileAuthorizer<Bound extends boolean = true> {
         target: If<Bound, FileAttachmentTarget, null>,
         authorizeTargetAccess: If<
             Bound,
-            (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
+            (
+                context: ServerActionContext,
+                spaceId: SpaceId,
+                expectedAccessLevel: "View" | "Edit",
+            ) => Promise<void>,
             null
         >,
     ) {
@@ -1540,6 +1584,7 @@ export class FileAuthorizer<Bound extends boolean = true> {
         authorizeTargetAccess: (
             context: ServerActionContext,
             target: FileAttachmentTargetByArea[Area],
+            spaceId: SpaceId,
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
@@ -1556,6 +1601,7 @@ export class FileAuthorizerUnbound<
     private readonly _authorizeTargetAccess: (
         context: ServerActionContext,
         target: FileAttachmentTargetByArea[Area],
+        spaceId: SpaceId,
         expectedAccessLevel: "View" | "Edit",
     ) => Promise<unknown>;
 
@@ -1565,6 +1611,7 @@ export class FileAuthorizerUnbound<
         authorizeTargetAccess: (
             context: ServerActionContext,
             target: FileAttachmentTargetByArea[Area],
+            spaceId: SpaceId,
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
@@ -1623,8 +1670,8 @@ export class FileAuthorizerUnbound<
     }
 
     public bind(target: FileAttachmentTargetByArea[Area]) {
-        return new FileAuthorizer(target, async (context, expectedAccessLevel) => {
-            await this._authorizeTargetAccess(context, target, expectedAccessLevel);
+        return new FileAuthorizer(target, async (context, spaceId, expectedAccessLevel) => {
+            await this._authorizeTargetAccess(context, target, spaceId, expectedAccessLevel);
         });
     }
 }
@@ -1651,7 +1698,7 @@ export async function getFileIfExistsFromAttachment(
         authorizeSpaceAccess(context, spaceId),
 
         // 2. Make sure we have access to the file's attachment target
-        fileAuthorizer.authorizeTargetAccess(context, "View"),
+        fileAuthorizer.authorizeTargetAccess(context, spaceId, "View"),
 
         // 3. Make sure the file is actually attached to the provided target
         (async () => {
@@ -1763,7 +1810,7 @@ export async function attachFileAsUploader(
             });
         })(),
         // Make sure we have access to the new file authorizer.
-        fileAuthorizer.authorizeTargetAccess(context, "Edit"),
+        fileAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
     ]);
 
     await FilesTable.createOrReplaceItem(context, {
@@ -1789,10 +1836,10 @@ export async function attachFileFromAttachment(
     {from: fromFileAuthorizer, to: toFileAuthorizer}: {from: FileAuthorizer; to: FileAuthorizer},
 ): Promise<FileModel> {
     const [file] = await runAllPromises([
-        // Make sure the file exists and our actor is the uploader.
+        // Make sure the file exists with the provided authorizer.
         getFileFromAttachment(context, spaceId, fileId, fromFileAuthorizer),
         // Make sure we have access to the new file authorizer.
-        toFileAuthorizer.authorizeTargetAccess(context, "Edit"),
+        toFileAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
     ]);
 
     await FilesTable.createOrReplaceItem(context, {
@@ -1801,4 +1848,52 @@ export async function attachFileFromAttachment(
     });
 
     return file;
+}
+
+/**
+ * Detach a file from the provided attachment target. Noop if the file
+ * attachment doesn't exist but throws if the file doesn't exist.
+ */
+export async function detachFile(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    fileAuthorizer: FileAuthorizer,
+): Promise<void> {
+    await runAllPromises([
+        // Make sure the file exists with the provided authorizer.
+        getFileFromAttachment(context, spaceId, fileId, fileAuthorizer),
+        // Make sure we have edit access through the file authorizer.
+        fileAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
+    ]);
+
+    await FilesTable.deleteItemWithKeyIfExists(context, {
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Get all file attachments for a post draft.
+ */
+export async function getPostDraftFileAttachments(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    draftId: PostDraftId,
+    fileAuthorizer: FileAuthorizerUnbound<"Post">,
+): Promise<Array<FileId>> {
+    await fileAuthorizer
+        .bind({type: "PostDraft", accountId, draftId})
+        .authorizeTargetAccess(context, spaceId, "View");
+
+    return arrayFromAsyncIterable(
+        mapAsyncIterableIterator(
+            PostDraftFileAttachmentsIndex.query(context, {
+                partitionKey: {spaceId, accountId, draftId},
+                limit: "All",
+            }),
+            item => item.fileId,
+        ),
+    );
 }

@@ -870,7 +870,7 @@ type TaskCommentItem = DynamoTableItemType<typeof TaskTable, "Task", "Comments">
 export const FileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",
-    async (context, target, expectedAccessLevel) => {
+    async (context, target, spaceId, expectedAccessLevel) => {
         switch (target.type) {
             case "TaskNotes":
                 await authorizeTaskAccess(context, target.taskId, expectedAccessLevel);

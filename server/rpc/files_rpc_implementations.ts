@@ -23,6 +23,7 @@ export function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget):
         case "DocumentComment":
             return FileDocumentAuthorizer.bind(target);
         case "Post":
+        case "PostDraft":
         case "PostComment":
             return FilePostAuthorizer.bind(target);
         case "TaskNotes":

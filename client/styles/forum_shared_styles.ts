@@ -25,18 +25,17 @@ export const postContentViewHeaderHeight = "8";
 export const postContentViewFooterHeight = "8";
 export const postContentViewFooterButtonHeight = "7";
 
-export const postContentEditorPaddingX = "2";
-export const postContentEditorPaddingY = "1.5";
+export const postContentEditorPadding = "2";
 
 export const screenPaddingXWithoutPostContentEditorPadding = mapObjectValues(
     screenPaddingX,
     screenPaddingX =>
-        assertSpacing(`${parseInt(screenPaddingX, 10) - parseInt(postContentEditorPaddingX, 10)}`),
+        assertSpacing(`${parseFloat(screenPaddingX) - parseFloat(postContentEditorPadding)}`),
 );
 
-export const postContentViewInnerMarginYWithoutContentEditorPaddingY = subtractRemLengths(
+export const postContentViewInnerMarginYWithoutContentEditorPadding = subtractRemLengths(
     spacing[postContentViewInnerMarginY],
-    spacing[postContentEditorPaddingY],
+    spacing[postContentEditorPadding],
 );
 
 const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);

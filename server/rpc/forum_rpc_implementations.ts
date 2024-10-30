@@ -6,6 +6,7 @@ import {
     backfillChannelPosts,
     backfillPostComments,
     createChannel,
+    createOrReplacePostDraft,
     createPost,
     createPostComment,
     deletePostComment,
@@ -252,6 +253,26 @@ export default implementRpcs(definitions, {
         visibility: ["PostRealtimeService"],
         execute: (context, input) => {
             return backfillPostComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    createOrReplacePostDraft: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const sessionContext = context.actor.authorizeSession();
+
+            await createOrReplacePostDraft(
+                sessionContext,
+                input.spaceId,
+                sessionContext.actor.getAccountId(),
+                input.draftId,
+                {
+                    channelId: input.channelId,
+                    content: input.content,
+                },
+            );
+
+            return {};
         },
     },
 });
