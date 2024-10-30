@@ -421,6 +421,9 @@ function PostCreatorChannelSelectorInput(
             // we're targeting (the combobox input).
             isBlocking={true}
             withoutBlockingTarget={true}
+            onBlockingCoverPointerDown={() => {
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            }}
             overlay={
                 <Box ref={popoverRef} position="relative">
                     <PostCreatorChannelSelectorListBox
