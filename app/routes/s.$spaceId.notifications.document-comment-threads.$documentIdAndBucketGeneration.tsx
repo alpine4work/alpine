@@ -250,10 +250,7 @@ function DocumentNewCommentThreadsRouteInner({
 
         const remPx = getRemPxWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
-        const messageViewMinHeightPx = convertRemLengthToPx(
-            messageViewMinHeight[isMobile ? "mobile" : "desktop"],
-            remPx,
-        );
+        const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
 
         const loadCommentCount =
             Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -

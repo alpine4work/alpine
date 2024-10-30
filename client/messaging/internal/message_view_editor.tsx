@@ -173,8 +173,6 @@ function MessageContentEditor({
     return (
         <ContentEditor
             ref={editorRef}
-            isCompact={true}
-            isExtraCompact={isMobile}
             withMobileLayout={withMobileLayout}
             state={state}
             onChange={(state, transaction) => {

@@ -67,8 +67,8 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
+    messageViewMarginY,
     messageViewMinHeight,
-    messageViewTimestampDividerMarginTop,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
@@ -828,11 +828,9 @@ function PostListView(
                                                 left: "0",
                                                 right: "0",
                                                 top: "0",
+                                                height: "border",
                                                 paddingX: screenPaddingX,
                                             })}
-                                            style={{
-                                                height: 1,
-                                            }}
                                         >
                                             <div
                                                 className={sprinkles({
@@ -854,11 +852,9 @@ function PostListView(
                                                 left: "0",
                                                 right: "0",
                                                 bottom: "0",
+                                                height: "border",
                                                 paddingX: screenPaddingX,
                                             })}
-                                            style={{
-                                                height: 1,
-                                            }}
                                         >
                                             <div
                                                 className={sprinkles({
@@ -942,7 +938,7 @@ function PostListView(
                                 : item.type === "OptimisticPostComment"
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
-                        minHeight: messageViewMinHeight[isMobile ? "mobile" : "desktop"],
+                        minHeight: messageViewMinHeight,
                         renderAdditionalItemIndexes: !isSingleLayoutWithPinnedCommentInput
                             ? [item.postCommentInputItemIndex]
                             : [],
@@ -1030,7 +1026,6 @@ function PostListView(
                                         className={sprinkles({
                                             display: "flex",
                                             justifyContent: "center",
-                                            overflow: "hidden",
                                         })}
                                     >
                                         <div
@@ -1039,7 +1034,6 @@ function PostListView(
                                                 zIndex: "0",
                                                 width: "full",
                                                 maxWidth: contentStyles.contentMaxWidth,
-                                                overflow: "hidden",
                                                 paddingLeft: !isSingleLayoutWithPinnedCommentInput
                                                     ? postCommentSectionGuidelineSpace
                                                     : undefined,
@@ -1066,15 +1060,7 @@ function PostListView(
                                                     }}
                                                 />
                                             )}
-                                            {item.postCommentIndex === 0 && (
-                                                <Spacer
-                                                    space={
-                                                        !isSingleLayoutWithPinnedCommentInput
-                                                            ? "4"
-                                                            : messageViewTimestampDividerMarginTop
-                                                    }
-                                                />
-                                            )}
+                                            {item.postCommentIndex === 0 && <Spacer space="6" />}
                                             {messageNode}
                                             {isSingleLayoutWithPinnedCommentInput &&
                                                 // -2 instead of -1 since when
@@ -1151,15 +1137,7 @@ function PostListView(
                                         />
                                     )}
                                     {item.postComments.getMessageCountIncludingOptimisticMessages() ===
-                                        0 && (
-                                        <Spacer
-                                            space={
-                                                !isSingleLayoutWithPinnedCommentInput
-                                                    ? "4"
-                                                    : messageViewTimestampDividerMarginTop
-                                            }
-                                        />
-                                    )}
+                                        0 && <Spacer space="6" />}
                                     <MessagingTypingIndicators
                                         typingStateByConnectionId={item.typingStateByConnectionId}
                                         shouldAddMarginBottom={
@@ -1370,11 +1348,9 @@ function PostListView(
                                                     left: "0",
                                                     right: "0",
                                                     bottom: "0",
+                                                    height: "border",
                                                     paddingX: screenPaddingX,
                                                 })}
-                                                style={{
-                                                    height: 1,
-                                                }}
                                             >
                                                 <div
                                                     className={sprinkles({

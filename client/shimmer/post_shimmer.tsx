@@ -37,8 +37,8 @@ export function PostShimmer({
                 left="0"
                 right="0"
                 bottom="0"
+                height="border"
                 paddingX={screenPaddingX}
-                style={{height: 1}}
             >
                 <Box
                     height="full"

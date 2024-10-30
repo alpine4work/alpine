@@ -104,7 +104,6 @@ function ChannelViewHeaderMobileDescription({
     return (
         <Box paddingY="1">
             <ContentView
-                isCompact={true}
                 // Only rendered in mobile layouts.
                 withMobileLayout={true}
                 content={
@@ -230,7 +229,6 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
-                        isCompact={true}
                         // Only rendered in mobile layouts.
                         withMobileLayout={true}
                         state={state}

@@ -48,9 +48,8 @@ import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
+    messageViewMarginY,
     messageViewMaxWidth,
-    messageViewTimestampDividerMarginBottom,
-    messageViewTimestampDividerMarginTop,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     minSearchMobileInputHeight,
@@ -498,11 +497,7 @@ function MessagingViewShimmer({
                 }
             >
                 {withTopAlignedMessages && messages === "few" && (
-                    <Box
-                        display="flex"
-                        justifyContent="center"
-                        paddingBottom={messageViewTimestampDividerMarginBottom}
-                    >
+                    <Box display="flex" justifyContent="center" paddingBottom={messageViewMarginY}>
                         <TextShimmer width="16" fontSize="50" />
                     </Box>
                 )}
@@ -731,7 +726,7 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                     }}
                 />
                 <TextShimmer width="96" ragRight="8" fontSize={titleFontSize} />
-                <Box height={contentStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer1 />
                 <Box
                     height={
@@ -748,9 +743,9 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                             : contentStyles.desktopHeadingLevel1FontSize
                     }
                 />
-                <Box height={contentStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer2 />
-                <Box height={contentStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer3 />
                 {!withMobileLayout && (
                     <>
@@ -769,7 +764,7 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                                     : contentStyles.desktopHeadingLevel1FontSize
                             }
                         />
-                        <Box height={contentStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer1 />
                         <Box
                             height={
@@ -786,9 +781,9 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                                     : contentStyles.desktopHeadingLevel2FontSize
                             }
                         />
-                        <Box height={contentStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer3 />
-                        <Box height={contentStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer2 />
                     </>
                 )}
@@ -844,9 +839,9 @@ function DocumentCommentThreadRouteShimmer() {
                             border="grey-10"
                         />
                     </Box>
-                    <Box height={messageViewTimestampDividerMarginTop} />
+                    <Box height={messageViewMarginY} />
                     <Box style={{height: fontSizes["50"].lineHeight}} />
-                    <Box height={messageViewTimestampDividerMarginBottom} />
+                    <Box height={messageViewMarginY} />
                     <MessageShimmer width="32" heightLines={1} />
                     <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
                     <MessageShimmer
@@ -1168,7 +1163,7 @@ function PostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                         <ContentParagraphShimmer3 />
                     </PostShimmer>
                 </Box>
-                <Box style={{height: spacing[messageViewTimestampDividerMarginTop]}} />
+                <Box style={{height: spacing[messageViewMarginY]}} />
                 <MessageShimmer width="32" heightLines={1} />
                 <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
                 <MessageShimmer width="96" heightLines={1} shouldMergeWithPreviousMessage={true} />

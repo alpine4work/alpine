@@ -119,22 +119,20 @@ export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
     parseRemLengthNumber(blockMaxWidth),
 );
 
-const defaultParagraphMarginSpacing = "2";
-const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
-export {defaultParagraphMarginSpacing as defaultParagraphMargin};
-export const defaultParagraphMarginRem = parseRemLengthNumber(defaultParagraphMargin);
+const paragraphMarginSpacing = "2";
+const paragraphMargin = spacing[paragraphMarginSpacing];
+export {paragraphMarginSpacing as paragraphMargin};
+export const paragraphMarginRem = parseRemLengthNumber(paragraphMargin);
+
+const standaloneBlockMarginSpacing = "4";
+const standaloneBlockMargin = spacing[standaloneBlockMarginSpacing];
+export {standaloneBlockMarginSpacing as standaloneBlockMargin};
 
 const blockMaxWidthVar = createVar("block-max-width");
-const paragraphMarginVar = createVar("paragraph-margin");
-const standaloneBlockMarginVar = createVar("standalone-block-margin");
-export const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.desktop,
-        [paragraphMarginVar]: defaultParagraphMargin,
-        [standaloneBlockMarginVar]: spacing["4"],
-        [listItemOffsetVar]: spacing["0"],
     },
 });
 
@@ -145,7 +143,6 @@ globalStyle(mobilePlatformSelector, {
 });
 
 export const docClassName = style({
-    minHeight: "100%",
     color: colorSchemeVars["grey-100"],
     caretColor: colorSchemeVars["grey-100"],
     // Create a new z-index stacking context.
@@ -169,35 +166,6 @@ export const withMobileLayoutDocClassName = style({});
 
 export const selectionChangeDraggingClassName = style({});
 
-const compactListItemOffsetSpacing = "2";
-const compactListItemOffset = spacing[compactListItemOffsetSpacing];
-export {compactListItemOffsetSpacing as compactListItemOffset};
-
-export const compactDocClassName = style({
-    vars: {
-        // Slightly smaller paragraph margins in messages. This makes bullet points in
-        // a message bubble look better.
-        [paragraphMarginVar]: spacing["1.5"],
-        [standaloneBlockMarginVar]: spacing["3"],
-        // Pull in list items so they're not so far from the edge of the message
-        // bubble.
-        [listItemOffsetVar]: `-${compactListItemOffset}`,
-    },
-});
-
-export const extraCompactDocClassName = style({
-    selectors: {
-        // Double selector so we override `compactDocClassName`.
-        "&&": {
-            vars: {
-                // Slightly smaller paragraph margins in messages. This makes bullet points in
-                // a message bubble look better.
-                [paragraphMarginVar]: spacing["1"],
-            },
-        },
-    },
-});
-
 const blockStyles = {
     width: "100%",
     maxWidth: blockMaxWidthVar,
@@ -220,17 +188,6 @@ export const paragraphFontSize: {
 
 export const paragraphLineHeightRem = parseRemLengthNumber(paragraphFontSize.lineHeight);
 
-export const extraCompactParagraphFontSize: {
-    fontSize: string;
-    letterSpacing: string;
-    lineHeight: RemLength;
-} = {
-    ...fontSizes["100-extra-compact"],
-    // Extra compact font size has less relative line height compared to regular
-    // font size.
-    lineHeight: "1.175rem",
-};
-
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
     ...fontStyles.normal,
@@ -238,15 +195,10 @@ globalStyle(paragraphClassName, {
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: paragraphFontSize.lineHeight,
-    marginTop: paragraphMarginVar,
-    marginBottom: paragraphMarginVar,
+    marginTop: paragraphMargin,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
-});
-
-globalStyle(`${extraCompactDocClassName} ${paragraphClassName}`, {
-    ...extraCompactParagraphFontSize,
-    minHeight: extraCompactParagraphFontSize.lineHeight,
 });
 
 // Header sizes are smaller on mobile than desktop because mobile has less
@@ -331,7 +283,7 @@ globalStyle(titleClassName, {
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${desktopTitleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -360,7 +312,7 @@ globalStyle(headingLevel1ClassName, {
     ...fontStyles["bold"],
     ...desktopHeadingLevel1FontSize,
     marginTop: headingMarginVars.heading1TopMargin,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -380,7 +332,7 @@ globalStyle(headingLevel2ClassName, {
     ...fontStyles["bold"],
     ...desktopHeadingLevel2FontSize,
     marginTop: headingMarginVars.heading2TopMargin,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -403,7 +355,7 @@ globalStyle(headingLevel3ClassName, {
     ...fontStyles["bold"],
     ...desktopHeadingLevel3FontSize,
     marginTop: headingMarginVars.heading3TopMargin,
-    marginBottom: paragraphMarginVar,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
@@ -431,8 +383,8 @@ globalStyle(quoteBlockClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: quoteBlockIndentation,
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     color: colorSchemeVars["grey-60"],
     caretColor: colorSchemeVars["grey-60"],
 });
@@ -471,7 +423,7 @@ export {unorderedListItemBulletSizeSpacing as unorderedListItemBulletSize};
 globalStyle(listItemClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
-    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
+    paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
 });
 
 export const unorderedListItemBulletTop: RemLength = `${
@@ -480,16 +432,10 @@ export const unorderedListItemBulletTop: RemLength = `${
     ) / 2
 }rem`;
 
-const extraCompactUnorderedListItemBulletTop: RemLength = `${
-    parseRemLengthNumber(
-        subtractRemLengths(extraCompactParagraphFontSize.lineHeight, unorderedListItemBulletSize),
-    ) / 2
-}rem`;
-
 export const unorderedListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
     parseRemLengthNumber(listItemIndentation) / 2 -
     parseRemLengthNumber(unorderedListItemBulletSize) / 2
-}rem + ${listItemOffsetVar})`;
+}rem)`;
 
 globalStyle(`${unorderedListItemClassName}::before`, {
     content: '""',
@@ -503,24 +449,16 @@ globalStyle(`${unorderedListItemClassName}::before`, {
     left: unorderedListItemBulletLeft,
 });
 
-globalStyle(`${extraCompactDocClassName} ${unorderedListItemClassName}::before`, {
-    top: extraCompactUnorderedListItemBulletTop,
-});
-
 globalStyle(`${orderedListItemClassName}::before`, {
     content: 'attr(data-list-number) "."',
     position: "absolute",
     pointerEvents: "none",
     top: 0,
-    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
+    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
     textAlign: "right",
     transform: "translateX(-100%)",
     ...paragraphFontSize,
     fontVariantNumeric: "tabular-nums",
-});
-
-globalStyle(`${extraCompactDocClassName} ${orderedListItemClassName}::before`, {
-    ...extraCompactParagraphFontSize,
 });
 
 const checkListItemCheckboxDesktopSize = "4";
@@ -547,7 +485,7 @@ export const checkListItemCheckboxContainerClassName = style({
         (parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize]) +
             parseRemLengthNumber(spacing["1"]) * 2) /
             2
-    }rem + ${listItemOffsetVar})`,
+    }rem)`,
     borderRadius: "100%",
     paddingLeft: spacing["1"],
     paddingRight: spacing["1"],
@@ -565,21 +503,7 @@ export const checkListItemCheckboxContainerClassName = style({
                 (parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize]) +
                     parseRemLengthNumber(spacing["1"]) * 2) /
                     2
-            }rem + ${listItemOffsetVar})`,
-        },
-        [`${desktopPlatformSelector} ${extraCompactDocClassName} &`]: {
-            top: `${
-                (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
-                    parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
-                2
-            }rem`,
-        },
-        [`${mobilePlatformSelector} ${extraCompactDocClassName} &`]: {
-            top: `${
-                (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
-                    parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
-                2
-            }rem`,
+            }rem)`,
         },
     },
 });
@@ -670,8 +594,8 @@ globalStyle(codeBlockWrapperClassName, {
     zIndex: "0",
     overflowX: "auto",
     overscrollBehaviorX: "contain",
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     counterReset: "code-block-line-number",
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
@@ -688,13 +612,6 @@ const codeBlockPaddingY = `${Math.max(
     0,
     (parseRemLengthNumber(codeBlockToolbarHeight) -
         parseRemLengthNumber(paragraphFontSize.lineHeight)) /
-        2,
-)}rem`;
-
-const extraCompactCodeBlockPaddingY = `${Math.max(
-    0,
-    (parseRemLengthNumber(codeBlockToolbarHeight) -
-        parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight)) /
         2,
 )}rem`;
 
@@ -716,12 +633,6 @@ globalStyle(codeBlockClassName, {
 // ProseMirror automatically sets white space to pre-wrap.
 globalStyle(`${codeBlockClassName}${codeBlockClassName}${codeBlockClassName}`, {
     whiteSpace: "pre",
-});
-
-globalStyle(`${extraCompactDocClassName} ${codeBlockClassName}`, {
-    ...extraCompactParagraphFontSize,
-    paddingTop: extraCompactCodeBlockPaddingY,
-    paddingBottom: extraCompactCodeBlockPaddingY,
 });
 
 export const filePreviewCodeBlockClassName = style({});
@@ -791,7 +702,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     position: "sticky",
     left: "0",
     marginLeft: `-${codeBlockLineOverscrollSlopX}`,
-    width: `calc(${listItemIndentation} + ${listItemOffsetVar})`,
+    width: `calc(${listItemIndentation})`,
     // Optically align code block numbers with ordered list item numbers.
     paddingRight: "0.75rem",
     textAlign: "right",
@@ -806,10 +717,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
 globalStyle(
     `${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlockLineClassName}::before`,
     {
-        width: `calc(${addRemLengths(
-            fileViewCodeBlockMargin,
-            listItemIndentation,
-        )} + ${listItemOffsetVar})`,
+        width: `calc(${addRemLengths(fileViewCodeBlockMargin, listItemIndentation)})`,
     },
 );
 
@@ -994,8 +902,8 @@ export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
 globalStyle(fileRowClassName, {
     ...blockStyles,
     position: "relative",
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
     display: "grid",
     justifyContent: "center",
     gap: fileRowGapWidth,

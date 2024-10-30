@@ -80,7 +80,6 @@ export function ChannelViewAside({
                 ) : (
                     <Box paddingY="1">
                         <ContentView
-                            isCompact={true}
                             // Only rendered on desktop layouts.
                             withMobileLayout={false}
                             content={channel.description}
@@ -195,7 +194,6 @@ function ChannelViewAsideDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
-                        isCompact={true}
                         // Channel view aside is only rendered in desktop layouts.
                         withMobileLayout={false}
                         state={state}

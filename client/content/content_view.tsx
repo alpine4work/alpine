@@ -116,8 +116,6 @@ export function ContentView({
     "aria-labelledby": ariaLabelledBy,
     isInert = false,
     isTruncated = false,
-    isCompact = false,
-    isExtraCompact = false,
     isEditorInitialAppRender = false,
     isBackgroundColorGrey5 = false,
     fileAttachmentTarget,
@@ -172,18 +170,6 @@ export function ContentView({
      * text overflows?
      */
     isTruncated?: boolean;
-
-    /**
-     * Should this content be rendered with our compact rendering? Compact
-     * rendering reduces some margins so content can be closer together.
-     */
-    isCompact?: boolean;
-
-    /**
-     * Should this content be rendered with our extra compact render? Extra compact
-     * rendering implies `isCompact` and decreases the paragraph font size.
-     */
-    isExtraCompact?: boolean;
 
     /**
      * Are we rendering a `<ContentView>` as a placeholder during initial app
@@ -1330,8 +1316,6 @@ export function ContentView({
                 className={classNames(
                     contentStyles.docClassName,
                     withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
-                    isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
-                    isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,

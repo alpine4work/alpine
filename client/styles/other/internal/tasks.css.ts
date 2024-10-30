@@ -5,10 +5,7 @@ import {
     fontStyles,
     inputPlaceholderStyles,
 } from "~/client/styles/core/styles_core.js";
-import {
-    defaultParagraphMargin,
-    paragraphFontSize,
-} from "~/client/styles/other/internal/content.css.js";
+import {paragraphMargin, paragraphFontSize} from "~/client/styles/other/internal/content.css.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
@@ -178,7 +175,7 @@ export const rowTitleInputMultilineAfterClassName = style({
 
 export const detailNotesContentEditorMinHeight = `${
     parseRemLengthNumber(paragraphFontSize.lineHeight) * 2 +
-    parseRemLengthNumber(spacing[defaultParagraphMargin]) * 1
+    parseRemLengthNumber(spacing[paragraphMargin]) * 1
 }rem`;
 
 export const detailNotesContentEditorClassName = style({

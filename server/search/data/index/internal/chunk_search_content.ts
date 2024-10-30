@@ -13,7 +13,7 @@ import {
     ContentInlineNodeTypeName,
     ContentMarkTypeName,
     ContentTextblockNodeTypeName,
-} from "~/shared/content/content_type_names.js";
+} from "~/shared/content/content_node_type_name.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";

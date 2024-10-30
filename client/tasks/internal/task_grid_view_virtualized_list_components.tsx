@@ -128,8 +128,8 @@ function TaskGridViewColumnHeader(
                         bottom="0"
                         left={screenPaddingX}
                         right={screenPaddingX}
+                        height="border"
                         backgroundColor="grey-5"
-                        style={{height: 1}}
                     />
                 </Box>
                 <OverlayScopeContextProvider

@@ -14,15 +14,17 @@ import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_fo
  */
 export function PrettyAbsoluteDate({
     date,
-    shouldExcludeTime,
-    shouldIncludeSeconds,
-    shouldIncludeWeekday,
+    withoutDay,
+    withoutTime,
+    withSeconds,
+    withWeekday,
     tooltipPlacement,
 }: {
     date: Date;
-    shouldExcludeTime?: boolean;
-    shouldIncludeSeconds?: boolean;
-    shouldIncludeWeekday?: boolean;
+    withoutDay?: boolean;
+    withoutTime?: boolean;
+    withSeconds?: boolean;
+    withWeekday?: boolean;
     tooltipPlacement?: OverlayPlacement;
 }) {
     const {timeZone, locale} = useClientInfo();
@@ -31,19 +33,12 @@ export function PrettyAbsoluteDate({
     const formattedDate = useMemo(
         () =>
             formatPrettyAbsoluteDateWithoutFullTimeTooltip(locale, timeZone, currentTime, date, {
-                shouldExcludeTime,
-                shouldIncludeSeconds,
-                shouldIncludeWeekday,
+                withoutDay,
+                withoutTime,
+                withSeconds,
+                withWeekday,
             }),
-        [
-            currentTime,
-            date,
-            locale,
-            shouldExcludeTime,
-            shouldIncludeSeconds,
-            shouldIncludeWeekday,
-            timeZone,
-        ],
+        [locale, timeZone, currentTime, date, withoutDay, withoutTime, withSeconds, withWeekday],
     );
 
     return (

@@ -7,10 +7,7 @@ import {
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {
-    messageViewMarginY,
-    messageViewTimestampDividerMarginTop,
-} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMarginY} from "~/client/styles/messaging_shared_styles.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -19,7 +16,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // It's ok to export this since it's a constant string.
 // eslint-disable-next-line react-refresh/only-export-components
 export const chatMessagingViewHeaderMinHeight = addRemLengths(
-    spacing[messageViewTimestampDividerMarginTop],
+    spacing[messageViewMarginY],
     spacing[messageViewMarginY],
 );
 

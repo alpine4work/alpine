@@ -63,10 +63,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
 
     const remPx = getRemPxWithoutListening();
     const virtualizationWindowHeightPx = getVirtualizationWindowHeight(viewHeight);
-    const messageViewMinHeightPx = convertRemLengthToPx(
-        messageViewMinHeight[getIsMobileWithoutListening() ? "mobile" : "desktop"],
-        remPx,
-    );
+    const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
 
     // Load enough items to fill the virtualization window once. This gives the
     // user some space to scroll and read before we need to load more messages.

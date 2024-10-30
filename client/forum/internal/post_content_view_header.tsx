@@ -70,7 +70,7 @@ export function PostContentViewHeaderBase({
                     <PrettyAbsoluteDate
                         tooltipPlacement="bottom"
                         date={createdTime}
-                        shouldExcludeTime={shouldCreatedTimeExcludeTime}
+                        withoutTime={shouldCreatedTimeExcludeTime}
                     />
                     {extraAfterCreatedTime}
                 </Box>

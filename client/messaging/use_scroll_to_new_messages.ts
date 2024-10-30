@@ -132,11 +132,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             if (
                 scrollDelta <=
                 newItemsHeight +
-                    convertRemLengthToPx(
-                        messageViewMinHeight[getIsMobileWithoutListening() ? "mobile" : "desktop"],
-                        getRemPxWithoutListening(),
-                    ) *
-                        4
+                    convertRemLengthToPx(messageViewMinHeight, getRemPxWithoutListening()) * 4
             ) {
                 view.setScrollOffset(newScrollOffset);
                 flushNavigationBarScrollEventEmitter.emit(view.getElement());

@@ -1832,10 +1832,7 @@ export function DocumentContentEditor({
                                     >
                                         <Box
                                             ref={mobileFakeCommentInputEditorRef}
-                                            className={classNames(
-                                                contentStyles.docClassName,
-                                                isMobile && contentStyles.extraCompactDocClassName,
-                                            )}
+                                            className={contentStyles.docClassName}
                                             flexGrow="1"
                                             borderRadius={messageViewBubbleBorderRadius}
                                             paddingX={messageViewBubblePaddingX}

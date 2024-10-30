@@ -66,6 +66,7 @@ import {
     messageViewReplyPreviewScale,
 } from "~/client/styles/messaging_shared_styles.js";
 import {borderRadius, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
@@ -77,7 +78,7 @@ import {
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
@@ -225,12 +226,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         if (isEditingMessage) return null;
         if (!replyingToMessageProp) return null;
 
+        // NOCOMMIT
+        getTruncatedMessageContentForReplyPreview({
+            message: replyingToMessageProp,
+            messageNoun,
+        });
+
         return {
             message: replyingToMessageProp,
-            truncatedContent: getTruncatedMessageContentForReplyPreview({
-                message: replyingToMessageProp,
-                messageStartOfSentenceNoun,
-            }),
+            truncatedContent: emptyMessageContentWithReferences,
         };
     }, [isEditingMessage, replyingToMessageProp, messageStartOfSentenceNoun]);
 
@@ -782,8 +786,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         <ContentView
                                                             isInert={true}
                                                             isTruncated={true}
-                                                            isCompact={true}
-                                                            isExtraCompact={isMobile}
                                                             isBackgroundColorGrey5={true}
                                                             withMobileLayout={withMobileLayout}
                                                             content={
@@ -874,8 +876,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     >
                                         <ContentEditor
                                             ref={editorRef}
-                                            isCompact={true}
-                                            isExtraCompact={isMobile}
                                             withMobileLayout={withMobileLayout}
                                             state={state}
                                             onChange={(state, transaction) => {

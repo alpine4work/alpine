@@ -1760,14 +1760,14 @@ export function buildContentEditorKeymapPlugin(
                                         ? nextRect.top + 1
                                         : fileRect.bottom +
                                           convertRemLengthToPx(
-                                              spacing[contentStyles.defaultParagraphMargin],
+                                              spacing[contentStyles.paragraphMargin],
                                               getRemPxWithoutListening(),
                                           )
                                     : nextRect
                                     ? nextRect.bottom - 1
                                     : fileRect.top -
                                       convertRemLengthToPx(
-                                          spacing[contentStyles.defaultParagraphMargin],
+                                          spacing[contentStyles.paragraphMargin],
                                           getRemPxWithoutListening(),
                                       ),
                         });
@@ -1875,14 +1875,14 @@ export function buildContentEditorKeymapPlugin(
                                         ? fileRowRect.top + 1
                                         : coords.bottom +
                                           convertRemLengthToPx(
-                                              spacing[contentStyles.defaultParagraphMargin],
+                                              spacing[contentStyles.paragraphMargin],
                                               getRemPxWithoutListening(),
                                           )
                                     : fileRowRect
                                     ? fileRowRect.bottom - 1
                                     : coords.top -
                                       convertRemLengthToPx(
-                                          spacing[contentStyles.defaultParagraphMargin],
+                                          spacing[contentStyles.paragraphMargin],
                                           getRemPxWithoutListening(),
                                       ),
                         };

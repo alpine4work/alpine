@@ -1,8 +1,19 @@
+import classNames from "classnames";
 import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
 import {timeline} from "motion";
-import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
-import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
+import {ArrowArcLeft, SpinnerGap, Trash} from "phosphor-react";
+import {
+    Fragment,
+    Memo,
+    MutableRefObject,
+    ReactNode,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
@@ -10,7 +21,10 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
-import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
+import {
+    PrettyAbsoluteDate,
+    PrettyAbsoluteDateTooltipContent,
+} from "~/client/design/pretty_absolute_date.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -31,6 +45,11 @@ import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_round
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     getMessageBubbleMarginLeft,
+    messageView2AccountNameFontSize,
+    messageView2AccountNameMarginBottom,
+    messageView2AvatarOffsetY,
+    messageView2AvatarSize,
+    messageView2RailGap,
     messageViewActionsWidth,
     messageViewActionsWidthWithoutHoveringPrimaryInput,
     messageViewBubbleBorderRadius,
@@ -44,20 +63,25 @@ import {
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
-    messageViewTimestampDividerMarginBottom,
-    messageViewTimestampDividerMarginTop,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
+    fontSizes,
     spinAnimationClassName,
     sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
-import {linkClassName} from "~/shared/content/content_styles.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {
+    linkClassName,
+    paragraphClassName,
+    quoteBlockClassName,
+} from "~/shared/content/content_styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,
@@ -68,15 +92,25 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageModel,
     MessageModelBase,
     OptimisticMessageModel,
 } from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+
+// NOCOMMIT: Test
+//
+// - Emoji messages
+// - Message editing
+// - Deleted messages
+// - Message timestamps
+// - Message replies
 
 /**
  * The buffered height we use for virtualized message views.
@@ -168,10 +202,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
+    const messageAuthor = useAccountModel(message.author);
+
     const containerRef = useRef<HTMLDivElement>(null);
+    // NOCOMMIT: Attach message ref to better place?
     const messageRef = useRef<HTMLDivElement>(null);
-    const accountNameRef = useRef<HTMLDivElement>(null);
-    const parentMessageRef = useRef<HTMLDivElement>(null);
     const touchReplyIconRef = useRef<HTMLDivElement>(null);
 
     const shouldMergeWithPreviousMessage: boolean =
@@ -179,6 +214,29 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     const shouldMergeWithNextMessage: boolean =
         !!nextMessage && shouldMergeMessages(message, nextMessage);
+
+    let marginBottom: Spacing;
+
+    if (!shouldMergeWithNextMessage) {
+        marginBottom = messageViewMarginY;
+    } else {
+        if (
+            message.payload.type === "Content" &&
+            message.payload.content.doc.childCount > 0 &&
+            nextMessage?.payload.type === "Content" &&
+            nextMessage.payload.content.doc.childCount > 0 &&
+            (hasStandaloneMarginByContentBlockNodeTypeName[
+                message.payload.content.doc.lastChild!.type.name
+            ] ||
+                hasStandaloneMarginByContentBlockNodeTypeName[
+                    nextMessage.payload.content.doc.firstChild!.type.name
+                ])
+        ) {
+            marginBottom = contentStyles.standaloneBlockMargin;
+        } else {
+            marginBottom = contentStyles.paragraphMargin;
+        }
+    }
 
     const parentMessage =
         message.payload.type === "Content" && message.payload.parentMessageIndex !== null
@@ -191,14 +249,18 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // Manually implement hovering state by attaching event listeners (instead of
     // using `useHover()` from `react-aria`). React doesn't deliver a
     // `pointerleave` event when the pointer goes into a portalled element.
-    const hoverRef = useRef<HTMLDivElement>(null);
+    //
+    // NOCOMMIT: Or is focus within?
     const [isHovered, setIsHovered] = useState(false);
+    if (isMobile && isHovered) setIsHovered(false);
 
     // NOTE(calebmer): This can't be `onPointerEnter` or `onPointerLeave` props.
     // I've found that React doesn't call `onPointerLeave` when the
     // `<MessageViewActions>` menu closes.
     useEffect(() => {
-        const hoverElement = assertExists(hoverRef.current);
+        if (isMobile) return;
+
+        const containerElement = assertExists(containerRef.current);
 
         const handlePointerEnter = (event: PointerEvent) => {
             // Ignore iOS touch pointer enter/leave events.
@@ -214,11 +276,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             setIsHovered(false);
         };
 
-        hoverElement.addEventListener("pointerenter", handlePointerEnter);
-        hoverElement.addEventListener("pointerleave", handlePointerLeave);
+        containerElement.addEventListener("pointerenter", handlePointerEnter);
+        containerElement.addEventListener("pointerleave", handlePointerLeave);
         return () => {
-            hoverElement.removeEventListener("pointerenter", handlePointerEnter);
-            hoverElement.removeEventListener("pointerleave", handlePointerLeave);
+            containerElement.removeEventListener("pointerenter", handlePointerEnter);
+            containerElement.removeEventListener("pointerleave", handlePointerLeave);
         };
     }, [isMobile]);
 
@@ -377,12 +439,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const hasParentMessage = !!parentMessage;
 
     const [showTouchReplyIcon, setShowTouchReplyIcon] = useState(false);
-    const [touchLightboxState, setTouchLightboxState] = useState<{
-        initialMessageTop: number;
-        getMessageTop: () => number;
-    } | null>(null);
 
     useEffect(() => {
+        // NOCOMMIT: Re-enable effect
+        if (true) return;
+
         if (message.payload.type !== "Content") return;
 
         // Reattach event listeners if the message payload changes. The `messageRef`
@@ -734,15 +795,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             return (
                 <div
-                    ref={messageRef}
                     className={sprinkles({
-                        paddingLeft: "1",
                         fontSize: "600",
                         userSelect: canPrimaryInputHover ? "text" : "none",
-                        pointerEvents: "auto",
-                        // Hide message while lightbox is open so its blur doesn't bleed into
-                        // the background.
-                        opacity: touchLightboxState ? "0" : undefined,
                     })}
                 >
                     {children}
@@ -769,242 +824,130 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
 
         return (
-            <div
-                ref={messageRef}
-                data-testid={
-                    process.env.NODE_ENV !== "production" ? "MessageViewBubble" : undefined
-                }
-                className={sprinkles({
-                    position: "relative",
-                    zIndex: "20",
-                    backgroundColor: "grey-5",
-                    maxWidth: "full",
-                    overflow: "hidden",
-                    display: "inline-block",
-                    paddingX: messageViewBubblePaddingX,
-                    paddingY: messageViewBubblePaddingY,
-                    borderTopLeftRadius: !shouldMergeWithPreviousMessage
-                        ? messageViewBubbleBorderRadius
-                        : messageViewBubbleMergedBorderRadius,
-                    borderTopRightRadius: messageViewBubbleBorderRadius,
-                    borderBottomLeftRadius: !shouldMergeWithNextMessage
-                        ? messageViewBubbleBorderRadius
-                        : messageViewBubbleMergedBorderRadius,
-                    borderBottomRightRadius: messageViewBubbleBorderRadius,
-                    pointerEvents: "auto",
-                    // Hide message while lightbox is open so its blur doesn't bleed into
-                    // the background.
-                    opacity: touchLightboxState ? "0" : undefined,
-                })}
-            >
-                <ContentView
-                    isCompact={true}
-                    isExtraCompact={isMobile}
-                    isBackgroundColorGrey5={true}
-                    withMobileLayout={withMobileLayout}
-                    content={message.payload.content}
-                    contentUpdatedTime={message.payload.contentUpdatedTime}
-                    className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                    withUserSelectNone={!canPrimaryInputHover}
-                />
-            </div>
+            <ContentView
+                isBackgroundColorGrey5={true}
+                withMobileLayout={withMobileLayout}
+                content={message.payload.content}
+                contentUpdatedTime={message.payload.contentUpdatedTime}
+                withUserSelectNone={!canPrimaryInputHover}
+            />
         );
-    }, [
-        canPrimaryInputHover,
-        isMobile,
-        message.payload,
-        messageTextForBigEmojiMessage,
-        shouldMergeWithNextMessage,
-        shouldMergeWithPreviousMessage,
-        touchLightboxState,
-        withMobileLayout,
-    ]);
+    }, [canPrimaryInputHover, message.payload, messageTextForBigEmojiMessage, withMobileLayout]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
 
         return (
-            <div
-                className={sprinkles({
-                    position: "relative",
-                    zIndex: "20",
-                    paddingX: messageViewBubblePaddingX,
-                    paddingY: messageViewBubblePaddingY,
-                    display: "flex",
-                    alignItems: "center",
-                    borderTopLeftRadius: !shouldMergeWithPreviousMessage
-                        ? messageViewBubbleBorderRadius
-                        : messageViewBubbleMergedBorderRadius,
-                    borderTopRightRadius: messageViewBubbleBorderRadius,
-                    borderBottomLeftRadius: !shouldMergeWithNextMessage
-                        ? messageViewBubbleBorderRadius
-                        : messageViewBubbleMergedBorderRadius,
-                    borderBottomRightRadius: messageViewBubbleBorderRadius,
-                    userSelect: canPrimaryInputHover ? "text" : "none",
-                })}
-                style={{
-                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                }}
+            <Tooltip
+                placement="bottom"
+                content={
+                    <>
+                        Sent: <PrettyAbsoluteDateTooltipContent date={message.createdTime} />
+                        <br />
+                        Deleted:{" "}
+                        <PrettyAbsoluteDateTooltipContent date={message.payload.deletedTime} />
+                    </>
+                }
             >
                 <div
                     className={sprinkles({
-                        paddingX: "2",
-                        color: "grey-40",
+                        // We use `inline-flex` so the tooltip is over just the
+                        // "Deleted message" part.
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "1",
+                        color: "grey-50",
                         fontSize: "75",
                     })}
-                    style={{
-                        lineHeight: isMobile
-                            ? contentStyles.extraCompactParagraphFontSize.lineHeight
-                            : contentStyles.paragraphFontSize.lineHeight,
-                    }}
+                    style={{lineHeight: contentStyles.paragraphFontSize.lineHeight}}
                 >
-                    {`${messageStartOfSentenceNoun} deleted`}
+                    <Trash size={spacing["4"]} />
+                    {`Deleted ${messageNoun}`}
                 </div>
-            </div>
+            </Tooltip>
         );
-    }, [
-        canPrimaryInputHover,
-        isMobile,
-        message.payload.type,
-        messageStartOfSentenceNoun,
-        shouldMergeWithNextMessage,
-        shouldMergeWithPreviousMessage,
-    ]);
+    }, [message.createdTime, message.payload, messageNoun]);
 
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
         let height = addRemLengths(spacing["1.5"], contentViewStyles.truncatedHeight);
 
-        // Remove some vertical padding from the parent message to move it closer to a
-        // big emoji message which doesn't render in a bubble.
-        if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
-
-        const scaledHeight = `${
-            Math.round(parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16) / 16
-        }rem`;
+        // NOCOMMIT:
+        //
+        // // Remove some vertical padding from the parent message to move it closer to a
+        // // big emoji message which doesn't render in a bubble.
+        // if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
 
         const truncatedContent = getTruncatedMessageContentForReplyPreview({
             message: parentMessage,
-            messageStartOfSentenceNoun,
+            messageNoun,
         });
 
         return (
-            <div
-                ref={parentMessageRef}
-                className={sprinkles({
-                    position: "relative",
-                    zIndex: "10",
-                })}
-                style={{
-                    height: scaledHeight,
-                    paddingLeft: getMessageBubbleMarginLeft(
-                        typeof paddingX === "string"
-                            ? paddingX
-                            : paddingX[isMobile ? "mobile" : "desktop"],
-                    ),
-                    paddingRight: addRemLengths(
-                        spacing["3"],
-                        spacing[
-                            canPrimaryInputHover
-                                ? messageViewActionsWidth
-                                : messageViewActionsWidthWithoutHoveringPrimaryInput
-                        ],
-                        spacing[
-                            typeof paddingX === "string"
-                                ? paddingX
-                                : paddingX[isMobile ? "mobile" : "desktop"]
-                        ],
-                    ),
-                    // Hide message while lightbox is open so its blur doesn't bleed into
-                    // the background.
-                    opacity: touchLightboxState ? "0" : undefined,
-                }}
-            >
-                <OverlayScopeContextProvider
-                // We render an overlay scope here so that a focus ring around the reply
-                // preview will render underneath the replying message instead of on top.
-                //
-                // TODO(calebmer): An `<OverlayScopeContextProvider>` for just the
-                // `<FocusRing>` seems a little overkill. I wonder if instead there's some prop
-                // we could design for `<FocusRing>`?
+            <FocusRing>
+                <div
+                    // This is a simulated link. When the user clicks on it our code navigates us
+                    // to the right message instead of relying on browser URL navigation.
+                    //
+                    // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                    role="link"
+                    tabIndex={0}
+                    className={sprinkles({
+                        maxWidth: "full",
+                        marginTop: "1",
+                        // Intentionally using `paragraphMargin` instead of `standaloneBlockMargin`
+                        // since `standaloneBlockMargin` is too much margin for one line responses.
+                        marginBottom: contentStyles.paragraphMargin,
+                        // We don't use a pointer cursor for buttons in our product because buttons
+                        // they clearly appear clickable. We call this a strong affordance. A reply
+                        // preview is clickable and gives some affordance (different color) but it's a
+                        // weak affordance. So we use a pointer to make this element unambiguously
+                        // clickable.
+                        //
+                        // Also, this element is semantically a link which the pointer cursor was
+                        // originally designed for.
+                        //
+                        // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        cursor: "pointer",
+                    })}
+                    onClick={() => onJumpToMessage(parentMessage)}
+                    onKeyDown={event => {
+                        if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onJumpToMessage(parentMessage);
+                            return;
+                        }
+                    }}
                 >
-                    <FocusRing>
-                        <div
-                            // This is a simulated link. When the user clicks on it our code navigates us
-                            // to the right message instead of relying on browser URL navigation.
-                            //
-                            // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
-                            role="link"
-                            tabIndex={0}
-                            className={sprinkles({
-                                position: "relative",
-                                zIndex: "0",
-                                maxWidth: "full",
-                                overflow: "hidden",
-                                display: "inline-block",
-                                paddingX: messageViewBubblePaddingX,
-                                paddingTop: messageViewBubblePaddingY,
-                                paddingBottom: "5",
-                                borderRadius: messageViewBubbleBorderRadius,
-                                borderBottomLeftRadius: messageViewBubbleMergedBorderRadius,
-                                // We don't use a pointer cursor for buttons in our product because buttons
-                                // they clearly appear clickable. We call this a strong affordance. A reply
-                                // preview is clickable and gives some affordance (different color) but it's a
-                                // weak affordance. So we use a pointer to make this element unambiguously
-                                // clickable.
-                                //
-                                // Also, this element is semantically a link which the pointer cursor was
-                                // originally designed for.
-                                //
-                                // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                                cursor: "pointer",
-                            })}
+                    <blockquote
+                        className={quoteBlockClassName}
+                        style={{marginTop: 0, marginBottom: 0}}
+                    >
+                        <p
+                            className={classNames(
+                                paragraphClassName,
+                                sprinkles({overflow: "hidden", pointerEvents: "none"}),
+                            )}
                             style={{
-                                opacity: messageViewReplyPreviewOpacity,
-                                transform: `scale(${messageViewReplyPreviewScale})`,
-                                transformOrigin: "0% 0% 0",
-                            }}
-                            onClick={() => onJumpToMessage(parentMessage)}
-                            onKeyDown={event => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    onJumpToMessage(parentMessage);
-                                    return;
-                                }
+                                marginTop: 0,
+                                marginBottom: 0,
+                                // Truncate after 2 lines of text. Unofficial syntax that works in all browsers
+                                // except IE.
+                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                lineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                textOverflow: "ellipsis",
                             }}
                         >
-                            <div
-                                className={sprinkles({
-                                    position: "absolute",
-                                    inset: "0",
-                                    zIndex: "-10",
-                                    borderRadius: messageViewBubbleBorderRadius,
-                                    borderBottomLeftRadius: messageViewBubbleMergedBorderRadius,
-                                    backgroundColor: "grey-5",
-                                })}
-                                style={{
-                                    opacity: messageViewReplyPreviewBubbleOpacity,
-                                }}
-                            />
-                            <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
-                                <ContentView
-                                    withMobileLayout={withMobileLayout}
-                                    isInert={true}
-                                    isTruncated={true}
-                                    isCompact={true}
-                                    isExtraCompact={isMobile}
-                                    isBackgroundColorGrey5={true}
-                                    withUserSelectNone={true}
-                                    content={truncatedContent}
-                                    className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                                />
-                            </div>
-                        </div>
-                    </FocusRing>
-                </OverlayScopeContextProvider>
-            </div>
+                            {truncatedContent}
+                        </p>
+                    </blockquote>
+                </div>
+            </FocusRing>
         );
     }, [
         canPrimaryInputHover,
@@ -1014,7 +957,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         onJumpToMessage,
         paddingX,
         parentMessage,
-        touchLightboxState,
         withMobileLayout,
     ]);
 
@@ -1037,8 +979,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? messageViewTimestampDividerMarginTop : undefined,
-                    paddingBottom: messageViewTimestampDividerMarginBottom,
+                    paddingTop: !isFirstMessage ? messageViewMarginY : undefined,
+                    paddingBottom: messageViewMarginY,
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",
@@ -1080,65 +1022,85 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 ref={containerRef}
                 className={sprinkles({
                     width: "full",
-                    maxWidth: messageViewMaxWidth,
-                    marginX: "center",
-                    position: "relative",
-                    zIndex: "0",
+                    maxWidth: contentStyles.contentMaxWidth,
+                    paddingX,
+                    paddingBottom: marginBottom,
                 })}
-                style={{
-                    animation: shouldHighlight ? wiggleAnimation : undefined,
-                }}
-                data-testid={
-                    process.env.NODE_ENV !== "production"
-                        ? `MessageView:${
-                              message.isOptimistic
-                                  ? `optimistic:${message.optimisticId}`
-                                  : `${message.getRoomKey()}:${message.index}`
-                          }`
-                        : undefined
-                }
             >
-                {useMemo(
-                    () =>
-                        !shouldMergeWithPreviousMessage && (
+                <div
+                    className={sprinkles({
+                        marginX: "center",
+                        position: "relative",
+                        zIndex: "0",
+                        display: "flex",
+                        gap: messageView2RailGap,
+                    })}
+                    style={{
+                        animation: shouldHighlight ? wiggleAnimation : undefined,
+                    }}
+                    data-testid={
+                        process.env.NODE_ENV !== "production"
+                            ? `MessageView:${
+                                  message.isOptimistic
+                                      ? `optimistic:${message.optimisticId}`
+                                      : `${message.getRoomKey()}:${message.index}`
+                              }`
+                            : undefined
+                    }
+                >
+                    {/* NOCOMMIT: {parentMessageNode} */}
+                    {useMemo(
+                        () => (
                             <div
-                                ref={accountNameRef}
                                 className={sprinkles({
-                                    fontSize: "50",
+                                    flexShrink: "0",
+                                    width: messageView2AvatarSize,
+                                })}
+                            >
+                                {!shouldMergeWithPreviousMessage && (
+                                    <div
+                                        className={sprinkles({position: "relative"})}
+                                        style={{top: messageView2AvatarOffsetY}}
+                                    >
+                                        <AccountAvatar
+                                            account={messageAuthor}
+                                            size={messageView2AvatarSize}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        ),
+                        [messageAuthor, shouldMergeWithPreviousMessage],
+                    )}
+                    <div
+                        className={sprinkles({flexGrow: "1"})}
+                        style={{
+                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                            // have `min-width: auto` which extends with content.
+                            // https://stackoverflow.com/a/66689926/1568890
+                            minWidth: 0,
+                        }}
+                    >
+                        {!shouldMergeWithPreviousMessage && (
+                            <div
+                                className={sprinkles({
+                                    fontSize: messageView2AccountNameFontSize,
                                     fontStyle: "truncate",
-                                    paddingTop: parentMessage === null ? "0.5" : "1",
-                                    paddingBottom: parentMessage === null ? "0.5" : "1",
-                                    paddingRight: paddingX,
+                                    paddingBottom: messageView2AccountNameMarginBottom,
                                     color: "grey-50",
                                     display: "flex",
                                     alignItems: "center",
-                                    gap: "0.5",
+                                    gap: "1",
                                 })}
-                                style={{
-                                    paddingLeft: addRemLengths(
-                                        getMessageBubbleMarginLeft(
-                                            typeof paddingX === "string"
-                                                ? paddingX
-                                                : paddingX[isMobile ? "mobile" : "desktop"],
-                                        ),
-                                        parentMessage === null ? spacing["1.5"] : spacing["1"],
-                                    ),
-                                    // Hide message while lightbox is open so its blur doesn't bleed into
-                                    // the background.
-                                    opacity:
-                                        parentMessage !== null && touchLightboxState
-                                            ? "0"
-                                            : undefined,
-                                }}
                             >
                                 {parentMessage !== null && <ArrowArcLeft size={spacing["3"]} />}
                                 <span>
-                                    <AccountShortName account={message.author} />
-                                    {parentMessage !== null && (
+                                    {parentMessage === null ? (
+                                        messageAuthor.name
+                                    ) : (
                                         <>
-                                            {" "}
-                                            replied to{" "}
-                                            {message.author.id === parentMessage.author.id ? (
+                                            <AccountShortName account={messageAuthor} /> replied to{" "}
+                                            {messageAuthor.id === parentMessage.author.id ? (
                                                 "themself"
                                             ) : (
                                                 <AccountShortName account={parentMessage.author} />
@@ -1147,79 +1109,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     )}
                                 </span>
                             </div>
-                        ),
-                    [
-                        isMobile,
-                        message.author,
-                        paddingX,
-                        parentMessage,
-                        shouldMergeWithPreviousMessage,
-                        touchLightboxState,
-                    ],
-                )}
-                {parentMessageNode}
-                <div
-                    ref={hoverRef}
-                    className={sprinkles({
-                        display: "flex",
-                        paddingX,
-                        paddingBottom: !shouldMergeWithNextMessage
-                            ? messageViewMarginY
-                            : messageViewMergedMarginY,
-                        maxWidth: "full",
-                    })}
-                    style={{
-                        // The width of the element should fit its content, not extend to 100% of the
-                        // parent width. This way the hover target will just be the message, its
-                        // actions, and some padding. Moving your mouse around in empty space won't
-                        // cause a bunch of message actions to appear/disappear.
-                        width: "fit-content",
-                    }}
-                >
-                    {useMemo(
-                        () => (
-                            <div
-                                className={sprinkles({
-                                    flexShrink: "0",
-                                    paddingRight: "2",
-                                })}
-                            >
-                                <div
-                                    className={sprinkles({
-                                        width: "7",
-                                        height: "full",
-                                        display: "flex",
-                                        alignItems: "flex-end",
-                                    })}
-                                >
-                                    {!shouldMergeWithNextMessage && (
-                                        <div className={sprinkles({paddingY: "0.5"})}>
-                                            <AccountAvatar account={message.author} size="7" />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ),
-                        [message.author, shouldMergeWithNextMessage],
-                    )}
-                    {message.payload.type === "Content" ? (
-                        !messageEditingForThisMessage ? (
-                            <div
-                                className={sprinkles({
-                                    flexGrow: "1",
-                                    display: "flex",
-                                    position: "relative",
-                                    zIndex: "10",
-                                    // No pointer events so if we are a small message rendering on top of a large
-                                    // parent message then the part of the parent message that underlaps our
-                                    // message bubble is clickable.
-                                    pointerEvents: "none",
-                                })}
-                                style={{
-                                    maxWidth: `calc(100% - ${spacing["9"]})`,
-                                }}
-                            >
-                                {showTouchReplyIcon && (
+                        )}
+                        {parentMessageNode}
+                        {message.payload.type === "Content" ? (
+                            !messageEditingForThisMessage ? (
+                                /* NOCOMMIT: {showTouchReplyIcon && (
                                     <div
                                         ref={touchReplyIconRef}
                                         className={sprinkles({
@@ -1243,9 +1137,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     >
                                         <ArrowArcLeft size={spacing["3"]} />
                                     </div>
-                                )}
-                                {contentPayloadNode}
-                                <div
+                                )} */
+                                contentPayloadNode
+                            ) : (
+                                /* NOCOMMIT: <div
                                     className={sprinkles({
                                         alignSelf: "center",
                                         paddingLeft: "3",
@@ -1306,21 +1201,37 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                             )
                                         )}
                                     </div>
-                                </div>
-                            </div>
+                                </div> */
+                                <MessageViewEditor
+                                    ref={messageEditorRef}
+                                    withMobileLayout={withMobileLayout}
+                                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                                    shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                                    messageEditing={messageEditing}
+                                />
+                            )
                         ) : (
-                            <MessageViewEditor
-                                ref={messageEditorRef}
-                                withMobileLayout={withMobileLayout}
-                                messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
-                                shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                            deletedPayloadNode
+                        )}
+                    </div>
+                    {!isMobile &&
+                        !message.isOptimistic &&
+                        message.payload.type === "Content" &&
+                        !disableExpensiveFeaturesDuringScroll && (
+                            <MessageViewActions
+                                messageNoun={messageNoun}
+                                message={message}
+                                messagePayload={message.payload}
                                 messageEditing={messageEditing}
+                                isHovered={isHovered}
+                                onReplyToMessage={onReplyToMessage}
+                                onShowDeleteConfirmationDialog={() =>
+                                    setShowDeleteConfirmationDialog(true)
+                                }
+                                getMessageUrl={getMessageUrl}
                             />
-                        )
-                    ) : (
-                        deletedPayloadNode
-                    )}
+                        )}
                 </div>
             </div>
             {showDeleteConfirmationDialog && (
@@ -1330,24 +1241,23 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     onDeleteMessage={onDeleteMessage}
                 />
             )}
-            {touchLightboxState && (
-                <MessageViewTouchLightbox
-                    messageNoun={messageNoun}
-                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                    message={message}
-                    messageTextForBigEmojiMessage={messageTextForBigEmojiMessage}
-                    parentMessage={parentMessage}
-                    initialMessageTop={touchLightboxState.initialMessageTop}
-                    getMessageTop={touchLightboxState.getMessageTop}
-                    shouldMergeWithNextMessage={shouldMergeWithNextMessage}
-                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
-                    messageEditing={messageEditing}
-                    onReplyToMessage={onReplyToMessage}
-                    onShowDeleteConfirmationDialog={() => setShowDeleteConfirmationDialog(true)}
-                    getMessageUrl={getMessageUrl}
-                    onClose={() => setTouchLightboxState(null)}
-                />
-            )}
         </>
     );
 }
+
+// True for all the block nodes that get standalone block margin in
+// `content.css.ts` vs paragraph margin.
+const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: boolean} = cast<{
+    [Key in ContentBlockNodeTypeName]: boolean;
+}>({
+    paragraph: false,
+    unorderedListItem: false,
+    orderedListItem: false,
+    checkListItem: false,
+    heading: false,
+    divider: false,
+    fileFloat: false,
+    quoteBlock: true,
+    codeBlock: true,
+    fileRow: true,
+});

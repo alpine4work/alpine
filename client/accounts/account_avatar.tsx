@@ -21,7 +21,7 @@ const avatarClassName = sprinkles({
 const initialsClassName = sprinkles({
     // These are default CSS styles but make sure we don't inherit other styles
     // when in a `navigation_bar.tsx` title for instance.
-    fontSize: "75",
+    fontSize: "50",
     fontStyle: "normal",
     userSelect: "none",
 });

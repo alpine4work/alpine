@@ -374,18 +374,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     withMobileLayout: boolean;
 
     /**
-     * Should this content be rendered with our compact rendering? Compact
-     * rendering reduces some margins so content can be closer together.
-     */
-    isCompact?: boolean;
-
-    /**
-     * Should this content be rendered with our extra compact render? Extra compact
-     * rendering implies `isCompact` and decreases the paragraph font size.
-     */
-    isExtraCompact?: boolean;
-
-    /**
      * The current state of our content editor.
      *
      * Mostly the content editor state is a wrapper around ProseMirror's immutable
@@ -633,8 +621,6 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     withMobileLayout,
-    isCompact,
-    isExtraCompact,
     state,
     placeholder,
     className,
@@ -721,8 +707,6 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             <ContentView
                 isEditorInitialAppRender={true}
                 withMobileLayout={withMobileLayout}
-                isCompact={isCompact}
-                isExtraCompact={isExtraCompact}
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
@@ -760,8 +744,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         className,
         containerClassName: customContainerClassName,
         withMobileLayout: withMobileLayoutProp = false,
-        isCompact = false,
-        isExtraCompact = false,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -1069,15 +1051,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // This is the base width of code block line numbers. When scrolling left, to
                     // make sure the selection is visible we should scroll past line numbers which
                     // cover up content.
-                    convertRemLengthToPx(
-                        subtractRemLengths(
-                            spacing[contentStyles.listItemIndentation],
-                            propsRef.current.isCompact || propsRef.current.isExtraCompact
-                                ? spacing[contentStyles.compactListItemOffset]
-                                : spacing["0"],
-                        ),
-                        remPx,
-                    ),
+                    convertRemLengthToPx(spacing[contentStyles.listItemIndentation], remPx),
                 right: scrollMarginPx,
                 bottom: scrollMarginPx,
             };
@@ -3105,8 +3079,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         const classList = classNames(
             contentStyles.docClassName,
             withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
-            isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
-            isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
             className,
         ).split(" ");
         viewElement.classList.add(...classList);
@@ -3114,7 +3086,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewElement.classList.remove(...classList);
         };
-    }, [className, isCompact, isExtraCompact, withMobileLayout]);
+    }, [className, withMobileLayout]);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
@@ -4231,6 +4203,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         position="absolute"
                         left="0"
                         right="0"
+                        height="border-thick"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"
                         borderRadius="full"
@@ -4238,7 +4211,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                             left: fileDropTarget.rect.left,
                             right: `calc(100% - ${fileDropTarget.rect.right}px)`,
                             top: fileDropTarget.rect.top - 1,
-                            height: 2,
                         }}
                     />
                 ) : (
@@ -4249,6 +4221,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 : undefined
                         }
                         position="absolute"
+                        width="border-thick"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"
                         borderRadius="full"
@@ -4259,7 +4232,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 fileDropTarget.action.indicator === "Left"
                                     ? fileDropTarget.rect.left - 1
                                     : fileDropTarget.rect.right - 1,
-                            width: 2,
                         }}
                     />
                 ))}

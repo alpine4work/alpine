@@ -177,7 +177,6 @@ export function ChannelMobileEditor({
                                     <ContentEditor
                                         ref={descriptionEditorRef}
                                         aria-labelledby={descriptionLabelId}
-                                        isCompact={true}
                                         withMobileLayout={true}
                                         state={descriptionState}
                                         onChange={(state, transaction) => {

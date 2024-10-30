@@ -24,10 +24,10 @@ export const documentCommentThreadHeaderMinHeight = addRemLengths(
 );
 
 export const documentCommentThreadCountAgainstLimit = mapObjectValues(
-    messageViewMinHeight,
-    (messageViewMinHeight, platform) =>
+    messageInputMinHeight,
+    messageInputMinHeight =>
         parseRemLengthNumber(
-            addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight[platform]),
+            addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight),
         ) / parseRemLengthNumber(messageViewMinHeight),
 );
 

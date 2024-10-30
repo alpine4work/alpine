@@ -46,6 +46,7 @@ import {
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -57,10 +58,11 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 
+// NOCOMMIT: Delete this?
 export function MessageViewTouchLightbox<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
@@ -282,9 +284,10 @@ export function MessageViewTouchLightbox<
             Math.round(parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16) / 16
         }rem`;
 
+        // NOCOMMIT
         const truncatedContent = getTruncatedMessageContentForReplyPreview({
             message: parentMessage,
-            messageStartOfSentenceNoun,
+            messageNoun,
         });
 
         return (
@@ -339,13 +342,11 @@ export function MessageViewTouchLightbox<
                         <ContentView
                             isInert={true}
                             isTruncated={true}
-                            isCompact={true}
-                            isExtraCompact={isMobile}
                             isBackgroundColorGrey5={true}
                             withUserSelectNone={true}
                             // Only rendered on mobile layouts.
                             withMobileLayout={true}
-                            content={truncatedContent}
+                            content={emptyMessageContentWithReferences}
                             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                         />
                     </div>
@@ -581,8 +582,6 @@ export function MessageViewTouchLightbox<
                             >
                                 <ContentView
                                     isInert={true}
-                                    isCompact={true}
-                                    isExtraCompact={isMobile}
                                     isBackgroundColorGrey5={true}
                                     withUserSelectNone={true}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}

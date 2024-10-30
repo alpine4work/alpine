@@ -335,9 +335,6 @@ function ContentEditorCommentInput({
                         >
                             <ContentEditor
                                 ref={editorRef}
-                                isCompact={true}
-                                // Never rendered on mobile so never extra compact.
-                                isExtraCompact={false}
                                 withMobileLayout={withMobileLayout}
                                 state={commentState}
                                 onChange={setCommentState}

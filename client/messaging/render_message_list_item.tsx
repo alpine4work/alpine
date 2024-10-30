@@ -164,7 +164,7 @@ export function renderMessageListItem<
                         : item.type === "Loaded" || item.type === "Optimistic"
                         ? `Message:${item.messageIndex}`
                         : `UnloadedMessage:${item.messageIndex}`,
-                minHeight: messageViewMinHeight[isMobile ? "mobile" : "desktop"],
+                minHeight: messageViewMinHeight,
                 withManualLayout: true,
                 render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
                     if (!customRender) {
@@ -172,8 +172,7 @@ export function renderMessageListItem<
                             <div
                                 ref={ref}
                                 style={{
-                                    minHeight:
-                                        messageViewMinHeight[isMobile ? "mobile" : "desktop"],
+                                    minHeight: messageViewMinHeight,
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {

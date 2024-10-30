@@ -67,7 +67,7 @@ import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
     printContentSingleLineTextSnippet,
-    printContentSingleLineTextSnippetWithHighlighting,
+    printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
@@ -1189,10 +1189,10 @@ export async function searchByKeywords(
                 : null;
 
             let bodyTextSnippet = bodySnippet
-                ? printContentSingleLineTextSnippetWithHighlighting(
+                ? printContentSingleLineTextSnippetPreservingMarks(
                       {doc: bodySnippet, references: emptyContentReferences},
                       mark => mark.type.name === "highlight",
-                  )
+                  ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : emptyArray;
 
             const docMedia = hit.fields.media?.[0];
@@ -1521,10 +1521,10 @@ export async function searchBySemantics(
                 : null;
 
             const bodyTextSnippet = bodySnippet
-                ? printContentSingleLineTextSnippetWithHighlighting(
+                ? printContentSingleLineTextSnippetPreservingMarks(
                       {doc: bodySnippet, references: emptyContentReferences},
                       mark => mark.type.name === "highlight",
-                  )
+                  ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : [];
 
             const docMedia = hit.fields.media?.[0];

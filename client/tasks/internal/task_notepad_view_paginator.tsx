@@ -122,8 +122,8 @@ export function TaskNotepadViewPaginator({
                                                     currentTime,
                                                     date,
                                                     {
-                                                        shouldIncludeWeekday: true,
-                                                        shouldExcludeTime: true,
+                                                        withWeekday: true,
+                                                        withoutTime: true,
                                                     },
                                                 );
 
@@ -146,7 +146,7 @@ export function TaskNotepadViewPaginator({
                                                         timeZone,
                                                         currentTime,
                                                         notepadPage.date,
-                                                        {shouldIncludeWeekday: true},
+                                                        {withWeekday: true},
                                                     ),
                                             };
                                         }
@@ -169,8 +169,8 @@ export function TaskNotepadViewPaginator({
                                             currentTime,
                                             notepadPage.date,
                                             {
-                                                shouldIncludeWeekday: true,
-                                                shouldIncludeSeconds: true,
+                                                withWeekday: true,
+                                                withSeconds: true,
                                             },
                                         ),
                                     };
