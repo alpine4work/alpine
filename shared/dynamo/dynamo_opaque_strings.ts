@@ -19,6 +19,30 @@ export type DynamoItemKey = string & {readonly _DynamoItemKey: never};
 export const DynamoItemKeySchema = Schema.string as Schema<any> as Schema<DynamoItemKey>;
 
 /**
+ * An opaque string representing the partition key of a DynamoDB item. A
+ * DynamoDB item's primary key is composed of a partition key and a sort key.
+ */
+export type DynamoItemPartitionKey = string & {readonly _DynamoItemPartitionKey: never};
+
+/**
+ * An opaque string representing the sort key of a DynamoDB item. A
+ * DynamoDB item's primary key is composed of a partition key and a sort key.
+ */
+export type DynamoItemSortKey = string & {readonly _DynamoItemSortKey: never};
+
+/**
+ * An opaque string representing the partition key of a DynamoDB index. When
+ * DynamoDB items are added to an index they are given an index key that's
+ * comprised of a partition key and a sort key. This is the partition key part
+ * of that index key. `DynamoIndexCursor` contains the sort key and the rest of
+ * the item's primary key (since cursors are unique).
+ */
+export type DynamoIndexPartitionKey = string & {readonly _DynamoIndexPartitionKey: never};
+
+export const DynamoIndexPartitionKeySchema =
+    Schema.string as Schema<any> as Schema<DynamoIndexPartitionKey>;
+
+/**
  * An opaque string representing a position in a DynamoDB index.
  *
  * The lexicographic order of this string mostly corresponds to the order of

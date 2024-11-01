@@ -669,6 +669,7 @@ test("can get channel posts when there are none", async () => {
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -700,6 +701,7 @@ test("can get the first few posts in a channel", async () => {
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -752,6 +754,7 @@ test("can get the first few posts in a channel", async () => {
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -831,6 +834,7 @@ test("can get the first few posts in a channel", async () => {
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -964,6 +968,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
 
     expect(channelPostsResult).toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1119,6 +1124,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1220,6 +1226,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1348,6 +1355,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1503,6 +1511,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1604,6 +1613,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1678,6 +1688,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
         }),
     ).resolves.toEqual({
         indexName: "ChannelPosts",
+        partitionKey: expect.any(String),
         readTime: expect.any(Date),
         startCursorBound: null,
         endCursorBound: null,
@@ -1820,8 +1831,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -1831,8 +1848,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
@@ -1854,8 +1877,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
@@ -1865,8 +1894,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
@@ -1917,8 +1952,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -1928,8 +1969,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
@@ -1951,8 +1998,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
@@ -1962,8 +2015,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
@@ -1985,8 +2044,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -2026,8 +2091,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -2037,8 +2108,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
@@ -2060,8 +2137,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
@@ -2071,8 +2154,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
@@ -2094,8 +2183,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -2117,8 +2212,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
@@ -2147,8 +2248,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -2158,8 +2265,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[1]!.key,
@@ -2169,7 +2282,12 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {partitionKey: expect.any(String), cursor: expect.any(String)},
+                    ],
+                ]),
                 item: {
                     key: expect.any(String),
                     version: 0,
@@ -2190,8 +2308,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[0]!.key,
@@ -2201,8 +2325,14 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
@@ -2224,8 +2354,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel1PostsResult.items[0]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel1PostsResult.partitionKey,
+                            cursor: channel1PostsResult.items[0]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel1PostsResult.items[0]!.key,
@@ -2235,7 +2371,12 @@ test("can backfill realtime updates in a channel", async () => {
             },
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {partitionKey: expect.any(String), cursor: expect.any(String)},
+                    ],
+                ]),
                 item: {
                     key: expect.any(String),
                     version: 0,
@@ -2256,8 +2397,14 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([
-                    ["ChannelPosts", channel2PostsResult.items[1]!.cursor],
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {
+                            partitionKey: channel2PostsResult.partitionKey,
+                            cursor: channel2PostsResult.items[1]!.cursor,
+                        },
+                    ],
                 ]),
                 item: {
                     key: channel2PostsResult.items[1]!.key,
@@ -2302,7 +2449,12 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {partitionKey: expect.any(String), cursor: expect.any(String)},
+                    ],
+                ]),
                 item: {
                     key: expect.any(String),
                     version: 0,
@@ -2347,7 +2499,12 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {partitionKey: expect.any(String), cursor: expect.any(String)},
+                    ],
+                ]),
                 item: {
                     key: expect.any(String),
                     version: 1,
@@ -2496,7 +2653,12 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [
             {
                 type: "PutItem",
-                cursorByIndexName: new Map([["ChannelPosts", expect.any(String)]]),
+                indexes: new Map([
+                    [
+                        "ChannelPosts",
+                        {partitionKey: expect.any(String), cursor: expect.any(String)},
+                    ],
+                ]),
                 item: {
                     key: expect.any(String),
                     version: 6,
@@ -3417,7 +3579,8 @@ test("authorizing channel access as session actor is cached", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3443,7 +3606,7 @@ test("authorizing channel access as session actor is cached", async () => {
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3474,7 +3637,8 @@ test("authorizing channel access as system actor is cached", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3500,7 +3664,7 @@ test("authorizing channel access as system actor is cached", async () => {
         expect(getCount()).toEqual(1);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3531,7 +3695,8 @@ test("authorizing channel access after getting channel as session actor is cache
     });
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3561,7 +3726,7 @@ test("authorizing channel access after getting channel as session actor is cache
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3591,7 +3756,7 @@ test("authorizing channel access after getting channel as session actor is cache
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 });
 
 test("authorizing channel access after getting channel as system actor is cached", async () => {
@@ -3604,7 +3769,8 @@ test("authorizing channel access after getting channel as system actor is cached
     });
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3634,7 +3800,7 @@ test("authorizing channel access after getting channel as system actor is cached
         expect(getCount()).toEqual(1);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3680,7 +3846,8 @@ test("authorizing post access as session actor is cached", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3706,7 +3873,7 @@ test("authorizing post access as session actor is cached", async () => {
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session1.action();
@@ -3732,7 +3899,7 @@ test("authorizing post access as session actor is cached", async () => {
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3768,7 +3935,8 @@ test("authorizing post access as system actor is cached", async () => {
     });
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3794,7 +3962,7 @@ test("authorizing post access as system actor is cached", async () => {
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3839,7 +4007,8 @@ test("authorizing post access after getting post as session actor is cached", as
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3869,7 +4038,7 @@ test("authorizing post access after getting post as session actor is cached", as
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3899,7 +4068,7 @@ test("authorizing post access after getting post as session actor is cached", as
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3934,7 +4103,7 @@ test("authorizing post access after getting post as session actor is cached", as
         expect(getCount()).toEqual(4);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3994,7 +4163,8 @@ test("authorizing post access after getting post as system actor is cached", asy
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -4024,7 +4194,7 @@ test("authorizing post access after getting post as system actor is cached", asy
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -4054,7 +4224,7 @@ test("authorizing post access after getting post as system actor is cached", asy
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -4084,7 +4254,7 @@ test("authorizing post access after getting post as system actor is cached", asy
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -4119,7 +4289,7 @@ test("authorizing post access after getting post as system actor is cached", asy
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();

@@ -6824,6 +6824,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: null,
                 endCursorBound: null,
                 pageInfo: {
@@ -7007,6 +7008,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: expect.any(String),
                 endCursorBound: null,
                 pageInfo: {
@@ -7139,6 +7141,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: expect.any(String),
                 endCursorBound: null,
                 pageInfo: {
@@ -7244,6 +7247,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: null,
                 endCursorBound: expect.any(String),
                 pageInfo: {
@@ -7402,6 +7406,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: null,
                 endCursorBound: expect.any(String),
                 pageInfo: {
@@ -12105,7 +12110,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 otherPostAuthor: null,
                             }),
                         },
-                        cursorByIndexName: expect.any(Map),
+                        indexes: expect.any(Map),
                     },
                 ],
             });
@@ -12174,7 +12179,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 otherPostAuthor: null,
                             }),
                         },
-                        cursorByIndexName: expect.any(Map),
+                        indexes: expect.any(Map),
                     },
                 ],
             });

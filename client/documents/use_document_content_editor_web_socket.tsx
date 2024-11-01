@@ -87,7 +87,6 @@ export function useDocumentContentEditorWebSocket(
 ): {
     spaceId: SpaceId;
     isConnected: boolean;
-    isSaving: boolean;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     onChangeEditorState: Memo<
         (editorState: ContentEditorState<DocumentContentWithReferences>) => void

@@ -3570,7 +3570,8 @@ test("authorizing chat access as session actor is cached", async () => {
         otherAccountIds: [session2.account.id],
     });
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3596,7 +3597,7 @@ test("authorizing chat access as session actor is cached", async () => {
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3626,7 +3627,8 @@ test("authorizing chat access as system actor is cached", async () => {
         otherAccountIds: [session2.account.id],
     });
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3652,7 +3654,7 @@ test("authorizing chat access as system actor is cached", async () => {
         expect(getCount()).toEqual(1);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3682,7 +3684,8 @@ test("authorizing chat access after getting chat as session actor is cached", as
         otherAccountIds: [session2.account.id],
     });
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3712,7 +3715,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3742,7 +3745,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3777,7 +3780,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -3822,7 +3825,8 @@ test("authorizing chat access after getting chat as system actor is cached", asy
         otherAccountIds: [session2.account.id],
     });
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -3852,7 +3856,7 @@ test("authorizing chat access after getting chat as system actor is cached", asy
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();

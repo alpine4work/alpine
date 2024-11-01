@@ -44,7 +44,7 @@ export default implementRpcs(definitions, {
                 context,
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction();
+            return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },
 
@@ -55,7 +55,7 @@ export default implementRpcs(definitions, {
                 context,
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction();
+            return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },
 
@@ -64,7 +64,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {getDynamoGeneralRealtimeEventTransaction} =
                 await updateChannelNameAndDescription(context, input);
-            return getDynamoGeneralRealtimeEventTransaction();
+            return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },
 
@@ -119,7 +119,7 @@ export default implementRpcs(definitions, {
                     spaceId,
                     createdTime,
                 },
-                ...(await getDynamoGeneralRealtimeEventTransaction()),
+                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
             };
         },
     },
@@ -131,7 +131,7 @@ export default implementRpcs(definitions, {
                 await updatePostContent(context.actor.authorizeSession(), input);
             return {
                 contentUpdatedTime,
-                ...(await getDynamoGeneralRealtimeEventTransaction()),
+                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
             };
         },
     },

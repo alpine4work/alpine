@@ -123,8 +123,8 @@ const FilesTable = DynamoTableSchema.new({
                  */
                 // TODO(calebmer): At some point we'll need to implement a file garbage
                 // collector. For example, you add a file to a document then you delete the
-                // file from the document. That file should eventually be removed from our
-                // database and not count against your space byte count.
+                // document. That file should eventually be removed from our database and not
+                // count against your space byte count.
                 {
                     name: "File",
                     sortKeyAttributes: {

@@ -19557,7 +19557,8 @@ test("authorizing task access as session actor is cached", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -19583,7 +19584,7 @@ test("authorizing task access as session actor is cached", async () => {
         expect(getCount()).toEqual(3);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -19614,7 +19615,8 @@ test("authorizing task access as system actor is cached", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -19640,7 +19642,7 @@ test("authorizing task access as system actor is cached", async () => {
         expect(getCount()).toEqual(1);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -19671,7 +19673,8 @@ test("authorizing task access after getting task as session actor is cached", as
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -19704,7 +19707,7 @@ test("authorizing task access after getting task as session actor is cached", as
         expect(getCount()).toEqual(4);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -19739,7 +19742,7 @@ test("authorizing task access after getting task as session actor is cached", as
         expect(getCount()).toEqual(4);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = session2.action();
@@ -19785,7 +19788,8 @@ test("authorizing task access after getting task as system actor is cached", asy
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -19815,7 +19819,7 @@ test("authorizing task access after getting task as system actor is cached", asy
         expect(getCount()).toEqual(1);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -19848,7 +19852,7 @@ test("authorizing task access after getting task as system actor is cached", asy
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();
@@ -19883,7 +19887,7 @@ test("authorizing task access after getting task as system actor is cached", asy
         expect(getCount()).toEqual(2);
     }
 
-    resetCount();
+    dynamoClientExecuteActionTestCounter.resetForTest();
 
     {
         const actionContext = space.systemAction();

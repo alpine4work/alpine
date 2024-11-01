@@ -34,7 +34,13 @@ import {isDynamoResourceInUseError} from "~/server/dynamo/core/is_dynamo_resourc
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/core/is_dynamo_resource_not_found_error.js";
 import {isDynamoValidationError} from "~/server/dynamo/core/is_dynamo_validation_exception.js";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility.js";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    DynamoIndexCursor,
+    DynamoIndexPartitionKey,
+    DynamoItemKey,
+    DynamoItemPartitionKey,
+    DynamoItemSortKey,
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
     DataLossError,
     InternalError,
@@ -501,12 +507,23 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 });
             }
 
+            // The developer may disable compatibility errors in tests in order to unit
+            // test functionality in `DynamoTableSchema` itself.
+            let withoutCompatibilityErrors = false;
+            if (config.withoutCompatibilityErrorsForTest) {
+                assert(import.meta.jest);
+                assert(config.name === "Test" || config.name.startsWith("Test_"));
+                withoutCompatibilityErrors = true;
+            }
+
             this._initializationState = {
                 isInitialized: true,
                 indexConfigsByItemType: this._initializationState.indexConfigsByItemType,
                 description: description,
-                readCompatibilityError: readCompatibilityError,
-                writeCompatibilityError: writeCompatibilityError,
+                readCompatibilityError: !withoutCompatibilityErrors ? readCompatibilityError : null,
+                writeCompatibilityError: !withoutCompatibilityErrors
+                    ? writeCompatibilityError
+                    : null,
                 partitionNamesById,
             };
         });
@@ -541,6 +558,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public getPartitionKeyAttributes(partitionType: string) {
         return assertExists(this._partitionConfigByName.get(partitionType)).partitionKeyAttributes;
+    }
+
+    /**
+     * Return the partition key attributes and sort key attributes for a given
+     * partition. Throws an error if the partition or sort range doesn't exist.
+     */
+    public getKeyAttributes(partitionType: string, sortRangeType: string) {
+        const partitionConfig = assertExists(this._partitionConfigByName.get(partitionType));
+
+        return {
+            partitionKeyAttributes: partitionConfig.partitionKeyAttributes,
+            sortKeyAttributes: assertExists(partitionConfig.sortRangeByName.get(sortRangeType))
+                .sortKeyAttributes,
+        };
     }
 
     private _ensureLocalTablePromise: Promise<void> | null = null;
@@ -976,15 +1007,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         };
     }
 
-    /**
-     * Serialize the item key into an opaque string that can be conveniently shared
-     * with clients.
-     *
-     * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's
-     * primary key.
-     */
-    public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
+    private _serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): {
+        bytes: Uint8Array;
+        partitionKeyByteCount: number;
+    } {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._partitionConfigByName.get(key.partitionType);
         const partitionDescription =
@@ -1007,6 +1033,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
             totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
         }
+
+        const partitionKeyByteCount = totalByteCount;
 
         totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
             sortRangeDescription.orderKey,
@@ -1054,6 +1082,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
+        return {bytes, partitionKeyByteCount};
+    }
+
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
+        const {bytes} = this._serializeOpaqueItemKey(key);
+
         const opaqueString = encodeBase64(
             bytes,
             "Rfc4648UrlWithOrderPreservation",
@@ -1070,6 +1112,125 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         return opaqueString;
+    }
+
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients. Generates just the partition key which may be useful.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemKeyAndPartitionKey(key: Types["ItemKey"] | Types["Item"]): {
+        partitionKey: DynamoItemPartitionKey;
+        key: DynamoItemKey;
+    } {
+        const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
+
+        const opaqueKeyString = encodeBase64(
+            bytes,
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemKey;
+
+        const opaquePartitionKeyString = encodeBase64(
+            bytes.subarray(0, partitionKeyByteCount),
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemPartitionKey;
+
+        // In development and test environments, make sure we can deserialize our
+        // opaque keys.
+        if (process.env.NODE_ENV !== "production") {
+            const deserializedKey = this.deserializeOpaqueItemKey(opaqueKeyString);
+            assert(
+                isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
+                "Couldn't deserialize opaque item key",
+            );
+        }
+
+        return {
+            partitionKey: opaquePartitionKeyString,
+            key: opaqueKeyString,
+        };
+    }
+
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients. Also generates the partition key and sort key which may be
+     * useful.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemKeyAndPartitionKeyAndSortKey(key: Types["ItemKey"] | Types["Item"]): {
+        partitionKey: DynamoItemPartitionKey;
+        sortKey: DynamoItemSortKey;
+        key: DynamoItemKey;
+    } {
+        const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
+
+        const opaqueKeyString = encodeBase64(
+            bytes,
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemKey;
+
+        const opaquePartitionKeyString = encodeBase64(
+            bytes.subarray(0, partitionKeyByteCount),
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemPartitionKey;
+
+        const opaqueSortKeyString = encodeBase64(
+            bytes.subarray(partitionKeyByteCount),
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemSortKey;
+
+        // In development and test environments, make sure we can deserialize our
+        // opaque keys.
+        if (process.env.NODE_ENV !== "production") {
+            const deserializedKey = this.deserializeOpaqueItemKey(opaqueKeyString);
+            assert(
+                isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
+                "Couldn't deserialize opaque item key",
+            );
+        }
+
+        return {
+            partitionKey: opaquePartitionKeyString,
+            sortKey: opaqueSortKeyString,
+            key: opaqueKeyString,
+        };
+    }
+
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients. Generates just the partition key and sort key which may be
+     * useful.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemPartitionKeyAndSortKey(key: Types["ItemKey"] | Types["Item"]): {
+        partitionKey: DynamoItemPartitionKey;
+        sortKey: DynamoItemSortKey;
+    } {
+        const {bytes, partitionKeyByteCount} = this._serializeOpaqueItemKey(key);
+
+        const opaquePartitionKeyString = encodeBase64(
+            bytes.subarray(0, partitionKeyByteCount),
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemPartitionKey;
+
+        const opaqueSortKeyString = encodeBase64(
+            bytes.subarray(partitionKeyByteCount),
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemSortKey;
+
+        return {
+            partitionKey: opaquePartitionKeyString,
+            sortKey: opaqueSortKeyString,
+        };
     }
 
     /**
@@ -1144,6 +1305,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 key[attributeKey] = value;
             }
 
+            assert(bytesIndex === bytes.length, "String has more bytes that weren't used");
+
             return key;
         } catch (error) {
             throw InvalidArgumentError.from(error, "Invalid opaque item key");
@@ -1160,7 +1323,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public serializeOpaqueItemPartitionKey(
         key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
-    ): string {
+    ): DynamoItemPartitionKey {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._partitionConfigByName.get(key.partitionType);
         const partitionDescription =
@@ -1193,7 +1356,67 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             bytesIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemKey;
+        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemPartitionKey;
+    }
+
+    /**
+     * Serialize just the sort key part of the item key into an opaque string
+     * that can be conveniently shared with clients.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemSortKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemSortKey {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
+        const partitionDescription =
+            this._initializationState.description.partitionByType[key.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
+        const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
+        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+        let totalByteCount = 0;
+
+        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
+            sortRangeDescription.orderKey,
+        );
+        totalByteCount++;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
+        }
+
+        const bytes = new Uint8Array(totalByteCount);
+        let byteIndex = 0;
+
+        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
+            sortRangeDescription.orderKey,
+            bytes,
+            byteIndex,
+        );
+        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
+            sortRangeDescription.orderKey,
+        );
+
+        bytes[byteIndex++] = sortRangeDescription.id;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            const attributeValue = key[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+            byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemSortKey;
     }
 
     /**
@@ -1781,6 +2004,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public async directlyUpdateItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
+        {condition}: {condition?: DynamoCondition<Item>} = {},
     ): Promise<Item> {
         const newItem: Item = {
             ...item,
@@ -1789,14 +2013,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 typeof item.updateLockVersion === "number" ? item.updateLockVersion + 1 : 1,
         };
 
+        // Verify that the lock version was not changed by a concurrent writer.
+        const updateLockVersionCondition = DynamoConditionExpression.from<Item>({
+            updateLockVersion:
+                typeof item.updateLockVersion === "number"
+                    ? DynamoConditionExpression.eq(item.updateLockVersion)
+                    : DynamoConditionExpression.exists().not(),
+        });
+
         await this._putItem(context, newItem, {
-            condition: {
-                // Verify that the lock version was not changed by a concurrent writer.
-                updateLockVersion:
-                    typeof item.updateLockVersion === "number"
-                        ? DynamoConditionExpression.eq(item.updateLockVersion)
-                        : DynamoConditionExpression.exists().not(),
-            },
+            condition: condition
+                ? updateLockVersionCondition.and(DynamoConditionExpression.from(condition))
+                : updateLockVersionCondition,
             // This operation implements an optimistic locking scheme. Retrying the
             // operation should read the latest item version and eventually succeed.
             isConditionCheckErrorRetriable: true,
@@ -2143,8 +2371,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public transactionCreateItem<Item extends Types["Item"]>(
         item: Item,
         {
+            isConditionCheckErrorRetriable = false,
             onAfterTransactionExecutedSuccessfully,
         }: {
+            isConditionCheckErrorRetriable?: boolean;
             onAfterTransactionExecutedSuccessfully?: () => void;
         } = {},
     ): DynamoTransactionEntry {
@@ -2156,7 +2386,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // Calling `createItem()` has the intent of there is a new item I want to
             // create. It should not be used to implement upserts. Use
             // `createOrReplaceItem()` or `updateItem()` for that.
-            isConditionCheckErrorRetriable: false,
+            isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
         });
     }
@@ -2241,7 +2471,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
+        {condition}: {condition?: DynamoCondition<Item>} = {},
     ): DynamoTransactionEntry {
+        // Verify that the lock version was not changed by a concurrent writer.
+        const updateLockVersionCondition = DynamoConditionExpression.from<Item>({
+            updateLockVersion:
+                typeof item.updateLockVersion === "number"
+                    ? DynamoConditionExpression.eq(item.updateLockVersion)
+                    : DynamoConditionExpression.exists().not(),
+        });
+
         return this._transactionPutItem(
             {
                 ...item,
@@ -2250,13 +2489,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     typeof item.updateLockVersion === "number" ? item.updateLockVersion + 1 : 1,
             },
             {
-                condition: {
-                    // Verify that the lock version was not changed by a concurrent writer.
-                    updateLockVersion:
-                        typeof item.updateLockVersion === "number"
-                            ? DynamoConditionExpression.eq(item.updateLockVersion)
-                            : DynamoConditionExpression.exists().not(),
-                },
+                condition: condition
+                    ? updateLockVersionCondition.and(DynamoConditionExpression.from(condition))
+                    : updateLockVersionCondition,
                 // This operation implements an optimistic locking scheme. Retrying the
                 // operation should read the latest item version and eventually succeed.
                 isConditionCheckErrorRetriable: true,
@@ -3247,8 +3482,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
-            serializeOpaqueItemPartitionKey: partitionKey =>
-                this._serializeOpaqueIndexItemPartitionKey(indexConfig, partitionKey),
+            serializeOpaquePartitionKey: partitionKey =>
+                this._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey),
+            deserializeOpaquePartitionKey: partitionKey =>
+                this._deserializeOpaqueIndexPartitionKey(indexConfig, partitionKey) as any,
             serializeOpaqueCursor: itemKey =>
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
@@ -3441,8 +3678,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
-            serializeOpaqueItemPartitionKey: partitionKey =>
-                this._serializeOpaqueIndexItemPartitionKey(indexConfig, partitionKey),
+            serializeOpaquePartitionKey: partitionKey =>
+                this._serializeOpaqueIndexPartitionKey(indexConfig, partitionKey),
+            deserializeOpaquePartitionKey: partitionKey =>
+                this._deserializeOpaqueIndexPartitionKey(indexConfig, partitionKey) as any,
             serializeOpaqueCursor: itemKey =>
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
@@ -3988,10 +4227,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return key;
     }
 
-    private _serializeOpaqueIndexItemPartitionKey(
+    private _serializeOpaqueIndexPartitionKey(
         indexConfig: DynamoTableSchemaIndexConfig,
         partitionKey: {[key: string]: unknown},
-    ): string {
+    ): DynamoIndexPartitionKey {
         let totalByteCount = 0;
 
         for (const [attributeKey, attributeSchema] of Object.entries(
@@ -4016,7 +4255,63 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             bytesIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemKey;
+        const partitionKeyString = encodeBase64(
+            bytes,
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoIndexPartitionKey;
+
+        // In development and test environments, make sure we can deserialize our
+        // opaque keys.
+        if (process.env.NODE_ENV !== "production") {
+            const deserializedKey = this._deserializeOpaqueIndexPartitionKey(
+                indexConfig,
+                partitionKeyString,
+            );
+            assert(
+                isDeepEqual(
+                    pickObject(partitionKey, Object.keys(deserializedKey)),
+                    deserializedKey,
+                ),
+                "Couldn't deserialize opaque item key",
+            );
+        }
+
+        return partitionKeyString;
+    }
+
+    private _deserializeOpaqueIndexPartitionKey(
+        indexConfig: DynamoTableSchemaIndexConfig,
+        partitionKeyString: DynamoIndexPartitionKey,
+    ): {[key: string]: unknown} {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
+        try {
+            const bytes = decodeBase64(partitionKeyString, "Rfc4648UrlWithOrderPreservation");
+
+            const partitionKey: any = {};
+            let bytesIndex = 0;
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                indexConfig.partitionKeyAttributes,
+            )) {
+                if (!attributeSchema.binary) {
+                    throw new UnimplementedError(
+                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    );
+                }
+
+                const value = attributeSchema.binary.deserializeBytes(bytes, bytesIndex);
+                bytesIndex += attributeSchema.binary.getByteCount(value);
+
+                partitionKey[attributeKey] = value;
+            }
+
+            assert(bytesIndex === bytes.length, "String has more bytes that weren't used");
+
+            return partitionKey;
+        } catch (error) {
+            throw InvalidArgumentError.from(error, "Invalid opaque index partition key");
+        }
     }
 
     // NOTE(calebmer): We don't include the index partition key in the cursor! Only
@@ -4305,6 +4600,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
             }
 
+            assert(bytesIndex === bytes.length, "String has more bytes that weren't used");
+
             return key;
         } catch (error) {
             throw InvalidArgumentError.from(error, "Invalid opaque index cursor");
@@ -4575,11 +4872,21 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * a client then the client should be able to see all data in the item's index
      * partition key.
      */
-    serializeOpaqueItemPartitionKey(
+    serializeOpaquePartitionKey(
         // Allow method to be dereferenced without binding `this`.
         this: void,
         partitionKey: IndexPartitionKey,
-    ): string;
+    ): DynamoIndexPartitionKey;
+
+    /**
+     * Deserialize the index partition key from an opaque string received from the
+     * client back to an object containing all of the partition key's properties.
+     */
+    deserializeOpaquePartitionKey(
+        // Allow method to be dereferenced without binding `this`.
+        this: void,
+        partitionKey: DynamoIndexPartitionKey,
+    ): IndexPartitionKey;
 
     /**
      * Serialize the item key into an opaque string that can be conveniently shared

@@ -18,7 +18,6 @@ import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/client/st
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];

@@ -1,3 +1,4 @@
+import {FileModel} from "~/shared/files/file_model.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -29,5 +30,12 @@ export class ChannelPreviewModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         createdTime: Schema.date,
         name: LabelStringSchema,
+    }),
+) {}
+
+export class ChannelPostFilesModel extends Model(
+    Schema.object({
+        channelId: Schema.id<ChannelId>(),
+        files: Schema.array(FileModel.schema()).minLength(1),
     }),
 ) {}

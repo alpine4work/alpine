@@ -3,6 +3,10 @@ load("//server/dynamo/core:dynamo_core_visibility.bzl", "DYNAMO_CORE_VISIBILITY"
 
 ts_project(
     name = "general_realtime",
+    test_deps = [
+        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+    ],
     # All packages in `DYNAMO_CORE_VISIBILITY` also may access `general_realtime`.
     # Since these packages are already being scanned for DynamoDB tables.
     visibility = [

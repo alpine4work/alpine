@@ -175,8 +175,8 @@ export function PostCommentInput({
                             item: post,
                             // NOTE(calebmer): Right now when `shouldBeConnectedToChannelRealtime` is false
                             // we're updating an individual post instead of posts backed by an index
-                            // query. So we don't need `cursorByIndexName` for now.
-                            cursorByIndexName: new Map(),
+                            // query. So we don't need `indexes` for now.
+                            indexes: new Map(),
                         },
                     ],
                 });

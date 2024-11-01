@@ -14,7 +14,6 @@ import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.j
 import {playIconSvg} from "~/client/icons/play_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {
-    contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
     spinAnimationClassName,
     sprinkles,

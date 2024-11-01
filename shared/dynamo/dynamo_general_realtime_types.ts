@@ -1,6 +1,8 @@
 import {
     DynamoIndexCursor,
     DynamoIndexCursorSchema,
+    DynamoIndexPartitionKey,
+    DynamoIndexPartitionKeySchema,
     DynamoItemKey,
     DynamoItemKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
@@ -71,10 +73,16 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
 
     /**
      * What is the name of the index that provides the order for this query? You
-     * will compare this against the index names in `cursorByIndexName` from
+     * will compare this against the index names in `event.indexes` from
      * `DynamoGeneralRealtimeEvent`. You can not compare cursors across indexes.
      */
     readonly indexName: string;
+
+    /**
+     * The index partition key this query result is for. An item can only be in one
+     * index partition at a time.
+     */
+    readonly partitionKey: DynamoIndexPartitionKey;
 
     /**
      * The upper bound of items we should expect in this query.
@@ -136,6 +144,7 @@ export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
     return Schema.object({
         readTime: Schema.date,
         indexName: Schema.string,
+        partitionKey: DynamoIndexPartitionKeySchema,
         startCursorBound: Schema.string.nullable(),
         endCursorBound: Schema.string.nullable(),
         pageInfo: Schema.union({
@@ -168,14 +177,16 @@ export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
  * numbers for items so that you can apply the events in the correct order no
  * matter the order in which they arrive.
  */
-// TODO(calebmer): This should eventually get a delete event.
-export type DynamoGeneralRealtimeEvent<Model> = DynamoGeneralRealtimePutItemEvent<Model>;
+export type DynamoGeneralRealtimeEvent<Model> =
+    | DynamoGeneralRealtimePutItemEvent<Model>
+    | DynamoGeneralRealtimeDeleteItemEvent;
 
 export function createDynamoGeneralRealtimeEventSchema<Model>(
     ModelSchema: Schema<Model>,
 ): Schema<DynamoGeneralRealtimeEvent<Model>> {
     return Schema.union({
         PutItem: createDynamoGeneralRealtimePutItemEventSchema(ModelSchema),
+        DeleteItem: DynamoGeneralRealtimeDeleteItemEventSchema,
     });
 }
 
@@ -185,8 +196,13 @@ export function createDynamoGeneralRealtimeEventSchema<Model>(
 export type DynamoGeneralRealtimePutItemEvent<Model> = {
     readonly type: "PutItem";
     readonly item: DynamoGeneralRealtimeItem<Model>;
-    readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
+    readonly indexes: DynamoGeneralRealtimePutItemEventIndexes;
 };
+
+export type DynamoGeneralRealtimePutItemEventIndexes = ReadonlyMap<
+    string,
+    {readonly partitionKey: DynamoIndexPartitionKey; readonly cursor: DynamoIndexCursor}
+>;
 
 function createDynamoGeneralRealtimePutItemEventSchema<Model>(
     _ModelSchema: Schema<Model>,
@@ -197,9 +213,36 @@ function createDynamoGeneralRealtimePutItemEventSchema<Model>(
     return Schema.object({
         type: Schema.value("PutItem"),
         item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
-        cursorByIndexName: Schema.map(Schema.string, DynamoIndexCursorSchema),
+        indexes: Schema.map(
+            Schema.string,
+            Schema.object({
+                partitionKey: DynamoIndexPartitionKeySchema,
+                cursor: DynamoIndexCursorSchema,
+            }),
+        ),
     });
 }
+
+/**
+ * Event for when an item is deleted.
+ */
+export type DynamoGeneralRealtimeDeleteItemEvent = {
+    readonly type: "DeleteItem";
+    readonly item: {
+        readonly key: DynamoItemKey;
+        readonly version: number;
+    };
+    readonly indexes: ReadonlySet<string>;
+};
+
+const DynamoGeneralRealtimeDeleteItemEventSchema = Schema.object({
+    type: Schema.value("DeleteItem"),
+    item: Schema.object({
+        key: DynamoItemKeySchema,
+        version: Schema.integer.min(0),
+    }),
+    indexes: Schema.set(Schema.string),
+});
 
 export type DynamoGeneralRealtimeBackfillResult<Model> =
     | {

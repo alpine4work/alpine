@@ -816,6 +816,15 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         let nodeByOrderKey = this._nodeByOrderKey;
 
         for (const event of eventTransaction) {
+            // The `deleteItem()` operation is disabled for posts.
+            //
+            // NOTE(calebmer, 2024-11-01): We may enable `deleteItem()` on posts in the
+            // future. But right now my idea for deleting posts is to leave the post in the
+            // database but delete its content. Since we don't want to delete comments on
+            // the post. If that's the case we should never receive a `DeleteItem` event
+            // for a post.
+            if (event.type === "DeleteItem") continue;
+
             cast<"PutItem">(event.type);
 
             // We only care about posts...

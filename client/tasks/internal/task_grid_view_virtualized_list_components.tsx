@@ -26,7 +26,6 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
-    desktopTaskRowViewStatusButtonWidthRem,
     taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
     taskRowViewCollectionsColumnWidth,

@@ -29,6 +29,7 @@ import {
     FileAuthorizer,
     attachFileFromAttachment,
     detachFile,
+    getFileFromAttachment,
     getPostDraftFileAttachments,
 } from "~/server/files/data/files_table.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -46,7 +47,6 @@ import {
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
-import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -54,6 +54,7 @@ import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
+    DynamoGeneralRealtimePutItemEvent,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
@@ -64,7 +65,12 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {
+    ChannelModel,
+    ChannelPostFilesModel,
+    ChannelPreviewModel,
+} from "~/shared/forum/channel_model.js";
 import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {
     PostContent,
@@ -83,6 +89,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -99,6 +106,7 @@ import {
     AccountId,
     ChannelId,
     ContentMentionAccountId,
+    FileId,
     PostDraftId,
     PostId,
     SpaceId,
@@ -110,6 +118,7 @@ import {
     emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -138,12 +147,11 @@ export type ForumSystemActionContextWithBroadcast =
     Context<ForumSystemActionContextModulesWithBroadcast>;
 
 const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
-    // Disable table-level realtime queries
-    // (e.g. `ForumRealtimeTable.realtimeQuery()`) to reduce the number of WCUs
-    // whenever an update is made to this table since we only ever query through
-    // an index.
-    isTableRealtimeQueryDisabled: true,
-
+    // Enable optional features we use that may incur extra costs.
+    features: {
+        realtimeQuery: {Channel: true},
+        deleteItem: {Channel: {PostFiles: true}},
+    },
     name: "ForumRealtime",
     partitions: [
         {
@@ -169,6 +177,23 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                         /** A description for the channel which will appear in a sidebar. */
                         description: MessageContentSchema.default(emptyMessageContent),
+                    }),
+                },
+
+                /**
+                 * For each post with files we create a `PostFiles` item. These items are keyed
+                 * by `postCreatedTime` so they're sorted by created date. We use this to show
+                 * all files added to a channel.
+                 */
+                {
+                    name: "PostFiles",
+                    sortKeyAttributes: {
+                        postCreatedTime: DynamoKeyAttributeSchema.date.reverse(),
+                        postId: DynamoKeyAttributeSchema.id<PostId>(),
+                    },
+                    attributes: Schema.object({
+                        spaceId: Schema.id<SpaceId>(),
+                        fileIds: Schema.set(Schema.id<FileId>()).minSize(1),
                     }),
                 },
             ],
@@ -281,12 +306,32 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     ],
     modelSchema: createModelUnionSchema({
         Channel: ChannelModel,
+        ChannelPostFiles: ChannelPostFilesModel,
         Post: PostModel,
     }),
     models: {
         Channel: {
             Attributes: {
                 build: (context, item) => createChannelModelFromItem(context, item),
+            },
+            PostFiles: {
+                build: async (context, item) => {
+                    const files: Array<FileModel> = await runAllPromises(
+                        mapIterable(item.fileIds, fileId =>
+                            getFileFromAttachment(
+                                context,
+                                item.spaceId,
+                                fileId,
+                                FilePostAuthorizer.bind({type: "Post", postId: item.postId}),
+                            ),
+                        ),
+                    );
+
+                    return new ChannelPostFilesModel({
+                        channelId: item.channelId,
+                        files,
+                    });
+                },
             },
         },
         Post: {
@@ -313,7 +358,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // atomically.
         const eventTransactionByChannelId = new Map<
             ChannelId,
-            Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel>>
+            Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel | ChannelPostFilesModel>>
         >();
 
         // We also send post updates to the corresponding post durable object. That way
@@ -344,33 +389,78 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             Array<DynamoGeneralRealtimeEvent<PostModel>>
         >();
 
-        for (const event of eventTransaction) {
-            if (
-                !(event.item.model instanceof ChannelModel) ||
-                // Don't broadcast channel creation events but we do want to broadcast post
-                // creation events.
-                event.item.version > 0
-            ) {
-                getOrSetDefaultMapValue(
-                    eventTransactionByChannelId,
-                    event.item.model instanceof ChannelModel
-                        ? event.item.model.id
-                        : event.item.model.channel.id,
-                    () => [],
-                ).push(event);
-            }
+        for (const eventEntry of eventTransaction) {
+            if (eventEntry.itemKey.partitionType === "Channel") {
+                const isChannelCreationEvent =
+                    eventEntry.itemKey.sortRangeType === "Attributes" &&
+                    eventEntry.event.item.version === 0;
 
-            if (
-                event.item.model instanceof PostModel &&
-                // Post creation events are broadcasted to the channel durable object but not
-                // the post durable object.
-                event.item.version > 0
-            ) {
-                getOrSetDefaultMapValue(
-                    eventTransactionByPostId,
-                    event.item.model.id,
-                    () => [],
-                ).push(event as DynamoGeneralRealtimeEvent<PostModel>);
+                // Optimization: Don't broadcast channel creation events to channel durable
+                // objects. No one will be subscribed to the channel durable object before the
+                // channel is created.
+                if (!isChannelCreationEvent) {
+                    getOrSetDefaultMapValue(
+                        eventTransactionByChannelId,
+                        eventEntry.itemKey.channelId,
+                        () => [],
+                    ).push(eventEntry.event);
+                }
+            } else {
+                const isPostCreationEvent =
+                    eventEntry.itemKey.partitionType === "Post" &&
+                    eventEntry.itemKey.sortRangeType === "Attributes" &&
+                    eventEntry.event.item.version === 0;
+
+                // Optimization: Don't broadcast post creation events to post durable
+                // objects. No one will be subscribed to the post durable object before the
+                // post is created.
+                if (!isPostCreationEvent) {
+                    getOrSetDefaultMapValue(
+                        eventTransactionByPostId,
+                        eventEntry.itemKey.postId,
+                        () => [],
+                    ).push(eventEntry.event as DynamoGeneralRealtimeEvent<PostModel>);
+                }
+
+                const {oldValue: oldChannelId, newValue: newChannelId} =
+                    ChannelPostsIndex.getPartitionKeyAttributeFromEvent("channelId", eventEntry);
+
+                // Send post realtime updates to the channel realtime stream the post is a
+                // part of.
+                if (newChannelId !== undefined) {
+                    getOrSetDefaultMapValue(
+                        eventTransactionByChannelId,
+                        newChannelId,
+                        () => [],
+                    ).push(eventEntry.event);
+                }
+
+                // If the channel changed then we should send a delete event to the old channel
+                // so the post doesn't stick around. We send a delete event because it would be
+                // a permission violation to show send the client full item data it doesn't
+                // have access to.
+                //
+                // TODO(calebmer, 2024-11-01): We haven't implemented moving posts between
+                // channels. Once that's implemented it would be good to write a test that
+                // makes sure the post is removed in realtime from its old channel.
+                if (oldChannelId !== undefined && oldChannelId !== newChannelId) {
+                    getOrSetDefaultMapValue(
+                        eventTransactionByChannelId,
+                        oldChannelId,
+                        () => [],
+                    ).push(
+                        eventEntry.event.type !== "DeleteItem"
+                            ? {
+                                  type: "DeleteItem",
+                                  item: {
+                                      key: eventEntry.event.item.key,
+                                      version: eventEntry.event.item.version,
+                                  },
+                                  indexes: new Set(eventEntry.event.indexes.keys()),
+                              }
+                            : eventEntry.event,
+                    );
+                }
             }
         }
 
@@ -601,6 +691,12 @@ type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
     typeof ForumRealtimeTable,
     "Post",
     "Attributes"
+>;
+
+type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Channel",
+    "PostFiles"
 >;
 
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
@@ -898,7 +994,9 @@ export async function createChannel(
 ): Promise<{
     id: ChannelId;
     createdTime: Date;
-    getDynamoGeneralRealtimeItem: () => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
+    getDynamoGeneralRealtimeItem: (
+        context: ServerContentActionContext,
+    ) => Promise<DynamoGeneralRealtimeItem<ChannelModel>>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -913,7 +1011,7 @@ export async function createChannel(
         description,
     };
 
-    const {getRealtimeItem} = await ForumRealtimeTable.createItem(context, channelItem);
+    const {getEvent} = await ForumRealtimeTable.createItem(context, channelItem);
 
     // Future `authorizeChannelAccess()` calls in the request should not need to
     // load the channel. This optimization kicks in for the create channel Remix
@@ -952,7 +1050,10 @@ export async function createChannel(
     return {
         id: channelItem.channelId,
         createdTime: channelItem.createdTime,
-        getDynamoGeneralRealtimeItem: getRealtimeItem,
+        getDynamoGeneralRealtimeItem: async context => {
+            const {item} = await getEvent(context);
+            return item;
+        },
     };
 }
 
@@ -1221,7 +1322,7 @@ export async function updateChannelName(
         name: string;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
@@ -1264,15 +1365,9 @@ export async function updateChannelName(
     });
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async () => ({
+        getDynamoGeneralRealtimeEventTransaction: async context => ({
             readTime,
-            eventTransaction: [
-                {
-                    type: "PutItem",
-                    item: await result.getRealtimeItem(),
-                    cursorByIndexName: result.getCursorByIndexName(),
-                },
-            ],
+            eventTransaction: [await result.getEvent(context)],
         }),
     };
 }
@@ -1290,7 +1385,7 @@ export async function updateChannelDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
@@ -1327,15 +1422,9 @@ export async function updateChannelDescription(
     });
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async () => ({
+        getDynamoGeneralRealtimeEventTransaction: async context => ({
             readTime,
-            eventTransaction: [
-                {
-                    type: "PutItem",
-                    item: await result.getRealtimeItem(),
-                    cursorByIndexName: result.getCursorByIndexName(),
-                },
-            ],
+            eventTransaction: [await result.getEvent(context)],
         }),
     };
 }
@@ -1355,7 +1444,7 @@ export async function updateChannelNameAndDescription(
         description: MessageContent;
     },
 ): Promise<{
-    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
@@ -1399,15 +1488,9 @@ export async function updateChannelNameAndDescription(
     });
 
     return {
-        getDynamoGeneralRealtimeEventTransaction: async () => ({
+        getDynamoGeneralRealtimeEventTransaction: async context => ({
             readTime,
-            eventTransaction: [
-                {
-                    type: "PutItem",
-                    item: await result.getRealtimeItem(),
-                    cursorByIndexName: result.getCursorByIndexName(),
-                },
-            ],
+            eventTransaction: [await result.getEvent(context)],
         }),
     };
 }
@@ -1459,6 +1542,23 @@ export async function backfillChannelPosts(
     return result;
 }
 
+function getPostContentFileIds(content: PostContent): Set<FileId> {
+    const fileIds = new Set<FileId>();
+
+    visitProsemirrorNode(content, {
+        visitAttr: (attr, value) => {
+            if (attr === "fileId") {
+                const fileId: FileId | null = value;
+                if (fileId !== null) {
+                    fileIds.add(fileId);
+                }
+            }
+        },
+    });
+
+    return fileIds;
+}
+
 /**
  * Create a new post by the current account in the provided channel.
  *
@@ -1480,7 +1580,7 @@ export async function createPost(
     id: PostId;
     spaceId: SpaceId;
     createdTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
     }>;
@@ -1515,7 +1615,7 @@ export async function createPost(
     // post from this cache and won't throw a not found error.
     PostItemAuthorizationCache.set(context, postItem.postId, postItem);
 
-    const {fileIds} = getContentReferencedIdsForNode(postItem.content);
+    const fileIds = getPostContentFileIds(postItem.content);
 
     // Make sure to attach all files to the post. So when someone else sees the
     // post they can load the files.
@@ -1541,7 +1641,33 @@ export async function createPost(
 
     const readTime = new Date();
 
-    const result = await ForumRealtimeTable.createItem(context, postItem);
+    let result: {
+        getEvent: (
+            context: ServerContentActionContext,
+        ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
+    };
+
+    if (fileIds.size === 0) {
+        result = await ForumRealtimeTable.createItem(context, postItem);
+    } else {
+        const {transactionEntry, getEvent} =
+            ForumRealtimeTable.transactionCreateItemWithEvent(postItem);
+
+        result = {getEvent};
+
+        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            transactionEntry,
+            ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheck({
+                partitionType: "Channel",
+                sortRangeType: "PostFiles",
+                channelId,
+                postCreatedTime: postItem.createdTime,
+                postId: postItem.postId,
+                spaceId: postItem.spaceId,
+                fileIds,
+            }),
+        ]);
+    }
 
     // We don't delete our post draft in a transaction with post creation.
     // It's ok if we don't successfully delete the draft. It'll stay in the user's
@@ -1664,15 +1790,9 @@ export async function createPost(
         id: postItem.postId,
         spaceId: channel.spaceId,
         createdTime: postItem.createdTime,
-        getDynamoGeneralRealtimeEventTransaction: async () => ({
+        getDynamoGeneralRealtimeEventTransaction: async context => ({
             readTime,
-            eventTransaction: [
-                {
-                    type: "PutItem",
-                    item: await result.getRealtimeItem(),
-                    cursorByIndexName: result.getCursorByIndexName(),
-                },
-            ],
+            eventTransaction: [await result.getEvent(context)],
         }),
     };
 }
@@ -1877,86 +1997,142 @@ export async function getPostNotificationSubscribers(
 /**
  * Update the contents of a post if you are the post's author.
  */
-export async function updatePostContent(
+export function updatePostContent(
     context: ForumSessionActionContextWithBroadcast,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{
     contentUpdatedTime: Date;
-    getDynamoGeneralRealtimeEventTransaction: () => Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
         readTime: Date;
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
     }>;
 }> {
-    let spaceId: SpaceId | null = null;
-    let contentUpdatedTime: Date | null = null;
+    return context.dynamo.retryTransaction(async context => {
+        const readTime = new Date();
 
-    const readTime = new Date();
-
-    const result = await ForumRealtimeTable.updateItem(
-        context,
-        {
+        const oldPostItem = await ForumRealtimeTable.getItem(context, {
             partitionType: "Post",
             sortRangeType: "Attributes",
             postId,
-        },
-        async postItem => {
-            if (!postItem) throw new NotFoundError("Post not found");
-            await authorizeChannelAccess(context, postItem.channelId);
+        });
 
-            if (postItem.authorId !== context.actor.getAccountId())
-                throw new PermissionDeniedError("Can only update post comments you authored");
+        await authorizeChannelAccess(context, oldPostItem.channelId);
 
-            spaceId = postItem.spaceId;
+        if (oldPostItem.authorId !== context.actor.getAccountId())
+            throw new PermissionDeniedError("Can only update post comments you authored");
 
-            contentUpdatedTime = new Date(
-                postItem.contentUpdatedTime
-                    ? Math.max(postItem.contentUpdatedTime.getTime() + 1, Date.now())
-                    : Date.now(),
+        const contentUpdatedTime = new Date(
+            oldPostItem.contentUpdatedTime
+                ? Math.max(oldPostItem.contentUpdatedTime.getTime() + 1, Date.now())
+                : Date.now(),
+        );
+
+        const newPostItem: PostAttributesItem = {
+            ...oldPostItem,
+            content,
+            contentUpdatedTime,
+            commentsSummary: {
+                ...oldPostItem.commentsSummary,
+                mentionCountByAccountId: applyMentionCountByAccountIdDifferenceFromContentUpdate(
+                    oldPostItem.commentsSummary.mentionCountByAccountId,
+                    oldPostItem.content,
+                    content,
+                ),
+            },
+        };
+
+        const oldFileIds = getPostContentFileIds(oldPostItem.content);
+        const newFileIds = getPostContentFileIds(newPostItem.content);
+
+        let result: {
+            getEvent: (
+                context: ServerContentActionContext,
+            ) => Promise<DynamoGeneralRealtimePutItemEvent<PostModel>>;
+        };
+
+        if (isDeepEqual(oldFileIds, newFileIds)) {
+            result = await ForumRealtimeTable.directlyUpdateItem(context, newPostItem);
+        } else if (oldFileIds.size === 0) {
+            const channelPostFilesDeletedItem = await ForumRealtimeTable.getDeletedItemIfExists(
+                context,
+                {
+                    partitionType: "Channel",
+                    sortRangeType: "PostFiles",
+                    channelId: newPostItem.channelId,
+                    postCreatedTime: newPostItem.createdTime,
+                    postId,
+                },
             );
 
-            return {
-                ...postItem,
-                content,
-                contentUpdatedTime,
-                commentsSummary: {
-                    ...postItem.commentsSummary,
-                    mentionCountByAccountId:
-                        applyMentionCountByAccountIdDifferenceFromContentUpdate(
-                            postItem.commentsSummary.mentionCountByAccountId,
-                            postItem.content,
-                            content,
-                        ),
-                },
+            const {transactionEntry, getEvent} =
+                ForumRealtimeTable.transactionDirectlyUpdateItemWithEvent(newPostItem);
+
+            result = {getEvent};
+
+            const channelPostFilesItem: ChannelPostFilesItem = {
+                partitionType: "Channel",
+                sortRangeType: "PostFiles",
+                channelId: newPostItem.channelId,
+                postCreatedTime: newPostItem.createdTime,
+                postId: newPostItem.postId,
+                spaceId: newPostItem.spaceId,
+                fileIds: newFileIds,
             };
-        },
-    );
 
-    assert(spaceId);
-    assert(contentUpdatedTime);
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+                transactionEntry,
+                channelPostFilesDeletedItem
+                    ? ForumRealtimeTable.transactionUndeleteItem(
+                          channelPostFilesDeletedItem,
+                          channelPostFilesItem,
+                      )
+                    : ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheck(
+                          channelPostFilesItem,
+                      ),
+            ]);
+        } else {
+            const channelPostFilesItem = await ForumRealtimeTable.getItem(context, {
+                partitionType: "Channel",
+                sortRangeType: "PostFiles",
+                channelId: newPostItem.channelId,
+                postCreatedTime: newPostItem.createdTime,
+                postId,
+            });
 
-    context.jobs.send({
-        type: "IndexSearchEntity",
-        spaceId,
-        update: {
-            type: "Post",
-            postId,
-            updatedTraits: {type: "Some", traits: []},
-        },
+            const {transactionEntry, getEvent} =
+                ForumRealtimeTable.transactionDirectlyUpdateItemWithEvent(newPostItem);
+
+            result = {getEvent};
+
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+                transactionEntry,
+                newFileIds.size === 0
+                    ? ForumRealtimeTable.transactionDeleteItem(channelPostFilesItem)
+                    : ForumRealtimeTable.transactionDirectlyUpdateItem({
+                          ...channelPostFilesItem,
+                          fileIds: newFileIds,
+                      }),
+            ]);
+        }
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: newPostItem.spaceId,
+            update: {
+                type: "Post",
+                postId,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
+        return {
+            contentUpdatedTime,
+            getDynamoGeneralRealtimeEventTransaction: async context => ({
+                readTime,
+                eventTransaction: [await result.getEvent(context)],
+            }),
+        };
     });
-
-    return {
-        contentUpdatedTime,
-        getDynamoGeneralRealtimeEventTransaction: async () => ({
-            readTime,
-            eventTransaction: [
-                {
-                    type: "PutItem",
-                    item: await result.getRealtimeItem(),
-                    cursorByIndexName: result.getCursorByIndexName(),
-                },
-            ],
-        }),
-    };
 }
 
 /**
