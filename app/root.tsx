@@ -351,6 +351,7 @@ export default function Root() {
                     tracer={context.tracer.getRoot()}
                     inertRouterState={null}
                     onUpdateMetaTitle={onUpdateMetaTitle}
+                    globalLoadingIndicator={null}
                     style={outletContainerStyle}
                 />
             );
@@ -421,6 +422,7 @@ export default function Root() {
                         tracer={context.tracer.getRoot()}
                         inertRouterState={inertRouterState}
                         onUpdateMetaTitle={onUpdateMetaTitle}
+                        globalLoadingIndicator={null}
                         style={outletContainerStyle}
                     />,
                 );

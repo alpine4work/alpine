@@ -226,6 +226,11 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
         }
     }
 
+    // Clear SVG image element contents.
+    for (const svgElement of element.querySelectorAll("svg")) {
+        svgElement.innerHTML = "";
+    }
+
     return element;
 }
 

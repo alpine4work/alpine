@@ -25,6 +25,13 @@ type GlobalKeyDownEventContext = {
 
 const GlobalKeyDownEventContext = createContext<GlobalKeyDownEventContext | null>(null);
 
+const globalKeyDownEventContextForTest: GlobalKeyDownEventContext | null = import.meta.jest
+    ? {
+          childListeners: new Set(),
+          modalChildListeners: new Set(),
+      }
+    : null;
+
 /**
  * Component for handling keyboard shortcuts using DOM event propagation APIs.
  *
@@ -117,7 +124,7 @@ export function GlobalKeyDownEvent({
     onGlobalKeyDownBeforeChildren?: (event: KeyboardEvent) => void;
     children?: ReactNode;
 }) {
-    const parentContext = useContext(GlobalKeyDownEventContext);
+    const parentContext = useContext(GlobalKeyDownEventContext) ?? globalKeyDownEventContextForTest;
     assert(parentContext, "Expected a parent `<GlobalKeyDownRootContextProvider>` component");
 
     const [childContext] = useState<GlobalKeyDownEventContext>(() => ({
@@ -169,7 +176,7 @@ export function GlobalKeyDownEvent({
  * elements below. Including global keydown event handling.
  */
 export function GlobalKeyDownEventModal({children}: {children?: ReactNode}) {
-    const parentContext = useContext(GlobalKeyDownEventContext);
+    const parentContext = useContext(GlobalKeyDownEventContext) ?? globalKeyDownEventContextForTest;
     assert(parentContext, "Expected a parent `<GlobalKeyDownRootContextProvider>` component");
 
     const [childContext] = useState<GlobalKeyDownEventContext>(() => ({
@@ -299,7 +306,7 @@ function GlobalKeyDownManualContextProvider(
     {children}: {children?: ReactNode},
     ref: Ref<GlobalKeyDownManualContextProviderRef>,
 ) {
-    const parentContext = useContext(GlobalKeyDownEventContext);
+    const parentContext = useContext(GlobalKeyDownEventContext) ?? globalKeyDownEventContextForTest;
     assert(parentContext, "Expected a parent `<GlobalKeyDownRootContextProvider>` component");
 
     const [childContext] = useState<GlobalKeyDownEventContext>(() => ({

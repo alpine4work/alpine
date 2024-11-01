@@ -786,21 +786,7 @@ exports[`check list (checked) plain 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1007,21 +993,7 @@ exports[`check list (unchecked) plain 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1094,21 +1066,7 @@ exports[`check list with multiple items 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1129,21 +1087,7 @@ exports[`check list with multiple items 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1164,21 +1108,7 @@ exports[`check list with multiple items 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1255,21 +1185,7 @@ exports[`check list with sub-list 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1290,21 +1206,7 @@ exports[`check list with sub-list 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1325,21 +1227,7 @@ exports[`check list with sub-list 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1360,21 +1248,7 @@ exports[`check list with sub-list 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -1407,21 +1281,7 @@ exports[`check list with sub-list of another type 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -2098,7 +1958,7 @@ exports[`file float (left direction) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2143,7 +2003,7 @@ exports[`file float (right direction) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2188,7 +2048,7 @@ exports[`file row (one file) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2225,12 +2085,89 @@ exports[`file row (one file, audio type) 1`] = `
 >
   <div
     class="content_fileRow"
-    style="height: 100px; grid-template-columns: 0.388889fr;"
+    style="height: 252px; grid-template-columns: 1fr;"
   >
     <div
       class="content_file"
       data-testid="ContentFile:audio/mp4"
-    />
+    >
+      <div>
+        <audio
+          preload="none"
+          src="/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
+          style="pointer-events: none; width: 0; height: 0; opacity: 0"
+        />
+        <div>
+          <svg
+            viewBox="-1 -1 601 101"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+          <div>
+            <svg
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </div>
+        </div>
+        <div>
+          <div>
+            <div>
+              Untitled
+            </div>
+          </div>
+        </div>
+        <div>
+          <div>
+            <div>
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+            </div>
+            <div>
+              <div
+                data-time="00:00"
+              />
+              <div>
+                /
+              </div>
+              <div>
+                00:05
+              </div>
+            </div>
+            <div>
+              <div>
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div>
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              data-rate="1x"
+            />
+          </div>
+        </div>
+      </div>
+      <img
+        aria-hidden="true"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2244,7 +2181,7 @@ exports[`file row (one file, audio type): clipboard 1`] = `
       controls=""
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
-      style="display: block; width: 233px; height: 100px;"
+      style="display: block; width: 600px; height: 252px;"
     />
   </div>
 </div>
@@ -2271,7 +2208,7 @@ exports[`file row (one file, image type) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2308,11 +2245,18 @@ exports[`file row (one file, null reference) 1`] = `
 >
   <div
     class="content_fileRow"
-    style="height: 400px; grid-template-columns: 1fr;"
+    style="height: 133.333px; grid-template-columns: 0.333333fr;"
   >
     <div
       class="content_file"
-    />
+    >
+      <div>
+        <img
+          aria-hidden="true"
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+        />
+      </div>
+    </div>
   </div>
 </div>
 `;
@@ -2323,9 +2267,9 @@ exports[`file row (one file, null reference): clipboard 1`] = `
     style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
   >
     <object
-      height="400"
+      height="133"
       style="display: block;"
-      width="600"
+      width="200"
     />
   </div>
 </div>
@@ -2352,8 +2296,89 @@ exports[`file row (one file, video type) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
+      />
+      <div>
+        <div>
+          <svg
+            viewBox="0 0 256 256"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+          <svg
+            viewBox="0 0 256 256"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </div>
+        <div>
+          00:05
+        </div>
+        <video
+          playsinline=""
+          poster="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+          preload="none"
+          src="/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdm01x4ngm31kmm41wsg3m?exp=1727880767&sig=test-video"
+        />
+        <div>
+          <div>
+            <div>
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+            </div>
+            <div>
+              <div
+                data-time="00:00"
+              />
+              <div>
+                /
+              </div>
+              <div>
+                00:05
+              </div>
+            </div>
+            <div>
+              <div>
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div>
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              data-rate="1x"
+            />
+            <div>
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <img
+        aria-hidden="true"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
       />
     </div>
   </div>
@@ -2401,7 +2426,7 @@ exports[`file row (three files) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2411,7 +2436,7 @@ exports[`file row (three files) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2421,7 +2446,7 @@ exports[`file row (three files) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2481,7 +2506,7 @@ exports[`file row (two files) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -2491,7 +2516,7 @@ exports[`file row (two files) 1`] = `
     >
       <img
         aria-hidden="true"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
         style="max-width: 600px; max-height: 600px"
       />
     </div>
@@ -3429,21 +3454,7 @@ exports[`ordered list with sub-list of another type 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -3464,21 +3475,7 @@ exports[`ordered list with sub-list of another type 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
@@ -3499,21 +3496,7 @@ exports[`ordered list with sub-list of another type 1`] = `
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>

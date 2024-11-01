@@ -45,6 +45,11 @@ function stripHtml(html: string): string {
         }
     }
 
+    // Clear SVG image element contents.
+    for (const svgElement of element.querySelectorAll("svg")) {
+        svgElement.innerHTML = "";
+    }
+
     return element.innerHTML;
 }
 

@@ -249,6 +249,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             CacheControl: cacheControl,
             ...unrecognizedInputs
         }: PutObjectCommandInput,
+        {signal}: {signal?: AbortSignal} = {},
     ): Promise<PutObjectCommandOutput> {
         let spanName = "Cloudflare R2 PutObject";
 
@@ -279,23 +280,28 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 );
             }
 
-            const body = untypedBody as NodeJsRuntimeStreamingBlobPayloadInputTypes | undefined;
+            let body = untypedBody as NodeJsRuntimeStreamingBlobPayloadInputTypes | undefined;
             assert(body);
+
+            if (body instanceof ReadableStream) {
+                body = body.pipe(
+                    // NOTE(calebmer): I have no idea why but sometimes `put()` calls for
+                    // large audio files aren't finishing even though the stream has been fully
+                    // read unless there's a pass-through stream here. My best guess is Miniflare
+                    // is checking to see if the stream is an HTTP request stream and doing
+                    // something differently that isn't terminating?
+                    new PassThroughStream(),
+                );
+
+                signal?.addEventListener("abort", () => {
+                    assert(body instanceof ReadableStream);
+                    body.destroy(signal.reason);
+                });
+            }
 
             const object = await this._getBucket(bucketName).put(
                 assertExists(key),
-                body instanceof ReadableStream
-                    ? ReadableStream.toWeb(
-                          body.pipe(
-                              // NOTE(calebmer): I have no idea why but sometimes `put()` calls for
-                              // large audio files aren't finishing even though the stream has been fully
-                              // read unless there's a pass-through stream here. My best guess is Miniflare
-                              // is checking to see if the stream is an HTTP request stream and doing
-                              // something differently that isn't terminating?
-                              new PassThroughStream(),
-                          ),
-                      )
-                    : body,
+                body instanceof ReadableStream ? ReadableStream.toWeb(body) : body,
                 {
                     httpMetadata: {
                         contentType,

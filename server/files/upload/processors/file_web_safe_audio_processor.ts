@@ -78,6 +78,13 @@ export function createFileWebSafeAudioProcessor(
                     );
 
                     const durationString =
+                        // NOTE(calebmer, 2024-11-01): Our test fixture file
+                        // `pokemon_regirock_un_un_un_meme.wav` sometimes outputs the wrong duration to
+                        // FFprobe and sometimes outputs no duration. I can't find anything online that
+                        // explains this so for now it seems like we can't trust FFprobe's duration for
+                        // WAV files. Set `durationString` to null so we'll always parse the full WAV
+                        // file.
+                        contentType !== "audio/wav" &&
                         isObject(metadata) &&
                         isObject(metadata.format) &&
                         (typeof metadata.format.duration === "string" ||

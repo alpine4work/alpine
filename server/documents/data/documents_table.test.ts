@@ -2943,7 +2943,9 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        new FailedPreconditionError("Couldn't apply step to content: Invalid content for node doc"),
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node doc: <title, comment(fileRow(file, file))>",
+        ),
     );
 
     expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
@@ -3083,7 +3085,9 @@ test("can't add bold mark to `paragraph` node in a document", async () => {
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        new FailedPreconditionError("Couldn't apply step to content: Invalid content for node doc"),
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node doc: <title, bold(paragraph)>",
+        ),
     );
 
     await expect(

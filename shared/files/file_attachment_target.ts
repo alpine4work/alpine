@@ -180,7 +180,7 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
             return bytes;
         }
         case "PostDraft": {
-            const bytes = new Uint8Array(1 + idByteLength);
+            const bytes = new Uint8Array(1 + idByteLength + idByteLength);
             let byteOffset = 0;
 
             bytes[byteOffset] = 6;
