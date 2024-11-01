@@ -1,5 +1,5 @@
 import {FileModel} from "~/shared/files/file_model.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -36,6 +36,7 @@ export class ChannelPreviewModel extends Model(
 export class ChannelPostFilesModel extends Model(
     Schema.object({
         channelId: Schema.id<ChannelId>(),
+        postId: Schema.id<PostId>(),
         files: Schema.array(FileModel.schema()).minLength(1),
     }),
 ) {}

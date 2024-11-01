@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
     ],

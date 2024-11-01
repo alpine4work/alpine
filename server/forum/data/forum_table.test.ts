@@ -6,11 +6,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
-import {
-    attachFileAsUploader,
-    getFileFromAttachment,
-    startUploadingAndProcessingFile,
-} from "~/server/files/data/files_table.js";
+import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_table.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     FilePostAuthorizer,
     authorizeChannelAccess,
@@ -24,6 +21,7 @@ import {
     createPostComment,
     deletePostComment,
     getChannel,
+    getChannelAndPostFiles,
     getChannelNameAndDescriptionContent,
     getChannelPosts,
     getChannelPreview,
@@ -40,6 +38,7 @@ import {
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     dangerouslyAddSpaceAccountAsAdmin,
     getAccount,
@@ -57,6 +56,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {ChannelModel, ChannelPostFilesModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentProsemirrorSchema,
     PostContentWithReferences,
@@ -73,6 +73,7 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
     emptyMessageContent,
+    emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
@@ -149,6 +150,9 @@ test("can not get a channel that does not exist", async () => {
     await expect(
         getChannelNameAndDescriptionContent(context.action(otherSession), generateId()),
     ).rejects.toThrow(NotFoundError);
+    await expect(
+        getChannelAndPostFiles(context.action(otherSession), generateId(), {postFilesLimit: 100}),
+    ).rejects.toThrow(NotFoundError);
 });
 
 test("can not get a channel for a different space", async () => {
@@ -163,6 +167,9 @@ test("can not get a channel for a different space", async () => {
     await expect(
         getChannelNameAndDescriptionContent(context.action(otherSession), channel.id),
     ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getChannelAndPostFiles(context.action(otherSession), channel.id, {postFilesLimit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can get a channel", async () => {
@@ -174,6 +181,11 @@ test("can get a channel", async () => {
     expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test");
     expect(
         (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
+    ).toEqual("Test");
+    expect(
+        await getChannelAndPostFiles(context.action(session1), channel.id, {
+            postFilesLimit: 100,
+        }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test");
 });
 
@@ -187,6 +199,11 @@ test("can update a channel's name", async () => {
     expect(
         (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
     ).toEqual("Test 1");
+    expect(
+        await getChannelAndPostFiles(context.action(session1), channel.id, {
+            postFilesLimit: 100,
+        }).then(result => (result.items[0]?.model as any).name),
+    ).toEqual("Test 1");
 
     await updateChannelName(context.action(session1), {
         channelId: channel.id,
@@ -196,6 +213,11 @@ test("can update a channel's name", async () => {
     expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
     expect(
         (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
+    ).toEqual("Test 2");
+    expect(
+        await getChannelAndPostFiles(context.action(session1), channel.id, {
+            postFilesLimit: 100,
+        }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test 2");
 });
 
@@ -3381,10 +3403,7 @@ test("can add accounts to spaces as admin", async () => {
     expect((await getOurAccountSpaceIds(session4.action())).spaceIds).toEqual(new Set([]));
     expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(new Set([]));
 
-    const channel1 = await createChannel(session1.action(), {
-        spaceId: space1.id,
-        name: "Channel 1",
-    });
+    const channel1 = await TestChannel.create(session1);
 
     await expect(getChannel(session3.action(), channel1.id)).rejects.toThrow(PermissionDeniedError);
 
@@ -3489,25 +3508,11 @@ test("can authorize post access at different levels", async () => {
     const [session1, session2, session3] = await space.createSessions(3);
     const otherSession = await otherSpace.createSession();
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session1);
 
-    const post1 = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test post content 1"),
-    });
-
-    const post2 = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test post content 2"),
-    });
-
-    const post3 = await createPost(session3.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test post content 3"),
-    });
+    const post1 = await channel.createPost(session1);
+    const post2 = await channel.createPost(session2);
+    const post3 = await channel.createPost(session3);
 
     const authorize = async (
         context: ServerActionContext,
@@ -3573,10 +3578,7 @@ test("authorizing channel access as session actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
@@ -3631,10 +3633,7 @@ test("authorizing channel access as system actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1] = await space.createSessions(2);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
@@ -3689,10 +3688,7 @@ test("authorizing channel access after getting channel as session actor is cache
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
@@ -3757,16 +3753,41 @@ test("authorizing channel access after getting channel as session actor is cache
     }
 
     dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelAndPostFiles(actionContext, channel.id, {postFilesLimit: 100});
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
 });
 
 test("authorizing channel access after getting channel as system actor is cached", async () => {
     const space = await TestSpace.create(context);
-    const [session1] = await space.createSessions(2);
+    const [session1] = await space.createSessions(1);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session1);
     await ProcessContextModule.waitForTestTasks();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
@@ -3808,6 +3829,36 @@ test("authorizing channel access after getting channel as system actor is cached
         expect(getCount()).toEqual(0);
 
         await getChannelPreview(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelAndPostFiles(actionContext, channel.id, {postFilesLimit: 100});
 
         expect(getCount()).toEqual(1);
 
@@ -3835,15 +3886,9 @@ test("authorizing post access as session actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session1);
 
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const post = await channel.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
@@ -3924,15 +3969,8 @@ test("authorizing post access as system actor is cached", async () => {
     const space = await TestSpace.create(context);
     const [session1] = await space.createSessions(2);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
     await ProcessContextModule.waitForTestTasks();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
@@ -3987,15 +4025,8 @@ test("authorizing post access after getting post as session actor is cached", as
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
 
     // Warm up `Forum` table so we don't create it when we're counting actions.
     await getPostCommentsFromStart(session1.action(), {
@@ -4143,15 +4174,8 @@ test("authorizing post access after getting post as system actor is cached", asy
     const space = await TestSpace.create(context);
     const [session1] = await space.createSessions(1);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
 
     // Warm up `Forum` table so we don't create it when we're counting actions.
     await getPostCommentsFromStart(session1.action(), {
@@ -4454,10 +4478,7 @@ test("will delete draft when creating post", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const channel = await createChannel(session.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session);
 
     const draftId = generateChronologicalId<PostDraftId>();
 
@@ -4491,22 +4512,11 @@ test("will attach referenced files to post when creating from draft", async () =
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const channel = await createChannel(session.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
+    const channel = await TestChannel.create(session);
 
     const draftId = generateChronologicalId<PostDraftId>();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
-    });
-
-    await fileUploader.finishUploading(session.action());
+    const file = await TestFile.create(session);
 
     const postContent = assertPostContent(
         PostContentProsemirrorSchema.node("doc", {}, [
@@ -4514,7 +4524,7 @@ test("will attach referenced files to post when creating from draft", async () =
                 PostContentProsemirrorSchema.text("Hello, world!"),
             ]),
             PostContentProsemirrorSchema.node("fileRow", {}, [
-                PostContentProsemirrorSchema.node("file", {fileId: fileUploader.fileId}),
+                PostContentProsemirrorSchema.node("file", {fileId: file.id}),
             ]),
         ]),
     );
@@ -4543,7 +4553,7 @@ test("will attach referenced files to post when creating from draft", async () =
     await attachFileAsUploader(
         session.action(),
         space.id,
-        fileUploader.fileId,
+        file.id,
         FilePostAuthorizer.bind({type: "PostDraft", accountId: session.account.id, draftId}),
     );
 
@@ -4557,12 +4567,12 @@ test("will attach referenced files to post when creating from draft", async () =
         await getFileFromAttachment(
             session.action(),
             space.id,
-            fileUploader.fileId,
+            file.id,
             FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         ),
     ).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: file.id,
             contentType: "image/png",
             contentLength: 100,
             isUploading: false,
@@ -5300,5 +5310,514 @@ describe("Notification subscribers", () => {
                 session5.account.id,
             ]),
         );
+    });
+});
+
+test("creating a post with files adds to the channel's post files", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+        ],
+    });
+
+    await channel.createPost(session);
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+        ],
+    });
+
+    const file1 = await TestFile.create(session);
+
+    const post2 = await channel.createPost(session, {
+        files: [file1],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post2.id,
+                    files: [await file1.get()],
+                }),
+            },
+        ],
+    });
+
+    const file2 = await TestFile.create(session);
+    const file3 = await TestFile.create(session);
+    const file4 = await TestFile.create(session);
+
+    const post3 = await channel.createPost(session, {
+        files: [file2, file3, file4],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post3.id,
+                    files: await runAllPromises([file2.get(), file3.get(), file4.get()]),
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post2.id,
+                    files: [await file1.get()],
+                }),
+            },
+        ],
+    });
+
+    const file5 = await TestFile.create(session);
+
+    const post4 = await channel.createPost(session, {
+        files: [file5, file3],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post4.id,
+                    files: await runAllPromises([file5.get(), file3.get()]),
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post3.id,
+                    files: await runAllPromises([file2.get(), file3.get(), file4.get()]),
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post2.id,
+                    files: [await file1.get()],
+                }),
+            },
+        ],
+    });
+});
+
+test("updating a post with files changes the channel's post files", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+        ],
+    });
+
+    const post = await channel.createPost(session, {
+        content: "Test",
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+        ],
+    });
+
+    const file1 = await TestFile.create(session);
+    const file2 = await TestFile.create(session);
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file1, file2],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post.id,
+                    files: await runAllPromises([file1.get(), file2.get()]),
+                }),
+            },
+        ],
+    });
+
+    const file3 = await TestFile.create(session);
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file1, file3, file2],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post.id,
+                    files: await runAllPromises([file1.get(), file3.get(), file2.get()]),
+                }),
+            },
+        ],
+    });
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file3, file2],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 2,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post.id,
+                    files: await runAllPromises([file3.get(), file2.get()]),
+                }),
+            },
+        ],
+    });
+
+    await post.updateContent(session, {
+        content: "Test",
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+        ],
+    });
+
+    const file4 = await TestFile.create(session);
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file4],
+    });
+
+    expect(
+        await getChannelAndPostFiles(session.action(), channel.id, {
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 4,
+                model: new ChannelPostFilesModel({
+                    channelId: channel.id,
+                    postId: post.id,
+                    files: await runAllPromises([file4.get()]),
+                }),
+            },
+        ],
     });
 });

@@ -55,9 +55,12 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
     DynamoGeneralRealtimePutItemEvent,
+    DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
+    DataLossError,
+    DeadlineExceededError,
     FailedPreconditionError,
     InternalError,
     NotFoundError,
@@ -85,7 +88,9 @@ import {
 import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -329,6 +334,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                     return new ChannelPostFilesModel({
                         channelId: item.channelId,
+                        postId: item.postId,
                         files,
                     });
                 },
@@ -1163,6 +1169,92 @@ export async function getChannel(
     const channel = await getChannelIfExists(context, channelId, options);
     if (!channel) throw new NotFoundError("Channel not found");
     return channel;
+}
+
+/**
+ * Get a `ChannelModel` and post files in the channel all at once. Executes a
+ * realtime query so the data can be kept up-to-date in realtime.
+ */
+export function getChannelAndPostFiles(
+    context: ServerContentActionContext,
+    channelId: ChannelId,
+    {
+        postFilesLimit,
+        consistency = "Eventual",
+    }: {
+        postFilesLimit: number;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<DynamoGeneralRealtimeQueryResult<ChannelModel | ChannelPostFilesModel>> {
+    const channelPromiseResolver = createPromiseResolver<ChannelPreviewModel | null>();
+
+    const promise = (async () => {
+        const result = await ForumRealtimeTable.realtimeQuery(context, {
+            consistency,
+            partitionKey: {partitionType: "Channel", channelId},
+            limit: postFilesLimit + 1,
+            onItem: item => {
+                if (item.model instanceof ChannelModel) {
+                    channelPromiseResolver.resolve(item.model.asPreview());
+                }
+            },
+        });
+        if (result.items.length === 0) return null;
+
+        const channel = result.items[0]!;
+
+        if (!(channel.model instanceof ChannelModel)) {
+            throw new DataLossError("Expected the first query item to be the channel model");
+        }
+
+        await authorizeSpaceAccess(context, channel.model.spaceId);
+
+        return result;
+    })().then(
+        result => {
+            // All of these promise resolvers MUST have either been resolved or rejected by
+            // the end of this promise. So any promise resolvers that haven't been settled
+            // yet reject with an error as a safety mechanism.
+            if (!channelPromiseResolver.isSettled()) {
+                channelPromiseResolver.reject(
+                    new InternalError("Promise resolver wasn't resolved"),
+                );
+            }
+
+            return result;
+        },
+        error => {
+            channelPromiseResolver.reject(error);
+            throw error;
+        },
+    );
+
+    // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is
+    // waiting for this channel preview promise before it can return. But the
+    // channel preview promise is waiting on `ForumRealtimeTable.realtimeQuery()`
+    // to finish.
+    const timeout = createTimeout(() => {
+        channelPromiseResolver.reject(
+            new DeadlineExceededError("Timed out waiting for channel item, possibly deadlocked?"),
+        );
+    }, 3000);
+
+    channelPromiseResolver.promise.then(
+        () => timeout.clear(),
+        () => timeout.clear(),
+    );
+
+    // If we're loading the channel, we can use the channel item in our
+    // `ChannelPreviewModel` cache to avoid extra fetches.
+    ChannelPreviewCache.set(context, channelId, channelPromiseResolver.promise);
+
+    return promise.then(result => {
+        if (!result) {
+            throw new NotFoundError("Channel not found");
+        }
+
+        return result;
+    });
 }
 
 const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | null>();

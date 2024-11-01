@@ -1,5 +1,4 @@
 import {addDays, subDays, subMinutes} from "date-fns";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
     ServerContentActionContext,
     ServerContentActionContextModules,
@@ -26,6 +25,7 @@ import {
     DynamoGeneralRealtimeItem,
     DynamoGeneralRealtimePutItemEvent,
     DynamoGeneralRealtimePutItemEventIndexes,
+    DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     DynamoIndexCursor,
@@ -35,7 +35,7 @@ import {
     DynamoItemPartitionKey,
     DynamoItemSortKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -52,6 +52,7 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -2356,56 +2357,200 @@ export class DynamoGeneralRealtimeTableSchema<
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
     >(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         {
             partitionKey,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             startSortKey,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             endSortKey,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            isStartSortKeyExclusive,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            isEndSortKeyExclusive,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            paginate,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            paginate = {type: "FromStart"},
             limit,
+            consistency,
+            onItem,
         }: {
             partitionKey: PartitionKey;
             startSortKey?: StartSortKey;
             endSortKey?: EndSortKey;
-            isStartSortKeyExclusive?: boolean;
-            isEndSortKeyExclusive?: boolean;
             paginate?:
                 | {
                       type: "FromStart";
-                      afterCursor?: DynamoIndexCursor | null;
+                      afterItemKey?: DynamoItemKey | null;
                   }
                 | {
                       type: "FromEnd";
-                      beforeCursor?: DynamoIndexCursor | null;
+                      beforeItemKey?: DynamoItemKey | null;
                   };
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
+            consistency?: DynamoReadConsistency;
+            onItem?: (
+                item: DynamoGeneralRealtimeItem<
+                    ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
+                >,
+            ) => void;
         },
-    ): Promise<never> {
+    ): Promise<
+        DynamoGeneralRealtimeQueryResult<
+            ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
+        >
+    > {
         if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
             throw new InternalError(
                 `Realtime queries are disabled (partition type: "${partitionKey.partitionType}")`,
             );
         }
 
-        // TODO(calebmer): Leaving `realtimeQuery()` unimplemented for now since we
-        // don't have any callers! We have callers for `realtimeQuery()` on indexes.
-        // Once we have a caller of the main `realtimeQuery()` implement this method
-        // based on the index version.
-        //
-        // This is admittedly a little backwards. This method is way more important for
-        // this abstraction than `realtimeQuery()` on an index (indexes are expensive!)
-        // but without a test case I don't want to write potentially incorrect code.
-        throw new UnimplementedError("Implement realtime query method");
+        // We backfill realtime updates to `readTime` so it should be before the data
+        // is read from the database to avoid missing realtime updates.
+        const readTime = new Date();
+
+        const paginateItemKeyString =
+            paginate.type === "FromStart" ? paginate.afterItemKey : paginate.beforeItemKey;
+
+        const paginateItemKey = paginateItemKeyString
+            ? this._table.deserializeOpaqueItemKey(paginateItemKeyString)
+            : undefined;
+
+        // Make sure the partition key part of `paginateItemKey` is the same as our
+        // `partitionKey`.
+        if (paginateItemKey) {
+            if (paginateItemKey.partitionType !== partitionKey.partitionType) {
+                throw new InvalidArgumentError(
+                    quote`Pagination item key (partition type: ${paginateItemKey.partitionType}) must have the same partition type as query partition key (partition type: ${partitionKey.partitionType})`,
+                );
+            }
+
+            const partitionKeyAttributes = this._table.getPartitionKeyAttributes(
+                partitionKey.partitionType,
+            );
+
+            for (const [attributeName, attributeSchema] of Object.entries(partitionKeyAttributes)) {
+                if (
+                    attributeSchema.serialize(paginateItemKey[attributeName]) !==
+                    attributeSchema.serialize(partitionKey[attributeName])
+                ) {
+                    throw new InvalidArgumentError(
+                        quote`Partition item key must have the same value for attribute ${attributeName} as query partition key`,
+                    );
+                }
+            }
+        }
+
+        const items = await parallelMapAsyncIterableToArray(
+            this._table.query(context, {
+                partitionKey,
+                startSortKey,
+                endSortKey,
+                afterItemKey: paginateItemKey as any,
+                descending: paginate.type === "FromEnd",
+                // Fetch one extra item so we can accurately say whether there are more items
+                // at the beginning or end of the query.
+                limit: typeof limit === "number" ? limit + 1 : limit,
+                consistency,
+            }),
+            async (item, index) => {
+                // Don't build the model for an over-fetched item we use to determine if there
+                // are more items in the query.
+                if (typeof limit === "number" && index >= limit) return null;
+
+                const realtimeItem = {
+                    key: this._table.serializeOpaqueItemKey(item),
+                    version: item.updateLockVersion ?? 0,
+                    model: await this._buildModel(context, item),
+                };
+
+                // If you want to observe query items immediately after they're built you
+                // can use the `onItem` callback.
+                onItem?.(realtimeItem);
+
+                return realtimeItem;
+            },
+        );
+
+        const startItemKey = startSortKey
+            ? this._table.serializeOpaqueItemKey({...startSortKey, ...partitionKey})
+            : null;
+
+        const endItemKey = endSortKey
+            ? this._table.serializeOpaqueItemKey({...endSortKey, ...partitionKey})
+            : null;
+
+        const hasMoreItems = typeof limit === "number" && items.length > limit;
+
+        // Remove any items we over-fetched to determine if there were items after the
+        // limit. (Should just be one.)
+        while (typeof limit === "number" && items.length > limit) {
+            items.pop();
+        }
+
+        // When paginating from the end, we queried items in descending order. Reverse
+        // them to get them back to the proper order.
+        if (paginate.type === "FromEnd") {
+            items.reverse();
+        }
+
+        // We should have removed all null items past our limit above.
+        const finalItems = items as ReadonlyArray<NonNullable<(typeof items)[number]>>;
+
+        // If we are in a development or test environment, verify that key
+        // strings are orderable. This would create overhead in production.
+        if (process.env.NODE_ENV !== "production") {
+            let lastItemKey: DynamoItemKey | null = null;
+
+            for (const item of finalItems) {
+                if (lastItemKey === null) {
+                    lastItemKey = item.key;
+                } else {
+                    assert(
+                        lastItemKey < item.key,
+                        "Expected keys to be lexicographically orderable",
+                    );
+                    lastItemKey = item.key;
+                }
+            }
+        }
+
+        return {
+            readTime,
+            partitionKey: this._table.serializeOpaqueItemPartitionKey(partitionKey),
+            startItemKey,
+            endItemKey,
+            pageInfo:
+                paginate.type === "FromStart"
+                    ? {
+                          type: "FromStart",
+                          afterItemKey: paginate.afterItemKey ?? null,
+                          hasNextPage: hasMoreItems,
+                      }
+                    : {
+                          type: "FromEnd",
+                          beforeItemKey: paginate.beforeItemKey ?? null,
+                          hasPreviousPage: hasMoreItems,
+                      },
+            items: finalItems,
+        };
+    }
+
+    /**
+     * Backfill any updates that happened since the query was read and now. Useful
+     * when you connect to realtime after dispatching your query.
+     */
+    public backfillRealtimeQuery<const PartitionKey extends Types["PartitionKey"]>(
+        context: ServerContentActionContext,
+        {partitionKey, readTime}: {partitionKey: PartitionKey; readTime: Date},
+    ): Promise<
+        DynamoGeneralRealtimeBackfillResult<ModelMap[PartitionKey["partitionType"]][string]>
+    > {
+        const partitionKeyString = this._table.serializeOpaqueItemPartitionKey(partitionKey);
+
+        return this._backfillRealtimeQuery(context, {
+            realtimeKey: partitionKeyString,
+            readTime,
+            source: {
+                type: "Table",
+                partitionKey: partitionKeyString,
+            },
+        });
     }
 
     /**
@@ -2644,7 +2789,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 // We should have removed all null items past our limit above.
                 const finalItems = items as ReadonlyArray<NonNullable<(typeof items)[number]>>;
 
-                // If we are not in a development or test environment, verify that cursors
+                // If we are in a development or test environment, verify that cursors
                 // strings are orderable. This would create overhead in production.
                 if (process.env.NODE_ENV !== "production") {
                     let lastCursor: DynamoIndexCursor | null = null;
@@ -2687,9 +2832,7 @@ export class DynamoGeneralRealtimeTableSchema<
             backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
-                return this._backfillIndexRealtimeQuery(context, {
-                    indexName: config.name,
-                    partitionKey: partitionKeyString,
+                return this._backfillRealtimeQuery(context, {
                     // If our index's partition key is the same as our table's partition key then
                     // we can save some WCUs by writing all updates under the table's partition key
                     // (which is used for `table.realtimeQuery()`).
@@ -2700,6 +2843,11 @@ export class DynamoGeneralRealtimeTableSchema<
                           })
                         : `${config.name}:${partitionKeyString}`,
                     readTime,
+                    source: {
+                        type: "Index",
+                        name: config.name,
+                        partitionKey: partitionKeyString,
+                    },
                 });
             },
 
@@ -2959,7 +3107,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 // We should have removed all null items past our limit above.
                 const finalItems = items as ReadonlyArray<NonNullable<(typeof items)[number]>>;
 
-                // If we are not in a development or test environment, verify that cursors
+                // If we are in a development or test environment, verify that cursors
                 // strings are orderable. This would create overhead in production.
                 if (process.env.NODE_ENV !== "production") {
                     let lastCursor: DynamoIndexCursor | null = null;
@@ -3002,9 +3150,7 @@ export class DynamoGeneralRealtimeTableSchema<
             backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
                 const partitionKeyString = Index.serializeOpaquePartitionKey(partitionKey);
 
-                return this._backfillIndexRealtimeQuery(context, {
-                    indexName: config.name,
-                    partitionKey: partitionKeyString,
+                return this._backfillRealtimeQuery(context, {
                     // If our index's partition key is the same as our table's partition key then
                     // we can save some WCUs by writing all updates under the table's partition key
                     // (which is used for `table.realtimeQuery()`).
@@ -3015,6 +3161,11 @@ export class DynamoGeneralRealtimeTableSchema<
                           })
                         : `${config.name}:${partitionKeyString}`,
                     readTime,
+                    source: {
+                        type: "Index",
+                        name: config.name,
+                        partitionKey: partitionKeyString,
+                    },
                 });
             },
 
@@ -3040,18 +3191,25 @@ export class DynamoGeneralRealtimeTableSchema<
         };
     }
 
-    private async _backfillIndexRealtimeQuery(
+    private async _backfillRealtimeQuery(
         context: ServerContentActionContext,
         {
-            indexName,
-            partitionKey,
             realtimeKey,
             readTime,
+            source,
         }: {
-            indexName: string;
-            partitionKey: DynamoIndexPartitionKey;
             realtimeKey: string;
             readTime: Date;
+            source:
+                | {
+                      type: "Table";
+                      partitionKey: DynamoItemPartitionKey;
+                  }
+                | {
+                      type: "Index";
+                      name: string;
+                      partitionKey: DynamoIndexPartitionKey;
+                  };
         },
     ): Promise<DynamoGeneralRealtimeBackfillResult<any>> {
         // `readTime` may be for an eventually consistent read. Eventually consistent
@@ -3091,7 +3249,7 @@ export class DynamoGeneralRealtimeTableSchema<
             DynamoItemKey,
             {
                 itemKey: Types["ItemKey"];
-                index: DynamoGeneralRealtimeInternalIndex;
+                index: DynamoGeneralRealtimeInternalIndex | undefined;
                 version: number;
                 isDeleted: boolean;
             }
@@ -3115,9 +3273,12 @@ export class DynamoGeneralRealtimeTableSchema<
             for (const event of item.eventTransaction) {
                 const itemKey = this._table.deserializeOpaqueItemKey(event.key);
 
-                const index = this._indexByNameByItemType
-                    .get(`${itemKey.partitionType}#${itemKey.sortRangeType}`)
-                    ?.get(indexName);
+                const index =
+                    source.type === "Index"
+                        ? this._indexByNameByItemType
+                              .get(`${itemKey.partitionType}#${itemKey.sortRangeType}`)
+                              ?.get(source.name)
+                        : undefined;
 
                 // Ignore items that are not a part of our index. This could happen for one of
                 // the following reasons:
@@ -3125,7 +3286,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 // - Our index's realtime key is the same as the table's primary partition key
                 // - An update to an item not in the index happened in the same transaction as
                 //   an item in the index
-                if (!index) {
+                if (source.type === "Index" && !index) {
                     continue;
                 }
 
@@ -3222,11 +3383,15 @@ export class DynamoGeneralRealtimeTableSchema<
                             indexes: this._getDeleteItemEventIndexes(itemKey),
                         };
                     }
-                    // If this item is in a different index partition then the one we're backfilling
+                    // If this item is in a different partition then the one we're backfilling
                     // then send a `DeleteItem` event instead of a `PutItem` event so we don't
                     // reveal data the user doesn't have access to.
                     else if (
-                        backfillItem.index.serializeOpaquePartitionKey(result.item) !== partitionKey
+                        source.type === "Index"
+                            ? backfillItem.index!.serializeOpaquePartitionKey(result.item) !==
+                              source.partitionKey
+                            : this._table.serializeOpaqueItemPartitionKey(result.item) !==
+                              source.partitionKey
                     ) {
                         return {
                             type: "DeleteItem",

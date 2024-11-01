@@ -5,6 +5,8 @@ import {
     DynamoIndexPartitionKeySchema,
     DynamoItemKey,
     DynamoItemKeySchema,
+    DynamoItemPartitionKey,
+    DynamoItemPartitionKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
 
@@ -51,6 +53,104 @@ export function createDynamoGeneralRealtimeItemSchema<Model>(
 }
 
 /**
+ * The result of a query for a range of items in a realtime DynamoDB table.
+ *
+ * You query for a range of items in a DynamoDB partition. The order of items
+ * is determined by their sort key. Items in a DynamoDB query won't change
+ * their order. Since the sort key is a part of the item's primary key.
+ *
+ * Queries can be run in descending order. In this case the order of `items` is
+ * reversed from how they are stored is in the table.
+ */
+export type DynamoGeneralRealtimeQueryResult<Model> = {
+    /**
+     * When did the read for this data start? When we connect to realtime on the
+     * client we should load all changes between the `readTime` and the current
+     * time in case the query updated while we were disconnected from realtime. In
+     * practice we read from `readTime - 3min` to the current time to handle clock
+     * skew and eventually consistent reads.
+     */
+    readonly readTime: Date;
+
+    /**
+     * The partition key this query result is for. A query can only cover one
+     * partition. All items will be a part of the same partition.
+     */
+    readonly partitionKey: DynamoItemPartitionKey;
+
+    /**
+     * The inclusive upper bound of items we should expect in this query. If an
+     * item with this key exists then it'll be included in the query.
+     */
+    readonly startItemKey: DynamoItemKey | null;
+
+    /**
+     * The inclusive lower bound of items we should expect in this query. If an
+     * item with this key exists then it'll be included in the query.
+     */
+    readonly endItemKey: DynamoItemKey | null;
+
+    /**
+     * Information about this page of query results. Includes the direction we were
+     * paginating in (`FromStart` or `FromEnd`), whether there's a next page, and
+     * the item key we started querying the page from.
+     */
+    readonly pageInfo:
+        | {
+              readonly type: "FromStart";
+              readonly afterItemKey: DynamoItemKey | null;
+              readonly hasNextPage: boolean;
+          }
+        | {
+              readonly type: "FromEnd";
+              readonly beforeItemKey: DynamoItemKey | null;
+              readonly hasPreviousPage: boolean;
+          };
+
+    /**
+     * The items returned by this query in order. The item order is based on the
+     * lexicographic order of their keys.
+     *
+     * You can run a query in descending mode. In that case items will be in
+     * reverse order from how they're actually stored.
+     */
+    readonly items: ReadonlyArray<DynamoGeneralRealtimeItem<Model>>;
+};
+
+export function createDynamoGeneralRealtimeQuerySchema<Model>(
+    _ModelSchema: Schema<Model>,
+): Schema<DynamoGeneralRealtimeQueryResult<Model>> {
+    // `Optionalize<T>` does not like generics so use any instead.
+    const ModelSchema: Schema<any> = _ModelSchema;
+
+    return Schema.object({
+        readTime: Schema.date,
+        partitionKey: DynamoItemPartitionKeySchema,
+        startItemKey: DynamoItemKeySchema.nullable(),
+        endItemKey: DynamoItemKeySchema.nullable(),
+        pageInfo: Schema.union({
+            FromStart: Schema.object({
+                type: Schema.value("FromStart"),
+                afterItemKey: DynamoItemKeySchema.nullable(),
+                hasNextPage: Schema.boolean,
+            }),
+            FromEnd: Schema.object({
+                type: Schema.value("FromEnd"),
+                beforeItemKey: DynamoItemKeySchema.nullable(),
+                hasPreviousPage: Schema.boolean,
+            }),
+        }),
+        items: Schema.array(
+            Schema.object({
+                key: DynamoItemKeySchema,
+                version: Schema.integer.min(0),
+                model: ModelSchema,
+            }),
+        ),
+    });
+}
+
+/**
  * The result of a query for a range of items on a realtime DynamoDB table
  * index.
  *
@@ -65,7 +165,7 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
     /**
      * When did the read for this data start? When we connect to realtime on the
      * client we should load all changes between the `readTime` and the current
-     * time in case the item updated while we were disconnected from realtime. In
+     * time in case the query updated while we were disconnected from realtime. In
      * practice we read from `readTime - 3min` to the current time to handle clock
      * skew and eventually consistent reads.
      */
@@ -79,8 +179,8 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
     readonly indexName: string;
 
     /**
-     * The index partition key this query result is for. An item can only be in one
-     * index partition at a time.
+     * The index partition key this query result is for. A query can only cover
+     * one partition. All items will be a part of the same partition.
      */
     readonly partitionKey: DynamoIndexPartitionKey;
 

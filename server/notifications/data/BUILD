@@ -4,6 +4,7 @@ ts_project(
     name = "data",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/forum/test_helpers",
         "//server/notifications/data/test_helpers",
         "//server/tasks/test_helpers",
     ],

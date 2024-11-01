@@ -3191,6 +3191,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             endSortKey,
             isStartSortKeyExclusive,
             isEndSortKeyExclusive,
+            afterItemKey,
             limit,
             pageLimit,
             descending,
@@ -3202,6 +3203,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             endSortKey?: EndSortKey | undefined;
             isStartSortKeyExclusive?: boolean;
             isEndSortKeyExclusive?: boolean;
+            afterItemKey?: MergeObjectIntersection<
+                Types["ItemKey"] &
+                    PartitionKey & {
+                        readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                    }
+            >;
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
@@ -3242,6 +3249,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             endSortRangeIndex !== undefined ? endSortRangeIndex + 1 : undefined,
         );
 
+        let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
+        if (afterItemKey) {
+            const {partitionKey, sortKey} = this._serializeItemKey(afterItemKey);
+            lastEvaluatedKey = {partitionKey, sortKey};
+        }
+
         const iterator = client.query(context.tracer.getTracer(), {
             tableName: this._name,
             partitionKey: {
@@ -3255,6 +3268,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 isStartExclusive: isStartSortKeyExclusive,
                 isEndExclusive: isEndSortKeyExclusive,
             },
+            lastEvaluatedKey,
             consistency,
             limit: limit !== "All" ? limit : undefined,
             pageLimit,

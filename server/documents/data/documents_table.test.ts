@@ -49,6 +49,7 @@ import {
     attachFileAsUploader,
     startUploadingAndProcessingFile,
 } from "~/server/files/data/files_table.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -3962,21 +3963,12 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
     const session = await space.createSession();
 
     const document = await TestDocument.create(session);
-
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
-    });
-
-    await fileUploader.finishUploading(session.action());
+    const file = await TestFile.create(session);
 
     await attachFileAsUploader(
         session.action(),
         space.id,
-        fileUploader.fileId,
+        file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
@@ -3987,9 +3979,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
                 4,
                 new Slice(
                     Fragment.from(
-                        schema.node("fileRow", {}, [
-                            schema.node("file", {fileId: fileUploader.fileId}),
-                        ]),
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
                     ),
                     0,
                     0,
@@ -4002,9 +3992,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
             content: schema
                 .node("doc", {}, [
                     schema.node("title", {}),
-                    schema.node("fileRow", {}, [
-                        schema.node("file", {fileId: fileUploader.fileId}),
-                    ]),
+                    schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
                 ])
                 .toJSON(),
         });
@@ -4028,7 +4016,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
                 new Slice(
                     Fragment.from(
                         schema.node("fileFloat", {direction: "right"}, [
-                            schema.node("file", {fileId: fileUploader.fileId}),
+                            schema.node("file", {fileId: file.id}),
                         ]),
                     ),
                     0,
@@ -4043,7 +4031,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
                 .node("doc", {}, [
                     schema.node("title", {}),
                     schema.node("fileFloat", {direction: "right"}, [
-                        schema.node("file", {fileId: fileUploader.fileId}),
+                        schema.node("file", {fileId: file.id}),
                     ]),
                 ])
                 .toJSON(),
@@ -4056,9 +4044,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
                     5,
                     new Slice(
                         Fragment.from(
-                            schema.node("fileRow", {}, [
-                                schema.node("file", {fileId: fileUploader.fileId}),
-                            ]),
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
                         ),
                         0,
                         0,
@@ -4117,7 +4103,7 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
                 .node("doc", {}, [
                     schema.node("title", {}),
                     schema.node("fileFloat", {direction: "left"}, [
-                        schema.node("file", {fileId: fileUploader.fileId}),
+                        schema.node("file", {fileId: file.id}),
                     ]),
                 ])
                 .toJSON(),
@@ -10704,21 +10690,12 @@ describe("Comments", () => {
         const session = await space.createSession();
 
         const document = await TestDocument.create(session);
-
-        const fileUploader = await startUploadingAndProcessingFile(context.action(session), {
-            spaceId: space.id,
-            contentType: "image/png",
-            contentLength: 100,
-            hasAlternative: false,
-            hasPreview: null,
-        });
-
-        await fileUploader.finishUploading(context.action(session));
+        const file = await TestFile.create(session);
 
         await attachFileAsUploader(
             context.action(session),
             space.id,
-            fileUploader.fileId,
+            file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
         );
 
@@ -10728,9 +10705,7 @@ describe("Comments", () => {
                 4,
                 new Slice(
                     Fragment.from(
-                        schema.node("fileRow", {}, [
-                            schema.node("file", {fileId: fileUploader.fileId}),
-                        ]),
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
                     ),
                     0,
                     0,
@@ -10836,21 +10811,12 @@ describe("Comments", () => {
         const session = await space.createSession();
 
         const document = await TestDocument.create(session);
-
-        const fileUploader = await startUploadingAndProcessingFile(context.action(session), {
-            spaceId: space.id,
-            contentType: "image/png",
-            contentLength: 100,
-            hasAlternative: false,
-            hasPreview: null,
-        });
-
-        await fileUploader.finishUploading(context.action(session));
+        const file = await TestFile.create(session);
 
         await attachFileAsUploader(
             context.action(session),
             space.id,
-            fileUploader.fileId,
+            file.id,
             FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
         );
 
@@ -10860,9 +10826,7 @@ describe("Comments", () => {
                 4,
                 new Slice(
                     Fragment.from(
-                        schema.node("fileRow", {}, [
-                            schema.node("file", {fileId: fileUploader.fileId}),
-                        ]),
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
                     ),
                     0,
                     0,

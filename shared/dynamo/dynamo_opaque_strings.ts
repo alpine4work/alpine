@@ -20,13 +20,18 @@ export const DynamoItemKeySchema = Schema.string as Schema<any> as Schema<Dynamo
 
 /**
  * An opaque string representing the partition key of a DynamoDB item. A
- * DynamoDB item's primary key is composed of a partition key and a sort key.
+ * DynamoDB item's primary key (`DynamoItemKey`) is composed of a partition key
+ * and a sort key.
  */
 export type DynamoItemPartitionKey = string & {readonly _DynamoItemPartitionKey: never};
 
+export const DynamoItemPartitionKeySchema =
+    Schema.string as Schema<any> as Schema<DynamoItemPartitionKey>;
+
 /**
  * An opaque string representing the sort key of a DynamoDB item. A
- * DynamoDB item's primary key is composed of a partition key and a sort key.
+ * DynamoDB item's primary key (`DynamoItemKey`) is composed of a partition key
+ * and a sort key.
  */
 export type DynamoItemSortKey = string & {readonly _DynamoItemSortKey: never};
 

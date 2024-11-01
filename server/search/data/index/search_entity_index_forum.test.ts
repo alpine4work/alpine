@@ -1,5 +1,6 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
+import {createPost} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
@@ -88,8 +89,8 @@ test("can search channels by name", async () => {
         import.meta.jest.advanceTimersByTime(1000);
 
         await runAllPromises([
-            createChannel(session.action(), {spaceId: space.id, name}),
-            createChannel(otherSession.action(), {spaceId: otherSpace.id, name}),
+            TestChannel.create(session, {name}),
+            TestChannel.create(otherSession, {name}),
         ]);
     }
 
@@ -299,11 +300,11 @@ test("can search channels by affinity", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const channel1 = await createChannel(session1.action(), {spaceId: space.id, name: "Channel 1"});
-    const channel2 = await createChannel(session1.action(), {spaceId: space.id, name: "Channel 2"});
-    const channel3 = await createChannel(session1.action(), {spaceId: space.id, name: "Channel 3"});
-    const channel4 = await createChannel(session2.action(), {spaceId: space.id, name: "Channel 4"});
-    const channel5 = await createChannel(session1.action(), {spaceId: space.id, name: "Channel 5"});
+    const channel1 = await TestChannel.create(session1, {name: "Channel 1"});
+    const channel2 = await TestChannel.create(session1, {name: "Channel 2"});
+    const channel3 = await TestChannel.create(session1, {name: "Channel 3"});
+    const channel4 = await TestChannel.create(session2, {name: "Channel 4"});
+    const channel5 = await TestChannel.create(session1, {name: "Channel 5"});
 
     const createPostCountBySessionByChannel: Map<
         {id: ChannelId},

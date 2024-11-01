@@ -13,6 +13,8 @@ ts_project(
     name = "data",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/files/test_helpers",
+        "//server/forum/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
     ],

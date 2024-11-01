@@ -10,12 +10,8 @@ import {
     getPostDraftFileAttachments,
     startUploadingAndProcessingFile,
 } from "~/server/files/data/files_table.js";
-import {
-    FilePostAuthorizer,
-    createChannel,
-    createOrReplacePostDraft,
-    createPost,
-} from "~/server/forum/data/forum_table.js";
+import {FilePostAuthorizer, createOrReplacePostDraft} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
@@ -6340,20 +6336,9 @@ test("can't attach file if you don't have edit access to the target", async () =
 
     await fileUploader.finishUploading(session2.action());
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post1 = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 1"),
-    });
-
-    const post2 = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 2"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post1 = await channel.createPost(session1);
+    const post2 = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
@@ -6436,15 +6421,8 @@ test("can attach file to new target", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
 
     await expect(
         getFileFromAttachment(
@@ -6521,15 +6499,8 @@ test("can attach file to new target as the uploader", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
@@ -6606,15 +6577,8 @@ test("can't attach file to new target if you don't have edit access", async () =
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
@@ -6684,20 +6648,9 @@ test("can't attach file to new target you don't have access to", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post1 = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 1"),
-    });
-
-    const post2 = await createPost(session3.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 2"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post1 = await channel.createPost(session2);
+    const post2 = await channel.createPost(session3);
 
     await expect(
         getFileFromAttachment(
@@ -6981,15 +6934,8 @@ test("can't detach file without edit access", async () => {
 
     await fileUploader.finishUploading(session2.action());
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 1"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
