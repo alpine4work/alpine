@@ -60,7 +60,7 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 paddingY={desktopLayoutChannelViewAsidePaddingY}
-                paddingLeft="1"
+                paddingLeft={screenPaddingX}
                 paddingRight={screenPaddingX}
             >
                 <h3
