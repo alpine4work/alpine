@@ -3,8 +3,6 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
@@ -41,7 +39,6 @@ import {
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     dangerouslyAddSpaceAccountAsAdmin,
-    getAccount,
     getOurAccountSpaceIds,
 } from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -77,17 +74,6 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
-const space = createTestSpace(context);
-const session1 = createTestSession(context, space);
-const session2 = createTestSession(context, space);
-const session3 = createTestSession(context, space);
-const session4 = createTestSession(context, space);
-const session5 = createTestSession(context, space);
-const session6 = createTestSession(context, space);
-const session7 = createTestSession(context, space);
-const session8 = createTestSession(context, space);
-const otherSpace = createTestSpace(context);
-const otherSession = createTestSession(context, otherSpace);
 
 const testContent1 = createSimplePostContent("test1");
 const testContent2 = createSimplePostContent("test2");
@@ -110,8 +96,12 @@ const testMessageContent1 = createSimpleMessageContent("test1");
 const testMessageContent2 = createSimpleMessageContent("test2");
 
 test("can not create a channel for a different space", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+
     await expect(
-        createChannel(context.action(session1), {
+        createChannel(session.action(), {
             spaceId: otherSpace.id,
             name: "Test",
         }),
@@ -119,129 +109,148 @@ test("can not create a channel for a different space", async () => {
 });
 
 test("can create a channel", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
-    expect(
-        (await getChannel(context.action(session1), channel.id)).model.description.doc.toJSON(),
-    ).toEqual(emptyMessageContent.toJSON());
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(session.action(), channel.id)).model.description.doc.toJSON()).toEqual(
+        emptyMessageContent.toJSON(),
+    );
 });
 
 test("can create a channel with a description", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
         name: "Test 2",
-        description: createSimpleMessageContent("This is a description"),
+        description: "This is a description",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
-    expect(
-        (await getChannel(context.action(session1), channel.id)).model.description.doc.toJSON(),
-    ).toEqual(createSimpleMessageContent("This is a description").toJSON());
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 2");
+    expect((await getChannel(session.action(), channel.id)).model.description.doc.toJSON()).toEqual(
+        createSimpleMessageContent("This is a description").toJSON(),
+    );
 });
 
 test("can not get a channel that does not exist", async () => {
-    await expect(getChannel(context.action(otherSession), generateId())).rejects.toThrow(
-        NotFoundError,
-    );
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(getChannel(session.action(), generateId())).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelNameAndDescriptionContent(context.action(otherSession), generateId()),
+        getChannelNameAndDescriptionContent(session.action(), generateId()),
     ).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelAndPostFiles(context.action(otherSession), generateId(), {postFilesLimit: 100}),
+        getChannelAndPostFiles(session.action(), generateId(), {postFilesLimit: 100}),
     ).rejects.toThrow(NotFoundError);
 });
 
 test("can not get a channel for a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
 
-    await expect(getChannel(context.action(otherSession), channel.id)).rejects.toThrow(
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session);
+
+    await expect(getChannel(otherSession.action(), channel.id)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(
-        getChannelNameAndDescriptionContent(context.action(otherSession), channel.id),
+        getChannelNameAndDescriptionContent(otherSession.action(), channel.id),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        getChannelAndPostFiles(context.action(otherSession), channel.id, {postFilesLimit: 100}),
+        getChannelAndPostFiles(otherSession.action(), channel.id, {postFilesLimit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can get a channel", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
         name: "Test",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test");
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test");
+    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
+        "Test",
+    );
     expect(
-        (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
-    ).toEqual("Test");
-    expect(
-        await getChannelAndPostFiles(context.action(session1), channel.id, {
+        await getChannelAndPostFiles(session.action(), channel.id, {
             postFilesLimit: 100,
         }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test");
 });
 
 test("can update a channel's name", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
+        "Test 1",
+    );
     expect(
-        (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
-    ).toEqual("Test 1");
-    expect(
-        await getChannelAndPostFiles(context.action(session1), channel.id, {
+        await getChannelAndPostFiles(session.action(), channel.id, {
             postFilesLimit: 100,
         }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test 1");
 
-    await updateChannelName(context.action(session1), {
+    await updateChannelName(session.action(), {
         channelId: channel.id,
         name: "Test 2",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 2");
+    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
+        "Test 2",
+    );
     expect(
-        (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
-    ).toEqual("Test 2");
-    expect(
-        await getChannelAndPostFiles(context.action(session1), channel.id, {
+        await getChannelAndPostFiles(session.action(), channel.id, {
             postFilesLimit: 100,
         }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test 2");
 });
 
 test("can not update a channel's name from a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session, {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 
     await expect(
-        updateChannelName(context.action(otherSession), {
+        updateChannelName(otherSession.action(), {
             channelId: channel.id,
             name: "Test 2",
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
 test("can not update the name of a channel that does not exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
     await expect(
-        updateChannelName(context.action(otherSession), {
+        updateChannelName(session.action(), {
             channelId: generateId(),
             name: "Test 2",
         }),
@@ -249,59 +258,64 @@ test("can not update the name of a channel that does not exist", async () => {
 });
 
 test("can update a channel's description", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    const channel = await TestChannel.create(session);
+
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
-    await updateChannelDescription(context.action(session1), {
+    await updateChannelDescription(session.action(), {
         channelId: channel.id,
         description: testMessageContent1,
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 
-    await updateChannelDescription(context.action(session1), {
+    await updateChannelDescription(session.action(), {
         channelId: channel.id,
         description: testMessageContent2,
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         testMessageContent2,
     );
 });
 
 test("can not update a channel's description from a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    const channel = await TestChannel.create(session);
+
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
     await expect(
-        updateChannelDescription(context.action(otherSession), {
+        updateChannelDescription(otherSession.action(), {
             channelId: channel.id,
             description: testMessageContent1,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 });
 
 test("can not update the description of a channel that does not exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
     await expect(
-        updateChannelDescription(context.action(otherSession), {
+        updateChannelDescription(session.action(), {
             channelId: generateId(),
             description: testMessageContent1,
         }),
@@ -309,26 +323,26 @@ test("can not update the description of a channel that does not exist", async ()
 });
 
 test("can not update a channel's description with invalid content", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    const channel = await TestChannel.create(session);
+
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
-    await updateChannelDescription(context.action(session1), {
+    await updateChannelDescription(session.action(), {
         channelId: channel.id,
         description: testMessageContent1,
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 
     await expect(
-        updateChannelDescription(context.action(session1), {
+        updateChannelDescription(session.action(), {
             channelId: channel.id,
             description: assertMessageContent(
                 MessageContentProsemirrorSchema.nodes.doc.create({}, [
@@ -340,56 +354,61 @@ test("can not update a channel's description with invalid content", async () => 
         }),
     ).rejects.toThrow(InvalidArgumentError);
 
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 });
 
 test("can update a channel's name and description", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    const channel = await TestChannel.create(session, {name: "Test 1"});
+
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         emptyMessageContent,
     );
 
-    await updateChannelNameAndDescription(context.action(session1), {
+    await updateChannelNameAndDescription(session.action(), {
         channelId: channel.id,
         name: "Test 2",
         description: testMessageContent1,
     });
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 2");
-    expect((await getChannel(context.action(session1), channel.id)).model.description.doc).toEqual(
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 2");
+    expect((await getChannel(session.action(), channel.id)).model.description.doc).toEqual(
         testMessageContent1,
     );
 });
 
 test("can not update a channel's name and description from a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    const channel = await TestChannel.create(session, {name: "Test 1"});
+
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 
     await expect(
-        updateChannelNameAndDescription(context.action(otherSession), {
+        updateChannelNameAndDescription(otherSession.action(), {
             channelId: channel.id,
             name: "Test 2",
             description: emptyMessageContent,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getChannel(context.action(session1), channel.id)).model.name).toEqual("Test 1");
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
 test("can not update the name and description of a channel that does not exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
     await expect(
-        updateChannelNameAndDescription(context.action(otherSession), {
+        updateChannelNameAndDescription(session.action(), {
             channelId: generateId(),
             name: "Test 2",
             description: emptyMessageContent,
@@ -398,40 +417,30 @@ test("can not update the name and description of a channel that does not exist",
 });
 
 test("can create a post", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const channel = await TestChannel.create(session);
 
-    await createPost(context.action(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    await channel.createPost(session);
 });
 
 test("can not create a post for a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+    const channel = await TestChannel.create(session);
 
-    await expect(
-        createPost(context.action(otherSession), {
-            channelId: channel.id,
-            content: testContent1,
-        }),
-    ).rejects.toThrow(PermissionDeniedError);
+    await expect(channel.createPost(otherSession)).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can not create a post with invalid content", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const channel = await TestChannel.create(session);
 
     await expect(
-        createPost(context.action(session1), {
-            channelId: channel.id,
+        channel.createPost(session, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.nodes.doc.create({}, [
                     PostContentProsemirrorSchema.nodes.unorderedListItem.create({}, [
@@ -444,187 +453,190 @@ test("can not create a post with invalid content", async () => {
 });
 
 test("can not get a post that does not exist", async () => {
-    await expect(getPost(context.action(session1), generateId())).rejects.toThrow(NotFoundError);
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    await expect(getPost(session.action(), generateId())).rejects.toThrow(NotFoundError);
 });
 
 test("can not get a post for a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    const channel = await TestChannel.create(session);
 
-    await expect(getPost(context.action(otherSession), post.id)).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    const post = await channel.createPost(session);
+
+    await expect(getPost(otherSession.action(), post.id)).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can get a post", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const channel = await TestChannel.create(session);
+
+    const post = await channel.createPost(session, {
         content: testContent1,
     });
 
-    expect((await getPost(context.action(session1), post.id)).model.content.doc.toJSON()).toEqual(
+    expect((await getPost(session.action(), post.id)).model.content.doc.toJSON()).toEqual(
         testContent1.toJSON(),
     );
 });
 
 test("can get the comment authors on a post", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4, session5, session6, session7, session8] =
+        await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
 
-    expect(
-        await getPostCommentAuthors(context.action(session1), {postId: post.id, limit: 100}),
-    ).toEqual([]);
+    expect(await getPostCommentAuthors(session1.action(), {postId: post.id, limit: 100})).toEqual(
+        [],
+    );
 
-    await createPostComment(context.action(session1), {
+    await createPostComment(session1.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
-    expect(
-        await getPostCommentAuthors(context.action(session1), {postId: post.id, limit: 100}),
-    ).toEqual([await getAccount(context.action(session1), space.id, session1.accountId)]);
-
-    await createPostComment(context.action(session2), {
-        postId: post.id,
-        parentCommentIndex: null,
-        content: testMessageContent1,
-    });
-
-    await createPostComment(context.action(session3), {
-        postId: post.id,
-        parentCommentIndex: null,
-        content: testMessageContent1,
-    });
-
-    expect(
-        await getPostCommentAuthors(context.action(session1), {postId: post.id, limit: 100}),
-    ).toEqual([
-        await getAccount(context.action(session1), space.id, session1.accountId),
-        await getAccount(context.action(session2), space.id, session2.accountId),
-        await getAccount(context.action(session3), space.id, session3.accountId),
+    expect(await getPostCommentAuthors(session1.action(), {postId: post.id, limit: 100})).toEqual([
+        await session1.get(),
     ]);
 
-    await createPostComment(context.action(session4), {
+    await createPostComment(session2.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
-    await createPostComment(context.action(session5), {
+    await createPostComment(session3.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
-    await createPostComment(context.action(session6), {
+    expect(await getPostCommentAuthors(session1.action(), {postId: post.id, limit: 100})).toEqual(
+        await runAllPromises([await session1.get(), await session2.get(), await session3.get()]),
+    );
+
+    await createPostComment(session4.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
-    await createPostComment(context.action(session7), {
+    await createPostComment(session5.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
-    await createPostComment(context.action(session8), {
+    await createPostComment(session6.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
-    expect(
-        await getPostCommentAuthors(context.action(session1), {postId: post.id, limit: 100}),
-    ).toEqual([
-        await getAccount(context.action(session1), space.id, session1.accountId),
-        await getAccount(context.action(session2), space.id, session2.accountId),
-        await getAccount(context.action(session3), space.id, session3.accountId),
-        await getAccount(context.action(session4), space.id, session4.accountId),
-        await getAccount(context.action(session5), space.id, session5.accountId),
-        await getAccount(context.action(session6), space.id, session6.accountId),
-        await getAccount(context.action(session7), space.id, session7.accountId),
-        await getAccount(context.action(session8), space.id, session8.accountId),
-    ]);
+    await createPostComment(session7.action(), {
+        postId: post.id,
+        parentCommentIndex: null,
+        content: testMessageContent1,
+    });
 
-    await deletePostComment(context.action(session3), {
+    await createPostComment(session8.action(), {
+        postId: post.id,
+        parentCommentIndex: null,
+        content: testMessageContent1,
+    });
+
+    expect(await getPostCommentAuthors(session1.action(), {postId: post.id, limit: 100})).toEqual(
+        await runAllPromises([
+            session1.get(),
+            session2.get(),
+            session3.get(),
+            session4.get(),
+            session5.get(),
+            session6.get(),
+            session7.get(),
+            session8.get(),
+        ]),
+    );
+
+    await deletePostComment(session3.action(), {
         postId: post.id,
         commentIndex: 2,
     });
 
-    expect(
-        await getPostCommentAuthors(context.action(session1), {postId: post.id, limit: 100}),
-    ).toEqual([
-        await getAccount(context.action(session1), space.id, session1.accountId),
-        await getAccount(context.action(session2), space.id, session2.accountId),
-        await getAccount(context.action(session3), space.id, session3.accountId),
-        await getAccount(context.action(session4), space.id, session4.accountId),
-        await getAccount(context.action(session5), space.id, session5.accountId),
-        await getAccount(context.action(session6), space.id, session6.accountId),
-        await getAccount(context.action(session7), space.id, session7.accountId),
-        await getAccount(context.action(session8), space.id, session8.accountId),
-    ]);
+    expect(await getPostCommentAuthors(session1.action(), {postId: post.id, limit: 100})).toEqual(
+        await runAllPromises([
+            session1.get(),
+            session2.get(),
+            session3.get(),
+            session4.get(),
+            session5.get(),
+            session6.get(),
+            session7.get(),
+            session8.get(),
+        ]),
+    );
 
-    expect(
-        await getPostCommentAuthors(context.action(session1), {postId: post.id, limit: 5}),
-    ).toEqual([
-        await getAccount(context.action(session1), space.id, session1.accountId),
-        await getAccount(context.action(session2), space.id, session2.accountId),
-        await getAccount(context.action(session3), space.id, session3.accountId),
-        await getAccount(context.action(session4), space.id, session4.accountId),
-        await getAccount(context.action(session5), space.id, session5.accountId),
-    ]);
+    expect(await getPostCommentAuthors(session1.action(), {postId: post.id, limit: 5})).toEqual(
+        await runAllPromises([
+            session1.get(),
+            session2.get(),
+            session3.get(),
+            session4.get(),
+            session5.get(),
+        ]),
+    );
 });
 
 test("can not get the comment authors in another space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
 
     await expect(
-        getPostCommentAuthors(context.action(otherSession), {postId: post.id, limit: 100}),
+        getPostCommentAuthors(otherSession.action(), {postId: post.id, limit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await createPostComment(context.action(session2), {
+    await createPostComment(session2.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: testMessageContent1,
     });
 
     await expect(
-        getPostCommentAuthors(context.action(otherSession), {postId: post.id, limit: 100}),
+        getPostCommentAuthors(otherSession.action(), {postId: post.id, limit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can not get channel posts for a channel that does not exist", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session.action(), {
             channelId: generateId(),
             limit: 100,
             beforeCursor: null,
@@ -633,13 +645,15 @@ test("can not get channel posts for a channel that does not exist", async () => 
 });
 
 test("can not get channel posts for a different space", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await TestChannel.create(session);
 
     await expect(
-        getChannelPosts(context.action(otherSession), {
+        getChannelPosts(otherSession.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: null,
@@ -648,28 +662,21 @@ test("can not get channel posts for a different space", async () => {
 });
 
 test("can not get channel posts for a different space when there are a few posts", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    await createPost(context.action(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    const channel = await TestChannel.create(session1);
 
-    await createPost(context.action(session2), {
-        channelId: channel.id,
-        content: testContent2,
-    });
-
-    await createPost(context.action(session3), {
-        channelId: channel.id,
-        content: testContent3,
-    });
+    await channel.createPost(session1, {content: testContent1});
+    await channel.createPost(session2, {content: testContent2});
+    await channel.createPost(session3, {content: testContent3});
 
     await expect(
-        getChannelPosts(context.action(otherSession), {
+        getChannelPosts(otherSession.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: null,
@@ -678,13 +685,13 @@ test("can not get channel posts for a different space when there are a few posts
 });
 
 test("can get channel posts when there are none", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: null,
@@ -705,18 +712,17 @@ test("can get channel posts when there are none", async () => {
 });
 
 test("can get the first few posts in a channel", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
 
-    const post1 = await createPost(context.action(session1), {
-        channelId: channel.id,
-        content: testContent1,
-    });
+    const channel = await TestChannel.create(session1);
+
+    const post1 = await channel.createPost(session1, {content: testContent1});
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: null,
@@ -743,15 +749,11 @@ test("can get the first few posts in a channel", async () => {
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -763,13 +765,10 @@ test("can get the first few posts in a channel", async () => {
         ],
     });
 
-    const post2 = await createPost(context.action(session2), {
-        channelId: channel.id,
-        content: testContent2,
-    });
+    const post2 = await channel.createPost(session2, {content: testContent2});
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: null,
@@ -796,15 +795,11 @@ test("can get the first few posts in a channel", async () => {
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -823,15 +818,11 @@ test("can get the first few posts in a channel", async () => {
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -843,13 +834,10 @@ test("can get the first few posts in a channel", async () => {
         ],
     });
 
-    const post3 = await createPost(context.action(session3), {
-        channelId: channel.id,
-        content: testContent3,
-    });
+    const post3 = await channel.createPost(session3, {content: testContent3});
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: null,
@@ -876,15 +864,11 @@ test("can get the first few posts in a channel", async () => {
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -903,15 +887,11 @@ test("can get the first few posts in a channel", async () => {
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -930,15 +910,11 @@ test("can get the first few posts in a channel", async () => {
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -952,37 +928,34 @@ test("can get the first few posts in a channel", async () => {
 });
 
 test("can get the first few posts in a channel with limit and cursor", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
 
-    const post1 = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const channel = await TestChannel.create(session1);
+
+    const post1 = await channel.createPost(session1, {
         content: testContent1,
     });
 
-    const post2 = await createPost(context.action(session2), {
-        channelId: channel.id,
+    const post2 = await channel.createPost(session2, {
         content: testContent2,
     });
 
-    const post3 = await createPost(context.action(session3), {
-        channelId: channel.id,
+    const post3 = await channel.createPost(session3, {
         content: testContent3,
     });
 
-    const post4 = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const post4 = await channel.createPost(session1, {
         content: testContent2,
     });
 
-    const post5 = await createPost(context.action(session2), {
-        channelId: channel.id,
+    const post5 = await channel.createPost(session2, {
         content: testContent1,
     });
 
-    const channelPostsResult = await getChannelPosts(context.action(session1), {
+    const channelPostsResult = await getChannelPosts(session1.action(), {
         channelId: channel.id,
         limit: 100,
         beforeCursor: null,
@@ -1010,15 +983,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1037,15 +1006,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1064,15 +1029,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1091,15 +1052,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1118,15 +1075,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1139,7 +1092,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 3,
             beforeCursor: null,
@@ -1166,15 +1119,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1193,15 +1142,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1220,15 +1165,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1241,7 +1182,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 4,
             beforeCursor: null,
@@ -1268,15 +1209,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1295,15 +1232,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1322,15 +1255,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1349,15 +1278,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1370,7 +1295,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 5,
             beforeCursor: null,
@@ -1397,15 +1322,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1424,15 +1345,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1451,15 +1368,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1478,15 +1391,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1505,15 +1414,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1526,7 +1431,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 100,
             beforeCursor: channelPostsResult.items[3]!.cursor,
@@ -1553,15 +1458,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1580,15 +1481,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1607,15 +1504,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1628,7 +1521,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 2,
             beforeCursor: channelPostsResult.items[3]!.cursor,
@@ -1655,15 +1548,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1682,15 +1571,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session3),
-                        space.id,
-                        session3.accountId,
-                    ),
+                    author: await session3.get(),
                     content: testContent3WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1703,7 +1588,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
     });
 
     await expect(
-        getChannelPosts(context.action(session1), {
+        getChannelPosts(session1.action(), {
             channelId: channel.id,
             limit: 2,
             beforeCursor: channelPostsResult.items[2]!.cursor,
@@ -1730,15 +1615,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session1),
-                        space.id,
-                        session1.accountId,
-                    ),
+                    author: await session1.get(),
                     content: testContent1WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1757,15 +1638,11 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                     channel: {
                         id: channel.id,
                         createdTime: channel.createdTime,
-                        name: "Test",
+                        name: channel.initialName,
                         spaceId: space.id,
                     },
                     createdTime: expect.any(Date),
-                    author: await getAccount(
-                        context.action(session2),
-                        space.id,
-                        session2.accountId,
-                    ),
+                    author: await session2.get(),
                     content: testContent2WithReferences,
                     contentUpdatedTime: null,
                     commentCount: 0,
@@ -1779,37 +1656,20 @@ test("can get the first few posts in a channel with limit and cursor", async () 
 });
 
 test("can backfill realtime updates in a channel", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
     const readTime1 = new Date();
 
-    const channel1 = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const channel1 = await TestChannel.create(session);
+    const channel2 = await TestChannel.create(session);
 
-    const channel2 = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 2",
-    });
-
-    const post1 = await createPost(context.action(session1), {
-        channelId: channel1.id,
-        content: testContent1,
-    });
-
-    const post2 = await createPost(context.action(session1), {
-        channelId: channel2.id,
-        content: testContent2,
-    });
-
-    const post3 = await createPost(context.action(session1), {
-        channelId: channel1.id,
-        content: testContent3,
-    });
-
-    const post4 = await createPost(context.action(session1), {
-        channelId: channel2.id,
-        content: testContent2,
-    });
+    const post1 = await channel1.createPost(session, {content: testContent1});
+    const post2 = await channel2.createPost(session, {content: testContent2});
+    const post3 = await channel1.createPost(session, {content: testContent3});
+    const post4 = await channel2.createPost(session, {content: testContent2});
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -1818,32 +1678,32 @@ test("can backfill realtime updates in a channel", async () => {
         dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
     );
 
-    const channel1PostsResult = await getChannelPosts(context.action(session1), {
+    const channel1PostsResult = await getChannelPosts(session.action(), {
         channelId: channel1.id,
         limit: 100,
         beforeCursor: null,
     });
 
-    const channel2PostsResult = await getChannelPosts(context.action(session1), {
+    const channel2PostsResult = await getChannelPosts(session.action(), {
         channelId: channel2.id,
         limit: 100,
         beforeCursor: null,
     });
 
     await expect(
-        backfillChannelPosts(context.action(otherSession), {
+        backfillChannelPosts(otherSession.action(), {
             channelId: channel1.id,
             readTime: readTime1,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    const post1a = (await getPost(context.action(session1), post1.id)).model;
-    const post2a = (await getPost(context.action(session1), post2.id)).model;
-    const post3a = (await getPost(context.action(session1), post3.id)).model;
-    const post4a = (await getPost(context.action(session1), post4.id)).model;
+    const post1a = (await getPost(session.action(), post1.id)).model;
+    const post2a = (await getPost(session.action(), post2.id)).model;
+    const post3a = (await getPost(session.action(), post3.id)).model;
+    const post4a = (await getPost(session.action(), post4.id)).model;
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime1,
         }),
@@ -1889,7 +1749,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime1,
         }),
@@ -1935,7 +1795,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime2,
         }),
@@ -1946,7 +1806,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime2,
         }),
@@ -1956,15 +1816,15 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [],
     });
 
-    await updatePostContent(context.action(session1), {
+    await updatePostContent(session.action(), {
         postId: post1.id,
         content: createSimplePostContent("Updated test content 1"),
     });
 
-    const post1b = (await getPost(context.action(session1), post1.id)).model;
+    const post1b = (await getPost(session.action(), post1.id)).model;
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime1,
         }),
@@ -2010,7 +1870,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime1,
         }),
@@ -2056,7 +1916,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime2,
         }),
@@ -2085,7 +1945,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime2,
         }),
@@ -2095,15 +1955,15 @@ test("can backfill realtime updates in a channel", async () => {
         eventTransaction: [],
     });
 
-    await updatePostContent(context.action(session1), {
+    await updatePostContent(session.action(), {
         postId: post4.id,
         content: createSimplePostContent("Updated test content 2"),
     });
 
-    const post4b = (await getPost(context.action(session1), post4.id)).model;
+    const post4b = (await getPost(session.action(), post4.id)).model;
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime1,
         }),
@@ -2149,7 +2009,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime1,
         }),
@@ -2195,7 +2055,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime2,
         }),
@@ -2224,7 +2084,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime2,
         }),
@@ -2252,15 +2112,12 @@ test("can backfill realtime updates in a channel", async () => {
         ],
     });
 
-    const post5 = await createPost(context.action(session1), {
-        channelId: channel1.id,
-        content: testContent1,
-    });
+    const post5 = await channel1.createPost(session, {content: testContent1});
 
-    const post5a = (await getPost(context.action(session1), post5.id)).model;
+    const post5a = (await getPost(session.action(), post5.id)).model;
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime1,
         }),
@@ -2320,7 +2177,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime1,
         }),
@@ -2366,7 +2223,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel1.id,
             readTime: readTime2,
         }),
@@ -2409,7 +2266,7 @@ test("can backfill realtime updates in a channel", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel2.id,
             readTime: readTime2,
         }),
@@ -2439,15 +2296,14 @@ test("can backfill realtime updates in a channel", async () => {
 });
 
 test("won't backfill realtime updates when comment count changes", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
     const readTime1 = new Date();
 
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const channel = await TestChannel.create(session);
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const post = await channel.createPost(session, {
         content: testContent1,
     });
 
@@ -2455,13 +2311,13 @@ test("won't backfill realtime updates when comment count changes", async () => {
 
     const readTime2 = addMinutes(new Date(), 3);
 
-    const post1a = (await getPost(context.action(session1), post.id)).model;
+    const post1a = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime1,
         }),
@@ -2487,7 +2343,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2497,13 +2353,13 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [],
     });
 
-    const comment1 = await createPostComment(context.action(session1), {
+    const comment1 = await createPostComment(session.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("comment1"),
     });
 
-    const post1b = (await getPost(context.action(session1), post.id)).model;
+    const post1b = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2511,7 +2367,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1b.lastCommentChangeTime).toEqual(null);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime1,
         }),
@@ -2537,7 +2393,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2547,13 +2403,13 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [],
     });
 
-    const comment2 = await createPostComment(context.action(session1), {
+    const comment2 = await createPostComment(session.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("comment2"),
     });
 
-    const post1c = (await getPost(context.action(session1), post.id)).model;
+    const post1c = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2561,7 +2417,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1c.lastCommentChangeTime).toEqual(null);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2572,7 +2428,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     });
 
     const {contentUpdatedTime: comment2ContentUpdatedTime} = await updatePostCommentContent(
-        context.action(session1),
+        session.action(),
         {
             postId: post.id,
             commentIndex: comment2.index,
@@ -2580,7 +2436,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         },
     );
 
-    const post1d = (await getPost(context.action(session1), post.id)).model;
+    const post1d = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2588,7 +2444,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1d.lastCommentChangeTime).toEqual(comment2ContentUpdatedTime);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2598,12 +2454,12 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [],
     });
 
-    const {deletedTime: comment1DeletedTime} = await deletePostComment(context.action(session1), {
+    const {deletedTime: comment1DeletedTime} = await deletePostComment(session.action(), {
         postId: post.id,
         commentIndex: comment1.index,
     });
 
-    const post1e = (await getPost(context.action(session1), post.id)).model;
+    const post1e = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2611,7 +2467,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1e.lastCommentChangeTime).toEqual(comment1DeletedTime);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2621,13 +2477,13 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [],
     });
 
-    await createPostComment(context.action(session1), {
+    await createPostComment(session.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("comment3"),
     });
 
-    const post1f = (await getPost(context.action(session1), post.id)).model;
+    const post1f = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2635,7 +2491,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1f.lastCommentChangeTime).toEqual(comment1DeletedTime);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2645,7 +2501,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [],
     });
 
-    await updatePostContent(context.action(session1), {
+    await updatePostContent(session.action(), {
         postId: post.id,
         content: createSimplePostContent("Updated test content"),
     });
@@ -2657,7 +2513,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
         dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
     );
 
-    const post1g = (await getPost(context.action(session1), post.id)).model;
+    const post1g = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2665,7 +2521,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1g.lastCommentChangeTime).toEqual(comment1DeletedTime);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime2,
         }),
@@ -2691,7 +2547,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     });
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime3,
         }),
@@ -2701,13 +2557,13 @@ test("won't backfill realtime updates when comment count changes", async () => {
         eventTransaction: [],
     });
 
-    await createPostComment(context.action(session1), {
+    await createPostComment(session.action(), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("comment4"),
     });
 
-    const post1h = (await getPost(context.action(session1), post.id)).model;
+    const post1h = (await getPost(session.action(), post.id)).model;
 
     expect(post1a.commentCount).toEqual(0);
     expect(post1a.lastCommentChangeTime).toEqual(null);
@@ -2717,7 +2573,7 @@ test("won't backfill realtime updates when comment count changes", async () => {
     expect(post1h.lastCommentChangeTime).toEqual(comment1DeletedTime);
 
     expect(
-        await backfillChannelPosts(context.action(session1), {
+        await backfillChannelPosts(session.action(), {
             channelId: channel.id,
             readTime: readTime3,
         }),
@@ -2729,27 +2585,26 @@ test("won't backfill realtime updates when comment count changes", async () => {
 });
 
 test("can update a post's contents", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const channel = await TestChannel.create(session);
+
+    const post = await channel.createPost(session, {
         content: testContent1,
     });
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2758,25 +2613,22 @@ test("can update a post's contents", async () => {
         previewCommentAuthors: [],
     });
 
-    const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(
-        context.action(session1),
-        {
-            postId: post.id,
-            content: testContent2,
-        },
-    );
+    const {contentUpdatedTime: contentUpdatedTime1} = await updatePostContent(session.action(), {
+        postId: post.id,
+        content: testContent2,
+    });
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent2WithReferences,
         contentUpdatedTime: contentUpdatedTime1,
         commentCount: 0,
@@ -2785,25 +2637,22 @@ test("can update a post's contents", async () => {
         previewCommentAuthors: [],
     });
 
-    const {contentUpdatedTime: contentUpdatedTime2} = await updatePostContent(
-        context.action(session1),
-        {
-            postId: post.id,
-            content: testContent3,
-        },
-    );
+    const {contentUpdatedTime: contentUpdatedTime2} = await updatePostContent(session.action(), {
+        postId: post.id,
+        content: testContent3,
+    });
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent3WithReferences,
         contentUpdatedTime: contentUpdatedTime2,
         commentCount: 0,
@@ -2814,27 +2663,27 @@ test("can update a post's contents", async () => {
 });
 
 test("can not update another account's post", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const channel = await TestChannel.create(session1);
+
+    const post = await channel.createPost(session1, {
         content: testContent1,
     });
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session1.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2844,23 +2693,23 @@ test("can not update another account's post", async () => {
     });
 
     await expect(
-        updatePostContent(context.action(session2), {
+        updatePostContent(session2.action(), {
             postId: post.id,
             content: testContent2,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session1.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2871,27 +2720,28 @@ test("can not update another account's post", async () => {
 });
 
 test("can not update another space's post", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const channel = await TestChannel.create(session);
+
+    const post = await channel.createPost(session, {
         content: testContent1,
     });
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2901,23 +2751,23 @@ test("can not update another space's post", async () => {
     });
 
     await expect(
-        updatePostContent(context.action(otherSession), {
+        updatePostContent(otherSession.action(), {
             postId: post.id,
             content: testContent2,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2928,27 +2778,26 @@ test("can not update another space's post", async () => {
 });
 
 test("can not update a post with invalid content", async () => {
-    const channel = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-    const post = await createPost(context.action(session1), {
-        channelId: channel.id,
+    const channel = await TestChannel.create(session);
+
+    const post = await channel.createPost(session, {
         content: testContent1,
     });
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2958,7 +2807,7 @@ test("can not update a post with invalid content", async () => {
     });
 
     await expect(
-        updatePostContent(context.action(session1), {
+        updatePostContent(session.action(), {
             postId: post.id,
             content: assertPostContent(
                 PostContentProsemirrorSchema.nodes.doc.create({}, [
@@ -2970,17 +2819,17 @@ test("can not update a post with invalid content", async () => {
         }),
     ).rejects.toThrow(InvalidArgumentError);
 
-    expect((await getPost(context.action(session1), post.id)).model).toEqual({
+    expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
         channel: {
             id: channel.id,
             createdTime: channel.createdTime,
-            name: "Test",
+            name: channel.initialName,
             spaceId: space.id,
         },
         createdTime: expect.any(Date),
-        author: await getAccount(context.action(session1), space.id, session1.accountId),
+        author: await session.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
         commentCount: 0,
@@ -2996,34 +2845,33 @@ test("if time hasn't moved forward updating a post will set it to +1ms of the la
     Date.now = () => mockTime;
 
     try {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session);
+
+        const post = await channel.createPost(session, {
             content: testContent1,
         });
 
-        await updatePostContent(context.action(session1), {
+        await updatePostContent(session.action(), {
             postId: post.id,
             content: testContent2,
         });
 
         {
-            const updatedPost = (await getPost(context.action(session1), post.id)).model;
+            const updatedPost = (await getPost(session.action(), post.id)).model;
             assert(updatedPost);
             expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime));
         }
 
-        await updatePostContent(context.action(session1), {
+        await updatePostContent(session.action(), {
             postId: post.id,
             content: testContent3,
         });
 
         {
-            const updatedPost = (await getPost(context.action(session1), post.id)).model;
+            const updatedPost = (await getPost(session.action(), post.id)).model;
             assert(updatedPost);
             expect(updatedPost.contentUpdatedTime).toEqual(new Date(mockTime + 1));
         }
@@ -3037,37 +2885,33 @@ test("broadcasts channel realtime events to channel", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([]);
 
-    const channel1 = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const channel1 = await TestChannel.create(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([]);
 
-    const channel2 = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 2",
-    });
+    const channel2 = await TestChannel.create(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([]);
 
-    const otherChannel = await createChannel(context.action(otherSession), {
-        spaceId: otherSpace.id,
-        name: "Test 3",
-    });
+    const otherChannel = await TestChannel.create(otherSession);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([]);
 
-    await updateChannelName(context.action(session1), {
+    await updateChannelName(session.action(), {
         channelId: channel2.id,
         name: "Test 2 (updated)",
     });
@@ -3079,7 +2923,7 @@ test("broadcasts channel realtime events to channel", async () => {
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await updateChannelName(context.action(otherSession), {
+    await updateChannelName(otherSession.action(), {
         channelId: otherChannel.id,
         name: "Test 3 (updated)",
     });
@@ -3092,7 +2936,7 @@ test("broadcasts channel realtime events to channel", async () => {
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await updateChannelDescription(context.action(session1), {
+    await updateChannelDescription(session.action(), {
         channelId: channel1.id,
         description: createSimpleMessageContent("A description"),
     });
@@ -3112,20 +2956,14 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([]);
 
-    const channel1 = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 1",
-    });
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await otherSpace.createSession();
 
-    const channel2 = await createChannel(context.action(session1), {
-        spaceId: space.id,
-        name: "Test 2",
-    });
-
-    const otherChannel = await createChannel(context.action(otherSession), {
-        spaceId: otherSpace.id,
-        name: "Test 3",
-    });
+    const channel1 = await TestChannel.create(session);
+    const channel2 = await TestChannel.create(session);
+    const otherChannel = await TestChannel.create(otherSession);
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -3133,10 +2971,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([]);
 
-    await createPost(context.action(session1), {
-        channelId: channel2.id,
-        content: createSimplePostContent("Post 1"),
-    });
+    await channel2.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
@@ -3145,10 +2980,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    const post2 = await createPost(context.action(otherSession), {
-        channelId: otherChannel.id,
-        content: createSimplePostContent("Post 2"),
-    });
+    const post2 = await otherChannel.createPost(otherSession);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
@@ -3158,10 +2990,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    const post3 = await createPost(context.action(session1), {
-        channelId: channel1.id,
-        content: createSimplePostContent("Post 2"),
-    });
+    const post3 = await channel1.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
@@ -3172,10 +3001,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await createPost(context.action(session1), {
-        channelId: channel1.id,
-        content: createSimplePostContent("Post 4"),
-    });
+    await channel1.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
@@ -3187,10 +3013,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await createPost(context.action(session1), {
-        channelId: channel2.id,
-        content: createSimplePostContent("Post 5"),
-    });
+    await channel2.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
@@ -3203,7 +3026,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await updatePostContent(context.action(otherSession), {
+    await updatePostContent(otherSession.action(), {
         postId: post2.id,
         content: createSimplePostContent("Post 2 (updated)"),
     });
@@ -3221,7 +3044,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await updatePostContent(context.action(session1), {
+    await updatePostContent(session.action(), {
         postId: post3.id,
         content: createSimplePostContent("Post 3 (updated)"),
     });
@@ -3241,10 +3064,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/posts/${post3.id}/broadcast-realtime-event-transaction`,
     ]);
 
-    await createPost(context.action(session1), {
-        channelId: channel2.id,
-        content: createSimplePostContent("Post 6"),
-    });
+    await channel2.createPost(session);
     await ProcessContextModule.waitForTestTasks();
 
     expect(
@@ -4584,61 +4404,57 @@ test("will attach referenced files to post when creating from draft", async () =
 
 describe("Notification subscribers", () => {
     test("throws when trying to access a post that doesn't exist", async () => {
+        const space = await TestSpace.create(context);
+
         await expect(
-            getPostNotificationSubscribers(context.systemAction(space.id), generateId()),
+            getPostNotificationSubscribers(space.systemAction(), generateId()),
         ).rejects.toThrow(NotFoundError);
     });
 
     test("the post author is a subscriber of their own post", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
-            content: testContent1,
-        });
+        const channel = await TestChannel.create(session);
+        const post = await channel.createPost(session, {content: testContent1});
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id]));
+        ).toEqual(new Set([session.account.id]));
     });
 
     test("can't get notification subscribers for a post in a different space", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const otherSpace = await TestSpace.create(context);
+        const session = await space.createSession();
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
-            content: testContent1,
-        });
+        const channel = await TestChannel.create(session);
+        const post = await channel.createPost(session, {content: testContent1});
 
         await expect(
-            getPostNotificationSubscribers(context.systemAction(otherSpace.id), post.id).then(
+            getPostNotificationSubscribers(otherSpace.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("an account mentioned in the post's content is subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+        const post = await channel.createPost(session1, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.accountId},
+                            mention: {accountId: session2.account.id},
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -4647,22 +4463,20 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
     });
 
     test("an unknown account in the post's content is not subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
 
         const missingAccountId = generateId<AccountId>();
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session);
+        const post = await channel.createPost(session, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
@@ -4677,26 +4491,28 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, missingAccountId]));
+        ).toEqual(new Set([session.account.id, missingAccountId]));
     });
 
     test("a mentioned account from another space in the post's content is not subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const otherSpace = await TestSpace.create(context);
+        const [session1, otherSession] = await runAllPromises([
+            space.createSession(),
+            otherSpace.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+        const post = await channel.createPost(session1, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: otherSession.accountId},
+                            mention: {accountId: otherSession.account.id},
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -4705,26 +4521,27 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, otherSession.accountId]));
+        ).toEqual(new Set([session1.account.id, otherSession.account.id]));
     });
 
     test("an account mentioned in the post's content is subscribed to notifications even if it is removed from the post's content", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+        const post = await channel.createPost(session1, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.accountId},
+                            mention: {accountId: session2.account.id},
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -4733,12 +4550,12 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
 
-        await updatePostContent(context.action(session1), {
+        await updatePostContent(session1.action(), {
             postId: post.id,
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
@@ -4750,20 +4567,22 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
     });
 
     test("an account mentioned in the post's content after an update is subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
@@ -4774,19 +4593,19 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await updatePostContent(context.action(session1), {
+        await updatePostContent(session1.action(), {
             postId: post.id,
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.accountId},
+                            mention: {accountId: session2.account.id},
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -4795,125 +4614,133 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
     });
 
     test("an account that comments on a post is subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session3.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: testMessageContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id, session3.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session3.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: testMessageContent2,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id, session3.account.id]));
 
-        await createPostComment(context.action(session2), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: testMessageContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id, session3.account.id, session2.account.id]));
     });
 
     test("an account that comments on a post is subscribed to notifications even if the comment is deleted", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: testMessageContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
 
-        await deletePostComment(context.action(session3), {
+        await deletePostComment(session2.action(), {
             postId: post.id,
             commentIndex: 0,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -4921,7 +4748,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session4.accountId},
+                            mention: {accountId: session3.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -4930,32 +4757,34 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
     });
 
     test("an unknown account that is mentioned in a post comment is not subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
         const missingAccountId = generateId<AccountId>();
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -4972,30 +4801,34 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, missingAccountId]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, missingAccountId]));
     });
 
     test("a mentioned account from another space in a post comment is not subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const otherSpace = await TestSpace.create(context);
+        const [session1, session2, otherSession] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            otherSpace.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5003,7 +4836,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: otherSession.accountId},
+                            mention: {accountId: otherSession.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5012,30 +4845,33 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, otherSession.accountId]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, otherSession.account.id]));
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications even if the message is updated to remove the mention", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5043,7 +4879,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session4.accountId},
+                            mention: {accountId: session3.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5052,12 +4888,12 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
 
-        await updatePostCommentContent(context.action(session3), {
+        await updatePostCommentContent(session2.action(), {
             postId: post.id,
             commentIndex: 0,
             content: assertMessageContent(
@@ -5070,30 +4906,33 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications even if the message is deleted", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5101,7 +4940,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session4.accountId},
+                            mention: {accountId: session3.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5110,41 +4949,44 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
 
-        await deletePostComment(context.action(session3), {
+        await deletePostComment(session2.action(), {
             postId: post.id,
             commentIndex: 0,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
     });
 
     test("an account that is mentioned in a post comment after it is updated is subscribed to notifications", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: testContent1,
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5157,12 +4999,12 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
 
-        await updatePostCommentContent(context.action(session3), {
+        await updatePostCommentContent(session2.action(), {
             postId: post.id,
             commentIndex: 0,
             content: assertMessageContent(
@@ -5170,7 +5012,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session4.accountId},
+                            mention: {accountId: session3.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5179,26 +5021,31 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
+        ).toEqual(new Set([session1.account.id, session2.account.id, session3.account.id]));
     });
 
     test("notification subscribers are not duplicated and can be added from many different sources", async () => {
-        const channel = await createChannel(context.action(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
+        const space = await TestSpace.create(context);
+        const [session1, session2, session3, session4, session5] = await runAllPromises([
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+            space.createSession(),
+        ]);
 
-        const post = await createPost(context.action(session1), {
-            channelId: channel.id,
+        const channel = await TestChannel.create(session1);
+
+        const post = await channel.createPost(session1, {
             content: assertPostContent(
                 PostContentProsemirrorSchema.node("doc", {}, [
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.accountId},
+                            mention: {accountId: session2.account.id},
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -5207,12 +5054,12 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id, session2.account.id]));
 
-        await createPostComment(context.action(session1), {
+        await createPostComment(session1.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5225,12 +5072,12 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id, session2.account.id]));
 
-        await createPostComment(context.action(session3), {
+        await createPostComment(session3.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5238,7 +5085,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session1.accountId},
+                            mention: {accountId: session1.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5247,12 +5094,12 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id, session3.account.id, session2.account.id]));
 
-        const comment = await createPostComment(context.action(session2), {
+        const comment = await createPostComment(session2.action(), {
             postId: post.id,
             parentCommentIndex: null,
             content: assertMessageContent(
@@ -5260,7 +5107,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session4.accountId},
+                            mention: {accountId: session4.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5269,7 +5116,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(
@@ -5281,7 +5128,7 @@ describe("Notification subscribers", () => {
             ]),
         );
 
-        await updatePostCommentContent(context.action(session2), {
+        await updatePostCommentContent(session2.action(), {
             postId: post.id,
             commentIndex: comment.index,
             content: assertMessageContent(
@@ -5289,7 +5136,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session5.accountId},
+                            mention: {accountId: session5.account.id},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -5298,7 +5145,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
+            await getPostNotificationSubscribers(space.systemAction(), post.id).then(
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(
