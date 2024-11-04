@@ -86,7 +86,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      *
      * We say this is an approximate time since whenever we load new data or see a
      * new realtime event we will increase this value to the latest time. However,
-     * realtime events may arrive out-of-order. So we may not have seen an event
+     * realtime events may arrive out-of-order. So we may have missed an event
      * before our `readTime`.
      *
      * The server doesn't trust `readTime` and gives us events in a short window
@@ -153,8 +153,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * keep them around in our query in case we load more data and the data is
      * behind an event we received in realtime. Consider:
      *
-     * 1. We start loading items N through N+10
-     * 2. The server loads item N+2 at version V
+     * 1. We start loading a query of items N through N+10
+     * 2. As a part of the query, the server loads item N+2 at version V
      * 3. User updates item N+2 to version V+1
      * 4. We receive a realtime update for item N+2 as version V+1
      * 5. We receive the data from the server for items N through N+10 where item
@@ -289,8 +289,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 // If we initialized our query with a page starting after a certain cursor then
                 // that cursor is our actual start bound.
                 //
-                // We don't currently support initializing in the middle of a query. This
-                // behavior is for when you have a "next page"/"previous page" style UI.
+                // We don't currently support initializing in the middle of a query.
                 if (
                     result.pageInfo.afterCursor !== null &&
                     (startCursorBound === null || result.pageInfo.afterCursor > startCursorBound)
@@ -311,8 +310,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 // If we initialized our query with a page starting before a certain cursor
                 // then that cursor is our actual end bound.
                 //
-                // We don't currently support initializing in the middle of a query. This
-                // behavior is for when you have a "next page"/"previous page" style UI.
+                // We don't currently support initializing in the middle of a query.
                 if (
                     result.pageInfo.beforeCursor !== null &&
                     (endCursorBound === null || result.pageInfo.beforeCursor < endCursorBound)
@@ -328,8 +326,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: result.indexName,
             partitionKey: result.partitionKey,
-            startCursorBound: result.startCursorBound,
-            endCursorBound: result.endCursorBound,
+            startCursorBound,
+            endCursorBound,
             readTime: result.readTime,
             itemByCursor,
             itemVisibilityByKey,
@@ -341,7 +339,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Loads more data into the query. Only adds items to the loaded page if the
      * new query result overlaps with data we already have.
      *
-     * Throws an error if the data is from a different index.
+     * Throws an error if the data is from a different index partition.
      */
     public loadMore(
         result: DynamoGeneralRealtimeIndexQueryResult<Model>,
@@ -470,6 +468,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
                         return {
                             isDeleted: false,
+                            // If the item is in a different partition then we need to add the item to our
+                            // `itemVisibilityByKey` map with `isVisible` false. Since the index partition
+                            // key may change.
                             partitionKey: index.partitionKey,
                             cursor: index.cursor,
                             // Items outside of our index will not have the `Model` type. We assume the
@@ -1115,7 +1116,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         let itemByCursor = this._itemByCursor;
 
         const iterator = itemByCursor.find(cursor);
-        assert(iterator.value);
+        if (iterator.value === undefined) return this;
 
         const newExtra = update(iterator.value);
         if (newExtra === iterator.value.extra) return this;

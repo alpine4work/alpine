@@ -74,8 +74,10 @@ function getBase64StringLengths(string: string, includesPadding: boolean) {
 
     // Trim off extra bytes after placeholder bytes are found
     // See: https://github.com/beatgammit/base64-js/issues/42
-    let dataLength = string.indexOf("=");
-    if (dataLength === -1) dataLength = length;
+    let dataLength = string.length;
+    while (string[dataLength - 1] === "=") {
+        dataLength = dataLength - 1;
+    }
 
     const remainder = dataLength % 4;
     const paddingLength = dataLength === length && remainder === 0 ? 0 : 4 - remainder;
