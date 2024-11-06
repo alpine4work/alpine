@@ -27,6 +27,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,
     MessageContentWithReferences,
+    assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 
 export function ChannelViewHeader({
@@ -95,16 +96,18 @@ function ChannelViewHeaderMobileDescription({
 }) {
     const descriptionSnippet = useMemo(() => {
         return {
-            doc: getContentSnippet(
-                description.doc.resolve(0),
-                {linesAbove: 0, linesBelow: 3},
-                {
-                    // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                    // want to be slightly more aggressive than the default grapheme count (which
-                    // counts the "l" character which is narrower) since we render the entire
-                    // snippet.
-                    maxLineGraphemeCount: 72,
-                },
+            doc: assertMessageContent(
+                getContentSnippet(
+                    description.doc.resolve(0),
+                    {linesAbove: 0, linesBelow: 3},
+                    {
+                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
+                        // want to be slightly more aggressive than the default grapheme count (which
+                        // counts the "l" character which is narrower) since we render the entire
+                        // snippet.
+                        maxLineGraphemeCount: 72,
+                    },
+                ),
             ),
             references: description.references,
         };

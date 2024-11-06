@@ -108,6 +108,11 @@ function TaskDetailNotesField(
                             aria-labelledby={labelId}
                             withMobileLayout={withMobileLayout}
                             content={state.editorState.getContent()}
+                            onMergeContentReferences={references =>
+                                notesClient.changeEditorState(
+                                    state.editorState.updateReferences({type: "Merge", references}),
+                                )
+                            }
                             placeholder="Add more details…"
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({paddingX: screenPaddingX})}

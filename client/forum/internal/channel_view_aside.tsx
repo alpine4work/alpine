@@ -51,6 +51,7 @@ import {PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
+    assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 
 const channelViewAsideEditingDescriptionOffsetTop = `${
@@ -87,9 +88,6 @@ export function ChannelViewAside({
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
     // NOCOMMIT: Playing videos in post is broken!
-    // NOCOMMIT: It would be nice if `<ContentView>` could update its references?
-    // If you upload a post, scroll down, then scroll back up it goes into a
-    // processing state.
     // NOCOMMIT: Post editor not working well with files.
     // NOCOMMIT: Update channel shimmer to account for contributors. Add channel
     // files shimmer
@@ -217,16 +215,18 @@ export function ChannelViewAside({
 function ChannelViewAsideDescription({description}: {description: MessageContentWithReferences}) {
     const descriptionSnippet = useMemo(() => {
         return {
-            doc: getContentSnippet(
-                description.doc.resolve(0),
-                {linesAbove: 0, linesBelow: 7},
-                {
-                    // 1.125x the number of "x"s we can fit in a single line in the channel aside
-                    // (45). We want to be slightly more aggressive than the default grapheme count
-                    // (which counts the "l" character which is narrower) since we render the entire
-                    // snippet.
-                    maxLineGraphemeCount: 51,
-                },
+            doc: assertMessageContent(
+                getContentSnippet(
+                    description.doc.resolve(0),
+                    {linesAbove: 0, linesBelow: 7},
+                    {
+                        // 1.125x the number of "x"s we can fit in a single line in the channel aside
+                        // (45). We want to be slightly more aggressive than the default grapheme count
+                        // (which counts the "l" character which is narrower) since we render the entire
+                        // snippet.
+                        maxLineGraphemeCount: 51,
+                    },
+                ),
             ),
             references: description.references,
         };

@@ -55,7 +55,7 @@ export default function DocumentViewRoute({
                 // Re-render when the document changes
                 key={document.id}
                 withMobileLayout={withMobileLayout}
-                document={document}
+                initialDocument={document}
             />
         </Box>
     );

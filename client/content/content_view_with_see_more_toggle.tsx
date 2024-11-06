@@ -3,15 +3,15 @@ import {ContentView, ContentViewProps} from "~/client/content/content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 
-export function ContentViewWithSeeMoreToggle({
+export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferences>({
     content,
     contentSnippet,
     ...props
-}: Omit<ContentViewProps, "onSeeMoreContent" | "onSeeLessContent"> & {
+}: Omit<ContentViewProps<Content>, "onSeeMoreContent" | "onSeeLessContent"> & {
     /**
      * The content to render.
      */
-    contentSnippet: ContentWithReferences;
+    contentSnippet: Content;
 }) {
     const isContentSnippetTruncated = content.doc.nodeSize !== contentSnippet.doc.nodeSize;
 

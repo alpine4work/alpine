@@ -94,13 +94,13 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
+import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
     uploadFileFromContentEditorProgressCompositeStoreWeights,
 } from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
-import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -619,6 +619,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     isCompact,
     isExtraCompact,
     state,
+    onChange,
     placeholder,
     className,
     "aria-label": ariaLabel,
@@ -707,6 +708,14 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 isCompact={isCompact}
                 isExtraCompact={isExtraCompact}
                 content={state.getContent()}
+                onMergeContentReferences={references => {
+                    const unwrappedState = unwrap(state);
+                    const transaction = updateContentEditorReferences(unwrappedState.tr, {
+                        type: "Merge",
+                        references,
+                    });
+                    onChange(wrap(unwrappedState.apply(transaction)), transaction);
+                }}
                 placeholder={placeholder}
                 className={className}
                 aria-label={ariaLabel}

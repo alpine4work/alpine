@@ -47,9 +47,8 @@ import {
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {
-    ContentReferences,
     ContentWithReferences,
-    mergeContentReferencesFileById,
+    emptyContentReferences,
 } from "~/shared/content/content_references.js";
 import {
     codeBlockWrapperClassName,
@@ -100,7 +99,7 @@ declare global {
     var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
 }
 
-export type ContentViewProps = {
+export type ContentViewProps<Content extends ContentWithReferences> = {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
      * in peeks on the desktop platform.
@@ -110,7 +109,19 @@ export type ContentViewProps = {
     /**
      * The content to render.
      */
-    content: ContentWithReferences;
+    content: Content;
+
+    /**
+     * Update the references associated with `content`. Should merge the new
+     * references with the old ones with `mergeContentReferences()`.
+     *
+     * This is important for files. If you have a recently uploaded file then
+     * we'll poll the file until it's finished processing. Once it's finished
+     * processing this function is called to update our `FileModel` in state.
+     * If we don't update the `FileModel` in state it'll look like the file is
+     * processing forever.
+     */
+    onMergeContentReferences?: (contentReferences: Content["references"]) => void;
 
     /**
      * This prop puts an `(updated)` message at the end of our content with a
@@ -228,9 +239,10 @@ export type ContentViewProps = {
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
  * you want to disable editing of content and only allow reading the content.
  */
-export function ContentView({
+export function ContentView<Content extends ContentWithReferences>({
     withMobileLayout,
-    content: contentFromProps,
+    content,
+    onMergeContentReferences,
     contentUpdatedTime,
     placeholder,
     className,
@@ -248,10 +260,15 @@ export function ContentView({
     onSeeMoreContent,
     onSeeLessContent,
     fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
-}: ContentViewProps) {
+}: ContentViewProps<Content>) {
     assert(
-        !contentFromProps.doc.type.schema.nodes.file || fileAttachmentTarget,
+        !content.doc.type.schema.nodes.file || fileAttachmentTarget,
         "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+    );
+
+    assert(
+        !content.doc.type.schema.nodes.file || onMergeContentReferences,
+        "When the ProseMirror schema supports files then the prop `onMergeContentReferences` is required",
     );
 
     const rootNavigate = useRootNavigate();
@@ -284,33 +301,12 @@ export function ContentView({
 
     const events = useEvents({
         getContent: () => content,
+        onMergeContentReferences: onMergeContentReferences ?? noop,
         onSeeMoreContent: onSeeMoreContent ?? noop,
         onSeeLessContent: onSeeLessContent ?? noop,
     });
 
     const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
-    const [updatedContentReferencesFileById, setUpdatedContentReferencesFileById] = useState<
-        ContentReferences["fileById"] | null
-    >(null);
-
-    const updatedContentReferences = useMemo(() => {
-        if (!updatedContentReferencesFileById) return contentFromProps.references;
-
-        const newFileById = mergeContentReferencesFileById(
-            contentFromProps.references.fileById,
-            updatedContentReferencesFileById,
-        );
-
-        if (newFileById === contentFromProps.references.fileById)
-            return contentFromProps.references;
-
-        return {...contentFromProps.references, fileById: newFileById};
-    }, [contentFromProps.references, updatedContentReferencesFileById]);
-
-    const content = useMemo(
-        () => ({doc: contentFromProps.doc, references: updatedContentReferences}),
-        [contentFromProps.doc, updatedContentReferences],
-    );
 
     const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
         readonly doc: Node;
@@ -943,22 +939,20 @@ export function ContentView({
                         rootNavigate,
                         getReporter: () => reporter,
                         onUpdate: (file, signedUrlSearch) => {
-                            setUpdatedContentReferencesFileById(fileById => {
-                                return mergeContentReferencesFileById(
-                                    fileById ?? new Map(),
-                                    new Map([[file.id, {signedUrlSearch, file}]]),
-                                );
+                            events.onMergeContentReferences({
+                                ...emptyContentReferences,
+                                fileById: new Map([[file.id, {signedUrlSearch, file}]]),
                             });
                         },
                         onSignedUrlRefresh: (fileId, signedUrlSearch) => {
-                            setUpdatedContentReferencesFileById(fileById => {
-                                const oldFile = content.references.fileById.get(fileId);
-                                if (!oldFile) return fileById;
+                            const oldFile = events.getContent().references.fileById.get(fileId);
+                            if (!oldFile) return;
 
-                                return mergeContentReferencesFileById(
-                                    fileById ?? new Map(),
-                                    new Map([[fileId, {signedUrlSearch, file: oldFile.file}]]),
-                                );
+                            events.onMergeContentReferences({
+                                ...emptyContentReferences,
+                                fileById: new Map([
+                                    [fileId, {signedUrlSearch, file: oldFile.file}],
+                                ]),
                             });
                         },
                     },

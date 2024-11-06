@@ -24,6 +24,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -233,6 +234,10 @@ function testSelectionClipboardData(selection: {
     return result1;
 }
 
+function unimplementedForTest() {
+    throw new UnimplementedError("Unimplemented for test");
+}
+
 beforeAll(async () => {
     await contentCodeBlockLanguageById.typescript.getParser()?.promise;
 });
@@ -243,6 +248,7 @@ test("can copy when selection is entirely in content view", () => {
             <ContentView
                 withMobileLayout={false}
                 content={testDocument}
+                onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testDocumentFileAttachmentTarget}
             />
         </TestSpaceContextProvider>,

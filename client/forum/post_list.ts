@@ -3,6 +3,7 @@ import {SetStateAction} from "react";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/virtualized/helpers/virtualized_tree.js";
+import {ContentReferences, mergeContentReferences} from "~/shared/content/content_references.js";
 import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
@@ -24,6 +25,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {decodeIdInto} from "~/shared/id/id.js";
 import {ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -115,6 +117,47 @@ export interface PostListInterface {
      * in a list of posts, no post should have open comments.
      */
     hasOpenPostComments(): boolean;
+}
+
+type PostListItemExtra = {
+    readonly updatedPostContentReferences: ContentReferences | null;
+    readonly postComments: MessageList<PostCommentModel>;
+    readonly postCommentsState: PostCommentsState;
+};
+
+let reconciledPostByUpdatedPostContentReferencesByPost: WeakMap<
+    PostModel,
+    WeakMap<ContentReferences, PostModel>
+> | null;
+
+function reconcilePostContentReferences(
+    post: PostModel,
+    updatedPostContentReferences: ContentReferences | null,
+): PostModel {
+    if (updatedPostContentReferences === null) return post;
+
+    reconciledPostByUpdatedPostContentReferencesByPost ??= new WeakMap();
+
+    const reconciledPostByUpdatedPostContentReferences = getOrSetDefaultMapValue(
+        reconciledPostByUpdatedPostContentReferencesByPost,
+        post,
+        () => new WeakMap(),
+    );
+
+    return getOrSetDefaultMapValue(
+        reconciledPostByUpdatedPostContentReferences,
+        updatedPostContentReferences,
+        () =>
+            post.clone({
+                content: {
+                    ...post.content,
+                    references: mergeContentReferences(
+                        post.content.references,
+                        updatedPostContentReferences,
+                    ),
+                },
+            }),
+    );
 }
 
 /**
@@ -334,10 +377,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
     PostId,
     NodeOrderKey,
     DynamoGeneralRealtimeItem<PostModel> & {
-        readonly extra: {
-            readonly postComments: MessageList<PostCommentModel>;
-            readonly postCommentsState: PostCommentsState;
-        } | null;
+        readonly extra: PostListItemExtra | null;
     },
     Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem>
 > {
@@ -347,10 +387,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
 
     protected override _getNodeItemCount(
         node: DynamoGeneralRealtimeItem<PostModel> & {
-            readonly extra: {
-                readonly postComments: MessageList<PostCommentModel>;
-                readonly postCommentsState: PostCommentsState;
-            } | null;
+            readonly extra: PostListItemExtra | null;
         },
     ): number {
         const {
@@ -363,23 +400,23 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
 
     protected override _getNodeItem(
         node: DynamoGeneralRealtimeItem<PostModel> & {
-            readonly extra: {
-                readonly postComments: MessageList<PostCommentModel>;
-                readonly postCommentsState: PostCommentsState;
-            } | null;
+            readonly extra: PostListItemExtra | null;
         },
         index: number,
         postContentItemIndex: number,
     ): Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem> {
         const {
+            updatedPostContentReferences = null,
             postCommentsState = "Closed",
             postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
         } = node.extra ?? emptyObject;
 
+        const post = reconcilePostContentReferences(node.model, updatedPostContentReferences);
+
         if (index === 0) {
             return {
                 type: "PostContent",
-                post: node.model,
+                post,
                 postComments,
                 postCommentsState,
                 postContentItemIndex,
@@ -402,7 +439,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
                     case "Loaded": {
                         return {
                             type: "LoadedPostComment",
-                            post: node.model,
+                            post,
                             postComments,
                             postCommentIndex,
                             postComment: item.message,
@@ -412,7 +449,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
                     case "Unloaded": {
                         return {
                             type: "UnloadedPostComment",
-                            post: node.model,
+                            post,
                             postComments,
                             postCommentIndex,
                             postCommentInputItemIndex,
@@ -421,7 +458,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
                     case "Optimistic": {
                         return {
                             type: "OptimisticPostComment",
-                            post: node.model,
+                            post,
                             postComments,
                             postCommentIndex,
                             postComment: item.message,
@@ -432,7 +469,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
                     case "TypingIndicators": {
                         return {
                             type: "PostCommentsTypingIndicator",
-                            post: node.model,
+                            post,
                             postComments,
                             typingStateByConnectionId: item.typingStateByConnectionId,
                             postCommentInputItemIndex,
@@ -446,7 +483,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
             if (index === postCommentCount + 1) {
                 return {
                     type: "PostCommentInput",
-                    post: node.model,
+                    post,
                     postComments,
                     postContentItemIndex,
                 };
@@ -469,13 +506,14 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
         const {node, startItemIndex} = nodeResult;
 
         const {
+            updatedPostContentReferences = null,
             postCommentsState = "Closed",
             postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
         } = node.extra ?? emptyObject;
 
         return {
             node: {
-                post: node.model,
+                post: reconcilePostContentReferences(node.model, updatedPostContentReferences),
                 postComments,
                 postCommentsState,
             },
@@ -507,13 +545,14 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
         const startItemIndex = this._getPreviousItemCount(iterator);
 
         const {
+            updatedPostContentReferences = null,
             postCommentsState = "Closed",
             postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
         } = node.extra ?? emptyObject;
 
         return {
             node: {
-                post: node.model,
+                post: reconcilePostContentReferences(node.model, updatedPostContentReferences),
                 postComments,
                 postCommentsState,
             },
@@ -569,6 +608,7 @@ export class PostBasicList extends PostListBase<number> {
                           {
                               ...result.post,
                               extra: {
+                                  updatedPostContentReferences: null,
                                   postCommentsState: result.postCommentsState ?? "Closed",
                                   postComments: !result.postComments
                                       ? MessageList.new<PostCommentModel>({
@@ -619,6 +659,20 @@ export class PostBasicList extends PostListBase<number> {
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ) {
         const newPosts = this._posts.handleEventTransaction(eventTransaction);
+
+        if (newPosts === this._posts) return this;
+
+        return new PostBasicList({
+            hasMorePosts: this._hasMorePosts,
+            posts: newPosts,
+        });
+    }
+
+    public mergePostContentReferences(
+        postId: PostId,
+        references: ContentReferences,
+    ): PostBasicList {
+        const newPosts = this._posts.mergePostContentReferences(postId, references);
 
         if (newPosts === this._posts) return this;
 
@@ -695,20 +749,14 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         nodeByOrderKey: Tree<
             number,
             DynamoGeneralRealtimeItem<PostModel> & {
-                readonly extra: {
-                    readonly postComments: MessageList<PostCommentModel>;
-                    readonly postCommentsState: PostCommentsState;
-                } | null;
+                readonly extra: PostListItemExtra | null;
             }
         >;
         itemCountSubtreeCache: WeakMap<
             TreeNode<
                 number,
                 DynamoGeneralRealtimeItem<PostModel> & {
-                    readonly extra: {
-                        readonly postComments: MessageList<PostCommentModel>;
-                        readonly postCommentsState: PostCommentsState;
-                    } | null;
+                    readonly extra: PostListItemExtra | null;
                 }
             >,
             number
@@ -721,10 +769,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     public static new(
         posts: Array<
             DynamoGeneralRealtimeItem<PostModel> & {
-                readonly extra: {
-                    readonly postComments: MessageList<PostCommentModel>;
-                    readonly postCommentsState: PostCommentsState;
-                } | null;
+                readonly extra: PostListItemExtra | null;
             }
         >,
     ) {
@@ -748,10 +793,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     public addPosts(
         posts: ReadonlyArray<
             DynamoGeneralRealtimeItem<PostModel> & {
-                readonly extra: {
-                    readonly postComments: MessageList<PostCommentModel>;
-                    readonly postCommentsState: PostCommentsState;
-                } | null;
+                readonly extra: PostListItemExtra | null;
             }
         >,
     ): PostBasicListVirtualizedTree {
@@ -876,6 +918,50 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
     }
 
     /**
+     * Merge the provided `ContentReferences` object into the existing
+     * `ContentReferences` for the post.
+     */
+    public mergePostContentReferences(
+        postId: PostId,
+        contentReferences: ContentReferences,
+    ): PostBasicListVirtualizedTree {
+        const postVisibility = this._postVisibilityById.get(postId);
+        if (!postVisibility?.isVisible) return this;
+
+        let nodeByOrderKey = this._nodeByOrderKey;
+
+        const iterator = nodeByOrderKey.find(postVisibility.index);
+        assert(iterator.value);
+
+        nodeByOrderKey = iterator.update({
+            ...iterator.value,
+
+            // We have to update `extra` instead of updating `model.content.references`
+            // directly because we don't want our updated references to be clobbered if we
+            // receive a realtime update from the server. `extra` is preserved even when we
+            // receive realtime updates from the server.
+            extra: {
+                updatedPostContentReferences: iterator.value.extra?.updatedPostContentReferences
+                    ? mergeContentReferences(
+                          iterator.value.extra.updatedPostContentReferences,
+                          contentReferences,
+                      )
+                    : contentReferences,
+                postCommentsState: iterator.value.extra?.postCommentsState ?? "Closed",
+                postComments:
+                    iterator.value.extra?.postComments ??
+                    initialPostModelCommentsCache.getOrSetDefault(iterator.value.model),
+            },
+        });
+
+        return new PostBasicListVirtualizedTree({
+            postVisibilityById: this._postVisibilityById,
+            nodeByOrderKey,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+        });
+    }
+
+    /**
      * Toggle the post's comment section as open or closed.
      */
     public togglePostComments(postId: PostId): PostBasicListVirtualizedTree {
@@ -888,6 +974,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         assert(iterator.value);
 
         const {
+            updatedPostContentReferences = null,
             postCommentsState = "Closed",
             postComments = initialPostModelCommentsCache.getOrSetDefault(iterator.value.model),
         } = iterator.value.extra ?? emptyObject;
@@ -899,6 +986,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         nodeByOrderKey = iterator.update({
             ...iterator.value,
             extra: {
+                updatedPostContentReferences,
                 postCommentsState: postCommentsState === "Closed" ? "Open" : "Closed",
                 postComments,
             },
@@ -928,6 +1016,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         assert(iterator.value);
 
         const {
+            updatedPostContentReferences = null,
             postCommentsState = "Closed",
             postComments = initialPostModelCommentsCache.getOrSetDefault(iterator.value.model),
         } = iterator.value.extra ?? emptyObject;
@@ -938,6 +1027,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         nodeByOrderKey = iterator.update({
             ...iterator.value,
             extra: {
+                updatedPostContentReferences,
                 postCommentsState,
                 postComments: newPostComments,
             },
@@ -969,6 +1059,8 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
             nodeByOrderKey = iterator.update({
                 ...node.value,
                 extra: {
+                    updatedPostContentReferences:
+                        node.value.extra?.updatedPostContentReferences ?? null,
                     postCommentsState: "Closed",
                     postComments: node.value.extra.postComments,
                 },
@@ -987,10 +1079,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
 
 export type PostQueryListDynamoGeneralRealtimeIndexQuery = DynamoGeneralRealtimeIndexQuery<
     PostModel,
-    {
-        readonly postComments: MessageList<PostCommentModel>;
-        readonly postCommentsState: PostCommentsState;
-    }
+    PostListItemExtra
 >;
 
 /**
@@ -1025,6 +1114,15 @@ export class PostQueryList extends PostListBase<DynamoIndexCursor> {
         return new PostQueryList(newPosts);
     }
 
+    public mergePostContentReferences(
+        postId: PostId,
+        references: ContentReferences,
+    ): PostQueryList {
+        const newPosts = this._posts.mergePostContentReferences(postId, references);
+        if (newPosts === this._posts) return this;
+        return new PostQueryList(newPosts);
+    }
+
     public togglePostComments(postId: PostId): PostQueryList {
         const newPosts = this._posts.togglePostComments(postId);
         if (newPosts === this._posts) return this;
@@ -1051,13 +1149,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     /**
      * The backing realtime DynamoDB query for this `PostList`.
      */
-    public readonly query: DynamoGeneralRealtimeIndexQuery<
-        PostModel,
-        {
-            readonly postComments: MessageList<PostCommentModel>;
-            readonly postCommentsState: PostCommentsState;
-        }
-    >;
+    public readonly query: DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>;
 
     // Iterate through `nodeByOrderKey` in reverse order. The most recent posts are
     // at the end of the query but we want to display them at the top of our
@@ -1069,30 +1161,18 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
         nodeByOrderKey,
         itemCountSubtreeCache,
     }: {
-        query: DynamoGeneralRealtimeIndexQuery<
-            PostModel,
-            {
-                readonly postComments: MessageList<PostCommentModel>;
-                readonly postCommentsState: PostCommentsState;
-            }
-        >;
+        query: DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>;
         nodeByOrderKey: Tree<
             DynamoIndexCursor,
             DynamoGeneralRealtimeItem<PostModel> & {
-                readonly extra: {
-                    readonly postComments: MessageList<PostCommentModel>;
-                    readonly postCommentsState: PostCommentsState;
-                } | null;
+                readonly extra: PostListItemExtra | null;
             }
         >;
         itemCountSubtreeCache: WeakMap<
             TreeNode<
                 DynamoIndexCursor,
                 DynamoGeneralRealtimeItem<PostModel> & {
-                    readonly extra: {
-                        readonly postComments: MessageList<PostCommentModel>;
-                        readonly postCommentsState: PostCommentsState;
-                    } | null;
+                    readonly extra: PostListItemExtra | null;
                 }
             >,
             number
@@ -1103,13 +1183,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     public static new(result: DynamoGeneralRealtimeIndexQueryResult<PostModel>) {
-        const query = DynamoGeneralRealtimeIndexQuery.new<
-            PostModel,
-            {
-                readonly postComments: MessageList<PostCommentModel>;
-                readonly postCommentsState: PostCommentsState;
-            }
-        >(result);
+        const query = DynamoGeneralRealtimeIndexQuery.new<PostModel, PostListItemExtra>(result);
 
         return new PostQueryListVirtualizedTree({
             query,
@@ -1127,15 +1201,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
      * Update the backing DynamoDB realtime query of this post list.
      */
     public updateQuery(
-        query: SetStateAction<
-            DynamoGeneralRealtimeIndexQuery<
-                PostModel,
-                {
-                    readonly postComments: MessageList<PostCommentModel>;
-                    readonly postCommentsState: PostCommentsState;
-                }
-            >
-        >,
+        query: SetStateAction<DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>>,
     ) {
         query = typeof query === "function" ? query(this.query) : query;
 
@@ -1149,6 +1215,34 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     /**
+     * Update the content references for a post using `mergeContentReferences()`.
+     */
+    public mergePostContentReferences(
+        postId: PostId,
+        references: ContentReferences,
+    ): PostQueryListVirtualizedTree {
+        const key = createDynamoItemKeyFromPostId(postId);
+
+        const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
+            const {
+                updatedPostContentReferences = null,
+                postCommentsState = "Closed",
+                postComments = initialPostModelCommentsCache.getOrSetDefault(item.model),
+            } = item.extra ?? emptyObject;
+
+            return {
+                updatedPostContentReferences: updatedPostContentReferences
+                    ? mergeContentReferences(updatedPostContentReferences, references)
+                    : references,
+                postCommentsState,
+                postComments,
+            };
+        });
+
+        return this.updateQuery(newQuery);
+    }
+
+    /**
      * Toggle the post's comment section as open or closed.
      */
     public togglePostComments(postId: PostId): PostQueryListVirtualizedTree {
@@ -1156,6 +1250,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
 
         const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
             const {
+                updatedPostContentReferences = null,
                 postCommentsState = "Closed",
                 postComments = initialPostModelCommentsCache.getOrSetDefault(item.model),
             } = item.extra ?? emptyObject;
@@ -1167,6 +1262,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
                 );
 
             return {
+                updatedPostContentReferences,
                 postCommentsState: postCommentsState === "Closed" ? "Open" : "Closed",
                 postComments,
             };
@@ -1187,6 +1283,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
 
         const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
             const {
+                updatedPostContentReferences = null,
                 postCommentsState = "Closed",
                 postComments = initialPostModelCommentsCache.getOrSetDefault(item.model),
             } = item.extra ?? emptyObject;
@@ -1195,6 +1292,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
             if (newPostComments === postComments) return item.extra;
 
             return {
+                updatedPostContentReferences,
                 postCommentsState,
                 postComments: newPostComments,
             };
@@ -1213,6 +1311,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
                 return item.extra;
             }
             return {
+                updatedPostContentReferences: item.extra.updatedPostContentReferences,
                 postCommentsState: "Closed",
                 postComments: item.extra.postComments,
             };

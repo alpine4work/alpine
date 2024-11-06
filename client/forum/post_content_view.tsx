@@ -46,13 +46,14 @@ import {
     screenPaddingXWithoutPostContentEditorPadding,
 } from "~/client/styles/forum_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
@@ -83,6 +84,7 @@ export function PostContentView({
     isSingleLayoutWithPinnedCommentInput,
     initialScroll,
     idBase,
+    onMergePostContentReferences,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
@@ -96,6 +98,7 @@ export function PostContentView({
     isSingleLayoutWithPinnedCommentInput: boolean;
     initialScroll: PostContentViewInitialScroll | null;
     idBase: string;
+    onMergePostContentReferences: (references: ContentReferences) => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
@@ -117,16 +120,18 @@ export function PostContentView({
             return null;
         } else {
             return {
-                doc: getContentSnippet(
-                    post.content.doc.resolve(0),
-                    {linesAbove: 0, linesBelow: withMobileLayout ? 5 : 16},
-                    {
-                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                        // want to be slightly more aggressive than the default grapheme count (which
-                        // counts the "l" character which is narrower) since we render the entire
-                        // snippet.
-                        maxLineGraphemeCount: isMobile ? 42 : 72,
-                    },
+                doc: assertPostContent(
+                    getContentSnippet(
+                        post.content.doc.resolve(0),
+                        {linesAbove: 0, linesBelow: withMobileLayout ? 5 : 16},
+                        {
+                            // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
+                            // want to be slightly more aggressive than the default grapheme count (which
+                            // counts the "l" character which is narrower) since we render the entire
+                            // snippet.
+                            maxLineGraphemeCount: isMobile ? 42 : 72,
+                        },
+                    ),
                 ),
                 references: post.content.references,
             };
@@ -296,6 +301,7 @@ export function PostContentView({
                             className={sprinkles({
                                 padding: postContentEditorPadding,
                             })}
+                            onMergeContentReferences={onMergePostContentReferences}
                         />
                     ) : (
                         <ContentViewWithSeeMoreToggle
@@ -307,6 +313,7 @@ export function PostContentView({
                             })}
                             content={post.content}
                             contentSnippet={postSnippet}
+                            onMergeContentReferences={onMergePostContentReferences}
                         />
                     )
                 ) : (

@@ -254,6 +254,11 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
                 [isMobile],
             )}
             posts={posts}
+            onMergePostContentReferences={useCallback(
+                (postId, references) =>
+                    setPosts(posts => posts.mergePostContentReferences(postId, references)),
+                [],
+            )}
             onTogglePostComments={useCallback(
                 postId => setPosts(posts => posts.togglePostComments(postId)),
                 [],
