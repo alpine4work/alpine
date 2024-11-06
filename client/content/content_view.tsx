@@ -100,31 +100,7 @@ declare global {
     var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
 }
 
-/**
- * A read-only view of content. Used as a complement to `<ContentEditor>` when
- * you want to disable editing of content and only allow reading the content.
- */
-export function ContentView({
-    withMobileLayout,
-    content: contentFromProps,
-    contentUpdatedTime,
-    placeholder,
-    className,
-    "aria-label": ariaLabel,
-    "aria-labelledby": ariaLabelledBy,
-    isInert = false,
-    isTruncated = false,
-    isCompact = false,
-    isExtraCompact = false,
-    isEditorInitialAppRender = false,
-    isBackgroundColorGrey5 = false,
-    fileAttachmentTarget,
-    shouldHighlightComment,
-    withUserSelectNone = false,
-    onSeeMoreContent,
-    onSeeLessContent,
-    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
-}: {
+export type ContentViewProps = {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
      * in peeks on the desktop platform.
@@ -230,14 +206,14 @@ export function ContentView({
      * Useful when you want to show snippet of truncated content that expands to
      * more.
      */
-    onSeeMoreContent?: () => void;
+    onSeeMoreContent?: (targetElement: HTMLDivElement) => void;
 
     /**
      * Adds a "See less" button which when clicked should collapse content to a
      * truncated version which a "See more" button should be able to expand (see
      * `onSeeMoreContent`).
      */
-    onSeeLessContent?: () => void;
+    onSeeLessContent?: (targetElement: HTMLDivElement) => void;
 
     /**
      * Override the screen width provided to `layoutContentFileRow()`. By default
@@ -246,7 +222,33 @@ export function ContentView({
      * set this value for better layout results. Measured in pixels.
      */
     fileLayoutScreenWidth?: number;
-}) {
+};
+
+/**
+ * A read-only view of content. Used as a complement to `<ContentEditor>` when
+ * you want to disable editing of content and only allow reading the content.
+ */
+export function ContentView({
+    withMobileLayout,
+    content: contentFromProps,
+    contentUpdatedTime,
+    placeholder,
+    className,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    isInert = false,
+    isTruncated = false,
+    isCompact = false,
+    isExtraCompact = false,
+    isEditorInitialAppRender = false,
+    isBackgroundColorGrey5 = false,
+    fileAttachmentTarget,
+    shouldHighlightComment,
+    withUserSelectNone = false,
+    onSeeMoreContent,
+    onSeeLessContent,
+    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
+}: ContentViewProps) {
     assert(
         !contentFromProps.doc.type.schema.nodes.file || fileAttachmentTarget,
         "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
@@ -802,9 +804,9 @@ export function ContentView({
                     }
 
                     if (shouldShowSeeLessContentButton) {
-                        events.onSeeLessContent();
+                        events.onSeeLessContent(assertExists(ref.current));
                     } else if (shouldShowSeeMoreContentButton) {
-                        events.onSeeMoreContent();
+                        events.onSeeMoreContent(assertExists(ref.current));
                     }
                 };
 

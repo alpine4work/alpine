@@ -3,6 +3,7 @@ import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -286,7 +287,7 @@ export function PostContentView({
                 }}
             >
                 {!isEditingPost ? (
-                    isSingleLayoutWithPinnedCommentInput ? (
+                    !postSnippet ? (
                         <ContentView
                             withMobileLayout={withMobileLayout}
                             content={post.content}
@@ -297,28 +298,15 @@ export function PostContentView({
                             })}
                         />
                     ) : (
-                        <ContentView
+                        <ContentViewWithSeeMoreToggle
                             withMobileLayout={withMobileLayout}
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({
                                 padding: postContentEditorPadding,
                             })}
-                            content={
-                                isPostSnippetTruncated && !isShowingAllContent && postSnippet
-                                    ? postSnippet
-                                    : post.content
-                            }
-                            onSeeMoreContent={
-                                isPostSnippetTruncated && !isShowingAllContent
-                                    ? () => setIsShowingAllContent(true)
-                                    : undefined
-                            }
-                            onSeeLessContent={
-                                isPostSnippetTruncated && isShowingAllContent
-                                    ? () => setIsShowingAllContent(false)
-                                    : undefined
-                            }
+                            content={post.content}
+                            contentSnippet={postSnippet}
                         />
                     )
                 ) : (

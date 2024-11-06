@@ -1,10 +1,10 @@
 import {Check, X} from "phosphor-react";
-import {useId, useRef, useState} from "react";
+import {useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {ChannelViewFilePreview} from "~/client/content/channel_view_file_preview.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentView} from "~/client/content/content_view.js";
+import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
@@ -28,6 +28,7 @@ import {
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     RemLength,
@@ -85,7 +86,6 @@ export function ChannelViewAside({
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
-    // NOCOMMIT: "See more" button for channel descriptions?
     // NOCOMMIT: Playing videos in post is broken!
     // NOCOMMIT: It would be nice if `<ContentView>` could update its references?
     // If you upload a post, scroll down, then scroll back up it goes into a
@@ -132,6 +132,7 @@ export function ChannelViewAside({
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
                 paddingX={screenPaddingX}
+                paddingBottom={screenPaddingX}
                 display="flex"
                 flexDirection="column"
                 gap={channelViewMetadataSectionGap}
@@ -158,14 +159,7 @@ export function ChannelViewAside({
                                 onSave={onSaveDescription}
                             />
                         ) : (
-                            <Box paddingTop="1">
-                                <ContentView
-                                    isCompact={true}
-                                    // Only rendered on desktop layouts.
-                                    withMobileLayout={false}
-                                    content={channel.description}
-                                />
-                            </Box>
+                            <ChannelViewAsideDescription description={channel.description} />
                         )}
                     </Box>
                 )}
@@ -217,6 +211,37 @@ export function ChannelViewAside({
                 </Box>
             </Box>
         </OverlayScopeContextProvider>
+    );
+}
+
+function ChannelViewAsideDescription({description}: {description: MessageContentWithReferences}) {
+    const descriptionSnippet = useMemo(() => {
+        return {
+            doc: getContentSnippet(
+                description.doc.resolve(0),
+                {linesAbove: 0, linesBelow: 7},
+                {
+                    // 1.125x the number of "x"s we can fit in a single line in the channel aside
+                    // (45). We want to be slightly more aggressive than the default grapheme count
+                    // (which counts the "l" character which is narrower) since we render the entire
+                    // snippet.
+                    maxLineGraphemeCount: 51,
+                },
+            ),
+            references: description.references,
+        };
+    }, [description.doc, description.references]);
+
+    return (
+        <Box paddingTop="1">
+            <ContentViewWithSeeMoreToggle
+                isCompact={true}
+                // Only rendered on desktop layouts.
+                withMobileLayout={false}
+                content={description}
+                contentSnippet={descriptionSnippet}
+            />
+        </Box>
     );
 }
 

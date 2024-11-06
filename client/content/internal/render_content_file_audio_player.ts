@@ -220,15 +220,15 @@ export function renderContentFileAudioPlayer(
                 flexGrow: "1",
                 // Slightly push our metadata off center. This ends up optically centering our
                 // content which is bottom heavy.
-                paddingTop: withoutControls ? "3" : "4",
-                paddingX: "12",
+                paddingTop: withoutControls ? "2" : "4",
+                paddingX: layout !== null && layout.width < 175 ? "6" : "12",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
                 gap: "1.5",
                 color: "grey-40",
-                fontSize: layout !== null && layout.width < 150 ? "25" : "50",
+                fontSize: layout !== null && layout.width < 175 ? "25" : "50",
             }),
         );
 

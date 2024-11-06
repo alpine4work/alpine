@@ -301,7 +301,9 @@ function PostListView(
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
-    const [asideRef, asideSize] = useResizeObserver();
+    const [asideRef, asideSize] = useResizeObserver({
+        withSuppressResizeLoopErrorNotification: true,
+    });
 
     const lastScrollOffsetRef = useRef(0);
     const [scrollDirectionState, setScrollDirectionState] = useState<{

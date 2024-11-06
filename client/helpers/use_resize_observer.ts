@@ -37,8 +37,10 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  */
 export function useResizeObserver({
     method = "getBoundingClientRect",
+    withSuppressResizeLoopErrorNotification = false,
 }: {
     method?: "getBoundingClientRect" | "clientWidthAndHeight";
+    withSuppressResizeLoopErrorNotification?: boolean;
 } = emptyObject): [
     RefCallback<HTMLElement>,
     {readonly height: number; readonly width: number} | null,
@@ -80,12 +82,17 @@ export function useResizeObserver({
                 // on mount.
                 listener();
 
+                if (withSuppressResizeLoopErrorNotification)
+                    addSuppressResizeLoopErrorNotificationForElement(element);
                 addResizeListenerForElement(element, listener);
+
                 return () => {
                     removeResizeListenerForElement(element, listener);
+                    if (withSuppressResizeLoopErrorNotification)
+                        removeSuppressResizeLoopErrorNotificationForElement(element);
                 };
             },
-            [method],
+            [method, withSuppressResizeLoopErrorNotification],
         ),
     );
 

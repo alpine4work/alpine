@@ -2,7 +2,7 @@ import {Check, X} from "phosphor-react";
 import {useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentView} from "~/client/content/content_view.js";
+import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -110,33 +110,14 @@ function ChannelViewHeaderMobileDescription({
         };
     }, [description.doc, description.references]);
 
-    const isDescriptionSnippetTruncated =
-        description.doc.nodeSize !== descriptionSnippet.doc.nodeSize;
-
-    const [isShowingAllContent, setIsShowingAllContent] = useState(!isDescriptionSnippetTruncated);
-    if (!isShowingAllContent && !isDescriptionSnippetTruncated) setIsShowingAllContent(true);
-
     return (
         <Box paddingTop="1">
-            <ContentView
+            <ContentViewWithSeeMoreToggle
                 isCompact={true}
                 // Only rendered in mobile layouts.
                 withMobileLayout={true}
-                content={
-                    isDescriptionSnippetTruncated && !isShowingAllContent
-                        ? descriptionSnippet
-                        : description
-                }
-                onSeeMoreContent={
-                    isDescriptionSnippetTruncated && !isShowingAllContent
-                        ? () => setIsShowingAllContent(true)
-                        : undefined
-                }
-                onSeeLessContent={
-                    isDescriptionSnippetTruncated && isShowingAllContent
-                        ? () => setIsShowingAllContent(false)
-                        : undefined
-                }
+                content={description}
+                contentSnippet={descriptionSnippet}
             />
         </Box>
     );
