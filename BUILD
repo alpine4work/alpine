@@ -164,10 +164,10 @@ alias(
     visibility = ["//visibility:public"],
 )
 
-# We use Zig's C compiler to build our C dependencies. This way use a hermetic
-# C compiler instead of whatever is on the developer's system. To learn more
-# about using Zig as a drop-in C compiler read [`zig cc`: a Powerful Drop-In
-# Replacement for GCC/Clang][1]. We learned about this technique from
+# We use Zig's C compiler to build our C dependencies. This way we use a
+# hermetic C compiler instead of whatever is on the developer's system. To
+# learn more about using Zig as a drop-in C compiler read [`zig cc`: a Powerful
+# Drop-In Replacement for GCC/Clang][1]. We learned about this technique from
 # [uber/hermetic_cc_toolchain][2]. We don't use the rules maintained by Uber
 # since we're not currently using Bazel's C toolchain support.
 #

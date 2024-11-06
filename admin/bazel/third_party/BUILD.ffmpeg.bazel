@@ -41,7 +41,8 @@ genrule(
     # - We replace the Bazel sandbox path in `config.h` with `${bazel_sandbox}` to
     #   obfuscate the implementation detail of where FFmpeg was built.
     cmd = """
-export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-cache"
+export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
 export CC="$$(pwd)/$(location @//:zig) cc"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"

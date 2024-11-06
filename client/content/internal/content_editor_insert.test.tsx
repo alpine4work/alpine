@@ -59,7 +59,6 @@ const TestContentEditor = forwardRef(function TestContentEditor(
             fileAttachmentTarget={fileAttachmentTarget}
             state={state}
             onChange={setState}
-            fileAttachmentTarget={fileAttachmentTarget}
         />
     );
 });
