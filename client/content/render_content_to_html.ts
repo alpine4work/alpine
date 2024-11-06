@@ -21,14 +21,18 @@ import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     RecursiveReadonlyArray,
     renderProsemirrorDomOutputSpec,
-    serializeProsemirrorFragmentToHtml,
+    serializeProsemirrorFragmentToHtmlGenerator,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -53,9 +57,13 @@ export function renderContentToHtmlStore(
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<string> {
-    return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
-        return `<div class="${contentStyles.docClassName}">${fragmentHtml}</div>`;
-    });
+    return renderContentFragmentToHtmlGeneratorStore(content, options).map(
+        fragmentHtmlGenerator => {
+            return `<div class="${
+                contentStyles.docClassName
+            }">${fragmentHtmlGenerator.generateHtml()}</div>`;
+        },
+    );
 }
 
 /**
@@ -70,7 +78,7 @@ export function renderContentToHtmlStore(
  * If `isInert` is set to true then elements which were interactive, like
  * links, are made non clickable or focusable. But visually the stay the same.
  */
-export function renderContentFragmentToHtmlStore(
+export function renderContentFragmentToHtmlGeneratorStore(
     content: ContentWithReferences,
     {
         spaceId,
@@ -99,7 +107,7 @@ export function renderContentFragmentToHtmlStore(
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
-): Store<string> {
+): Store<HtmlFragmentGenerator> {
     return computeStore(get => {
         assert(content.doc.type.schema.topNodeType === content.doc.type);
 
@@ -108,7 +116,7 @@ export function renderContentFragmentToHtmlStore(
 
         const orderedListItemNumberByNode = new Map<Node, number>();
 
-        return serializeProsemirrorFragmentToHtml(content.doc.content, {
+        return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
             withPosAttribute,
             startPos: 1,
             decorations,

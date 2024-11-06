@@ -19,7 +19,7 @@ import {
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/render_content_file_preview.js";
-import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -63,7 +63,12 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -346,7 +351,7 @@ export function ContentView<Content extends ContentWithReferences>({
         setInitialCodeBlockDecorationsState(null);
     }
 
-    const {isTitleEmpty, isBodyEmpty, htmlStore} = useMemo(() => {
+    const {isTitleEmpty, isBodyEmpty, htmlGeneratorStore} = useMemo(() => {
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
         if (contentUpdatedTime) {
@@ -474,8 +479,8 @@ export function ContentView<Content extends ContentWithReferences>({
             }
         });
 
-        let htmlStore: Store<{
-            html: string;
+        let htmlGeneratorStore: Store<{
+            htmlGenerator: HtmlFragmentGenerator;
             codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
         }>;
 
@@ -498,8 +503,8 @@ export function ContentView<Content extends ContentWithReferences>({
             const codeBlockDecorationsStore =
                 createContentCodeBlockHtmlSerializationDecorationsStore(content.doc);
 
-            htmlStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
-                renderContentFragmentToHtmlStore(content, {
+            htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
+                renderContentFragmentToHtmlGeneratorStore(content, {
                     spaceId,
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
@@ -512,8 +517,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     decorations: [decorations, codeBlockDecorations],
                     shouldHighlightComment,
                     filePreviewExpirationTimers,
-                }).map(html => ({
-                    html,
+                }).map(htmlGenerator => ({
+                    htmlGenerator,
                     codeBlockDecorations,
                 })),
             );
@@ -530,7 +535,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 language.getParser();
             });
 
-            htmlStore = renderContentFragmentToHtmlStore(content, {
+            htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
                 spaceId,
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
@@ -543,8 +548,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 decorations: [decorations, initialCodeBlockDecorations],
                 shouldHighlightComment,
                 filePreviewExpirationTimers,
-            }).map(html => ({
-                html,
+            }).map(htmlGenerator => ({
+                htmlGenerator,
                 codeBlockDecorations: initialCodeBlockDecorations!,
             }));
         }
@@ -552,7 +557,7 @@ export function ContentView<Content extends ContentWithReferences>({
         return {
             isTitleEmpty: isContentTitleEmpty(content.doc),
             isBodyEmpty: isContentBodyEmpty(content.doc),
-            htmlStore,
+            htmlGeneratorStore,
         };
     }, [
         contentUpdatedTime,
@@ -575,7 +580,32 @@ export function ContentView<Content extends ContentWithReferences>({
         filePreviewExpirationTimers,
     ]);
 
-    const {html, codeBlockDecorations} = useStore(htmlStore);
+    const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
+
+    const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        const element = assertExists(ref.current);
+
+        const previousHtmlGenerator = previousHtmlGeneratorRef.current;
+        previousHtmlGeneratorRef.current = htmlGenerator;
+
+        if (previousHtmlGenerator === htmlGenerator) return;
+
+        if (!previousHtmlGenerator) {
+            // This case happens during a hot reload. We need to remove the children
+            // currently in the DOM.
+            while (element.hasChildNodes()) {
+                element.firstChild!.remove();
+            }
+
+            element.appendChild(htmlGenerator.generateNode());
+        } else {
+            assert(htmlGenerator.patchNode(previousHtmlGenerator, element));
+        }
+    }, [htmlGenerator, isInitialAppRender]);
 
     const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
         readonly key: Id;
@@ -625,9 +655,11 @@ export function ContentView<Content extends ContentWithReferences>({
     // `EditorView` is initialized. This only happens if
     // `addContentFilePreviewBehavior()` is in a layout effect.
     useLayoutEffectWithoutServerSideWarning(() => {
-        // Re-run this effect whenever the HTML changes.
+        if (isInitialAppRender) return;
+
+        // Re-run this effect whenever the content changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        html;
+        content.doc;
 
         const parentElement = assertExists(ref.current);
 
@@ -969,7 +1001,6 @@ export function ContentView<Content extends ContentWithReferences>({
         };
     }, [
         events,
-        html,
         isInert,
         navigate,
         handleCodeBlockCopyButtonHoverEnd,
@@ -1329,9 +1360,11 @@ export function ContentView<Content extends ContentWithReferences>({
                 style={
                     withUserSelectNone ? {userSelect: "none", WebkitUserSelect: "none"} : undefined
                 }
-                dangerouslySetInnerHTML={{__html: html}}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
+                dangerouslySetInnerHTML={
+                    isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
+                }
             />
             {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
             {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (

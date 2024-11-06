@@ -87,7 +87,6 @@ export function ChannelViewAside({
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
-    // NOCOMMIT: Playing videos in post is broken!
     // NOCOMMIT: Post editor not working well with files.
     // NOCOMMIT: Update channel shimmer to account for contributors. Add channel
     // files shimmer
