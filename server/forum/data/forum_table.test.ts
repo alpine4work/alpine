@@ -19,7 +19,9 @@ import {
     createPostComment,
     deletePostComment,
     getChannel,
-    getChannelAndPostFiles,
+    getChannelAndMetadata,
+    getChannelContributors,
+    getChannelContributorsKey,
     getChannelNameAndDescriptionContent,
     getChannelPosts,
     getChannelPreview,
@@ -53,7 +55,11 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {ChannelModel, ChannelPostFilesModel} from "~/shared/forum/channel_model.js";
+import {
+    ChannelContributorsModel,
+    ChannelModel,
+    ChannelPostFilesModel,
+} from "~/shared/forum/channel_model.js";
 import {
     PostContentProsemirrorSchema,
     PostContentWithReferences,
@@ -146,7 +152,17 @@ test("can not get a channel that does not exist", async () => {
         getChannelNameAndDescriptionContent(session.action(), generateId()),
     ).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelAndPostFiles(session.action(), generateId(), {postFilesLimit: 100}),
+        getChannelAndMetadata(session.action(), {channelId: generateId(), postFilesLimit: 100}),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
+        getChannelAndMetadata(session.action(), {
+            channelId: generateId(),
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(generateId()),
+        }),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
+        getChannelContributors(session.action(), generateId(), {limit: 100}),
     ).rejects.toThrow(NotFoundError);
 });
 
@@ -166,7 +182,17 @@ test("can not get a channel for a different space", async () => {
         getChannelNameAndDescriptionContent(otherSession.action(), channel.id),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        getChannelAndPostFiles(otherSession.action(), channel.id, {postFilesLimit: 100}),
+        getChannelAndMetadata(otherSession.action(), {channelId: channel.id, postFilesLimit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getChannelAndMetadata(otherSession.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(channel.id),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getChannelContributors(otherSession.action(), channel.id, {limit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -183,10 +209,19 @@ test("can get a channel", async () => {
         "Test",
     );
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test");
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(channel.id),
+        }),
+    ).not.toBeNull();
+    expect(await getChannelContributors(session.action(), channel.id, {limit: 100})).not.toBeNull();
 });
 
 test("can update a channel's name", async () => {
@@ -202,7 +237,8 @@ test("can update a channel's name", async () => {
         "Test 1",
     );
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test 1");
@@ -217,7 +253,8 @@ test("can update a channel's name", async () => {
         "Test 2",
     );
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }).then(result => (result.items[0]?.model as any).name),
     ).toEqual("Test 2");
@@ -2978,6 +3015,7 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 
     const post2 = await otherChannel.createPost(otherSession);
@@ -2987,6 +3025,8 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
     ]);
 
@@ -2997,7 +3037,10 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
     ]);
 
@@ -3008,7 +3051,11 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
     ]);
@@ -3020,9 +3067,14 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 
@@ -3036,9 +3088,14 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
@@ -3054,9 +3111,14 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
@@ -3071,14 +3133,20 @@ test("broadcasts post realtime events to channel and post", async () => {
         TestLocalEdgeServiceContextModule.getDurableObjectBroadcasts().map(({url}) => url),
     ).toEqual([
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${otherChannel.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/posts/${post2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel1.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/posts/${post3.id}/broadcast-realtime-event-transaction`,
+        `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
 });
@@ -3579,17 +3647,17 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(0);
 
-        await getChannelAndPostFiles(actionContext, channel.id, {postFilesLimit: 100});
+        await getChannelAndMetadata(actionContext, {channelId: channel.id, postFilesLimit: 100});
 
-        expect(getCount()).toEqual(2);
-
-        await authorizeChannelAccess(actionContext, channel.id);
-
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
 
         await authorizeChannelAccess(actionContext, channel.id);
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3599,7 +3667,37 @@ test("authorizing channel access after getting channel as session actor is cache
             ]);
         }
 
-        expect(getCount()).toEqual(2);
+        expect(getCount()).toEqual(3);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelContributors(actionContext, channel.id, {limit: 100});
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
     }
 });
 
@@ -3678,17 +3776,17 @@ test("authorizing channel access after getting channel as system actor is cached
 
         expect(getCount()).toEqual(0);
 
-        await getChannelAndPostFiles(actionContext, channel.id, {postFilesLimit: 100});
+        await getChannelAndMetadata(actionContext, {channelId: channel.id, postFilesLimit: 100});
 
-        expect(getCount()).toEqual(1);
-
-        await authorizeChannelAccess(actionContext, channel.id);
-
-        expect(getCount()).toEqual(1);
+        expect(getCount()).toEqual(2);
 
         await authorizeChannelAccess(actionContext, channel.id);
 
-        expect(getCount()).toEqual(1);
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3698,7 +3796,37 @@ test("authorizing channel access after getting channel as system actor is cached
             ]);
         }
 
-        expect(getCount()).toEqual(1);
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelContributors(actionContext, channel.id, {limit: 100});
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
     }
 });
 
@@ -5167,7 +5295,8 @@ test("creating a post with files adds to the channel's post files", async () => 
     const channel = await TestChannel.create(session);
 
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }),
     ).toEqual({
@@ -5190,327 +5319,25 @@ test("creating a post with files adds to the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
                 }),
             },
         ],
     });
 
     await channel.createPost(session);
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-        ],
-    });
-
-    const file1 = await TestFile.create(session);
-
-    const post2 = await channel.createPost(session, {
-        files: [file1],
-    });
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post2.id,
-                    files: [await file1.get()],
-                }),
-            },
-        ],
-    });
-
-    const file2 = await TestFile.create(session);
-    const file3 = await TestFile.create(session);
-    const file4 = await TestFile.create(session);
-
-    const post3 = await channel.createPost(session, {
-        files: [file2, file3, file4],
-    });
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post3.id,
-                    files: await runAllPromises([file2.get(), file3.get(), file4.get()]),
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post2.id,
-                    files: [await file1.get()],
-                }),
-            },
-        ],
-    });
-
-    const file5 = await TestFile.create(session);
-
-    const post4 = await channel.createPost(session, {
-        files: [file5, file3],
-    });
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post4.id,
-                    files: await runAllPromises([file5.get(), file3.get()]),
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post3.id,
-                    files: await runAllPromises([file2.get(), file3.get(), file4.get()]),
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post2.id,
-                    files: [await file1.get()],
-                }),
-            },
-        ],
-    });
-});
-
-test("updating a post with files changes the channel's post files", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const channel = await TestChannel.create(session);
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-        ],
-    });
-
-    const post = await channel.createPost(session, {
-        content: "Test",
-    });
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-        ],
-    });
-
-    const file1 = await TestFile.create(session);
-    const file2 = await TestFile.create(session);
-
-    await post.updateContent(session, {
-        content: "Test",
-        files: [file1, file2],
-    });
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
-        readTime: expect.any(Date),
-        partitionKey: expect.any(String),
-        startItemKey: null,
-        endItemKey: null,
-        pageInfo: {
-            type: "FromStart",
-            afterItemKey: null,
-            hasNextPage: false,
-        },
-        items: [
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelModel({
-                    id: channel.id,
-                    spaceId: space.id,
-                    name: channel.initialName,
-                    createdTime: expect.any(Date),
-                    description: emptyMessageContentWithReferences,
-                }),
-            },
-            {
-                key: expect.any(String),
-                version: 0,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post.id,
-                    files: await runAllPromises([file1.get(), file2.get()]),
-                }),
-            },
-        ],
-    });
-
-    const file3 = await TestFile.create(session);
-
-    await post.updateContent(session, {
-        content: "Test",
-        files: [file1, file3, file2],
-    });
-
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }),
     ).toEqual({
@@ -5538,22 +5365,24 @@ test("updating a post with files changes the channel's post files", async () => 
             {
                 key: expect.any(String),
                 version: 1,
-                model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post.id,
-                    files: await runAllPromises([file1.get(), file3.get(), file2.get()]),
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
                 }),
             },
         ],
     });
 
-    await post.updateContent(session, {
-        content: "Test",
-        files: [file3, file2],
+    const file1 = await TestFile.create(session);
+
+    const post2 = await channel.createPost(session, {
+        files: [file1],
     });
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }),
     ).toEqual({
@@ -5581,21 +5410,37 @@ test("updating a post with files changes the channel's post files", async () => 
             {
                 key: expect.any(String),
                 version: 2,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
                 model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post.id,
-                    files: await runAllPromises([file3.get(), file2.get()]),
+                    postId: post2.id,
+                    files: [await file1.get()].map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
                 }),
             },
         ],
     });
 
-    await post.updateContent(session, {
-        content: "Test",
+    const file2 = await TestFile.create(session);
+    const file3 = await TestFile.create(session);
+    const file4 = await TestFile.create(session);
+
+    const post3 = await channel.createPost(session, {
+        files: [file2, file3, file4],
     });
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
             postFilesLimit: 100,
         }),
     ).toEqual({
@@ -5620,21 +5465,54 @@ test("updating a post with files changes the channel's post files", async () => 
                     description: emptyMessageContentWithReferences,
                 }),
             },
+            {
+                key: expect.any(String),
+                version: 3,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post3.id,
+                    files: (await runAllPromises([file2.get(), file3.get(), file4.get()])).map(
+                        file => ({
+                            signedUrlSearch: expect.any(String),
+                            file,
+                        }),
+                    ),
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post2.id,
+                    files: [await file1.get()].map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
+                }),
+            },
         ],
     });
 
-    const file4 = await TestFile.create(session);
+    const file5 = await TestFile.create(session);
 
-    await post.updateContent(session, {
-        content: "Test",
-        files: [file4],
+    const post4 = await channel.createPost(session, {
+        files: [file5, file3],
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const lastResult = await getChannelAndMetadata(session.action(), {
+        channelId: channel.id,
+        postFilesLimit: 100,
     });
 
-    expect(
-        await getChannelAndPostFiles(session.action(), channel.id, {
-            postFilesLimit: 100,
-        }),
-    ).toEqual({
+    expect(lastResult).toEqual({
         readTime: expect.any(Date),
         partitionKey: expect.any(String),
         startItemKey: null,
@@ -5659,12 +5537,624 @@ test("updating a post with files changes the channel's post files", async () => 
             {
                 key: expect.any(String),
                 version: 4,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
                 model: new ChannelPostFilesModel({
-                    channelId: channel.id,
-                    postId: post.id,
-                    files: await runAllPromises([file4.get()]),
+                    postId: post4.id,
+                    files: (await runAllPromises([file5.get(), file3.get()])).map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post3.id,
+                    files: (await runAllPromises([file2.get(), file3.get(), file4.get()])).map(
+                        file => ({
+                            signedUrlSearch: expect.any(String),
+                            file,
+                        }),
+                    ),
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post2.id,
+                    files: [await file1.get()].map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
                 }),
             },
         ],
     });
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: lastResult.items[2]?.key,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: lastResult.partitionKey,
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: lastResult.items[2]?.key,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: lastResult.items[3]?.key,
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post3.id,
+                    files: (await runAllPromises([file2.get(), file3.get(), file4.get()])).map(
+                        file => ({
+                            signedUrlSearch: expect.any(String),
+                            file,
+                        }),
+                    ),
+                }),
+            },
+            {
+                key: lastResult.items[4]?.key,
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post2.id,
+                    files: [await file1.get()].map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
+                }),
+            },
+        ],
+    });
+});
+
+test("updating a post with files changes the channel's post files", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session);
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+        ],
+    });
+
+    const post = await channel.createPost(session, {
+        content: "Test",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+        ],
+    });
+
+    const file1 = await TestFile.create(session);
+    const file2 = await TestFile.create(session);
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file1, file2],
+    });
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelPostFilesModel({
+                    postId: post.id,
+                    files: (await runAllPromises([file1.get(), file2.get()])).map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
+                }),
+            },
+        ],
+    });
+
+    const file3 = await TestFile.create(session);
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file1, file3, file2],
+    });
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelPostFilesModel({
+                    postId: post.id,
+                    files: (await runAllPromises([file1.get(), file3.get(), file2.get()])).map(
+                        file => ({
+                            signedUrlSearch: expect.any(String),
+                            file,
+                        }),
+                    ),
+                }),
+            },
+        ],
+    });
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file3, file2],
+    });
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 2,
+                model: new ChannelPostFilesModel({
+                    postId: post.id,
+                    files: (await runAllPromises([file3.get(), file2.get()])).map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
+                }),
+            },
+        ],
+    });
+
+    await post.updateContent(session, {
+        content: "Test",
+    });
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+        ],
+    });
+
+    const file4 = await TestFile.create(session);
+
+    await post.updateContent(session, {
+        content: "Test",
+        files: [file4],
+    });
+
+    expect(
+        await getChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+        }),
+    ).toEqual({
+        readTime: expect.any(Date),
+        partitionKey: expect.any(String),
+        startItemKey: null,
+        endItemKey: null,
+        pageInfo: {
+            type: "FromStart",
+            afterItemKey: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                key: expect.any(String),
+                version: 0,
+                model: new ChannelModel({
+                    id: channel.id,
+                    spaceId: space.id,
+                    name: channel.initialName,
+                    createdTime: expect.any(Date),
+                    description: emptyMessageContentWithReferences,
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 1,
+                model: new ChannelContributorsModel({
+                    contributorCount: 1,
+                    topContributors: [await session.get()],
+                }),
+            },
+            {
+                key: expect.any(String),
+                version: 4,
+                model: new ChannelPostFilesModel({
+                    postId: post.id,
+                    files: (await runAllPromises([file4.get()])).map(file => ({
+                        signedUrlSearch: expect.any(String),
+                        file,
+                    })),
+                }),
+            },
+        ],
+    });
+});
+
+test("creating a channel, post, or post comment will add the actor to the contributor map", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4] = await space.createSessions(4);
+
+    const channel = await TestChannel.create(session1);
+
+    const getContributors = async () => {
+        const accounts = await getChannelContributors(session1.action(), channel.id, {limit: 100});
+        return accounts.map(account => account.id);
+    };
+
+    expect(await getContributors()).toEqual([session1.account.id]);
+
+    const post1 = await channel.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([session1.account.id, session2.account.id]);
+
+    const post2 = await channel.createPost(session3);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session1.account.id,
+        session2.account.id,
+        session3.account.id,
+    ]);
+
+    await channel.createPost(session2);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session1.account.id,
+        session3.account.id,
+    ]);
+
+    await createPostComment(session4.action(), {
+        postId: post2.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 1"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session1.account.id,
+        session3.account.id,
+        session4.account.id,
+    ]);
+
+    await createPostComment(session4.action(), {
+        postId: post2.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 2"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session1.account.id,
+        session3.account.id,
+        session4.account.id,
+    ]);
+
+    await createPostComment(session4.action(), {
+        postId: post2.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 3"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session1.account.id,
+        session3.account.id,
+        session4.account.id,
+    ]);
+
+    await createPostComment(session4.action(), {
+        postId: post2.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 4"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session1.account.id,
+        session3.account.id,
+        session4.account.id,
+    ]);
+
+    await createPostComment(session4.action(), {
+        postId: post1.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 5"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session4.account.id,
+        session1.account.id,
+        session3.account.id,
+    ]);
+
+    await createPostComment(session4.action(), {
+        postId: post1.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 6"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session4.account.id,
+        session1.account.id,
+        session3.account.id,
+    ]);
+
+    await createPostComment(session3.action(), {
+        postId: post2.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 7"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session4.account.id,
+        session1.account.id,
+        session3.account.id,
+    ]);
+
+    await createPostComment(session3.action(), {
+        postId: post1.id,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Message 8"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session3.account.id,
+        session4.account.id,
+        session1.account.id,
+    ]);
+
+    await channel.createPost(session4);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session4.account.id,
+        session2.account.id,
+        session3.account.id,
+        session1.account.id,
+    ]);
+
+    // Test that after we reach the max contribution count we don't increment the
+    // contribution map anymore.
+    for (let i = 0; i < 10; i++) {
+        await channel.createPost(session2);
+        await channel.createPost(session4);
+    }
+
+    await channel.createPost(session4);
+    await channel.createPost(session4);
+    await channel.createPost(session4);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getContributors()).toEqual([
+        session2.account.id,
+        session4.account.id,
+        session3.account.id,
+        session1.account.id,
+    ]);
 });

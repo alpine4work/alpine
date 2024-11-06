@@ -3,6 +3,7 @@ import {
     FilePostAuthorizer,
     authorizeChannelAccess,
     authorizePostAccess,
+    backfillChannelAndMetadata,
     backfillChannelPosts,
     backfillPostComments,
     createChannel,
@@ -11,6 +12,8 @@ import {
     createPostComment,
     deletePostComment,
     getChannel,
+    getChannelAndMetadata,
+    getChannelContributors,
     getChannelPosts,
     getPost,
     getPostCommentAuthors,
@@ -73,6 +76,32 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const channel = await getChannel(context, input.channelId, {consistency: "Strong"});
             return {channel};
+        },
+    },
+
+    getChannelAndMetadata: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const channelResult = await getChannelAndMetadata(context, input);
+            return {channelResult};
+        },
+    },
+
+    backfillChannelAndMetadata: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const backfillChannelResult = await backfillChannelAndMetadata(context, input);
+            return {backfillChannelResult};
+        },
+    },
+
+    getChannelContributors: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const contributors = await getChannelContributors(context, input.channelId, {
+                limit: input.limit,
+            });
+            return {contributors};
         },
     },
 

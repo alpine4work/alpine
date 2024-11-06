@@ -84,6 +84,7 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
@@ -94,15 +95,12 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
 import {
-    ContentFilePreviewExpirationTimers,
-    handleCopyContentFile,
-} from "~/client/content/internal/render_content_file_preview.js";
-import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
     uploadFileFromContentEditorProgressCompositeStoreWeights,
 } from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -770,6 +768,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -824,6 +823,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const reporterRef = useRef(reporter);
     const contextRef = useRef(context);
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
+    const filePreviewExpirationTimersRef = useRef(filePreviewExpirationTimers);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
@@ -839,6 +839,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         reporterRef.current = reporter;
         contextRef.current = context;
         addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
+        filePreviewExpirationTimersRef.current = filePreviewExpirationTimers;
         spaceContextRef.current = spaceContext;
     });
 
@@ -1077,11 +1078,6 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                            Node and mark views                             *
         \* ========================================================================== */
 
-        const filePreviewExpirationTimers = schema.nodes.file
-            ? new ContentFilePreviewExpirationTimers()
-            : undefined;
-        filePreviewExpirationTimers?.play();
-
         const getFileLayoutScreenWidth = () =>
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
@@ -1153,7 +1149,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getReporter: () => reporterRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
-                getExpirationTimers: () => assertExists(filePreviewExpirationTimers),
+                getExpirationTimers: () => filePreviewExpirationTimersRef.current,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -2900,7 +2896,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewRef.current = null;
             document.removeEventListener("selectionchange", handleDocumentSelectionChange);
-            filePreviewExpirationTimers?.pause();
             tripleClickDragStateRef.current?.dispose();
             fileDragState?.dispose();
             view.destroy();

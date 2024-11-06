@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileViewerModalDesktop} from "~/client/content/internal/content_file_viewer_modal_desktop.js";
 import {ContentFileViewerModalMobile} from "~/client/content/internal/content_file_viewer_modal_mobile.js";
 import {useHandoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
@@ -6,7 +7,6 @@ import {
     ContentFileViewerLoaderData,
     loadContentFileViewerData,
 } from "~/client/content/internal/load_content_file_viewer_data.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -61,7 +61,7 @@ export function ContentFileViewerModal({
 
     const forceRevalidateRpc = useForceRevalidateRpc();
 
-    const [expirationTimers] = useState(() => new ContentFilePreviewExpirationTimers());
+    const expirationTimers = useContentFilePreviewExpirationTimers();
 
     const isFileLoading: boolean =
         !!fileFromAttachmentOutput.output?.file && fileFromAttachmentOutput.output.file.isLoading();

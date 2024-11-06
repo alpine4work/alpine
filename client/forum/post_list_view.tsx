@@ -17,11 +17,7 @@ import {
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {
-    desktopNavigationBarHeight,
-    mobileNavigationBarHeight,
-    navigationBarHeight,
-} from "~/client/design/navigation_bar_helpers.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -33,7 +29,11 @@ import {
 } from "~/client/forum/internal/post_comment_input.js";
 import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
-import {PostContentView, PostContentViewEditingActions} from "~/client/forum/post_content_view.js";
+import {
+    PostContentView,
+    PostContentViewEditingActions,
+    PostContentViewInitialScroll,
+} from "~/client/forum/post_content_view.js";
 import {
     PostListChannelHeader,
     PostListInterface,
@@ -64,6 +64,7 @@ import {
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
+    postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
@@ -84,7 +85,6 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {
-    Spacing,
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
@@ -107,8 +107,6 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-
-export const postListViewAsideMaxWidth: Spacing = "96";
 
 const postViewFlex = 6;
 const postListViewAsideFlex = 4;
@@ -167,7 +165,9 @@ function PostListView(
         aside,
         withMobileLayout: withMobileLayoutProp = false,
         navigationBar,
+        withStaticNavigationBar,
         withSafeAreaInsetTop = false,
+        initialScrollForFirstPost,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -275,10 +275,22 @@ function PostListView(
         navigationBar?: NavigationBarResult;
 
         /**
+         * If we're rendering a static navigation bar on top of this view this is set
+         * to true. A static navigation bar is always fixed to the top of the view and
+         * doesn't show/hide dynamically when the user scrolls.
+         */
+        withStaticNavigationBar?: boolean;
+
+        /**
          * Should we make room for top safe area? False by default. If you set the
          * `navigationBar` prop then it will mostly handle safe area for you.
          */
         withSafeAreaInsetTop?: boolean;
+
+        /**
+         * How to initially scroll the first `<PostContentView>` component in our list.
+         */
+        initialScrollForFirstPost?: Memo<PostContentViewInitialScroll> | null;
     },
     ref: Ref<PostListViewRef>,
 ) {
@@ -725,7 +737,7 @@ function PostListView(
                     return {
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
-                            hasNavigationBar
+                            hasNavigationBar || withStaticNavigationBar
                                 ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
                                 : "0rem",
                             !item.channelHeader.isOnlyNavigationBar
@@ -750,7 +762,9 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasNavigationBar && <Spacer space={navigationBarHeight} />}
+                                    {(hasNavigationBar || withStaticNavigationBar) && (
+                                        <Spacer space={navigationBarHeight} />
+                                    )}
                                     {!item.channelHeader.isOnlyNavigationBar && (
                                         <ChannelViewHeader
                                             channelHeader={item.channelHeader}
@@ -886,6 +900,11 @@ function PostListView(
                                         hasNavigationBar={hasNavigationBar}
                                         isSingleLayoutWithPinnedCommentInput={
                                             isSingleLayoutWithPinnedCommentInput
+                                        }
+                                        initialScroll={
+                                            index === 0 || (hasChannelHeader && index === 1)
+                                                ? initialScrollForFirstPost ?? null
+                                                : null
                                         }
                                         idBase={idBase}
                                         onTogglePostComments={() =>
@@ -1447,10 +1466,11 @@ function PostListView(
                                     <div
                                         className={sprinkles({
                                             position: "relative",
+                                            height: "24",
                                             display: "flex",
                                             justifyContent: "center",
+                                            alignItems: "center",
                                             color: "grey-60",
-                                            paddingY: "10",
                                         })}
                                     >
                                         <SpinnerGap
@@ -1483,6 +1503,7 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
+            withStaticNavigationBar,
             isMobile,
             withMobileLayout,
             hasAside,
@@ -1491,6 +1512,7 @@ function PostListView(
             hasChannelHeader,
             postEditing,
             shouldNotShowChannelId,
+            initialScrollForFirstPost,
             idBase,
             onTogglePostComments,
             loadInitialPostComments,
@@ -1569,6 +1591,9 @@ function PostListView(
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
+                        (withStaticNavigationBar
+                            ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                            : undefined) ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
                     bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
@@ -1728,11 +1753,10 @@ function PostListView(
                                                 ref={asideRef}
                                                 className={sprinkles({
                                                     pointerEvents: "auto",
-                                                    paddingTop: hasNavigationBar
-                                                        ? isMobile
-                                                            ? mobileNavigationBarHeight
-                                                            : desktopNavigationBarHeight
-                                                        : undefined,
+                                                    paddingTop:
+                                                        hasNavigationBar || withStaticNavigationBar
+                                                            ? navigationBarHeight
+                                                            : undefined,
                                                 })}
                                                 style={{minHeight: viewSize ? viewSize.height : 0}}
                                             >

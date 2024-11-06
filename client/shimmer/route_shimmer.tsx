@@ -28,10 +28,10 @@ import {
     documentCommentThreadPreviewHeight,
 } from "~/client/styles/document_shared_styles.js";
 import {
-    desktopLayoutChannelViewAsidePaddingY,
+    desktopLayoutPostFauxInputCreateButtonMarginTop,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    mobileLayoutChannelViewAsidePaddingY,
+    mobileLayoutPostFauxInputCreateButtonMarginTop,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
@@ -129,7 +129,7 @@ const shimmerOptionsByRouteId: {
           }
         | false;
 } = {
-    "routes/s.$spaceId.channels.$channelId": {component: ChannelRouteShimmer},
+    "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
     "routes/s.$spaceId.chat.$chatId": {
         inboxBannerMaxWidth: messageViewMaxWidth,
         component: ChatRouteShimmer,
@@ -345,8 +345,8 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 <Box
                     height={
                         withMobileLayout
-                            ? mobileLayoutChannelViewAsidePaddingY
-                            : desktopLayoutChannelViewAsidePaddingY
+                            ? mobileLayoutPostFauxInputCreateButtonMarginTop
+                            : desktopLayoutPostFauxInputCreateButtonMarginTop
                     }
                 />
                 <Box

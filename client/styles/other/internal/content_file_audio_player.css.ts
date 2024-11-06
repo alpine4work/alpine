@@ -117,10 +117,6 @@ export const metadataClassName = style({
     alignItems: "center",
 });
 
-export const metadataWithoutVisualizationClassName = style({
-    flexGrow: "1",
-});
-
 export const metadataIconClassName = style({
     flexShrink: "0",
     marginRight: spacing["3"],
@@ -139,11 +135,6 @@ export const metadataContentClassName = style({
 export const metadataTitleClassName = style({
     ...fontSizes["300"],
     ...fontStyles["truncate-semi-bold"],
-    selectors: {
-        [`${metadataWithoutVisualizationClassName} &`]: {
-            ...fontSizes["200"],
-        },
-    },
 });
 
 export const metadataArtistClassName = style({

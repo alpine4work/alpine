@@ -140,8 +140,10 @@ export default function PeekLayout() {
                                         position="absolute"
                                         zIndex="10"
                                         bottom="0"
-                                        right="0"
-                                        borderTopLeftRadius="1"
+                                        // Render on the left instead of the right so we're not
+                                        // rendering over the scrollbar.
+                                        left="0"
+                                        borderTopRightRadius="1"
                                         backgroundColor="grey-0"
                                     >
                                         <GlobalLoadingIndicatorChip

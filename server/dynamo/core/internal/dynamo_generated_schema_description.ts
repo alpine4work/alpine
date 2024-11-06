@@ -5047,6 +5047,40 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
+                        "Contributors": {
+                            "id": 2,
+                            "orderKey": "a0V",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "contributionCountByAccountId": {
+                                        "valueSchema": {
+                                            "type": "Map",
+                                            "keySchema": {
+                                                "type": "Id"
+                                            },
+                                            "valueSchema": {
+                                                "type": "Integer"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
                         "PostFiles": {
                             "id": 1,
                             "orderKey": "a1",

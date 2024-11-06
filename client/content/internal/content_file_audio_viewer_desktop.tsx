@@ -80,6 +80,7 @@ export function ContentFileAudioViewerDesktop({
     return (
         <Box width="full" height="full" display="flex" alignItems="center" justifyContent="center">
             <ContentFileAudioViewerDesktopInner
+                file={file}
                 filePreview={file.preview}
                 audioSrc={audioSrc}
                 viewerSize={viewerSize}
@@ -89,10 +90,12 @@ export function ContentFileAudioViewerDesktop({
 }
 
 function ContentFileAudioViewerDesktopInner({
+    file,
     filePreview,
     audioSrc,
     viewerSize,
 }: {
+    file: FileModel;
     filePreview: FileAudioPreview & {isProcessing: false};
     audioSrc: string;
     viewerSize: {width: number; height: number};
@@ -110,15 +113,17 @@ function ContentFileAudioViewerDesktopInner({
         const containerHtml = new HtmlFragmentGenerator();
 
         renderContentFileAudioPlayer(containerHtml, {
+            file,
             filePreview,
             audioSrc,
             isMobile: false,
             isInitialAppRender: false,
+            withoutInteractivity: false,
             layout: null,
         });
 
         return containerHtml;
-    }, [audioSrc, filePreview]);
+    }, [audioSrc, file, filePreview]);
 
     const previousContainerHtmlRef = useRef<HtmlFragmentGenerator | null>(null);
 

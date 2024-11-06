@@ -57,7 +57,11 @@ import {
     DynamoGeneralRealtimePutItemEvent,
     DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    DynamoIndexCursor,
+    DynamoItemKey,
+    DynamoItemPartitionKey,
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
     DataLossError,
     DeadlineExceededError,
@@ -70,9 +74,12 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
+    ChannelContributorsModel,
     ChannelModel,
+    ChannelOrMetadataModel,
     ChannelPostFilesModel,
     ChannelPreviewModel,
+    maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
 import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
 import {
@@ -87,6 +94,7 @@ import {
 } from "~/shared/forum/post_model.js";
 import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -104,6 +112,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
@@ -151,6 +160,8 @@ export type ForumSystemActionContextModulesWithBroadcast = ServerSystemActionCon
 export type ForumSystemActionContextWithBroadcast =
     Context<ForumSystemActionContextModulesWithBroadcast>;
 
+const maxChannelContributionCount = 8;
+
 const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     // Enable optional features we use that may incur extra costs.
     features: {
@@ -182,6 +193,47 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                         /** A description for the channel which will appear in a sidebar. */
                         description: MessageContentSchema.default(emptyMessageContent),
+                    }),
+                },
+
+                /**
+                 * All the accounts who have contributed to this channel. Contributions include
+                 * creating the channel, creating a post in the channel, or sending a post
+                 * comment for a post in the channel. Each contribution increments the
+                 * account's contribution count by 1. If the user deletes their post or moves
+                 * their post to a different channel then their contribution count will
+                 * decrease. Deleting a comment does not currently decrease the account's
+                 * contribution count (similar to how deleting a comment does not decrease
+                 * `postItem.commentCountByAuthorId`.) Once the contribution count has reached
+                 * its max value (currently 10) it will not increase any further and will never
+                 * decrease. The account is permanently considered a contributor after the max
+                 * contribution count.
+                 *
+                 * The contributors map may be updated asynchronously after the contribution
+                 * has occurred. There's also no guarantee a contribution will be recorded
+                 * (e.g. if `AppService` crashes after creating a new post but before
+                 * updating this map, for instance).
+                 *
+                 * The order of accounts in `contributionCountByAccountId` does matter. The
+                 * order of accounts is based on first contribution time. Accounts with an
+                 * earlier first contribution time are earlier in the map.
+                 *
+                 * We stop increase contribution counts at a maximum value as a way to reduce
+                 * write cost against the database. Maybe the write cost savings are pointless
+                 * and we shouldn't have a contribution count max. Also, we should really
+                 * consider adding some exponential decay for the accounts in this list. So if
+                 * an account hasn't contributed in a long time they'll fall out of the top
+                 * contributors.
+                 */
+                {
+                    name: "Contributors",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        spaceId: Schema.id<SpaceId>(),
+                        contributionCountByAccountId: Schema.map(
+                            Schema.id<AccountId>(),
+                            Schema.integer.min(1).max(maxChannelContributionCount),
+                        ).minSize(1),
                     }),
                 },
 
@@ -311,6 +363,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     ],
     modelSchema: createModelUnionSchema({
         Channel: ChannelModel,
+        ChannelContributors: ChannelContributorsModel,
         ChannelPostFiles: ChannelPostFilesModel,
         Post: PostModel,
     }),
@@ -319,21 +372,83 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             Attributes: {
                 build: (context, item) => createChannelModelFromItem(context, item),
             },
-            PostFiles: {
+            Contributors: {
                 build: async (context, item) => {
-                    const files: Array<FileModel> = await runAllPromises(
-                        mapIterable(item.fileIds, fileId =>
-                            getFileFromAttachment(
-                                context,
-                                item.spaceId,
-                                fileId,
-                                FilePostAuthorizer.bind({type: "Post", postId: item.postId}),
-                            ),
+                    const accountIdsByContributionCount = new DefaultMap<number, Array<AccountId>>(
+                        () => [],
+                    );
+
+                    for (const [
+                        accountId,
+                        contributionCount,
+                    ] of item.contributionCountByAccountId) {
+                        accountIdsByContributionCount
+                            .getOrSetDefault(contributionCount)
+                            .push(accountId);
+                    }
+
+                    // Top contributor accounts are sorted by:
+                    //
+                    // 1. Who has the highest contribution count up to
+                    //    `maxChannelTopContributorCount`
+                    // 2. Earliest contribution time
+                    const topContributorIds: Array<AccountId> = [];
+
+                    outer: for (
+                        let contributionCount = maxChannelContributionCount;
+                        contributionCount >= 1;
+                        contributionCount--
+                    ) {
+                        const accountIds =
+                            accountIdsByContributionCount.get(contributionCount) ?? emptyArray;
+
+                        for (const accountId of accountIds) {
+                            topContributorIds.push(accountId);
+
+                            if (topContributorIds.length >= maxChannelTopContributorCount) {
+                                break outer;
+                            }
+                        }
+                    }
+
+                    const topContributors = await runAllPromises(
+                        topContributorIds.map(accountId =>
+                            getAccount(context, item.spaceId, accountId),
                         ),
                     );
 
+                    return new ChannelContributorsModel({
+                        contributorCount: item.contributionCountByAccountId.size,
+                        topContributors,
+                    });
+                },
+            },
+            PostFiles: {
+                build: async (context, item) => {
+                    const files: Array<{signedUrlSearch: string; file: FileModel}> =
+                        await runAllPromises(
+                            mapIterable(item.fileIds, async fileId => {
+                                const [file, signedUrl] = await runAllPromises([
+                                    getFileFromAttachment(
+                                        context,
+                                        item.spaceId,
+                                        fileId,
+                                        FilePostAuthorizer.bind({
+                                            type: "Post",
+                                            postId: item.postId,
+                                        }),
+                                    ),
+                                    await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                                        item.spaceId,
+                                        fileId,
+                                    ),
+                                ]);
+
+                                return {signedUrlSearch: signedUrl.search, file};
+                            }),
+                        );
+
                     return new ChannelPostFilesModel({
-                        channelId: item.channelId,
                         postId: item.postId,
                         files,
                     });
@@ -364,7 +479,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
         // atomically.
         const eventTransactionByChannelId = new Map<
             ChannelId,
-            Array<DynamoGeneralRealtimeEvent<ChannelModel | PostModel | ChannelPostFilesModel>>
+            Array<DynamoGeneralRealtimeEvent<ChannelOrMetadataModel | PostModel>>
         >();
 
         // We also send post updates to the corresponding post durable object. That way
@@ -1017,7 +1132,23 @@ export async function createChannel(
         description,
     };
 
-    const {getEvent} = await ForumRealtimeTable.createItem(context, channelItem);
+    const {transactionEntry, getEvent} =
+        ForumRealtimeTable.transactionCreateItemWithEvent(channelItem);
+
+    await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+        transactionEntry,
+        // Make sure the `Contributors` item is created at the same time as our channel
+        // item.
+        ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
+            {
+                partitionType: "Channel",
+                sortRangeType: "Contributors",
+                channelId,
+                spaceId,
+                contributionCountByAccountId: new Map([[context.actor.getAccountId(), 1]]),
+            },
+        ),
+    ]);
 
     // Future `authorizeChannelAccess()` calls in the request should not need to
     // load the channel. This optimization kicks in for the create channel Remix
@@ -1172,88 +1303,235 @@ export async function getChannel(
 }
 
 /**
- * Get a `ChannelModel` and post files in the channel all at once. Executes a
- * realtime query so the data can be kept up-to-date in realtime.
+ * Get an array of all the accounts which have contributed to this channel. We
+ * consider an account a contributor if they've created the channel, posted in
+ * the channel, or commented in the channel. The array is sorted with the top
+ * contributors first. If multiple accounts have contributed the same amount
+ * then we put the account who contributed first, first in the list.
  */
-export function getChannelAndPostFiles(
+export async function getChannelContributors(
     context: ServerContentActionContext,
     channelId: ChannelId,
-    {
-        postFilesLimit,
-        consistency = "Eventual",
-    }: {
-        postFilesLimit: number;
-        consistency?: DynamoReadConsistency;
-    },
-): Promise<DynamoGeneralRealtimeQueryResult<ChannelModel | ChannelPostFilesModel>> {
-    const channelPromiseResolver = createPromiseResolver<ChannelPreviewModel | null>();
-
+    {limit}: {limit: number},
+): Promise<Array<AccountModel>> {
     const promise = (async () => {
-        const result = await ForumRealtimeTable.realtimeQuery(context, {
-            consistency,
-            partitionKey: {partitionType: "Channel", channelId},
-            limit: postFilesLimit + 1,
-            onItem: item => {
-                if (item.model instanceof ChannelModel) {
-                    channelPromiseResolver.resolve(item.model.asPreview());
-                }
-            },
-        });
-        if (result.items.length === 0) return null;
+        const items = await arrayFromAsyncIterable(
+            ForumRealtimeTable.query(context, {
+                partitionKey: {partitionType: "Channel", channelId},
+                endSortKey: {sortRangeType: "Contributors"},
+                limit: "All",
+            }),
+        );
+        if (items.length === 0) return null;
 
-        const channel = result.items[0]!;
+        const firstItem = items[0]!;
+        const secondItem = items[1];
 
-        if (!(channel.model instanceof ChannelModel)) {
-            throw new DataLossError("Expected the first query item to be the channel model");
+        if (firstItem.sortRangeType !== "Attributes") {
+            throw new DataLossError("Expected the first query item to be the channel item");
         }
 
-        await authorizeSpaceAccess(context, channel.model.spaceId);
+        await authorizeSpaceAccess(context, firstItem.spaceId);
 
-        return result;
-    })().then(
-        result => {
-            // All of these promise resolvers MUST have either been resolved or rejected by
-            // the end of this promise. So any promise resolvers that haven't been settled
-            // yet reject with an error as a safety mechanism.
-            if (!channelPromiseResolver.isSettled()) {
-                channelPromiseResolver.reject(
-                    new InternalError("Promise resolver wasn't resolved"),
-                );
-            }
+        if (secondItem && secondItem.sortRangeType !== "Contributors") {
+            throw new DataLossError("Expected the second query item to be the contributors item");
+        }
 
-            return result;
-        },
-        error => {
-            channelPromiseResolver.reject(error);
-            throw error;
-        },
+        return {channelItem: firstItem, contributorsItem: secondItem};
+    })();
+
+    const cachedPromise = promise.then(async result =>
+        result ? (await createChannelModelFromItem(context, result.channelItem)).asPreview() : null,
     );
 
-    // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is
-    // waiting for this channel preview promise before it can return. But the
-    // channel preview promise is waiting on `ForumRealtimeTable.realtimeQuery()`
-    // to finish.
-    const timeout = createTimeout(() => {
-        channelPromiseResolver.reject(
-            new DeadlineExceededError("Timed out waiting for channel item, possibly deadlocked?"),
-        );
-    }, 3000);
-
-    channelPromiseResolver.promise.then(
-        () => timeout.clear(),
-        () => timeout.clear(),
-    );
+    // Make sure errors thrown by this promise aren't treated as uncaught
+    // exceptions. We catch them below when we await `getPromise`.
+    cachedPromise.catch(() => {});
 
     // If we're loading the channel, we can use the channel item in our
     // `ChannelPreviewModel` cache to avoid extra fetches.
-    ChannelPreviewCache.set(context, channelId, channelPromiseResolver.promise);
+    ChannelPreviewCache.set(context, channelId, cachedPromise);
 
-    return promise.then(result => {
-        if (!result) {
-            throw new NotFoundError("Channel not found");
+    return (async () => {
+        const result = await promise;
+        if (!result) throw new NotFoundError("Channel not found");
+
+        const accountIdsByContributionCount = new DefaultMap<number, Array<AccountId>>(() => []);
+
+        for (const [accountId, contributionCount] of result.contributorsItem
+            ?.contributionCountByAccountId ?? emptyArray) {
+            accountIdsByContributionCount.getOrSetDefault(contributionCount).push(accountId);
         }
 
-        return result;
+        // Top contributor accounts are sorted by:
+        //
+        // 1. Who has the highest contribution count up to
+        //    `maxChannelTopContributorCount`
+        // 2. Earliest contribution time
+        const contributorPromises: Array<Promise<AccountModel>> = [];
+
+        outer: for (
+            let contributionCount = maxChannelContributionCount;
+            contributionCount >= 1;
+            contributionCount--
+        ) {
+            const accountIds = accountIdsByContributionCount.get(contributionCount) ?? emptyArray;
+
+            for (const accountId of accountIds) {
+                contributorPromises.push(
+                    getAccount(context, result.channelItem.spaceId, accountId),
+                );
+
+                if (contributorPromises.length >= limit) break outer;
+            }
+        }
+
+        return runAllPromises(contributorPromises);
+    })();
+}
+
+export function getChannelContributorsKey(channelId: ChannelId): DynamoItemKey {
+    return ForumRealtimeTable.serializeOpaqueItemKey({
+        partitionType: "Channel",
+        sortRangeType: "Contributors",
+        channelId,
+    });
+}
+
+export function getChannelAndMetadataPartitionKey(channelId: ChannelId): DynamoItemPartitionKey {
+    return ForumRealtimeTable.getRealtimeQueryPartitionKey({partitionType: "Channel", channelId});
+}
+
+/**
+ * Get a `ChannelModel` and post files in the channel all at once. Executes a
+ * realtime query so the data can be kept up-to-date in realtime.
+ */
+export function getChannelAndMetadata(
+    context: ServerContentActionContext,
+    {
+        channelId,
+        postFilesLimit,
+        afterItemKey = null,
+        consistency = "Eventual",
+    }: {
+        channelId: ChannelId;
+        postFilesLimit: number;
+        afterItemKey?: DynamoItemKey | null;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
+    if (afterItemKey) {
+        return (async () => {
+            const [, result] = await runAllPromises([
+                // Get the channel preview separately to make sure we're authorized to make
+                // this request.
+                getChannelPreview(context, channelId, {consistency}),
+
+                ForumRealtimeTable.realtimeQuery(context, {
+                    consistency,
+                    partitionKey: {partitionType: "Channel", channelId},
+                    paginate: {type: "FromStart", afterItemKey},
+                    // Plus one for `ChannelModel` and plus one for `ChannelContributorsModel`.
+                    limit: postFilesLimit + 2,
+                }),
+            ]);
+
+            return result;
+        })();
+    } else {
+        const channelPromiseResolver = createPromiseResolver<ChannelPreviewModel | null>();
+
+        const promise = (async () => {
+            const result = await ForumRealtimeTable.realtimeQuery(context, {
+                consistency,
+                partitionKey: {partitionType: "Channel", channelId},
+                paginate: {type: "FromStart", afterItemKey},
+                // Plus one for `ChannelModel` and plus one for `ChannelContributorsModel`.
+                limit: postFilesLimit + 2,
+                onItem: item => {
+                    if (item.model instanceof ChannelModel) {
+                        channelPromiseResolver.resolve(item.model.asPreview());
+                    }
+                },
+            });
+            if (result.items.length === 0) return null;
+
+            const channel = result.items[0]!;
+
+            if (!(channel.model instanceof ChannelModel)) {
+                throw new DataLossError("Expected the first query item to be the channel model");
+            }
+
+            await authorizeSpaceAccess(context, channel.model.spaceId);
+
+            return result;
+        })().then(
+            result => {
+                // All of these promise resolvers MUST have either been resolved or rejected by
+                // the end of this promise. So any promise resolvers that haven't been settled
+                // yet reject with an error as a safety mechanism.
+                if (!channelPromiseResolver.isSettled()) {
+                    channelPromiseResolver.reject(
+                        new InternalError("Promise resolver wasn't resolved"),
+                    );
+                }
+
+                return result;
+            },
+            error => {
+                channelPromiseResolver.reject(error);
+                throw error;
+            },
+        );
+
+        // Protect against deadlocks where `ForumRealtimeTable.realtimeQuery()` is
+        // waiting for this channel preview promise before it can return. But the
+        // channel preview promise is waiting on `ForumRealtimeTable.realtimeQuery()`
+        // to finish.
+        const timeout = createTimeout(() => {
+            channelPromiseResolver.reject(
+                new DeadlineExceededError(
+                    "Timed out waiting for channel item, possibly deadlocked?",
+                ),
+            );
+        }, 3000);
+
+        channelPromiseResolver.promise.then(
+            () => timeout.clear(),
+            () => timeout.clear(),
+        );
+
+        // If we're loading the channel, we can use the channel item in our
+        // `ChannelPreviewModel` cache to avoid extra fetches.
+        ChannelPreviewCache.set(context, channelId, channelPromiseResolver.promise);
+
+        return promise.then(result => {
+            if (!result) {
+                throw new NotFoundError("Channel not found");
+            }
+
+            return result;
+        });
+    }
+}
+
+/**
+ * Backfill any realtime updates to catch up our client after it's been
+ * disconnected from realtime.
+ */
+export function backfillChannelAndMetadata(
+    context: ServerContentActionContext,
+    {
+        channelId,
+        readTime,
+    }: {
+        channelId: ChannelId;
+        readTime: Date;
+    },
+): Promise<DynamoGeneralRealtimeBackfillResult<ChannelOrMetadataModel>> {
+    return ForumRealtimeTable.backfillRealtimeQuery(context, {
+        partitionKey: {partitionType: "Channel", channelId},
+        readTime,
     });
 }
 
@@ -1813,6 +2091,50 @@ export async function createPost(
         });
     }
 
+    // When a post is created, update the contributors map. It's ok to do this in
+    // `context.process.waitUntil()`. It's fine if `AppService` crashes and we
+    // don't record the contribution.
+    context.process.waitUntil(async () => {
+        await ForumRealtimeTable.updateItem(
+            context,
+            {partitionType: "Channel", sortRangeType: "Contributors", channelId},
+            contributorsItem => {
+                contributorsItem ??= {
+                    partitionType: "Channel",
+                    sortRangeType: "Contributors",
+                    channelId: postItem.channelId,
+                    spaceId: postItem.spaceId,
+                    contributionCountByAccountId: new Map(),
+                };
+
+                const contributionCount =
+                    contributorsItem.contributionCountByAccountId.get(
+                        context.actor.getAccountId(),
+                    ) ?? 0;
+
+                // If this account has already reached the max contribution count then don't
+                // increment their contributions anymore.
+                if (contributionCount >= maxChannelContributionCount) {
+                    return contributorsItem;
+                }
+
+                const newContributionCountByAccountId = new Map(
+                    contributorsItem.contributionCountByAccountId,
+                );
+
+                newContributionCountByAccountId.set(
+                    context.actor.getAccountId(),
+                    contributionCount + 1,
+                );
+
+                return {
+                    ...contributorsItem,
+                    contributionCountByAccountId: newContributionCountByAccountId,
+                };
+            },
+        );
+    });
+
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
     const contentSnippet = getNotificationPostContentSnippet(content);
 
@@ -2360,7 +2682,7 @@ export async function authorizePostAccess(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: ServerSessionActionContext,
+    context: ForumSessionActionContextWithBroadcast,
     {
         postId,
         parentCommentIndex,
@@ -2430,7 +2752,8 @@ export async function createPostComment(
         const authorId = context.actor.getAccountId();
 
         const newCommentCountByAuthorId = new Map(postItem.commentsSummary.commentCountByAuthorId);
-        newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
+        const oldCommentCount = postItem.commentsSummary.commentCountByAuthorId.get(authorId) ?? 0;
+        newCommentCountByAuthorId.set(authorId, oldCommentCount + 1);
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
             postItem.commentsSummary.mentionCountByAccountId,
@@ -2468,6 +2791,57 @@ export async function createPostComment(
                 {updateLockVersion: postItem.updateLockVersion},
             ),
         ]);
+
+        // When the account comments on a post they didn't author for the first time,
+        // update the contributors map. It's ok to do this in
+        // `context.process.waitUntil()`. It's fine if `AppService` crashes and we
+        // don't record the contribution.
+        if (postItem.authorId !== authorId && oldCommentCount === 0) {
+            context.process.waitUntil(async () => {
+                await ForumRealtimeTable.updateItem(
+                    context,
+                    {
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId: postItem.channelId,
+                    },
+                    contributorsItem => {
+                        contributorsItem ??= {
+                            partitionType: "Channel",
+                            sortRangeType: "Contributors",
+                            channelId: postItem.channelId,
+                            spaceId: postItem.spaceId,
+                            contributionCountByAccountId: new Map(),
+                        };
+
+                        const contributionCount =
+                            contributorsItem.contributionCountByAccountId.get(
+                                context.actor.getAccountId(),
+                            ) ?? 0;
+
+                        // If this account has already reached the max contribution count then don't
+                        // increment their contributions anymore.
+                        if (contributionCount >= maxChannelContributionCount) {
+                            return contributorsItem;
+                        }
+
+                        const newContributionCountByAccountId = new Map(
+                            contributorsItem.contributionCountByAccountId,
+                        );
+
+                        newContributionCountByAccountId.set(
+                            context.actor.getAccountId(),
+                            contributionCount + 1,
+                        );
+
+                        return {
+                            ...contributorsItem,
+                            contributionCountByAccountId: newContributionCountByAccountId,
+                        };
+                    },
+                );
+            });
+        }
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);

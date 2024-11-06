@@ -241,6 +241,8 @@ const responsiveProperties = defineProperties({
         width: {
             ...spacingWithPercentages,
             auto: "auto",
+            border: 1,
+            "border-thick": 2,
             // Includes top and bottom for easy use with a `<Spacer>` component.
             "safe-area-inset-top": "var(--safe-area-inset-top, 0px)",
             "safe-area-inset-bottom": "var(--safe-area-inset-bottom, 0px)",
@@ -252,6 +254,8 @@ const responsiveProperties = defineProperties({
         height: {
             ...spacingWithPercentages,
             auto: "auto",
+            border: 1,
+            "border-thick": 2,
             // Includes left and right for easy use with a `<Spacer>` component.
             "safe-area-inset-top": "var(--safe-area-inset-top, 0px)",
             "safe-area-inset-bottom": "var(--safe-area-inset-bottom, 0px)",

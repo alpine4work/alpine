@@ -156,6 +156,9 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
     const handleEventTransaction = useCallback(
         (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
             for (const event of eventTransaction) {
+                // NOCOMMIT: Currently we ignore `DeleteItem` events!
+                if (event.type !== "PutItem") continue;
+
                 if (item.key === event.item.key) {
                     onUpdateItem(item => {
                         // If our event transaction has a higher versioned item of the same key then

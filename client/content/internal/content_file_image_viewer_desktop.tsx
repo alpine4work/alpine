@@ -5,6 +5,7 @@ import {SpinnerGap} from "phosphor-react";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     contentFileViewerDesktopMarginBottom,
     contentFileViewerDesktopMarginTop,
@@ -17,7 +18,6 @@ import {
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
-    ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
     handleCopyContentFile,
     handleDownloadContentFile,

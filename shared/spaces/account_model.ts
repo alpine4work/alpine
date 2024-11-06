@@ -119,4 +119,24 @@ export class AccountModel implements AccountModelWithoutSpace {
         if (data === this.initialData) return this;
         return new AccountModel(data);
     }
+
+    private static _unknown: AccountModel | null = null;
+
+    /**
+     * Get the model for an unknown account. If we need an account model but we
+     * have no account available then you may use this model to render an unknown
+     * account.
+     */
+    public static getUnknown(): AccountModel {
+        this._unknown ??= new AccountModel({
+            ...AccountModelWithoutSpace.getUnknown().initialData,
+            space: {
+                version: 0,
+                joinedTime: new Date(0),
+                wasRemoved: false,
+            },
+        });
+
+        return this._unknown;
+    }
 }

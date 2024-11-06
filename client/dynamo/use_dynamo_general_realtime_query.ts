@@ -1,10 +1,10 @@
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeIndexQueryResult,
+    DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -18,8 +18,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * of this hook and then pass in relevant `isConnected` and `subscribeToEvents`
  * props to wire up this hook to a WebSocket.
  */
-export function useDynamoGeneralRealtimeIndexQuery<Model>(
-    initialQueryResult: DynamoGeneralRealtimeIndexQueryResult<Model>,
+export function useDynamoGeneralRealtimeQuery<Model>(
+    initialQueryResult: DynamoGeneralRealtimeQueryResult<Model>,
     options: {
         /**
          * Are we connected to a WebSocket or other push-based realtime service that
@@ -66,39 +66,38 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
          * function to completely reload the query. Our internal query state will be
          * completely reset and the user scrolled to the top.
          */
-        reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>>;
+        reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeQueryResult<Model>>>;
     },
 ): {
-    query: DynamoGeneralRealtimeIndexQuery<Model>;
+    query: DynamoGeneralRealtimeQuery<Model>;
     handleEvent: Memo<
         (event: {
             readTime: Date;
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
         }) => void
     >;
+    handleLoadMore: Memo<(result: DynamoGeneralRealtimeQueryResult<Model>) => void>;
 } {
-    const [query, setQuery] = useState(() =>
-        DynamoGeneralRealtimeIndexQuery.new(initialQueryResult),
-    );
+    const [query, setQuery] = useState(() => DynamoGeneralRealtimeQuery.new(initialQueryResult));
 
-    return useDynamoGeneralRealtimeIndexQueryBase({query, onUpdateQuery: setQuery}, options);
+    return useDynamoGeneralRealtimeQueryBase({query, onUpdateQuery: setQuery}, options);
 }
 
 /**
- * The same as `useDynamoGeneralRealtimeIndexQuery()` but you can bring your
+ * The same as `useDynamoGeneralRealtimeQuery()` but you can bring your
  * own state.
  */
-export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
+export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
     {
         query,
         onUpdateQuery,
     }: {
-        query: DynamoGeneralRealtimeIndexQuery<Model, Extra>;
+        query: DynamoGeneralRealtimeQuery<Model, Extra>;
         onUpdateQuery: Memo<
             (
                 update: (
-                    query: DynamoGeneralRealtimeIndexQuery<Model, Extra>,
-                ) => DynamoGeneralRealtimeIndexQuery<Model, Extra>,
+                    query: DynamoGeneralRealtimeQuery<Model, Extra>,
+                ) => DynamoGeneralRealtimeQuery<Model, Extra>,
             ) => void
         >;
     },
@@ -153,16 +152,17 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
          * function to completely reload the query. Our internal query state will be
          * completely reset and the user scrolled to the top.
          */
-        reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>>;
+        reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeQueryResult<Model>>>;
     },
 ): {
-    query: DynamoGeneralRealtimeIndexQuery<Model, Extra>;
+    query: DynamoGeneralRealtimeQuery<Model, Extra>;
     handleEvent: Memo<
         (event: {
             readTime: Date;
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
         }) => void
     >;
+    handleLoadMore: Memo<(result: DynamoGeneralRealtimeQueryResult<Model>) => void>;
 } {
     const setErrorState = useErrorState();
 
@@ -224,7 +224,7 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
                                 // were disconnected from realtime up until this point.
                                 wasConnectedRef.current = false;
 
-                                onUpdateQuery(() => DynamoGeneralRealtimeIndexQuery.new(result));
+                                onUpdateQuery(() => DynamoGeneralRealtimeQuery.new(result));
                             },
                             error => setErrorState(error),
                         );
@@ -238,8 +238,16 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
         );
     }, [backfillQuery, isConnected, onUpdateQuery, query, reloadQuery, setErrorState]);
 
+    const handleLoadMore = useCallback(
+        (result: DynamoGeneralRealtimeQueryResult<Model>) => {
+            onUpdateQuery(query => query.loadMore(result));
+        },
+        [onUpdateQuery],
+    );
+
     return {
         query,
         handleEvent,
+        handleLoadMore,
     };
 }

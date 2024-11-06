@@ -2,7 +2,9 @@ import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/h
 import {Reporter} from "~/client/design/reporter.js";
 import {
     addResizeListenerForElement,
+    addSuppressResizeLoopErrorNotificationForElement,
     removeResizeListenerForElement,
+    removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {pauseIconSvg} from "~/client/icons/pause_icon_svg.js";
@@ -742,12 +744,14 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         if (mediaElement !== null) {
             mediaElement.addEventListener("timeupdate", handleTimeUpdate);
             mediaElement.addEventListener("progress", handleProgress);
+            addSuppressResizeLoopErrorNotificationForElement(scrubberElement);
             addResizeListenerForElement(scrubberElement, handleScrubberResize);
 
             cleanupFunctions.push(() => {
                 mediaElement.removeEventListener("timeupdate", handleTimeUpdate);
                 mediaElement.removeEventListener("progress", handleProgress);
                 removeResizeListenerForElement(scrubberElement, handleScrubberResize);
+                removeSuppressResizeLoopErrorNotificationForElement(scrubberElement);
             });
         }
     }

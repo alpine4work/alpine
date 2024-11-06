@@ -1,5 +1,6 @@
 import {useSearchParams} from "react-router-dom";
-import {PostView} from "~/client/forum/post_view.js";
+import {PostView, PostViewInitialScroll} from "~/client/forum/post_view.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -13,9 +14,11 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -85,8 +88,27 @@ export default function PostRoute({withMobileLayout = false}: {withMobileLayout?
     const {post, initialPostComments, initialOtherReferencedPostComments, inboxEntry} =
         useLoaderDataWithSchema(LoaderSchema);
 
-    const postCommentIndexString = searchParams.get("comment");
-    const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
+    const commentIndexString = searchParams.get("comment");
+    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+
+    const initialScroll = useConstant((): PostViewInitialScroll | null => {
+        if (commentIndex !== null) return {type: "Comment", commentIndex};
+
+        const scrollString = searchParams.get("scroll");
+        if (!scrollString) return null;
+
+        // NOTE(calebmer): Prefix with `file-` since in the future I could see us
+        // initially scrolling to headings or other things in the post.
+        if (scrollString.startsWith("file-")) {
+            const fileId = scrollString.slice(5);
+            if (!isId<FileId>(fileId)) {
+                throw new InvalidArgumentError("Expected `FileId`");
+            }
+            return {type: "File", fileId};
+        }
+
+        return null;
+    });
 
     // Spending time with a post accrues affinity points to the channel the post
     // was made in. If you're reading a post and its comments this probably means
@@ -105,7 +127,7 @@ export default function PostRoute({withMobileLayout = false}: {withMobileLayout?
             initialPost={post}
             initialPostComments={initialPostComments}
             initialOtherReferencedPostComments={initialOtherReferencedPostComments}
-            initialScrollToPostCommentIndex={postCommentIndex}
+            initialScroll={initialScroll}
             withMobileLayout={withMobileLayout}
         />
     );

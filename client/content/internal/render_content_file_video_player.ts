@@ -53,6 +53,7 @@ export function renderContentFileVideoPlayer(
         layout,
         isMobile,
         isInitialAppRender,
+        withoutInteractivity,
     }: {
         spaceId: SpaceId;
         signedUrlSearch: string;
@@ -61,6 +62,7 @@ export function renderContentFileVideoPlayer(
         layout: {width: number; height: number} | null;
         isMobile: boolean;
         isInitialAppRender: boolean;
+        withoutInteractivity: boolean;
     },
 ) {
     const videoSrc = getContentFileViewerSrc({spaceId, signedUrlSearch, file});
@@ -121,7 +123,7 @@ export function renderContentFileVideoPlayer(
     }
 
     // If we don't have enough space then don't render the duration preview.
-    if (layout === null || !(layout.width < 125 && layout.height < 125)) {
+    if (layout === null || !(layout.width < 175 && layout.height < 175)) {
         const durationPreviewHtml = new HtmlElementGenerator("div");
         containerHtml.appendChild(durationPreviewHtml);
 
@@ -136,7 +138,11 @@ export function renderContentFileVideoPlayer(
     // Only render the `<video>` element inline if the area is large enough.
     // Otherwise a press should open our file viewer where you'll be able to watch
     // the video.
-    if (isMobile || (layout !== null && (layout.width < 250 || layout.height < 150))) {
+    if (
+        withoutInteractivity ||
+        isMobile ||
+        (layout !== null && (layout.width < 250 || layout.height < 150))
+    ) {
         return;
     }
 

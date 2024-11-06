@@ -1,13 +1,18 @@
-import classNames from "classnames";
+import prettyBytes from "pretty-bytes";
 import {
     addContentFileVideoAndAudioPlayerControlsBehavior,
     renderContentFileVideoAndAudioPlayerControls,
 } from "~/client/content/internal/render_content_file_video_and_audio_player_controls.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
+import {fileAudioIconSvg} from "~/client/icons/file_audio_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
-import {waveformIconSvg} from "~/client/icons/waveform_icon_svg.js";
-import {contentFileAudioPlayerStyles, spinAnimationClassName} from "~/client/styles/styles.js";
+import {
+    contentFileAudioPlayerStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -82,22 +87,33 @@ function round3(n: number) {
 export function renderContentFileAudioPlayer(
     containerHtml: HtmlContainerGenerator,
     {
+        file,
         filePreview,
         audioSrc,
         isMobile,
         isInitialAppRender,
+        withoutInteractivity,
         layout,
     }: {
+        file: FileModel;
         filePreview: FileAudioPreview & {isProcessing: false};
         audioSrc: string;
         isMobile: boolean;
         isInitialAppRender: boolean;
+        withoutInteractivity: boolean;
         layout: {width: number; height: number} | null;
     },
 ) {
-    const withoutControls = isMobile || (layout !== null && layout.width < 250);
+    const withoutControls =
+        withoutInteractivity || isMobile || (layout !== null && layout.width < 250);
     const withoutVisualization =
-        isMobile || (layout !== null && (layout.width < 350 || layout.height < 200));
+        withoutInteractivity ||
+        isMobile ||
+        (layout !== null &&
+            (layout.width < 350 ||
+                // 185 was selected instead of 200 to make sure we show the visualization when
+                // rendering in a peek.
+                layout.height < 185));
 
     if (!withoutControls) {
         const audioHtml = new HtmlElementGenerator("audio");
@@ -133,27 +149,10 @@ export function renderContentFileAudioPlayer(
         }
     }
 
-    {
+    if (!withoutVisualization) {
         const metadataHtml = new HtmlElementGenerator("div");
         containerHtml.appendChild(metadataHtml);
-        metadataHtml.setAttribute(
-            "class",
-            classNames(
-                contentFileAudioPlayerStyles.metadataClassName,
-                withoutVisualization &&
-                    contentFileAudioPlayerStyles.metadataWithoutVisualizationClassName,
-            ),
-        );
-
-        if (withoutVisualization) {
-            metadataHtml.appendChild(
-                createSvgHtmlGenerator(
-                    waveformIconSvg({
-                        className: contentFileAudioPlayerStyles.metadataIconClassName,
-                    }),
-                ),
-            );
-        }
+        metadataHtml.setAttribute("class", contentFileAudioPlayerStyles.metadataClassName);
 
         {
             const metadataContentHtml = new HtmlElementGenerator("div");
@@ -209,6 +208,108 @@ export function renderContentFileAudioPlayer(
                         new HtmlTextGenerator(filePreview.metadata?.album ?? ""),
                     );
                 }
+            }
+        }
+    } else {
+        const metadataHtml = new HtmlElementGenerator("div");
+        containerHtml.appendChild(metadataHtml);
+
+        metadataHtml.setAttribute(
+            "class",
+            sprinkles({
+                flexGrow: "1",
+                // Slightly push our metadata off center. This ends up optically centering our
+                // content which is bottom heavy.
+                paddingTop: withoutControls ? "3" : "4",
+                paddingX: "12",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "1.5",
+                color: "grey-40",
+                fontSize: layout !== null && layout.width < 150 ? "25" : "50",
+            }),
+        );
+
+        metadataHtml.appendChild(
+            createSvgHtmlGenerator(
+                fileAudioIconSvg({
+                    weight: "light",
+                    className: sprinkles({
+                        color: "grey-30",
+                        width: "7",
+                        height: "7",
+                    }),
+                }),
+            ),
+        );
+
+        const metadataContentHtml = new HtmlElementGenerator("div");
+        metadataHtml.appendChild(metadataContentHtml);
+        metadataContentHtml.setAttribute("class", sprinkles({textAlign: "center"}));
+
+        const metadataTitleHtml = new HtmlElementGenerator("div");
+        metadataContentHtml.appendChild(metadataTitleHtml);
+        metadataTitleHtml.setAttribute(
+            "class",
+            sprinkles({
+                paddingBottom: "0.5",
+                fontSize: layout !== null && layout.width < 150 ? "50" : "75",
+                fontStyle: "semi-bold",
+                color: "grey-50",
+            }),
+        );
+        metadataTitleHtml.appendChild(
+            new HtmlTextGenerator(
+                filePreview.metadata?.title && filePreview.metadata.title.length > 0
+                    ? filePreview.metadata.title
+                    : "Untitled",
+            ),
+        );
+
+        const metadataArtistHtml = new HtmlElementGenerator("div");
+        metadataContentHtml.appendChild(metadataArtistHtml);
+
+        // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+        // except IE.
+        // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+        metadataArtistHtml.setAttribute(
+            "style",
+            [
+                "display: -webkit-box",
+                "-webkit-line-clamp: 2",
+                "line-clamp: 2",
+                "-webkit-box-orient: vertical",
+                "text-overflow: ellipsis",
+                "overflow: hidden",
+            ].join("; "),
+        );
+
+        const hasArtistMetadata =
+            filePreview.metadata?.artist && filePreview.metadata.artist.length > 0;
+        const hasAlbumMetadata =
+            filePreview.metadata?.album && filePreview.metadata.album.length > 0;
+
+        if (!hasArtistMetadata && !hasAlbumMetadata) {
+            metadataArtistHtml.appendChild(new HtmlTextGenerator(prettyBytes(file.contentLength)));
+        } else {
+            if (hasArtistMetadata) {
+                if (hasAlbumMetadata) {
+                    metadataArtistHtml.appendChild(
+                        new HtmlTextGenerator(
+                            `${filePreview.metadata.artist} (${filePreview.metadata.album})`,
+                        ),
+                    );
+                } else {
+                    metadataArtistHtml.appendChild(
+                        new HtmlTextGenerator(filePreview.metadata.artist),
+                    );
+                }
+            } else {
+                metadataArtistHtml.appendChild(
+                    new HtmlTextGenerator(filePreview.metadata?.album ?? ""),
+                );
             }
         }
     }

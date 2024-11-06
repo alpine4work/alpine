@@ -587,6 +587,18 @@ export class DynamoGeneralRealtimeTableSchema<
         return this._table.isInitialized();
     }
 
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
+        return this._table.serializeOpaqueItemKey(key);
+    }
+
     private _buildModel<Item extends Types["Item"]>(
         context: ServerContentActionContext,
         item: Item,
@@ -1563,7 +1575,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
      * with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionCreateItemWithEvent<Item extends Types["Item"]>(
+    public transactionCreateItemWithEvent<const Item extends Types["Item"]>(
         item: Item,
     ): {
         transactionEntry: DynamoGeneralRealtimeTransactionEntry;
@@ -2347,6 +2359,16 @@ export class DynamoGeneralRealtimeTableSchema<
         return this._table.query(context, options);
     }
 
+    public getRealtimeQueryPartitionKey(partitionKey: Types["PartitionKey"]) {
+        if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
+            throw new InternalError(
+                `Realtime queries are disabled (partition type: "${partitionKey.partitionType}")`,
+            );
+        }
+
+        return this._table.serializeOpaqueItemPartitionKey(partitionKey);
+    }
+
     /**
      * Query a range of items from the table. Highly efficient as DynamoDB
      * collocates related data. Also returns all the auxillary information
@@ -2539,7 +2561,9 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerContentActionContext,
         {partitionKey, readTime}: {partitionKey: PartitionKey; readTime: Date},
     ): Promise<
-        DynamoGeneralRealtimeBackfillResult<ModelMap[PartitionKey["partitionType"]][string]>
+        DynamoGeneralRealtimeBackfillResult<
+            ModelMap[PartitionKey["partitionType"]][keyof ModelMap[PartitionKey["partitionType"]]]
+        >
     > {
         const partitionKeyString = this._table.serializeOpaqueItemPartitionKey(partitionKey);
 

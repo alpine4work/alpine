@@ -57,13 +57,19 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+
+export type PostContentViewInitialScroll = {
+    readonly type: "File";
+    readonly fileId: FileId;
+};
 
 export function PostContentView({
     withMobileLayout,
@@ -74,6 +80,7 @@ export function PostContentView({
     postEditing,
     hasNavigationBar,
     isSingleLayoutWithPinnedCommentInput,
+    initialScroll,
     idBase,
     onTogglePostComments,
     onLoadInitialPostComments,
@@ -86,12 +93,15 @@ export function PostContentView({
     shouldShowChannel: boolean;
     hasNavigationBar: boolean;
     isSingleLayoutWithPinnedCommentInput: boolean;
+    initialScroll: PostContentViewInitialScroll | null;
     idBase: string;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+
+    const contentContainerRef = useRef<HTMLDivElement>(null);
 
     const postEditingForThisPost =
         // On mobile we use a modal for the editing UI instead of inline editing.
@@ -137,6 +147,56 @@ export function PostContentView({
         (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
         [post.id],
     );
+
+    const hasInitializedRef = useRef(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
+        const contentContainerElement = assertExists(contentContainerRef.current);
+
+        if (!initialScroll) return;
+
+        let fileNodePos: number | null = null;
+
+        post.content.doc.descendants((node, pos) => {
+            if (fileNodePos !== null) return false;
+            if (node.type.name !== "file") return;
+            if (node.attrs.fileId !== initialScroll.fileId) return;
+
+            fileNodePos = pos;
+        });
+
+        // We need to run after a microtask since our `<VirtualizedScrollView>` parent
+        // will set scroll top to its initial value (0) in a `useLayoutEffect()`. So we
+        // need to apply our scroll after that.
+        scheduleMicrotask(() => {
+            const fileElement = contentContainerElement.querySelector(
+                `[data-pos="${fileNodePos}"]`,
+            );
+            if (!fileElement) return;
+
+            let scrollElement = contentContainerElement.parentElement;
+            while (scrollElement) {
+                const {overflowY} = getComputedStyle(scrollElement);
+
+                const isScrollable = overflowY === "scroll" || overflowY === "auto";
+                if (isScrollable) break;
+
+                scrollElement = scrollElement.parentElement;
+            }
+
+            if (!scrollElement) return;
+
+            const scrollRect = scrollElement.getBoundingClientRect();
+            const fileRect = fileElement.getBoundingClientRect();
+
+            // Scroll the top of the file 20% from the top of the scroll element.
+            scrollElement.scrollTop =
+                fileRect.top - (scrollRect.top - scrollElement.scrollTop) - scrollRect.height / 5;
+        });
+    }, [initialScroll, post.content.doc]);
 
     return (
         <Box
@@ -218,6 +278,7 @@ export function PostContentView({
                 </Box>
             )}
             <Box
+                ref={contentContainerRef}
                 paddingX={screenPaddingXWithoutPostContentEditorPadding}
                 style={{
                     paddingTop: postContentViewInnerMarginYWithoutContentEditorPadding,

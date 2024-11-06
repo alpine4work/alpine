@@ -6,10 +6,8 @@ import {
     layoutContentFile,
     layoutContentFileParent,
 } from "~/client/content/internal/content_file_layout.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    renderContentFilePreview,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";

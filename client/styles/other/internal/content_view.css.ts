@@ -39,6 +39,7 @@ export const seeButtonClassName = style({
     ...fontStyles["semi-bold"],
     cursor: "pointer",
     userSelect: "none",
+    color: colorSchemeVars["grey-90"],
     selectors: {
         [`${extraCompactDocClassName} &`]: {
             ...extraCompactParagraphFontSize,

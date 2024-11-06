@@ -145,9 +145,14 @@ export function links(): Array<LinkDescriptor> {
         // - `overflow: hidden`: Turn off scrolling on `body` when in a space which
         //   comes with a top bar. This prevents over-scrolling up and down when at the
         //   top or bottom of a nested scroll view.
+        //
+        // - `width: 100svw; height: 100svh`: Make sure in a space the `body` height
+        //   doesn't grow beyond what fits on the screen.
         {
             rel: "stylesheet",
-            href: `data:text/css,${encodeURIComponent(`html, body {overflow: hidden}`)}`,
+            href: `data:text/css,${encodeURIComponent(
+                `html, body {overflow: hidden; width: 100svw; height: 100svh}`,
+            )}`,
         },
     ];
 }
@@ -639,6 +644,32 @@ function SpaceLayoutRouteOutlet({
     const isMobile = useIsMobile();
 
     const {resizedWindowHeightForMobileWebKit} = useMobileWebKitKeyboardSupport();
+
+    // We've observed that sometimes Chrome will change the `scrollTop` of our
+    // `<html>` element even though `overflow: hidden` is set. Specifically we've
+    // observed this when `element.scrollIntoView()` is called for an element in a
+    // peek which is animating up (since the peek starts offscreen). We've also
+    // seen this occasionally happen in Playwright integration tests.
+    //
+    // Make sure if we see a scroll event on the window we immediately reset our
+    // `<html>`'s `scrollTop` to 0 or else we'll get into weird states.
+    useEffect(() => {
+        // Mobile WebKit has its own handling for document scrolling in
+        // `useMobileWebKitKeyboardSupport()`.
+        if (isMobileWebKit) return;
+
+        document.documentElement.scrollTop = 0;
+
+        const handleScroll = () => {
+            document.documentElement.scrollTop = 0;
+        };
+
+        window.addEventListener("scroll", handleScroll);
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+        };
+    }, []);
 
     const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
         ? dataRouterStateContext

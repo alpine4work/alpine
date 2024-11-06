@@ -5,6 +5,7 @@ import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_fi
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileVideoViewerMobile} from "~/client/content/internal/content_file_video_viewer_mobile.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
@@ -15,10 +16,7 @@ import {
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    getContentFileDownloadName,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {getContentFileDownloadName} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -377,7 +375,11 @@ function ContentFileViewerMobile(props: {
                             size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.mobile]}
                             weight={contentFileViewerLargeProcessingIndicatorWeight.mobile}
                         />
-                        Unknown file
+                        <Box textAlign="center">
+                            Unknown
+                            <br />
+                            {prettyBytes(props.file.contentLength)}
+                        </Box>
                     </Box>
                     <Button
                         variant="neutral"

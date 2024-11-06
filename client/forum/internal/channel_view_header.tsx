@@ -9,12 +9,14 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
-    desktopLayoutChannelViewAsidePaddingY,
-    mobileLayoutChannelViewAsidePaddingY,
+    channelViewMetadataSectionGap,
+    desktopLayoutPostFauxInputCreateButtonMarginTop,
+    mobileLayoutPostFauxInputCreateButtonMarginTop,
     postContentViewOuterMarginY,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
@@ -36,29 +38,42 @@ export function ChannelViewHeader({
 }) {
     return (
         <>
-            {withMobileLayout &&
-                (channelHeader.isEditingDescription ||
-                    !isContentEmpty(channelHeader.channel.description.doc)) && (
-                    <Box paddingX={{desktop: "5", mobile: "3"}}>
-                        <h3 className={sprinkles({color: "grey-50"})}>About</h3>
-                        {!channelHeader.isEditingDescription ? (
-                            <ChannelViewHeaderMobileDescription
-                                description={channelHeader.channel.description}
-                            />
-                        ) : (
-                            <ChannelViewHeaderMobileDescriptionEditor
-                                initialDescription={channelHeader.channel.description}
-                                onCancel={channelHeader.onCancelDescriptionEditing}
-                                onSave={channelHeader.onSaveDescription}
-                            />
-                        )}
-                    </Box>
-                )}
+            {withMobileLayout && (
+                <Box
+                    paddingTop="2"
+                    paddingX={screenPaddingX}
+                    display="flex"
+                    flexDirection="column"
+                    gap={channelViewMetadataSectionGap}
+                >
+                    {(channelHeader.isEditingDescription ||
+                        !isContentEmpty(channelHeader.channel.description.doc)) && (
+                        <Box marginBottom="-1.5">
+                            <h3 className={sprinkles({color: "grey-50"})}>About</h3>
+                            {!channelHeader.isEditingDescription ? (
+                                <ChannelViewHeaderMobileDescription
+                                    description={channelHeader.channel.description}
+                                />
+                            ) : (
+                                <ChannelViewHeaderMobileDescriptionEditor
+                                    initialDescription={channelHeader.channel.description}
+                                    onCancel={channelHeader.onCancelDescriptionEditing}
+                                    onSave={channelHeader.onSaveDescription}
+                                />
+                            )}
+                        </Box>
+                    )}
+                    <ChannelViewContributorsSection
+                        channel={channelHeader.channel}
+                        contributors={null}
+                    />
+                </Box>
+            )}
             <Box
                 paddingTop={
                     withMobileLayout
-                        ? mobileLayoutChannelViewAsidePaddingY
-                        : desktopLayoutChannelViewAsidePaddingY
+                        ? mobileLayoutPostFauxInputCreateButtonMarginTop
+                        : desktopLayoutPostFauxInputCreateButtonMarginTop
                 }
                 paddingBottom={postContentViewOuterMarginY}
                 paddingX={screenPaddingX}
@@ -102,7 +117,7 @@ function ChannelViewHeaderMobileDescription({
     if (!isShowingAllContent && !isDescriptionSnippetTruncated) setIsShowingAllContent(true);
 
     return (
-        <Box paddingY="1">
+        <Box paddingTop="1">
             <ContentView
                 isCompact={true}
                 // Only rendered in mobile layouts.
@@ -213,7 +228,10 @@ function ChannelViewHeaderMobileDescriptionEditor({
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
                     id={editorId}
+                    paddingX="1.5"
                     paddingY="1"
+                    marginX="-1.5"
+                    marginBottom="-1"
                     borderRadius="1.5"
                     style={{
                         // Use box shadow to draw the border so it doesn't add 1px to layout like

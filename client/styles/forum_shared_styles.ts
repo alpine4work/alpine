@@ -6,18 +6,21 @@ import {
     assertSpacing,
     parseRemLengthNumber,
     screenPaddingX,
+    screenPaddingXRem,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export const desktopLayoutChannelViewAsidePaddingY = "1";
-export const mobileLayoutChannelViewAsidePaddingY = "4";
+export const channelViewMetadataSectionGap = "7";
+
+export const desktopLayoutPostFauxInputCreateButtonMarginTop = "1";
+export const mobileLayoutPostFauxInputCreateButtonMarginTop = channelViewMetadataSectionGap;
 
 export const postFauxInputCreateButtonHeight = "12";
 
-export const postContentViewOuterMarginY = "6";
-export const postContentViewInnerMarginY = "4";
+export const postContentViewOuterMarginY = "5";
+export const postContentViewInnerMarginY = "3";
 
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";
@@ -154,7 +157,32 @@ export const desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinn
     );
 
 export const channelViewHeaderMinHeight = addRemLengths(
-    spacing[desktopLayoutChannelViewAsidePaddingY],
+    spacing[desktopLayoutPostFauxInputCreateButtonMarginTop],
     spacing[postFauxInputCreateButtonHeight],
     spacing[postContentViewOuterMarginY],
+);
+
+export const postListViewAsideMaxWidth = "96";
+
+export const channelViewMetadataSectionTitleFontSize = "75";
+export const channelViewMetadataSectionTitleColor = "grey-50";
+
+export const channelViewAsidePostFileRowCount = 2;
+export const channelViewAsidePostFileColumnCount = 2;
+export const channelViewAsidePostFileCount =
+    channelViewAsidePostFileRowCount * channelViewAsidePostFileColumnCount;
+
+export const channelFilesViewFileMaxSize = "64";
+export const channelFilesViewFileMinSize = "20";
+export const channelFilesViewFileRowFileCount = 3;
+
+export const channelFilesViewMaxWidth = mapObjectValues(
+    screenPaddingXRem,
+    (screenPaddingXRem): RemLength =>
+        `${
+            screenPaddingXRem * 2 +
+            parseRemLengthNumber(spacing[channelFilesViewFileMaxSize]) *
+                channelFilesViewFileRowFileCount +
+            contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1)
+        }rem`,
 );

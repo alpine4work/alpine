@@ -4,9 +4,13 @@ import {
     createDynamoGeneralRealtimeEventSchema,
     createDynamoGeneralRealtimeIndexQuerySchema,
     createDynamoGeneralRealtimeItemSchema,
+    createDynamoGeneralRealtimeQuerySchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {
+    DynamoIndexCursorSchema,
+    DynamoItemKeySchema,
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -80,6 +84,42 @@ export const getChannelWithStrongReadConsistency = defineRpc({
     },
     output: {
         channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
+    },
+});
+
+export const getChannelAndMetadata = defineRpc({
+    name: "getChannelAndMetadata",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        postFilesLimit: Schema.integer,
+        afterItemKey: DynamoItemKeySchema.optional(),
+    },
+    output: {
+        channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
+    },
+});
+
+export const backfillChannelAndMetadata = defineRpc({
+    name: "backfillChannelAndMetadata",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        readTime: Schema.date,
+    },
+    output: {
+        backfillChannelResult: createDynamoGeneralRealtimeBackfillResultSchema(
+            ChannelOrMetadataModelSchema,
+        ),
+    },
+});
+
+export const getChannelContributors = defineRpc({
+    name: "getChannelContributors",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        contributors: Schema.array(AccountModel.schema),
     },
 });
 

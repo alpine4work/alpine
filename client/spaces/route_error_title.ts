@@ -7,7 +7,7 @@ const errorTitleByRouteId: {
     readonly [key: string]: string | undefined;
 } = {
     "routes/s.$spaceId._index": "Couldn’t open home",
-    "routes/s.$spaceId.channels.$channelId": "Couldn’t open channel",
+    "routes/s.$spaceId.channels.$channelId._index": "Couldn’t open channel",
     "routes/s.$spaceId.chat.$chatId": "Couldn’t open chat",
     "routes/s.$spaceId.chat.new": "Couldn’t create chat",
     "routes/s.$spaceId.chat.with.$accountId": "Couldn’t open chat",

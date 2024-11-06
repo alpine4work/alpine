@@ -120,6 +120,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -132,10 +133,15 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
-export type DocumentContentEditorInitialScroll = {
-    readonly type: "CommentThread";
-    readonly commentThreadId: DocumentCommentThreadId;
-};
+export type DocumentContentEditorInitialScroll =
+    | {
+          readonly type: "CommentInOpenThread";
+          readonly commentIndex: number;
+      }
+    | {
+          readonly type: "CommentThread";
+          readonly commentThreadId: DocumentCommentThreadId;
+      };
 
 type DocumentContentEditorSidebarState =
     | {
@@ -182,7 +188,6 @@ export function DocumentContentEditor({
     documentId,
     initialDocument,
     initialCommentThreadResult,
-    initialScrollToCommentIndex,
     initialScroll,
     shouldInitiallyFocus,
     onCreate,
@@ -198,7 +203,6 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
-    initialScrollToCommentIndex: number | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
     onCreate?: () => void;
@@ -1334,30 +1338,34 @@ export function DocumentContentEditor({
 
             const editorContainerElement = assertExists(editorContainerRef.current);
 
-            if (initialCommentThreadResult) {
-                if (initialScrollToCommentIndex !== null) {
-                    commentThreadListViewRef.current?.jumpToCommentIndex(
-                        initialCommentThreadResult.commentThread.id,
-                        initialScrollToCommentIndex,
+            if (!initialScroll) return;
+
+            switch (initialScroll.type) {
+                case "CommentInOpenThread": {
+                    if (initialCommentThreadResult) {
+                        commentThreadListViewRef.current?.jumpToCommentIndex(
+                            initialCommentThreadResult.commentThread.id,
+                            initialScroll.commentIndex,
+                        );
+                    }
+                    break;
+                }
+                case "CommentThread": {
+                    const firstCommentMarkElement = editorContainerElement.querySelector(
+                        `[data-comment="${initialScroll.commentThreadId}"]`,
                     );
+                    if (firstCommentMarkElement) {
+                        scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
+                            behavior: "instant",
+                            prefer: "top",
+                        });
+                    }
+                    break;
                 }
-            } else if (initialScroll) {
-                const firstCommentMarkElement = editorContainerElement.querySelector(
-                    `[data-comment="${initialScroll.commentThreadId}"]`,
-                );
-                if (firstCommentMarkElement) {
-                    scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
-                        behavior: "instant",
-                        prefer: "top",
-                    });
-                }
+                default:
+                    throw exhaustive(initialScroll);
             }
-        }, [
-            initialCommentThreadResult,
-            initialScroll,
-            initialScrollToCommentIndex,
-            scrollToEditorRect,
-        ]);
+        }, [initialCommentThreadResult, initialScroll, scrollToEditorRect]);
     }
 
     /* ========================================================================== *\

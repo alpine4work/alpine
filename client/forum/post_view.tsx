@@ -1,7 +1,8 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
+import {PostContentViewInitialScroll} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -14,17 +15,21 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
+export type PostViewInitialScroll =
+    | PostContentViewInitialScroll
+    | {readonly type: "Comment"; readonly commentIndex: number};
+
 export function PostView({
     initialPost,
     initialPostComments,
     initialOtherReferencedPostComments,
-    initialScrollToPostCommentIndex,
+    initialScroll,
     withMobileLayout = false,
 }: {
     initialPost: DynamoGeneralRealtimeItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
-    initialScrollToPostCommentIndex: number | null;
+    initialScroll: Memo<PostViewInitialScroll> | null;
     withMobileLayout?: boolean;
 }) {
     const {currentAccount} = useSpaceContext();
@@ -41,9 +46,9 @@ export function PostView({
 
         const postList = assertExists(postListRef.current);
 
-        if (initialScrollToPostCommentIndex !== null)
-            postList.jumpToPostCommentIndex(initialPost.model.id, initialScrollToPostCommentIndex);
-    }, [initialPost.model.id, initialScrollToPostCommentIndex]);
+        if (initialScroll?.type === "Comment")
+            postList.jumpToPostCommentIndex(initialPost.model.id, initialScroll.commentIndex);
+    }, [initialPost.model.id, initialScroll]);
 
     const [postsFromState, setPosts] = useState(() =>
         PostBasicList.new({
@@ -128,6 +133,7 @@ export function PostView({
             }, [])}
             withMobileLayout={withMobileLayout}
             navigationBar={navigationBar}
+            initialScrollForFirstPost={initialScroll?.type === "Comment" ? null : initialScroll}
         />
     );
 }

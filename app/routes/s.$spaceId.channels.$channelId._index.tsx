@@ -14,25 +14,37 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
+import {
+    channelViewAsidePostFileCount,
+    postContentViewMinHeightWithClosedCommentSection,
+} from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {
     authorizeChannelAccess,
     createChannel,
-    getChannel,
+    getChannelAndMetadata,
+    getChannelAndMetadataPartitionKey,
+    getChannelContributorsKey,
     getChannelPosts,
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     DynamoGeneralRealtimeItem,
+    DynamoGeneralRealtimeQueryResult,
     createDynamoGeneralRealtimeIndexQuerySchema,
-    createDynamoGeneralRealtimeItemSchema,
+    createDynamoGeneralRealtimeQuerySchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {
+    ChannelContributorsModel,
+    ChannelModel,
+    ChannelOrMetadataModel,
+    ChannelOrMetadataModelSchema,
+} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -50,23 +62,26 @@ const LoaderSchema = Schema.object({
         }),
         Exists: Schema.object({
             type: Schema.value("Exists"),
-            channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
+            channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
             postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
         }),
     }),
 });
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {channelState}}) => [
-    {
-        title:
-            channelState.type === "Exists"
-                ? channelState.channel.model.name
-                : newChannelNamePlaceholder,
-    },
-]);
+export const meta = createMetaFunction(LoaderSchema, ({data: {channelState}}) => {
+    return [
+        {
+            title:
+                channelState.type === "Exists" &&
+                channelState.channelResult.items[0]?.model instanceof ChannelModel
+                    ? channelState.channelResult.items[0].model.name
+                    : newChannelNamePlaceholder,
+        },
+    ];
+});
 
 export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
-    const context = await unauthenticatedContext.actor.authenticate();
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
@@ -86,14 +101,11 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     if (createSearchParam !== null) {
         try {
-            ({getDynamoGeneralRealtimeItem} = await createChannel(
-                context.actor.authorizeSession(),
-                {
-                    spaceId,
-                    channelId,
-                    name: createSearchParam,
-                },
-            ));
+            ({getDynamoGeneralRealtimeItem} = await createChannel(context, {
+                spaceId,
+                channelId,
+                name: createSearchParam,
+            }));
         } catch (error) {
             if (!(error instanceof FailedPreconditionError)) {
                 throw error;
@@ -113,10 +125,38 @@ export async function loader({request, params, context: unauthenticatedContext}:
         }
     }
 
-    const [channel, postsResult] = await runAllPromises([
+    const [channelResult, postsResult] = await runAllPromises([
         getDynamoGeneralRealtimeItem
-            ? getDynamoGeneralRealtimeItem(context)
-            : getChannel(context, channelId, {
+            ? runAllPromises([
+                  getDynamoGeneralRealtimeItem(context),
+                  getAccount(context, spaceId, context.actor.getAccountId()),
+              ]).then(
+                  ([item, account]): DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel> => ({
+                      readTime: new Date(),
+                      partitionKey: getChannelAndMetadataPartitionKey(channelId),
+                      startItemKey: null,
+                      endItemKey: null,
+                      pageInfo: {type: "FromStart", afterItemKey: null, hasNextPage: false},
+                      items: [
+                          item,
+                          {
+                              key: getChannelContributorsKey(channelId),
+                              version: 0,
+                              model: new ChannelContributorsModel({
+                                  contributorCount: 1,
+                                  topContributors: [account],
+                              }),
+                          },
+                      ],
+                  }),
+              )
+            : getChannelAndMetadata(context, {
+                  channelId,
+                  // NOTE(calebmer): A small optimization could be to set this to 0 if we're
+                  // rendering for mobile since mobile doesn't show recent files in a sidebar.
+                  // Then the client would need to load new files if switching from mobile to
+                  // desktop.
+                  postFilesLimit: channelViewAsidePostFileCount,
                   consistency:
                       url.searchParams.get("consistency") === "strong" ? "Strong" : undefined,
               }),
@@ -139,7 +179,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         {
             channelState: {
                 type: "Exists",
-                channel,
+                channelResult,
                 postsResult,
             },
         },
@@ -212,7 +252,10 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
     }, [channelState.type, searchParams, setSearchParams]);
 
     useSearchAffinityViewInteraction(
-        channelState.type === "Exists" ? `Channel:${channelState.channel.model.id}` : null,
+        channelState.type === "Exists" &&
+            channelState.channelResult.items[0]?.model instanceof ChannelModel
+            ? `Channel:${channelState.channelResult.items[0].model.id}`
+            : null,
     );
 
     return (
@@ -222,7 +265,7 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
                     // Remount when navigating to a different channel.
                     key={channelId}
                     withMobileLayout={withMobileLayout}
-                    initialChannel={channelState.channel}
+                    initialChannelResult={channelState.channelResult}
                     initialPostsResult={channelState.postsResult}
                 />
             ) : isMobile ? (

@@ -9,6 +9,7 @@ import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {
@@ -17,10 +18,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    addContentFilePreviewBehavior,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {addContentFilePreviewBehavior} from "~/client/content/internal/render_content_file_preview.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
@@ -288,9 +286,7 @@ export function ContentView({
         onSeeLessContent: onSeeLessContent ?? noop,
     });
 
-    const [filePreviewExpirationTimers] = useState<ContentFilePreviewExpirationTimers | undefined>(
-        () => (fileAttachmentTarget ? new ContentFilePreviewExpirationTimers() : undefined),
-    );
+    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
     const [updatedContentReferencesFileById, setUpdatedContentReferencesFileById] = useState<
         ContentReferences["fileById"] | null
     >(null);
@@ -624,13 +620,6 @@ export function ContentView({
         );
     }, []);
 
-    useLayoutEffectWithoutServerSideWarning(() => {
-        filePreviewExpirationTimers?.play();
-        return () => {
-            filePreviewExpirationTimers?.pause();
-        };
-    }, [filePreviewExpirationTimers]);
-
     // Some behaviors in this function depend on this effect being a layout effect.
     // For example, on initial render when `<ContentEditor>` transitions from
     // `<ContentView>` to ProseMirror's `EditorView` we must run
@@ -948,7 +937,6 @@ export function ContentView({
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                         isInert,
                         isInitialAppRender,
-                        isOurEditorUploading: false,
                         isEditorInitialAppRender,
                         rootNavigate,
                         getReporter: () => reporter,
