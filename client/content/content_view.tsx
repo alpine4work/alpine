@@ -582,6 +582,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
     const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
 
+    const previousContentDocRef = useRef<Node>(content.doc);
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -589,12 +590,21 @@ export function ContentView<Content extends ContentWithReferences>({
 
         const element = assertExists(ref.current);
 
+        const previousContentDoc = previousContentDocRef.current;
+        previousContentDocRef.current = content.doc;
         const previousHtmlGenerator = previousHtmlGeneratorRef.current;
         previousHtmlGeneratorRef.current = htmlGenerator;
 
         if (previousHtmlGenerator === htmlGenerator) return;
 
-        if (!previousHtmlGenerator) {
+        if (
+            !previousHtmlGenerator ||
+            // Force the content HTML to be re-created if `content.doc` changes. If content
+            // changes dramatically then `patchNode()` has some limitations (e.g. doesn't
+            // handle children insertion, removal, and re-ordering well). For all other
+            // changes try patching our HTML.
+            previousContentDoc !== content.doc
+        ) {
             // This case happens during a hot reload. We need to remove the children
             // currently in the DOM.
             while (element.hasChildNodes()) {
@@ -605,7 +615,7 @@ export function ContentView<Content extends ContentWithReferences>({
         } else {
             assert(htmlGenerator.patchNode(previousHtmlGenerator, element));
         }
-    }, [htmlGenerator, isInitialAppRender]);
+    }, [content.doc, htmlGenerator, isInitialAppRender]);
 
     const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
         readonly key: Id;
