@@ -553,3 +553,35 @@ http_archive(
     strip_prefix = "zlib-1.3.1",
     url = "https://zlib.net/zlib-1.3.1.tar.gz",
 )
+
+http_archive(
+    name = "zig_macos_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-iwbtEJGyJptwCzsH+OO+O4MwAIQbrlqmoJsai0dz7/0=",
+    strip_prefix = "zig-macos-x86_64-0.13.0",
+    url = "https://ziglang.org/download/0.13.0/zig-macos-x86_64-0.13.0.tar.xz",
+)
+
+http_archive(
+    name = "zig_macos_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-RvriGWVlRd+vTc4S+06Ghc7FtR1yG+7pOJq0GU1DOUw=",
+    strip_prefix = "zig-macos-aarch64-0.13.0",
+    url = "https://ziglang.org/download/0.13.0/zig-macos-aarch64-0.13.0.tar.xz",
+)
+
+http_archive(
+    name = "zig_linux_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-1FMS5h68xIAyt3vEz3/WkVwR+hbkqtEWtmyUaCESMOo=",
+    strip_prefix = "zig-linux-x86_64-0.13.0",
+    url = "https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz",
+)
+
+http_archive(
+    name = "zig_linux_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-BBrEIyODfrViQGis2LAM1Xd9rEz5EXno2ten6Q3QxVY=",
+    strip_prefix = "zig-linux-aarch64-0.13.0",
+    url = "https://ziglang.org/download/0.13.0/zig-linux-aarch64-0.13.0.tar.xz",
+)

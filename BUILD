@@ -163,3 +163,23 @@ alias(
     }),
     visibility = ["//visibility:public"],
 )
+
+# We use Zig's C compiler to build our C dependencies. This way use a hermetic
+# C compiler instead of whatever is on the developer's system. To learn more
+# about using Zig as a drop-in C compiler read [`zig cc`: a Powerful Drop-In
+# Replacement for GCC/Clang][1]. We learned about this technique from
+# [uber/hermetic_cc_toolchain][2]. We don't use the rules maintained by Uber
+# since we're not currently using Bazel's C toolchain support.
+#
+# [1]: https://andrewkelley.me/post/zig-cc-powerful-drop-in-replacement-gcc-clang.html
+# [2]: https://github.com/uber/hermetic_cc_toolchain
+alias(
+    name = "zig",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "@zig_macos_aarch64//:zig",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@zig_macos_x86_64//:zig",
+        "@bazel_tools//src/conditions:linux_aarch64": "@zig_linux_aarch64//:zig",
+        "@bazel_tools//src/conditions:linux_x86_64": "@zig_linux_x86_64//:zig",
+    }),
+    visibility = ["//visibility:public"],
+)

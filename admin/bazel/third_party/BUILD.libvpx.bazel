@@ -21,6 +21,14 @@ genrule(
         "install/lib/libvpx.a",
     ],
     cmd = """
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export AR="$$(pwd)/$(location @//:zig) ar"
+export LD="$$(pwd)/$(location @//:zig) ld.lld"
+export CFLAGS=""
+export ARFLAGS=""
+export LDFLAGS=""
+
 bazel_sandbox=$$(pwd)
 
 cd $(RULEDIR)
@@ -57,5 +65,6 @@ escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
 sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install/lib/pkgconfig/vpx.pc
 """,
     tags = ["cpu:6"],
+    tools = ["@//:zig"],
     visibility = ["//visibility:public"],
 )

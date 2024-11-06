@@ -1,8 +1,6 @@
 genrule(
     name = "libaom",
-    srcs = [
-        "@//:cmake",
-    ] + glob(
+    srcs = glob(
         include = ["**"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = [".*"],
@@ -22,6 +20,14 @@ genrule(
         "install/lib/libaom.a",
     ],
     cmd = """
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export AR="$$(pwd)/$(location @//:zig) ar"
+export LD="$$(pwd)/$(location @//:zig) ld.lld"
+export CFLAGS=""
+export ARFLAGS=""
+export LDFLAGS=""
+
 bazel_sandbox=$$(pwd)
 
 cd $(RULEDIR)
@@ -56,5 +62,9 @@ escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
 sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install/lib/pkgconfig/aom.pc
 """,
     tags = ["cpu:6"],
+    tools = [
+        "@//:cmake",
+        "@//:zig",
+    ],
     visibility = ["//visibility:public"],
 )
