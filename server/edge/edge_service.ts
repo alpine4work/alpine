@@ -763,6 +763,10 @@ async function handleFileFetch(
     route: {spaceId: SpaceId; fileId: FileId},
 ) {
     try {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+            throw new InvalidArgumentError('Only "GET" and "HEAD" HTTP requests are supported');
+        }
+
         const fileUploadServiceHostname = sharedResources.env.FILE_UPLOAD_SERVICE_HOSTNAME;
         if (!fileUploadServiceHostname)
             throw new InternalError("Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable");
@@ -839,46 +843,58 @@ async function handleFileFetch(
 
         // Use a cache specifically for files since we'll be saving private files to
         // this cache. We don't want to accidentally serve these files from another
-        // request.
-        //
-        // TODO(calebmer, 2024-09-27): There's some improvements we can make to our
-        // caching here to improve performance:
-        //
-        // 1. By using the Cloudflare Workers cache API we don't get [tiered
-        //    caching][1].
-        //
-        // 2. How is concurrency handled? What if two users try to access a cached
-        //    file at the same exact time. Ideally we only make one request to
-        //    `FileUploadService` but unless Cloudflare is doing some intelligent
-        //    request deduping behind the scenes this code will make two requests.
-        //
-        // [1]: https://developers.cloudflare.com/cache/how-to/tiered-cache
+        // request that hasn't verified the URL signature.
         const filesCache = await caches.open("files");
 
-        let cachedResponse = await filesCache.match(subrequest);
-        if (cachedResponse) {
-            const cachedResponseHeaders = new Headers(cachedResponse.headers);
+        try {
+            const cachedResponse = await filesCache.match(subrequest);
+            if (cachedResponse) {
+                const cachedResponseHeaders = new Headers(cachedResponse.headers);
 
-            // 1. Make sure to switch the `public` `cache-control` directive back to
-            //    `private` before returning.
-            // 2. Change `max-age` to match the expiration time from our URL.
-            const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
-            if (cacheControlResponseHeader) {
-                cachedResponseHeaders.set(
-                    "cache-control",
-                    cacheControlResponseHeader
-                        .replace(/((?:^|,) *)public( *(?:,|$))/, "$1private$2")
-                        .replace(
-                            /((?:^|,) *)max-age=\d+( *(?:,|$))/,
-                            `$1max-age=${cacheControlMaxAge}$2`,
-                        ),
-                );
+                // 1. Make sure to switch the `public` `cache-control` directive back to
+                //    `private` before returning.
+                // 2. Change `max-age` to match the expiration time from our URL.
+                const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
+                if (cacheControlResponseHeader) {
+                    cachedResponseHeaders.set(
+                        "cache-control",
+                        cacheControlResponseHeader
+                            .replace(/((?:^|,) *)public( *(?:,|$))/, "$1private$2")
+                            .replace(
+                                /((?:^|,) *)max-age=\d+( *(?:,|$))/,
+                                `$1max-age=${cacheControlMaxAge}$2`,
+                            ),
+                    );
+                }
+
+                // If we're making a `HEAD` request then make sure we don't return a body.
+                return new Response(request.method !== "HEAD" ? cachedResponse.body : null, {
+                    ...cachedResponse,
+                    headers: cachedResponseHeaders,
+                });
             }
-
-            return new Response(cachedResponse.body, {
-                ...cachedResponse,
-                headers: cachedResponseHeaders,
-            });
+        } catch (error) {
+            if (
+                process.env.NODE_ENV !== "production" &&
+                error instanceof Error &&
+                // Detect this error from Miniflare:
+                // https://github.com/cloudflare/miniflare/blob/12f6f915e08fbf3c7c5298e5131153c5e6e11d57/packages/cache/src/cache.ts#L273-L279
+                //
+                // Miniflare error name format:
+                // https://github.com/cloudflare/miniflare/blob/12f6f915e08fbf3c7c5298e5131153c5e6e11d57/packages/shared/src/error.ts#L9
+                error.name === "CacheError [ERR_DESERIALIZATION]"
+            ) {
+                // There's a race condition in Miniflare in development where if
+                // `filesCache.put()` hasn't finished running then Miniflare will have started
+                // writing to the cache but won't have written cache metadata. This causes
+                // Miniflare to crash. This race condition reproduces reliably when playing a
+                // video file that's not in the cache.
+                //
+                // If we detect this race condition then we ignore the error and treat this as
+                // an uncached request.
+            } else {
+                throw error;
+            }
         }
 
         let response: Response;
@@ -894,66 +910,110 @@ async function handleFileFetch(
             // eslint-disable-next-line no-global-fetch
             response = await fetch(subrequest);
         } else {
-            const object = await sharedResources.env.FilesBucket.get(
-                `${route.spaceId}/${route.fileId}${variant !== null ? `-${variant}` : ""}`,
-            );
+            const object =
+                request.method === "HEAD"
+                    ? await sharedResources.env.FilesBucket.head(
+                          `${route.spaceId}/${route.fileId}${
+                              variant !== null ? `-${variant}` : ""
+                          }`,
+                      )
+                    : await sharedResources.env.FilesBucket.get(
+                          `${route.spaceId}/${route.fileId}${
+                              variant !== null ? `-${variant}` : ""
+                          }`,
+                          {range: request.headers},
+                      );
+
             if (!object) {
-                response = new Response("404 Not Found", {
+                response = new Response(request.method !== "HEAD" ? "404 Not Found" : null, {
                     status: 404,
                     headers: {"content-type": "text/plain"},
                 });
             } else {
-                response = new Response(object.body, {
-                    status: 200,
-                    // We need to return the same headers between here and `resizeFile()` in
-                    // `server/files/upload`. If you add a header here you should also add a
-                    // header there.
-                    headers: {
-                        "content-type": assertExists(object.httpMetadata?.contentType),
-                        "content-length": String(object.size),
-                        // After resizing, the result should be cached.
-                        //
-                        // - `private`: A user can only see files they have access to. Don't store
-                        //   files in a shared cache since an attacker may be able to see a file they
-                        //   don't have access to.
-                        //
-                        // - `immutable`: Files are immutable after they've been uploaded. While
-                        //   hitting this route will resize the file on demand causing the bytes to not
-                        //   be strictly the same over time, the perceived result to the end user will
-                        //   never change so it's safe to cache this response as an immutable value.
-                        //
-                        // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
-                        //   the file after that and request again if needed.
-                        "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
+                // This is a ranged request if our object has a range and the range isn't the
+                // entire file.
+                const isRangedRequest =
+                    object.range &&
+                    ("offset" in object.range || "length" in object.range) &&
+                    !(
+                        (object.range.offset ?? 0) <= 0 &&
+                        (object.range.length ?? object.size) >= object.size
+                    );
+
+                response = new Response(
+                    request.method !== "HEAD" ? (object as R2ObjectBody).body : null,
+                    {
+                        status: isRangedRequest ? 206 : 200,
+                        // We need to return the same headers between here and `resizeFile()` in
+                        // `server/files/upload`. If you add a header here you should also add a
+                        // header there.
+                        headers: {
+                            "content-type": assertExists(object.httpMetadata?.contentType),
+                            "content-length": String(
+                                isRangedRequest ? object.range.length : object.size,
+                            ),
+                            ...(isRangedRequest
+                                ? {
+                                      "content-range": isRangedRequest
+                                          ? `bytes ${object.range.offset ?? 0}-${
+                                                (object.range.offset ?? 0) +
+                                                (object.range.length ?? object.size) -
+                                                1
+                                            }/${object.size}`
+                                          : undefined,
+                                  }
+                                : {}),
+                            // Advertise that our server supports range requests. We only support range
+                            // requests when there's no `width` parameter.
+                            "accept-ranges": "bytes",
+                            // After resizing, the result should be cached.
+                            //
+                            // - `private`: A user can only see files they have access to. Don't store
+                            //   files in a shared cache since an attacker may be able to see a file they
+                            //   don't have access to.
+                            //
+                            // - `immutable`: Files are immutable after they've been uploaded. While
+                            //   hitting this route will resize the file on demand causing the bytes to not
+                            //   be strictly the same over time, the perceived result to the end user will
+                            //   never change so it's safe to cache this response as an immutable value.
+                            //
+                            // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
+                            //   the file after that and request again if needed.
+                            "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
+                        },
                     },
-                });
+                );
             }
         }
 
-        // Replace the `private` `cache-control` directive with `public`. It's safe to
-        // cache files in `filesCache` since in order to access `filesCache` you must
-        // have a valid signed URL when accessing this endpoint. We'll only generate
-        // signed URLs when the user actually has access to a file.
-        cachedResponse = response.clone();
+        // Cloudflare doesn't support caching partial responses. So make sure we
+        // have a non-206 status code before writing to the cache.
+        if (response.status !== 206) {
+            // Replace the `private` `cache-control` directive with `public`. It's safe to
+            // cache files in `filesCache` since in order to access `filesCache` you must
+            // have a valid signed URL when accessing this endpoint. We'll only generate
+            // signed URLs when the user actually has access to a file.
+            const cachedResponse = response.clone();
 
-        executionContext.waitUntil(
-            (async () => {
-                const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
-                if (cacheControlResponseHeader) {
-                    cachedResponse.headers.set(
-                        "cache-control",
-                        cacheControlResponseHeader.replace(
-                            /((?:^|,) *)private( *(?:,|$))/,
-                            "$1public$2",
-                        ),
-                    );
-                }
+            executionContext.waitUntil(
+                (async () => {
+                    const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
+                    if (cacheControlResponseHeader) {
+                        cachedResponse.headers.set(
+                            "cache-control",
+                            cacheControlResponseHeader.replace(
+                                /((?:^|,) *)private( *(?:,|$))/,
+                                "$1public$2",
+                            ),
+                        );
+                    }
 
-                await filesCache.put(subrequest, cachedResponse);
-            })(),
-        );
+                    await filesCache.put(subrequest, cachedResponse);
+                })(),
+            );
+        }
 
-        const responseHeaders = new Headers(cachedResponse.headers);
+        const responseHeaders = new Headers(response.headers);
 
         // Change `max-age` to match the expiration time from our URL.
         const cacheControlResponseHeader = responseHeaders.get("cache-control");
@@ -986,8 +1046,10 @@ async function handleFileFetch(
         }
 
         return new Response(
-            `${statusCode} ${statusMessage}: ${
-                error instanceof Error ? error.message : String(error)
+            `${statusCode} ${statusMessage}${
+                process.env.NODE_ENV === "development"
+                    ? `\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}`
+                    : ""
             }`,
             {
                 status: statusCode,
