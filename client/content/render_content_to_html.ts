@@ -2,8 +2,15 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {
+    layoutContentFile,
+    layoutContentFileParent,
+} from "~/client/content/internal/content_file_layout.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
@@ -12,16 +19,20 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     RecursiveReadonlyArray,
     renderProsemirrorDomOutputSpec,
-    serializeProsemirrorFragmentToHtml,
+    serializeProsemirrorFragmentToHtmlGenerator,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -35,14 +46,24 @@ import {Store} from "~/shared/store/store.js";
 export function renderContentToHtmlStore(
     content: ContentWithReferences,
     options: {
+        spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
+        screenWidth: number;
+        isMobile: boolean;
+        isInitialAppRender: boolean;
+        withPosAttribute?: boolean;
         placeholder?: string;
+        filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<string> {
-    return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
-        return `<div class="${contentStyles.docClassName}">${fragmentHtml}</div>`;
-    });
+    return renderContentFragmentToHtmlGeneratorStore(content, options).map(
+        fragmentHtmlGenerator => {
+            return `<div class="${
+                contentStyles.docClassName
+            }">${fragmentHtmlGenerator.generateHtml()}</div>`;
+        },
+    );
 }
 
 /**
@@ -57,24 +78,36 @@ export function renderContentToHtmlStore(
  * If `isInert` is set to true then elements which were interactive, like
  * links, are made non clickable or focusable. But visually the stay the same.
  */
-export function renderContentFragmentToHtmlStore(
+export function renderContentFragmentToHtmlGeneratorStore(
     content: ContentWithReferences,
     {
+        spaceId,
         accountStore,
         currentAccount,
-        placeholder,
+        screenWidth,
+        isMobile,
+        isInitialAppRender,
+        withPosAttribute,
         isInert,
+        placeholder,
         decorations,
         shouldHighlightComment,
+        filePreviewExpirationTimers,
     }: {
+        spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
-        placeholder?: string;
+        screenWidth: number;
+        isMobile: boolean;
+        isInitialAppRender: boolean;
+        withPosAttribute?: boolean;
         isInert?: boolean;
+        placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
+        filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
-): Store<string> {
+): Store<HtmlFragmentGenerator> {
     return computeStore(get => {
         assert(content.doc.type.schema.topNodeType === content.doc.type);
 
@@ -83,7 +116,8 @@ export function renderContentFragmentToHtmlStore(
 
         const orderedListItemNumberByNode = new Map<Node, number>();
 
-        return serializeProsemirrorFragmentToHtml(content.doc.content, {
+        return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
+            withPosAttribute,
             startPos: 1,
             decorations,
 
@@ -136,17 +170,13 @@ export function renderContentFragmentToHtmlStore(
                         "class",
                         contentStyles.checkListItemCheckboxClassName,
                     );
-                    checkboxHtml.appendChild({
-                        generateHtml: () =>
+                    checkboxHtml.appendChild(
+                        createSvgHtmlGenerator(
                             checkIconSvg({
                                 className: contentStyles.checkListItemCheckboxIconClassName,
                             }),
-                        generateNode: () => {
-                            throw new UnimplementedError(
-                                "DOM node generation unimplemented for icon SVG",
-                            );
-                        },
-                    });
+                        ),
+                    );
 
                     const contentHtml = new HtmlElementGenerator("div");
                     html.appendChild(contentHtml);
@@ -154,7 +184,7 @@ export function renderContentFragmentToHtmlStore(
 
                     return {html, contentHtml};
                 },
-                codeBlock: (node, pos) => {
+                codeBlock: node => {
                     // IMPORTANT: Any change you make to this function also likely must be made to
                     // the `codeBlock` node view in `content_editor_code_block_node_view.ts`.
 
@@ -221,21 +251,13 @@ export function renderContentFragmentToHtmlStore(
                                 sprinkles({color: "grey-60"}),
                             ),
                         );
-                        copyButtonHtml.appendChild({
-                            generateHtml: () =>
+                        copyButtonHtml.appendChild(
+                            createSvgHtmlGenerator(
                                 clipboardTextIconSvg({
                                     className: contentStyles.codeBlockCopyButtonIconClassName,
                                 }),
-                            generateNode: () => {
-                                throw new UnimplementedError(
-                                    "DOM node generation unimplemented for icon SVG",
-                                );
-                            },
-                        });
-
-                        // Include the position the code block is rendered at so our press
-                        // implementation is able to find the code block node from the HTML.
-                        copyButtonHtml.setAttribute("data-pos", pos);
+                            ),
+                        );
                     }
 
                     return {html, contentHtml};
@@ -248,9 +270,6 @@ export function renderContentFragmentToHtmlStore(
                     // mention element may have a background color when mentioning the
                     // current account.
                     const containerElement = new HtmlElementGenerator("span");
-                    containerElement.setAttribute("data-mention-account", mention.accountId);
-                    if (mention.isShort)
-                        containerElement.setAttribute("data-mention-short", "true");
 
                     const element = new HtmlElementGenerator("span");
                     containerElement.appendChild(element);
@@ -283,6 +302,84 @@ export function renderContentFragmentToHtmlStore(
                     );
 
                     return {html: containerElement};
+                },
+                fileRow: node => {
+                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                        node.type.spec.toDOM!(node),
+                    );
+
+                    assert(html instanceof HtmlElementGenerator);
+
+                    const layouts = layoutContentFileParent(content.references, node, {
+                        screenWidth,
+                        isMobile,
+                    });
+
+                    html.setAttribute(
+                        "style",
+                        [
+                            `height: ${Math.max(...layouts.map(({height}) => height))}px`,
+                            `grid-template-columns: ${layouts
+                                .map(({widthFr}) => `${widthFr}fr`)
+                                .join(" ")}`,
+                        ].join("; "),
+                    );
+
+                    return {
+                        html,
+                        contentHtml,
+                    };
+                },
+                fileFloat: node => {
+                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                        node.type.spec.toDOM!(node),
+                    );
+
+                    assert(html instanceof HtmlElementGenerator);
+
+                    const childNode = node.content.content[0]!;
+                    assert(childNode.type.name === "file");
+
+                    const layouts = layoutContentFileParent(content.references, node, {
+                        screenWidth,
+                        isMobile,
+                    });
+
+                    html.setAttribute(
+                        "style",
+                        [`width: ${layouts[0]!.width}px`, `height: ${layouts[0]!.height}px`].join(
+                            "; ",
+                        ),
+                    );
+
+                    return {
+                        html,
+                        contentHtml,
+                    };
+                },
+                file: (node, pos) => {
+                    const fileId: FileId | null = node.attrs.fileId;
+                    const fileReference = fileId
+                        ? content.references.fileById.get(fileId)
+                        : undefined;
+
+                    const layout = layoutContentFile(content.references, content.doc, pos, node, {
+                        screenWidth,
+                        isMobile,
+                    });
+
+                    const html = renderContentFilePreview(get, {
+                        spaceId: assertExists(spaceId),
+                        node,
+                        reference: fileReference,
+                        layout,
+                        screenWidth,
+                        isMobile,
+                        isInitialAppRender,
+                        expirationTimers: assertExists(filePreviewExpirationTimers),
+                    });
+
+                    return {html};
                 },
 
                 // Add custom renderers which add the `data-placeholder` attribute when our

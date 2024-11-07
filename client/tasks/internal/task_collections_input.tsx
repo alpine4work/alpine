@@ -22,10 +22,9 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -46,6 +45,11 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/client/styles/styles.js";
+import {
+    taskCollectionChipBorderRadius,
+    taskCollectionChipHeight,
+    taskCollectionChipPaddingY,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -57,21 +61,17 @@ import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
 } from "~/client/tasks/internal/task_collection_chip.js";
-import {
-    TaskCollectionChipBase,
-    taskCollectionChipBorderRadius,
-    taskCollectionChipHeight,
-    taskCollectionChipPaddingY,
-} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {
     TaskCollectionComboBoxCollectionItem,
     TaskCollectionComboBoxItem,
-    TaskCollectionComboBoxListBox,
     renderTaskCollectionComboBoxItem,
-    useTaskCollectionComboBoxSearchState,
-} from "~/client/tasks/internal/task_collection_combo_box_base.js";
+} from "~/client/tasks/internal/task_collection_combo_box_item.js";
+import {TaskCollectionComboBoxListBox} from "~/client/tasks/internal/task_collection_combo_box_list_box.js";
+import {useTaskCollectionComboBoxSearchState} from "~/client/tasks/internal/task_collection_combo_box_search_state.js";
 import {usePreloadSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -1142,6 +1142,10 @@ function TaskCollectionsInput(
                     isBlocking={true}
                     withoutRootBlockingScope={true}
                     withoutBlockingTarget={true}
+                    onBlockingCoverPointerDown={() => {
+                        if (document.activeElement instanceof HTMLElement)
+                            document.activeElement.blur();
+                    }}
                     // Set a constant `overflowBottom` value instead of relying on the current
                     // keyboard height (which will be updated asynchronously after `isEditing` is
                     // true). This stops the overlay placement from jumping around while the

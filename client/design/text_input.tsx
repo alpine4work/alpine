@@ -111,6 +111,8 @@ export {TextInputForwardRef as TextInput};
  * Core styles for `<TextInput>` you can use to create other elements that look
  * like a text input.
  */
+// This is a string so it's fine to export.
+// eslint-disable-next-line react-refresh/only-export-components
 export const textInputClassName = sprinkles({
     border: "grey-20",
     backgroundColor: "grey-0",

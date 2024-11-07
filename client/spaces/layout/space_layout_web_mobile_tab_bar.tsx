@@ -6,8 +6,8 @@ import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useLocation} fr
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -15,9 +15,15 @@ import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_curre
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
+import {
+    WebMobileTab,
+    WebMobileTabSchema,
+    getWebMobileTabFromPathname,
+} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {spaceLayoutWebMobileTabBarHeight} from "~/client/styles/space_layout_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -30,36 +36,6 @@ import {
 } from "~/shared/helpers/string/safe_string.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
-
-// A little bigger than the native iOS toolbar which is around height spacing
-// `10`. Spacing `10` just looks squished. In native iOS there's safe area at
-// the bottom of the screen which helps make the bottom bar not look squished.
-// We don't have that in web mobile so make the tab bar a little bigger.
-export const spaceLayoutWebMobileTabBarHeight = "12";
-
-type WebMobileTab = SchemaType<typeof WebMobileTabSchema>;
-const WebMobileTabSchema = Schema.enum(spaceLayoutStyles.webMobileTabs);
-
-export function getWebMobileTabFromPathname(pathname: string): WebMobileTab | null {
-    const match = pathname.match(/^\/s\/(?:[a-zA-Z0-9]+)(\/search|\/create|\/inbox|\/more)?$/);
-    if (!match) return null;
-
-    switch (match[1]) {
-        case undefined:
-            return "Home";
-        case "/search":
-            return "Search";
-        case "/create":
-            return "Create";
-        case "/inbox":
-            return "Inbox";
-        case "/more":
-            return "More";
-        default:
-            return null;
-    }
-}
 
 export function SpaceLayoutWebMobileTabBar({
     initialInbox,
@@ -146,14 +122,11 @@ export function SpaceLayoutWebMobileTabBar({
             alignItems="stretch"
             height={spaceLayoutWebMobileTabBarHeight}
             style={{
-                boxShadow: [
-                    `inset 0 1px 0 0 ${colorSchemeVars["grey-10"]}`,
-                    // This border is visible on web mobile when the keyboard opens/closes
-                    // leaving empty white space on the page while it animates. We use `box-shadow`
-                    // instead of border so it renders outside the bounds of the outlet. Usually
-                    // offscreen (with the exception of web mobile keyboarding).
-                    `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                ].join(", "),
+                // This border is visible on web mobile when the keyboard opens/closes
+                // leaving empty white space on the page while it animates. We use `box-shadow`
+                // instead of border so it renders outside the bounds of the outlet. Usually
+                // offscreen (with the exception of web mobile keyboarding).
+                boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
         >
             <ScriptBeforeAppInitialRender

@@ -41,7 +41,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -421,6 +421,9 @@ function PostCreatorChannelSelectorInput(
             // we're targeting (the combobox input).
             isBlocking={true}
             withoutBlockingTarget={true}
+            onBlockingCoverPointerDown={() => {
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            }}
             overlay={
                 <Box ref={popoverRef} position="relative">
                     <PostCreatorChannelSelectorListBox
@@ -497,6 +500,20 @@ function PostCreatorChannelSelectorInput(
                             // We have to be a little careful and make sure this doesn't break the default
                             // browser behavior of focusing the input if it's unfocused.
                             if (document.activeElement === event.target && !comboBoxState.isOpen) {
+                                comboBoxState.open();
+                            }
+
+                            // When using the mouse, if the user clicks the input and the input isn't
+                            // focused then prevent default and open the combobox. We `preventDefault()`
+                            // since the browser default is to focus on `pointerdown` then set the
+                            // selection on `pointerup`. However, on initial tap we want to focus
+                            // everything (we call `inputElement.select()` in `onOpenChange`) so the
+                            // browser changing the selection in `pointerup` breaks that.
+                            if (
+                                event.pointerType === "mouse" &&
+                                document.activeElement !== event.target
+                            ) {
+                                event.preventDefault();
                                 comboBoxState.open();
                             }
                         }}

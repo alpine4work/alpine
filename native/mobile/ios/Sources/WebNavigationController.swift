@@ -104,8 +104,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // - `nmbb` stands for `NativeMobileBottomBar`
     // - `kt` stands for `KeyboardToolbar`
     // - `wkt` stands for `WithKeyboardToolbar`
+    // - `gli` stands for `GlobalLoadingIndicator`
     static private let bottomBarRegex = try! Regex<(Substring, Substring, Substring?)>(
-        " id='(nmbb-(w?kt-)?[^']*)'"
+        " id='(nmbb-(?:(kt|wkt|gli)-)?[^']*)'"
     )
 
     static private let inboxBannerUrlQueryRegex = try! Regex<Substring>(
@@ -288,11 +289,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private enum WebBottomBarViewType {
         case normal(withKeyboardToolbar: Bool)
         case keyboardToolbar
+        case globalLoadingIndicator
 
         var isNormal: Bool {
             switch self {
             case .normal(withKeyboardToolbar: _): true
             case .keyboardToolbar: false
+            case .globalLoadingIndicator: false
             }
         }
     }
@@ -386,6 +389,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     switch webBottomBarViewState.type {
                     case .normal(let withKeyboardToolbar): withKeyboardToolbar
                     case .keyboardToolbar: true
+                    case .globalLoadingIndicator: false
                     }
                 }) ? bottomBarKeyboardToolbarHeight : 0)
     }
@@ -786,12 +790,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.scrollView.isScrollEnabled = false
         if #available(iOS 17.0, *) { webView.scrollView.allowsKeyboardScrolling = false }
 
-        // Don't detect data in the web view and don't show previews on long press.
-        // This is not standard behavior for iOS native apps (but is a common behavior
-        // in Safari). If we want link preview behavior on long press we should
-        // implement our own logic since we only want external links to get long press
-        // preview treatment.
-        webView.allowsLinkPreview = false
+        // We don't want Safari showing previews of links on long press. Since many
+        // links navigate within the app. However, setting this to false also prevents
+        // Safari's touch callout from opening when long pressing an image. Which we
+        // depend on in `<ContentFileViewerModalMobile>` to allow the user to
+        // download/share an image. They long press. So we need to leave this option on
+        // to allow image touch callouts and find other ways to disable link touch
+        // callouts.
+        webView.allowsLinkPreview = true
 
         // As a final fallback, we set ourselves as the scroll view delegate and reset
         // scroll position to 0 if it ever changes.
@@ -875,7 +881,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         return UIColor { [weak self] (traits) in
             traits.userInterfaceStyle == .dark
                 ? self?.theme60Color ?? UIColor(named: "theme-60")!
-                : self?.theme70Color ?? UIColor(named: "theme-70")!
+                : self?.theme50Color ?? UIColor(named: "theme-50")!
         }
     }
 
@@ -1127,7 +1133,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
         logger.error(
-            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
+            "Failed navigation (code: \(String((error as NSError).code), privacy: .public), \"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
         )
 
         if webViewHealthState.provisionalNavigation === navigation {
@@ -1139,7 +1145,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
         logger.error(
-            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
+            "Failed navigation (code: \(String((error as NSError).code), privacy: .public), \"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
         )
 
         if webViewHealthState.provisionalNavigation === navigation {
@@ -2102,8 +2108,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 ) {
                     let webBottomBarViewType: WebBottomBarViewType =
                         if let typeMatch = match.2 {
-                            if typeMatch == "wkt-" {
+                            if typeMatch == "wkt" {
                                 .normal(withKeyboardToolbar: true)
+                            } else if typeMatch == "gli" {
+                                .globalLoadingIndicator
                             } else {
                                 .keyboardToolbar
                             }
@@ -2673,7 +2681,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // appropriately.
                 + ((webView.url?.query() ?? "")
                     .contains(WebNavigationController.inboxBannerUrlQueryRegex)
-                    ? inboxBannerHeight : 0),
+                    ? mobileLayoutInboxBannerHeight : 0),
             left: safeAreaInsets.left,
             bottom: safeAreaInsets.bottom,
             right: safeAreaInsets.right
@@ -2800,8 +2808,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let extraWebBottomBarHeight =
                 switch webBottomBarViewState.type {
                 case .normal(let withKeyboardToolbar):
-                    withKeyboardToolbar ? bottomBarKeyboardToolbarHeight : 0
+                    withKeyboardToolbar ? bottomBarKeyboardToolbarHeight : 0.0
                 case .keyboardToolbar: bottomBarKeyboardToolbarHeight
+                case .globalLoadingIndicator: 0.0
                 }
 
             let webBottomBarHeight =
@@ -3038,6 +3047,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     0,
                     keyboardOffsetWithoutToolbar > 0
                         ? keyboardOffsetWithoutToolbar + bottomBarKeyboardToolbarHeight : 0
+                )
+            // The global loading indicator doesn't move with the keyboard. Just the
+            // tab bar.
+            case .globalLoadingIndicator:
+                -max(
+                    0,
+                    actualTabBarHeight - tabBarScrollOffset
                 )
             }
 

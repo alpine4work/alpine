@@ -261,6 +261,7 @@ export class TaskNotesCollaborationContentManager {
             : (
                   await getTaskNotesContentReferences(context, {
                       spaceId: this.spaceId,
+                      taskId: this.taskId,
                       referenceIds: stepsContentReferenceIds,
                   })
               ).references;

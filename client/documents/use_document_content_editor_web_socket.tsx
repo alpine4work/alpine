@@ -15,7 +15,9 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
@@ -122,9 +124,13 @@ export function useDocumentContentEditorWebSocket(
     );
 
     const context = useAppContext();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
     const contextRef = useRef(context);
+    const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
     useLayoutEffectWithoutServerSideWarning(() => {
         contextRef.current = context;
+        addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
     });
 
     // When creating a document, we start in the `NotExists` state. Then once some
@@ -142,11 +148,13 @@ export function useDocumentContentEditorWebSocket(
             } else {
                 return {
                     type: "Exists",
-                    client: new DocumentContentEditorWebSocketClient(
-                        () => contextRef.current,
-                        initialDocument.id,
-                        getInitialDocumentContentEditorState(initialDocument),
-                    ),
+                    client: new DocumentContentEditorWebSocketClient({
+                        getContext: () => contextRef.current,
+                        addGlobalLoadingIndicator: (promise, indicator) =>
+                            addGlobalLoadingIndicatorRef.current(promise, indicator),
+                        documentId: initialDocument.id,
+                        initialState: getInitialDocumentContentEditorState(initialDocument),
+                    }),
                 };
             }
         },
@@ -159,11 +167,14 @@ export function useDocumentContentEditorWebSocket(
     ) {
         setClientState({
             type: "Exists",
-            client: new DocumentContentEditorWebSocketClient(
-                () => contextRef.current,
-                initialDocument.id,
-                getInitialDocumentContentEditorState(initialDocument),
-            ),
+            // eslint-disable-next-line react-compiler/react-compiler
+            client: new DocumentContentEditorWebSocketClient({
+                getContext: () => contextRef.current,
+                addGlobalLoadingIndicator: (promise, indicator) =>
+                    addGlobalLoadingIndicatorRef.current(promise, indicator),
+                documentId: initialDocument.id,
+                initialState: getInitialDocumentContentEditorState(initialDocument),
+            }),
         });
     }
 
@@ -183,11 +194,7 @@ export function useDocumentContentEditorWebSocket(
         setShouldConnect(shouldConnect => !shouldConnect);
     }, []);
 
-    const [createDocumentErrorState, setCreateDocumentErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (createDocumentErrorState.hasError) throw createDocumentErrorState.error;
+    const setCreateDocumentErrorState = useErrorState();
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -197,11 +204,13 @@ export function useDocumentContentEditorWebSocket(
 
         const promise = createDocument(context, {spaceId, documentId}).then(
             () => {
-                const client = new DocumentContentEditorWebSocketClient(
-                    () => contextRef.current,
+                const client = new DocumentContentEditorWebSocketClient({
+                    getContext: () => contextRef.current,
+                    addGlobalLoadingIndicator: (promise, indicator) =>
+                        addGlobalLoadingIndicatorRef.current(promise, indicator),
                     documentId,
-                    clientState.state.getSnapshot(),
-                );
+                    initialState: clientState.state.getSnapshot(),
+                });
 
                 // Run all of our queued procedure calls against our new WebSocket client...
                 for (const procedure of clientState.pendingProcedures) {
@@ -224,7 +233,7 @@ export function useDocumentContentEditorWebSocket(
                 onCreate?.();
             },
             error => {
-                setCreateDocumentErrorState({hasError: true, error});
+                setCreateDocumentErrorState(error);
                 createDocumentPromiseRef.current = null;
             },
         );

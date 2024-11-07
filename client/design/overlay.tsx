@@ -3,8 +3,6 @@ import {
     ReactElement,
     ReactNode,
     Ref,
-    RefObject,
-    createContext,
     forwardRef,
     useCallback,
     useContext,
@@ -19,6 +17,11 @@ import {createPortal, flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {
+    OverlaySinkContext,
+    overlaySinkContextForTest,
+    renderOverlayPortal,
+} from "~/client/design/internal/overlay_sink_context.js";
 import {
     getElementSafeAreaInsetTopPx,
     getElementWindowSafeAreaInsetBottomPx,
@@ -36,14 +39,13 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
-import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
 import {
     RemLength,
     Spacing,
     convertRemLengthToPx,
     isSpacing,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -222,6 +224,12 @@ export type OverlayProps = {
     withoutBlockingTarget?: boolean;
 
     /**
+     * Called when there's a `pointerdown` event on our blocking cover. Will only
+     * be called if `isBlocking` is true.
+     */
+    onBlockingCoverPointerDown?: () => void;
+
+    /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
      *
@@ -271,6 +279,7 @@ function Overlay(
         isBlocking = false,
         withoutRootBlockingScope = false,
         withoutBlockingTarget = false,
+        onBlockingCoverPointerDown,
         children,
         targetElement,
     }: OverlayProps,
@@ -792,156 +801,12 @@ function Overlay(
                         ref={blockingCoverRef}
                         shouldExcludeTarget={withoutBlockingTarget}
                         shouldExcludeOverlay={withoutRootBlockingScope}
+                        onPointerDown={onBlockingCoverPointerDown}
                     />,
                     blockingCoverPortalElement,
                 )}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
-    );
-}
-
-type OverlaySinkContext = {
-    readonly getRootPortalElement: () => HTMLDivElement | null;
-    readonly getRootBlockingPortalElement: () => HTMLDivElement | null;
-    readonly getPortalElement: () => HTMLDivElement | null;
-    readonly insetLeft: RemLength | number | null;
-    readonly insetRight: RemLength | number | null;
-};
-
-const OverlaySinkContext = createContext<OverlaySinkContext | null>(null);
-
-function renderOverlayPortal(ref: RefObject<HTMLDivElement>, zIndex: Sprinkles["zIndex"] = "50") {
-    return (
-        <Box
-            ref={ref}
-            position="absolute"
-            top="0"
-            left="0"
-            right="0"
-            // The overlay portal element has a height of 0 because when you use it in a
-            // nested scroll view we don't want the overlay height to extend from the top
-            // to the bottom of the nested scroll view which is not the scroll view's
-            // content height.
-            height="0"
-            // Render above anything on the page.
-            zIndex={zIndex}
-        />
-    );
-}
-
-/**
- * Root overlay scope. Most have one of these at the root of the application.
- *
- * Generally you only want one root overlay scope at the root of your
- * application. However, there are some cases where it may make sense to have
- * nested root overlay scopes. For example, on mobile web when the keyboard
- * opens we shrink the viewport in `s.$spaceId.tsx` to the visible space above
- * the keyboard. (In our native mobile app we have different keyboard handling
- * with `--safe-area-inset-bottom`.) We want root overlays with `bottom: 0` to
- * be able to render above the keyboard instead of the space under the
- * keyboard.
- *
- * If `isDisabled` switches from `true` to `false` then we will continue using
- * the old portal elements for a single render then any existing root overlays
- * will unmount and remount into the new portal element.
- */
-export function RootOverlayScopeContextProvider({
-    isDisabled = false,
-    children,
-}: {
-    isDisabled?: boolean;
-    children?: ReactNode;
-}) {
-    const parentOverlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-
-    const portalRef = useRef<HTMLDivElement>(null);
-    const blockingPortalRef = useRef<HTMLDivElement>(null);
-
-    const overlaySink = useMemo(
-        (): OverlaySinkContext => ({
-            getRootPortalElement: () =>
-                portalRef.current ?? parentOverlaySink?.getRootPortalElement() ?? null,
-            getRootBlockingPortalElement: () =>
-                blockingPortalRef.current ??
-                parentOverlaySink?.getRootBlockingPortalElement() ??
-                null,
-            getPortalElement: () =>
-                portalRef.current ?? parentOverlaySink?.getPortalElement() ?? null,
-            insetLeft: null,
-            insetRight: null,
-        }),
-        [parentOverlaySink],
-    );
-
-    return (
-        <OverlaySinkContext.Provider
-            value={
-                !isDisabled
-                    ? overlaySink
-                    : assertExists(
-                          parentOverlaySink,
-                          "Expected a parent `<RootOverlayScopeContextProvider>` component",
-                      )
-            }
-        >
-            {children}
-            {!isDisabled && renderOverlayPortal(portalRef)}
-            {!isDisabled &&
-                renderOverlayPortal(
-                    blockingPortalRef,
-                    // Render at the absolute top of the page. Even over other overlays.
-                    "70",
-                )}
-        </OverlaySinkContext.Provider>
-    );
-}
-
-/**
- * Child `<Overlay>` components will be rendered inside this component.
- *
- * Generally you want to render one of these inside every scrollable element.
- * That way the overlays naturally scroll with the element and can't render
- * outside the element. Otherwise when you scroll, overlays will follow the
- * scroll but the user will see stutter as it won't happen on the scroll
- * animation thread.
- *
- * See `useMobileWebKitKeyboardSupport()` for more information.
- */
-export function OverlayScopeContextProvider({
-    children,
-    insetLeft,
-    insetRight,
-}: {
-    children: ReactNode;
-    insetLeft?: RemLength | number;
-    insetRight?: RemLength | number;
-}) {
-    const parentOverlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(parentOverlaySink, "Expected a parent `<RootOverlayScopeContextProvider>` component");
-
-    const portalRef = useRef<HTMLDivElement>(null);
-
-    const overlaySink = useMemo(
-        (): OverlaySinkContext => ({
-            getRootPortalElement: parentOverlaySink.getRootPortalElement,
-            getRootBlockingPortalElement: parentOverlaySink.getRootBlockingPortalElement,
-            getPortalElement: () => portalRef.current,
-            insetLeft: insetLeft ?? null,
-            insetRight: insetRight ?? null,
-        }),
-        [
-            insetLeft,
-            insetRight,
-            parentOverlaySink.getRootBlockingPortalElement,
-            parentOverlaySink.getRootPortalElement,
-        ],
-    );
-
-    return (
-        <OverlaySinkContext.Provider value={overlaySink}>
-            {children}
-            {renderOverlayPortal(portalRef)}
-        </OverlaySinkContext.Provider>
     );
 }
 
@@ -970,7 +835,11 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
             )}
         >
             {children}
-            {renderOverlayPortal(blockingPortalRef, "70")}
+            {renderOverlayPortal(
+                // eslint-disable-next-line react-compiler/react-compiler
+                blockingPortalRef,
+                "70",
+            )}
         </OverlaySinkContext.Provider>
     );
 }
@@ -991,9 +860,11 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
     {
         shouldExcludeTarget,
         shouldExcludeOverlay,
+        onPointerDown,
     }: {
         shouldExcludeTarget: boolean;
         shouldExcludeOverlay: boolean;
+        onPointerDown: (() => void) | undefined;
     },
     ref: Ref<OverlayBlockingCoverRef>,
 ) {
@@ -1067,6 +938,25 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                 left="0"
                 zIndex="-10"
                 style={{width: "100vw", height: "100vh"}}
+                onPointerDown={event => {
+                    // Prevent the browser from moving focus when pressing on the overlay blocking
+                    // cover.
+                    //
+                    // This is important for `context_menu.tsx`. You right click in a focused
+                    // element which opens our custom context menu. If you click the blocking cover
+                    // to close the custom context menu we don't want the element you had previously
+                    // focused to lose focus.
+                    //
+                    // To reproduce a bug which happens when we don't have `event.preventDefault()`
+                    // here: Go to `<ContentEditor>`. Select to highlight some text. Right click the
+                    // text. The pointer toolbar should go away and the right click menu should be
+                    // visible. Click the blocking cover to close the context menu. If the
+                    // `<ContentEditor>` maintained focus the entire time then the pointer toolbar
+                    // should reappear.
+                    event.preventDefault();
+
+                    onPointerDown?.();
+                }}
             />
         );
     } else {
@@ -1079,6 +969,25 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                 left="0"
                 zIndex="-10"
                 style={{width: "100vw", height: "100vh"}}
+                onPointerDown={event => {
+                    // Prevent the browser from moving focus when pressing on the overlay blocking
+                    // cover.
+                    //
+                    // This is important for `context_menu.tsx`. You right click in a focused
+                    // element which opens our custom context menu. If you click the blocking cover
+                    // to close the custom context menu we don't want the element you had previously
+                    // focused to lose focus.
+                    //
+                    // To reproduce a bug which happens when we don't have `event.preventDefault()`
+                    // here: Go to `<ContentEditor>`. Select to highlight some text. Right click the
+                    // text. The pointer toolbar should go away and the right click menu should be
+                    // visible. Click the blocking cover to close the context menu. If the
+                    // `<ContentEditor>` maintained focus the entire time then the pointer toolbar
+                    // should reappear.
+                    event.preventDefault();
+
+                    onPointerDown?.();
+                }}
             >
                 {coverRects.map((coverRect, i) => (
                     <Box
@@ -1103,117 +1012,3 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
         );
     }
 });
-
-// In Jest tests, create a portal element in the JSDOM `<body>`.
-const overlaySinkContextForTest = import.meta.jest
-    ? ((): OverlaySinkContext => {
-          const portalElement = document.createElement("div");
-
-          portalElement.className = sprinkles({
-              position: "absolute",
-              top: "0",
-              left: "0",
-              right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
-              height: "0",
-              // Render above anything on the page.
-              zIndex: "50",
-          });
-
-          const blockingPortalElement = document.createElement("div");
-
-          blockingPortalElement.className = sprinkles({
-              position: "absolute",
-              top: "0",
-              left: "0",
-              right: "0",
-              // The root portal element has a height of 0 because when you use it in a
-              // nested scroll view we don't want the overlay height to extend from the top
-              // to the bottom of the nested scroll view.
-              height: "0",
-              // Render above anything on the page.
-              zIndex: "70",
-          });
-
-          document.body.appendChild(portalElement);
-          document.body.appendChild(blockingPortalElement);
-
-          const portalRef = {current: portalElement};
-          const blockingPortalRef = {current: blockingPortalElement};
-
-          return {
-              getRootPortalElement: () => portalRef.current,
-              getRootBlockingPortalElement: () => blockingPortalRef.current,
-              getPortalElement: () => portalRef.current,
-              insetLeft: null,
-              insetRight: null,
-          };
-      })()
-    : null;
-
-/**
- * Get the overlay portal element at the root of our app. We may have nested
- * portal overlay elements in, for instance, scroll views so overlays move with
- * the scroll view and can't escape.
- *
- * This allows you to portal into the root overlay element.
- */
-export function useOverlayRootPortalElement() {
-    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-
-    const [rootPortalElement, setRootPortalElement] = useState(overlaySink.getRootPortalElement);
-
-    useEffect(() => {
-        setRootPortalElement(overlaySink.getRootPortalElement);
-    }, [overlaySink.getRootPortalElement]);
-
-    return rootPortalElement;
-}
-
-/**
- * Get the _blocking_ overlay portal element at the root of our app. We may
- * have nested portal overlay elements in, for instance, scroll views so
- * overlays move with the scroll view and can't escape.
- */
-export function useOverlayRootBlockingPortalElement() {
-    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-
-    const [rootBlockingPortalElement, setRootBlockingPortalElement] = useState(
-        overlaySink.getRootBlockingPortalElement,
-    );
-
-    useEffect(() => {
-        setRootBlockingPortalElement(overlaySink.getRootBlockingPortalElement);
-    }, [overlaySink.getRootBlockingPortalElement]);
-
-    return rootBlockingPortalElement;
-}
-
-/**
- * If you have an `<Overlay>` element with a ref on the `overlay` prop then you
- * will not be able to access the ref until the overlay portal is ready. You
- * may use this hook for detecting this edge case.
- *
- * If your overlay's initial render is the same as the nearest
- * `<OverlayScopeContextProvider>`'s initial render and your overlay is
- * initially visible then this will start as `true` then return `false`.
- * Otherwise this always returns `false`.
- */
-export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean {
-    const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
-    assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-
-    const [isWaiting, setIsWaiting] = useState(() =>
-        isVisible ? !overlaySink.getPortalElement() : false,
-    );
-
-    useEffect(() => {
-        setIsWaiting(isVisible ? !overlaySink.getPortalElement() : false);
-    }, [isVisible, overlaySink]);
-
-    return isWaiting;
-}

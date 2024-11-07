@@ -12,12 +12,15 @@ import {
 // source files in production. We're just using the types in this module.
 import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
-import {Readable as ReadableStream} from "stream";
-import {ReadableStream as ReadableWebStream, TextDecoderStream} from "stream/web";
+import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
+import {Headers} from "undici";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
+import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -25,14 +28,26 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * tests.
  */
 export class MiniflareR2Client implements CloudflareR2ClientBase {
+    private readonly _fileUploadServiceHostname: string;
     private readonly _bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
 
-    constructor(bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>) {
+    constructor({
+        fileUploadServiceHostname,
+        bucketByName,
+    }: {
+        fileUploadServiceHostname: string;
+        bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
+    }) {
         // Miniflare should not be used in production! It's only used to store files in
         // development.
         assert(process.env.NODE_ENV !== "production");
 
+        this._fileUploadServiceHostname = fileUploadServiceHostname;
         this._bucketByName = bucketByName;
+    }
+
+    public isMiniflare(): boolean {
+        return true;
     }
 
     private _getBucket(bucketName: string | undefined): miniflareTypes.R2Bucket {
@@ -51,6 +66,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             IfNoneMatch: etagDoesNotMatch,
             IfModifiedSince: uploadedAfter,
             IfUnmodifiedSince: uploadedBefore,
+            Range: range,
             ...unrecognizedInputs
         }: GetObjectCommandInput,
     ): Promise<GetObjectCommandOutput> {
@@ -89,6 +105,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     uploadedAfter,
                     uploadedBefore,
                 },
+                range: range !== undefined ? new Headers([["range", range]]) : undefined,
             });
 
             if (!object) {
@@ -114,8 +131,9 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                         "`$metadata` is unimplemented for `MiniflareR2Client`",
                     );
                 },
+                AcceptRanges: "bytes",
                 LastModified: object.uploaded,
-                ContentLength: object.size,
+                ContentLength: object.range?.length ?? object.size,
                 ETag: object.etag,
                 VersionId: object.version,
                 ContentType: object.httpMetadata.contentType,
@@ -123,14 +141,25 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 ContentDisposition: object.httpMetadata.contentDisposition,
                 ContentEncoding: object.httpMetadata.contentEncoding,
                 CacheControl: object.httpMetadata.cacheControl,
+                ContentRange: object.range
+                    ? `bytes ${object.range.offset ?? 0}-${
+                          (object.range.offset ?? 0) + (object.range.length ?? 0) - 1
+                      }/${object.size}`
+                    : undefined,
                 Body:
                     "body" in object
                         ? Object.assign(ReadableStream.fromWeb(object.body), {
                               transformToByteArray: () =>
-                                  convertReadableStreamToUint8Array(object.body),
+                                  waitForReadableStreamUint8Array(
+                                      object.body as globalThis.ReadableStream<Uint8Array>,
+                                  ),
                               transformToString: (encoding?: string) =>
-                                  convertReadableStreamToString(object.body, encoding),
-                              transformToWebStream: () => object.body as globalThis.ReadableStream,
+                                  waitForReadableStreamString(
+                                      object.body as globalThis.ReadableStream<Uint8Array>,
+                                      encoding,
+                                  ),
+                              transformToWebStream: () =>
+                                  object.body as globalThis.ReadableStream<Uint8Array>,
                           })
                         : undefined,
             };
@@ -220,6 +249,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             CacheControl: cacheControl,
             ...unrecognizedInputs
         }: PutObjectCommandInput,
+        {signal}: {signal?: AbortSignal} = {},
     ): Promise<PutObjectCommandOutput> {
         let spanName = "Cloudflare R2 PutObject";
 
@@ -250,8 +280,24 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 );
             }
 
-            const body = untypedBody as NodeJsRuntimeStreamingBlobPayloadInputTypes | undefined;
+            let body = untypedBody as NodeJsRuntimeStreamingBlobPayloadInputTypes | undefined;
             assert(body);
+
+            if (body instanceof ReadableStream) {
+                body = body.pipe(
+                    // NOTE(calebmer): I have no idea why but sometimes `put()` calls for
+                    // large audio files aren't finishing even though the stream has been fully
+                    // read unless there's a pass-through stream here. My best guess is Miniflare
+                    // is checking to see if the stream is an HTTP request stream and doing
+                    // something differently that isn't terminating?
+                    new PassThroughStream(),
+                );
+
+                signal?.addEventListener("abort", () => {
+                    assert(body instanceof ReadableStream);
+                    body.destroy(signal.reason);
+                });
+            }
 
             const object = await this._getBucket(bucketName).put(
                 assertExists(key),
@@ -327,41 +373,44 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             };
         });
     }
-}
 
-function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
-    const result = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
-    let offset = 0;
+    public getGetObjectSignedUrl(
+        tracer: TracerBase,
+        expirationTime: Date,
+        input: GetObjectCommandInput,
+    ) {
+        let spanName = "Cloudflare R2 sign URL for GetObject";
 
-    for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
+        if (input.Bucket !== undefined) {
+            spanName += ` ${input.Bucket}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        action: "GetObject",
+                        bucket: input.Bucket,
+                        object: {
+                            key: input.Key,
+                        },
+                    },
+                },
+            });
+
+            // Make sure the bucket name is valid to add to a URL:
+            // https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html#general-purpose-bucket-names
+            const bucketName = input.Bucket ?? "";
+            assert(/^[a-z0-9.-]{3,63}$/.test(bucketName));
+
+            const key = encodeURIComponent(input.Key ?? "");
+
+            const expirationTimeString = serializeDateString(expirationTime);
+
+            // `FileUploadService` has an internal route for mocking signed URLs in
+            // development. This route is completely insecure and must not work in
+            // production. In production we'll generate actual S3 compatible signed URLs.
+            return `http://${this._fileUploadServiceHostname}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
+        });
     }
-
-    return result;
-}
-
-async function convertReadableStreamToUint8Array(
-    stream: ReadableWebStream<Uint8Array>,
-): Promise<Uint8Array> {
-    const chunks: Array<Uint8Array> = [];
-
-    for await (const chunk of stream) {
-        chunks.push(chunk);
-    }
-
-    return concatUint8Arrays(chunks);
-}
-
-async function convertReadableStreamToString(
-    stream: ReadableWebStream<Uint8Array>,
-    encoding?: string,
-): Promise<string> {
-    let string = "";
-
-    for await (const chunk of stream.pipeThrough(new TextDecoderStream(encoding))) {
-        string += chunk;
-    }
-
-    return string;
 }

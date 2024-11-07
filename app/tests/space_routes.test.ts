@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import {extname, join as joinPath} from "path";
 import {getRouteIdsWithDefinedShimmerForTest} from "~/client/shimmer/route_shimmer.js";
-import {getRouteIdsWithDefinedErrorTitleForTest} from "~/client/spaces/route_error_title.js";
+import {getRouteIdsWithDefinedMetadataForTest} from "~/client/spaces/route_metadata.js";
 
 test("every space route has a shimmer in `client/shimmer/route_shimmer.tsx`", async () => {
     const workspacePath = process.cwd();
@@ -20,10 +20,10 @@ test("every space route has a shimmer in `client/shimmer/route_shimmer.tsx`", as
     // Sanity check: Make sure we found some routes.
     expect(spaceRouteIds.length).toBeGreaterThan(0);
 
-    expect(spaceRouteIds.sort()).toEqual(getRouteIdsWithDefinedShimmerForTest().sort());
+    expect(spaceRouteIds.sort()).toEqual(getRouteIdsWithDefinedShimmerForTest!().sort());
 });
 
-test("every space route has an error title in `client/spaces/route_error_title.ts`", async () => {
+test("every space route has an error title in `client/spaces/route_metadata.ts`", async () => {
     const workspacePath = process.cwd();
     const routesPath = joinPath(workspacePath, "app/routes");
 
@@ -41,7 +41,7 @@ test("every space route has an error title in `client/spaces/route_error_title.t
     expect(spaceRouteIds.length).toBeGreaterThan(0);
 
     expect(spaceRouteIds.sort()).toEqual(
-        getRouteIdsWithDefinedErrorTitleForTest()
+        getRouteIdsWithDefinedMetadataForTest()
             .sort()
             .filter(routeId => routeId.startsWith("routes/s.$spaceId.")),
     );

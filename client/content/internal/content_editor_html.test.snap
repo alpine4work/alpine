@@ -1,5 +1,94 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`account long mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          @
+        </span>
+        <span>
+          Sara Smith
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`account long mention: clipboard 1`] = `
+<div>
+  <p>
+    <span
+      data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
+    >
+      @Sara Smith
+    </span>
+  </p>
+</div>
+`;
+
+exports[`account long mention: clipboard text 1`] = `"@Sara Smith"`;
+
+exports[`account short mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          @
+        </span>
+        <span>
+          Sara
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`account short mention: clipboard 1`] = `
+<div>
+  <p>
+    <span
+      data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
+      data-cy-mention-short=""
+    >
+      @Sara
+    </span>
+  </p>
+</div>
+`;
+
+exports[`account short mention: clipboard text 1`] = `"@Sara"`;
+
 exports[`bold 1`] = `
 <div
   aria-label="Test"
@@ -9,9 +98,13 @@ exports[`bold 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <strong>
+    <strong
+      class="content_bold"
+    >
       world
     </strong>
     !
@@ -32,6 +125,78 @@ exports[`bold: clipboard 1`] = `
 `;
 
 exports[`bold: clipboard text 1`] = `"Hello world!"`;
+
+exports[`breaks inside list items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_listItem content_unorderedListItem"
+    data-list-indent="0"
+    style="--content_listItemIndentation:0"
+  >
+    <p
+      class="content_paragraph"
+    >
+      Hello…
+      <br />
+      …world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`breaks inside list items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello…
+        <br />
+        …world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`breaks inside list items: clipboard text 1`] = `"Hello……world!"`;
+
+exports[`breaks inside paragraphs 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    Hello…
+    <br />
+    …world!
+  </p>
+</div>
+`;
+
+exports[`breaks inside paragraphs: clipboard 1`] = `
+<div>
+  <p>
+    Hello…
+    <br />
+    …world!
+  </p>
+</div>
+`;
+
+exports[`breaks inside paragraphs: clipboard text 1`] = `"Hello……world!"`;
 
 exports[`bullet list bold: clipboard 1`] = `
 <div>
@@ -151,10 +316,13 @@ exports[`bullet list plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Hello world!
     </p>
   </div>
@@ -203,26 +371,35 @@ exports[`bullet list with multiple items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -269,34 +446,46 @@ exports[`bullet list with sub-list 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -313,37 +502,49 @@ exports[`bullet list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -426,117 +627,6 @@ Item 1
 Item 2
 
 Item 3"
-`;
-
-exports[`can put hard breaks inside list items 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    data-list-indent="0"
-    style="--list-item-indent: 0;"
-  >
-    <p>
-      Hello…
-      <br />
-      …world!
-    </p>
-  </div>
-</div>
-`;
-
-exports[`can put hard breaks inside list items: clipboard 1`] = `
-<div>
-  <ul>
-    <li>
-      <p>
-        Hello…
-        <br />
-        …world!
-      </p>
-    </li>
-  </ul>
-</div>
-`;
-
-exports[`can put hard breaks inside list items: clipboard text 1`] = `"Hello……world!"`;
-
-exports[`can put hard breaks inside paragraphs 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <p>
-    Hello…
-    <br />
-    …world!
-  </p>
-</div>
-`;
-
-exports[`can put hard breaks inside paragraphs: clipboard 1`] = `
-<div>
-  <p>
-    Hello…
-    <br />
-    …world!
-  </p>
-</div>
-`;
-
-exports[`can put hard breaks inside paragraphs: clipboard text 1`] = `"Hello……world!"`;
-
-exports[`can put multiple paragraphs inside list items 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    data-list-indent="0"
-    style="--list-item-indent: 0;"
-  >
-    <p>
-      Hello…
-    </p>
-    <p>
-      …world!
-    </p>
-  </div>
-</div>
-`;
-
-exports[`can put multiple paragraphs inside list items: clipboard 1`] = `
-<div>
-  <ul>
-    <li>
-      <p>
-        Hello…
-      </p>
-      <p>
-        …world!
-      </p>
-    </li>
-  </ul>
-</div>
-`;
-
-exports[`can put multiple paragraphs inside list items: clipboard text 1`] = `
-"Hello…
-
-…world!"
 `;
 
 exports[`check list (checked) bold: clipboard 1`] = `
@@ -687,33 +777,22 @@ exports[`check list (checked) plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Hello world!
       </p>
     </div>
@@ -905,33 +984,22 @@ exports[`check list (unchecked) plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Hello world!
       </p>
     </div>
@@ -989,97 +1057,64 @@ exports[`check list with multiple items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 1
       </p>
     </div>
   </div>
   <div
+    class="content_listItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 2
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 3
       </p>
     </div>
@@ -1141,129 +1176,85 @@ exports[`check list with sub-list 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Test
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 1
       </p>
     </div>
   </div>
   <div
+    class="content_listItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 2
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 3
       </p>
     </div>
@@ -1281,61 +1272,59 @@ exports[`check list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Test
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -1643,26 +1632,45 @@ exports[`code (multiline) plain 1`] = `
   translate="no"
 >
   <pre
+    class="content_codeBlockWrapper"
     data-scrollbar="false"
   >
-    <code>
-      <div>
-        <div>
+    <code
+      class="content_codeBlock"
+    >
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           Hello world!
         </div>
       </div>
-      <div>
-        <div>
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           <br />
         </div>
       </div>
-      <div>
-        <div>
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
             Hello world!
         </div>
       </div>
-      <div>
-        <div>
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           Hello world!
         </div>
       </div>
@@ -1742,9 +1750,13 @@ exports[`code 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <code>
+    <code
+      class="content_code"
+    >
       world
     </code>
     !
@@ -1842,11 +1854,18 @@ exports[`code plain 1`] = `
   translate="no"
 >
   <pre
+    class="content_codeBlockWrapper"
     data-scrollbar="false"
   >
-    <code>
-      <div>
-        <div>
+    <code
+      class="content_codeBlock"
+    >
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           Hello world!
         </div>
       </div>
@@ -1897,7 +1916,7 @@ exports[`code: clipboard 1`] = `
 
 exports[`code: clipboard text 1`] = `"Hello world!"`;
 
-exports[`divider empty 1`] = `
+exports[`divider 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
@@ -1906,17 +1925,630 @@ exports[`divider empty 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <hr />
+  <hr
+    class="content_divider"
+  />
 </div>
 `;
 
-exports[`divider empty: clipboard 1`] = `
+exports[`divider: clipboard 1`] = `
 <div>
   <hr />
 </div>
 `;
 
-exports[`divider empty: clipboard text 1`] = `""`;
+exports[`divider: clipboard text 1`] = `""`;
+
+exports[`file float (left direction) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileFloat content_fileFloatLeft"
+    style="width: 203.4px; height: 191.4px;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file float (left direction): clipboard 1`] = `
+<div>
+  <div
+    style="float: left; clear: both; margin-bottom: 10px; margin-right: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="191"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4sk2v7sxcrpdd9qdxxx78?exp=1727963748&sig=test-image"
+      style="display: block;"
+      width="203"
+    />
+  </div>
+</div>
+`;
+
+exports[`file float (left direction): clipboard text 1`] = `""`;
+
+exports[`file float (right direction) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileFloat content_fileFloatRight"
+    style="width: 195.4px; height: 191.4px;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file float (right direction): clipboard 1`] = `
+<div>
+  <div
+    style="float: right; clear: both; margin-bottom: 10px; margin-left: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="191"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4v4se8v5pxdk7j5adnecm?exp=1727963751&sig=test-image"
+      style="display: block;"
+      width="195"
+    />
+  </div>
+</div>
+`;
+
+exports[`file float (right direction): clipboard text 1`] = `""`;
+
+exports[`file row (one file) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 512px; grid-template-columns: 0.853333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (one file): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="512"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
+      style="display: block;"
+      width="512"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file): clipboard text 1`] = `""`;
+
+exports[`file row (one file, audio type) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 252px; grid-template-columns: 1fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:audio/mp4"
+    >
+      <div>
+        <audio
+          preload="none"
+          src="/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
+          style="pointer-events: none; width: 0; height: 0; opacity: 0"
+        />
+        <div>
+          <svg
+            viewBox="-1 -1 601 101"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+          <div>
+            <svg
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </div>
+        </div>
+        <div>
+          <div>
+            <div>
+              Untitled
+            </div>
+          </div>
+        </div>
+        <div>
+          <div>
+            <div>
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+            </div>
+            <div>
+              <div
+                data-time="00:00"
+              />
+              <div>
+                /
+              </div>
+              <div>
+                00:05
+              </div>
+            </div>
+            <div>
+              <div>
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div>
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              data-rate="1x"
+            />
+          </div>
+        </div>
+      </div>
+      <img
+        aria-hidden="true"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, audio type): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <audio
+      controls=""
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
+      style="display: block; width: 600px; height: 252px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, audio type): clipboard text 1`] = `""`;
+
+exports[`file row (one file, image type) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 512px; grid-template-columns: 0.853333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, image type): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="512"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vd0kf4fdbwb7f1jqtzgt7g?exp=1727880757&sig=test-image"
+      style="display: block;"
+      width="512"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, image type): clipboard text 1`] = `""`;
+
+exports[`file row (one file, null reference) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 133.333px; grid-template-columns: 0.333333fr;"
+  >
+    <div
+      class="content_file"
+    >
+      <div>
+        <img
+          aria-hidden="true"
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, null reference): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <object
+      height="133"
+      style="display: block;"
+      width="200"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, null reference): clipboard text 1`] = `""`;
+
+exports[`file row (one file, video type) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 512px; grid-template-columns: 0.853333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:video/mp4"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+      <div>
+        <div>
+          <svg
+            viewBox="0 0 256 256"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+          <svg
+            viewBox="0 0 256 256"
+            xmlns="http://www.w3.org/2000/svg"
+          />
+        </div>
+        <div>
+          00:05
+        </div>
+        <video
+          playsinline=""
+          poster="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+          preload="none"
+          src="/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdm01x4ngm31kmm41wsg3m?exp=1727880767&sig=test-video"
+        />
+        <div>
+          <div>
+            <div>
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+            </div>
+            <div>
+              <div
+                data-time="00:00"
+              />
+              <div>
+                /
+              </div>
+              <div>
+                00:05
+              </div>
+            </div>
+            <div>
+              <div>
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div
+                  style="transform: translateX(0px);"
+                />
+                <div>
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                  <div
+                    style="transform: scaleX(0);"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              data-rate="1x"
+            />
+            <div>
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+              <svg
+                viewBox="0 0 256 256"
+                xmlns="http://www.w3.org/2000/svg"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <img
+        aria-hidden="true"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, video type): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <video
+      controls=""
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="512"
+      style="display: block;"
+      width="512"
+    >
+      <source
+        src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdm01x4ngm31kmm41wsg3m?exp=1727880767&sig=test-video"
+      />
+    </video>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, video type): clipboard text 1`] = `""`;
+
+exports[`file row (three files) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 193.333px; grid-template-columns: 0.333333fr 0.333333fr 0.333333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/heif"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/png"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (three files): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="193"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4nwky4vgc8ep46mzz5th8?exp=1727963706&sig=test-image"
+      style="display: block;"
+      width="193"
+    />
+    <object
+      data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4phegz57116pce7eg5j30?exp=1727963711&sig=test-image"
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="193"
+      style="display: block;"
+      type="image/heif"
+      width="193"
+    />
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="193"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4q3yh9765742w7305p0fg?exp=1727963716&sig=test-image"
+      style="display: block;"
+      width="193"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (three files): clipboard text 1`] = `""`;
+
+exports[`file row (two files) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 295px; grid-template-columns: 0.5fr 0.5fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/heif"
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' color-interpolation-filters='sRGB' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (two files): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="295"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
+      style="display: block;"
+      width="295"
+    />
+    <object
+      data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4myryc3289pwhcnwt7f7r?exp=1727963629&sig=test-image"
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="295"
+      style="display: block;"
+      type="image/heif"
+      width="295"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (two files): clipboard text 1`] = `""`;
 
 exports[`heading 1 bold: clipboard 1`] = `
 <div>
@@ -2011,7 +2643,9 @@ exports[`heading 1 plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <h2>
+  <h2
+    class="content_headingLevel1"
+  >
     Hello world!
   </h2>
 </div>
@@ -2134,7 +2768,9 @@ exports[`heading 2 plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <h3>
+  <h3
+    class="content_headingLevel2"
+  >
     Hello world!
   </h3>
 </div>
@@ -2257,7 +2893,9 @@ exports[`heading 3 plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <h4>
+  <h4
+    class="content_headingLevel3"
+  >
     Hello world!
   </h4>
 </div>
@@ -2296,9 +2934,12 @@ exports[`highlight 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
     <mark
+      class="content_highlightGreen"
       data-highlight-color="green"
     >
       world
@@ -2333,9 +2974,13 @@ exports[`italic 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <em>
+    <em
+      class="content_italic"
+    >
       world
     </em>
     !
@@ -2366,9 +3011,12 @@ exports[`link (XSS vulnerability) 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
     <a
+      class="content_link"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -2389,9 +3037,12 @@ exports[`link 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
     <a
+      class="content_link"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2420,6 +3071,55 @@ exports[`link: clipboard 1`] = `
 `;
 
 exports[`link: clipboard text 1`] = `"Hello world!"`;
+
+exports[`multiple paragraphs inside list items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_listItem content_unorderedListItem"
+    data-list-indent="0"
+    style="--content_listItemIndentation:0"
+  >
+    <p
+      class="content_paragraph"
+    >
+      Hello…
+    </p>
+    <p
+      class="content_paragraph"
+    >
+      …world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`multiple paragraphs inside list items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello…
+      </p>
+      <p>
+        …world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`multiple paragraphs inside list items: clipboard text 1`] = `
+"Hello…
+
+…world!"
+`;
 
 exports[`ordered list bold: clipboard 1`] = `
 <div>
@@ -2539,11 +3239,14 @@ exports[`ordered list plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Hello world!
     </p>
   </div>
@@ -2592,29 +3295,38 @@ exports[`ordered list with multiple items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -2661,38 +3373,50 @@ exports[`ordered list with sub-list 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -2709,106 +3433,76 @@ exports[`ordered list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 1
       </p>
     </div>
   </div>
   <div
+    class="content_listItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 2
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
         <svg
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            fill="none"
-            height="256"
-            width="256"
-          />
-          <polyline
-            fill="none"
-            points="216 72 104 184 48 128"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="24"
-          />
-        </svg>
+        />
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 3
       </p>
     </div>
@@ -3001,7 +3695,9 @@ exports[`paragraph plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello world!
   </p>
 </div>
@@ -3136,8 +3832,12 @@ exports[`quote plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <blockquote>
-    <p>
+  <blockquote
+    class="content_quoteBlock"
+  >
+    <p
+      class="content_paragraph"
+    >
       Hello world!
     </p>
   </blockquote>
@@ -3181,9 +3881,13 @@ exports[`strike 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <del>
+    <del
+      class="content_strike"
+    >
       world
     </del>
     !
@@ -3204,3 +3908,48 @@ exports[`strike: clipboard 1`] = `
 `;
 
 exports[`strike: clipboard text 1`] = `"Hello world!"`;
+
+exports[`unknown account mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          @
+        </span>
+        <span>
+          Unknown
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`unknown account mention: clipboard 1`] = `
+<div>
+  <p>
+    <span
+      data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
+      data-cy-mention-short=""
+    >
+      @Unknown
+    </span>
+  </p>
+</div>
+`;
+
+exports[`unknown account mention: clipboard text 1`] = `"@Unknown"`;

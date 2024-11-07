@@ -19,7 +19,7 @@ import {
     addTriggeredOverlayOpenEventListener,
     removeTriggeredOverlayCloseEventListener,
     removeTriggeredOverlayOpenEventListener,
-} from "~/client/design/overlay_trigger_button.js";
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
@@ -36,9 +36,10 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
@@ -168,7 +169,12 @@ function Button(
         fontSize?: "50" | "75" | "100";
 
         /**
-         * Amount of border radius to apply to the left of the button. Defaults to
+         * Amount of border radius to use. Defaults to `1`.
+         */
+        borderRadius?: "1" | "1.5" | "2";
+
+        /**
+         * Amount of border radius to apply to the right of the button. Defaults to
          * `1`. Only really used to remove border radius.
          */
         borderRightRadius?: "1" | "none";
@@ -229,7 +235,8 @@ function Button(
         height = "7",
         iconGap = "1",
         fontSize = "75",
-        borderRightRadius = "1",
+        borderRadius = "1",
+        borderRightRadius,
         flexShrink = "0",
         isTabbable = true,
         isFocusable = true,
@@ -378,127 +385,170 @@ function Button(
         </span>
     ) : null;
 
-    const stylesByVariant: {[K in ButtonVariant]: Sprinkles} = {
-        quiet: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        quieter: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-60",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        quietest: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-50",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-on": !isDisabled
-            ? {
-                  backgroundColor: isPressed ? "grey-10" : "grey-5",
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-off": !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-50",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-above-grey-5-dark-background": !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? {light: "grey-10", dark: "grey-20"}
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? {light: "grey-5", dark: "grey-10"}
-                      : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        neutral: !isDisabled
-            ? {
-                  backgroundColor: "grey-90",
-                  color: "grey-0",
-              }
-            : {
-                  backgroundColor: "grey-5",
-                  color: "grey-30",
-              },
-        "neutral-disabled": {
-            backgroundColor: "grey-5",
-            color: "grey-30",
-        },
-        accent: !isDisabled
-            ? {
-                  backgroundColor: accentThemeBackgroundColor,
-                  color: accentThemeForegroundColor,
-              }
-            : {
-                  backgroundColor: "grey-5",
-                  color: "grey-30",
-              },
+    let styles: Sprinkles;
+    let isQuietVariant = false;
+
+    switch (variant) {
+        case "quiet": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quieter": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-60",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quietest": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-on": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-10" : "grey-5",
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-off": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-50",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-above-grey-5-dark-background": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? {light: "grey-10", dark: "grey-20"}
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? {light: "grey-5", dark: "grey-10"}
+                          : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "neutral": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: {light: "grey-90", dark: "grey-100"},
+                      color: "grey-0",
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "neutral-disabled": {
+            styles = {
+                backgroundColor: "grey-5",
+                color: "grey-30",
+            };
+            break;
+        }
+        case "accent": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: accentThemeBackgroundColor,
+                      color: accentThemeForegroundColor,
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                  };
+            break;
+        }
         // We have the accent styles even when the button is disabled. Disabling makes
         // the button not clickable or focusable but does not visually change the
         // button. Useful for buttons we really want to accent.
-        "accent-even-when-disabled": {
-            backgroundColor: accentThemeBackgroundColor,
-            color: accentThemeForegroundColor,
-        },
-        outline: !isDisabled
-            ? {
-                  backgroundColor: isPressed ? "grey-10" : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-    };
-
-    const isQuietVariant =
-        variant === "quiet" ||
-        variant === "quieter" ||
-        variant === "quiet-on" ||
-        variant === "quiet-off" ||
-        variant === "quiet-above-grey-5-dark-background";
+        case "accent-even-when-disabled": {
+            styles = {
+                backgroundColor: accentThemeBackgroundColor,
+                color: accentThemeForegroundColor,
+            };
+            break;
+        }
+        case "outline": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-10" : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        default:
+            throw exhaustive(variant);
+    }
 
     const isOutlineVariant = variant === "outline";
 
@@ -525,9 +575,10 @@ function Button(
     }, [isFocusable]);
 
     let node = (
-        <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
+        <FocusRing offset={isQuietVariant ? "0" : "0.5"} insetY={touchSlop.slop}>
             {createElement(
                 isFocusable ? "button" : "div",
+                // eslint-disable-next-line react-compiler/react-compiler
                 {
                     ...mergeProps(buttonProps, hoverProps),
                     ref: useCallback(
@@ -583,7 +634,7 @@ function Button(
                 },
                 <span
                     className={sprinkles({
-                        ...stylesByVariant[variant],
+                        ...styles,
                         position: "relative",
                         overflow: "hidden",
                         display: "flex",
@@ -594,8 +645,8 @@ function Button(
                         width: fullWidth ? "full" : undefined,
                         paddingX,
                         fontSize,
-                        borderLeftRadius: "1",
-                        borderRightRadius,
+                        borderLeftRadius: borderRadius,
+                        borderRightRadius: borderRightRadius ?? borderRadius,
                     })}
                     style={{
                         // Use a box-shadow for drawing the border so it doesn't affect layout.

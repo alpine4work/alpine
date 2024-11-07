@@ -4,7 +4,11 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    DynamoIndexCursor,
+    DynamoIndexPartitionKey,
+    DynamoItemKey,
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -57,6 +61,12 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     private readonly _indexName: string;
 
     /**
+     * The index partition key this query result is for. An item can only be in one
+     * index partition at a time.
+     */
+    private readonly _partitionKey: DynamoIndexPartitionKey;
+
+    /**
      * The start bound for items in this query. We ignore realtime events for items
      * outside of this bound. If null the query has no starting bound.
      */
@@ -76,7 +86,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      *
      * We say this is an approximate time since whenever we load new data or see a
      * new realtime event we will increase this value to the latest time. However,
-     * realtime events may arrive out-of-order. So we may not have seen an event
+     * realtime events may arrive out-of-order. So we may have missed an event
      * before our `readTime`.
      *
      * The server doesn't trust `readTime` and gives us events in a short window
@@ -143,8 +153,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * keep them around in our query in case we load more data and the data is
      * behind an event we received in realtime. Consider:
      *
-     * 1. We start loading items N through N+10
-     * 2. The server loads item N+2 at version V
+     * 1. We start loading a query of items N through N+10
+     * 2. As a part of the query, the server loads item N+2 at version V
      * 3. User updates item N+2 to version V+1
      * 4. We receive a realtime update for item N+2 as version V+1
      * 5. We receive the data from the server for items N through N+10 where item
@@ -158,6 +168,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
     private constructor({
         indexName,
+        partitionKey,
         startCursorBound,
         endCursorBound,
         readTime,
@@ -166,6 +177,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         loadedPageInfo,
     }: {
         indexName: string;
+        partitionKey: DynamoIndexPartitionKey;
         startCursorBound: string | null;
         endCursorBound: string | null;
         readTime: Date;
@@ -212,6 +224,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         }
 
         this._indexName = indexName;
+        this._partitionKey = partitionKey;
         this._startCursorBound = startCursorBound;
         this._endCursorBound = endCursorBound;
         this._readTime = readTime;
@@ -276,8 +289,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 // If we initialized our query with a page starting after a certain cursor then
                 // that cursor is our actual start bound.
                 //
-                // We don't currently support initializing in the middle of a query. This
-                // behavior is for when you have a "next page"/"previous page" style UI.
+                // We don't currently support initializing in the middle of a query.
                 if (
                     result.pageInfo.afterCursor !== null &&
                     (startCursorBound === null || result.pageInfo.afterCursor > startCursorBound)
@@ -298,8 +310,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                 // If we initialized our query with a page starting before a certain cursor
                 // then that cursor is our actual end bound.
                 //
-                // We don't currently support initializing in the middle of a query. This
-                // behavior is for when you have a "next page"/"previous page" style UI.
+                // We don't currently support initializing in the middle of a query.
                 if (
                     result.pageInfo.beforeCursor !== null &&
                     (endCursorBound === null || result.pageInfo.beforeCursor < endCursorBound)
@@ -314,8 +325,9 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: result.indexName,
-            startCursorBound: result.startCursorBound,
-            endCursorBound: result.endCursorBound,
+            partitionKey: result.partitionKey,
+            startCursorBound,
+            endCursorBound,
             readTime: result.readTime,
             itemByCursor,
             itemVisibilityByKey,
@@ -327,7 +339,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
      * Loads more data into the query. Only adds items to the loaded page if the
      * new query result overlaps with data we already have.
      *
-     * Throws an error if the data is from a different index.
+     * Throws an error if the data is from a different index partition.
      */
     public loadMore(
         result: DynamoGeneralRealtimeIndexQueryResult<Model>,
@@ -343,10 +355,18 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         if (query._indexName !== result.indexName) {
             throw new InternalError("Tried to load more data from a different index");
         }
+        if (query._partitionKey !== result.partitionKey) {
+            throw new InternalError("Tried to load more data from a different index partition");
+        }
 
         query = query._putItems(
             result.readTime,
-            mapIterable(result.items, item => [item.cursor, item]),
+            mapIterable(result.items, item => ({
+                isDeleted: false,
+                partitionKey: query._partitionKey,
+                cursor: item.cursor,
+                item,
+            })),
         );
 
         let loadedPageInfo = query._loadedPageInfo;
@@ -417,6 +437,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: query._indexName,
+            partitionKey: query._partitionKey,
             startCursorBound: query._startCursorBound,
             endCursorBound: query._endCursorBound,
             readTime: query._readTime,
@@ -437,57 +458,91 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         return this._putItems(
             readTime,
             filterMapIterable(eventTransaction, event => {
-                const cursor = event.cursorByIndexName.get(this._indexName);
+                switch (event.type) {
+                    case "PutItem": {
+                        const index = event.indexes.get(this._indexName);
 
-                // This item does not have a cursor for this index so it is not present in
-                // the index.
-                if (cursor === undefined) return;
+                        // This item does not have a cursor for this index so it is not present in
+                        // the index.
+                        if (index === undefined) return;
 
-                return [
-                    cursor,
-                    // Items outside of our index will not have the `Model` type. We assume the
-                    // server implementation is correct and the types will all work out.
-                    event.item as DynamoGeneralRealtimeItem<Model>,
-                ];
+                        return {
+                            isDeleted: false,
+                            // If the item is in a different partition then we need to add the item to our
+                            // `itemVisibilityByKey` map with `isVisible` false. Since the index partition
+                            // key may change.
+                            partitionKey: index.partitionKey,
+                            cursor: index.cursor,
+                            // Items outside of our index will not have the `Model` type. We assume the
+                            // server implementation is correct and the types will all work out.
+                            item: event.item as DynamoGeneralRealtimeItem<Model>,
+                        };
+                    }
+                    case "DeleteItem": {
+                        // This item is not in this index so we don't have to add a gravestone to
+                        // this query.
+                        if (!event.indexes.has(this._indexName)) return;
+
+                        return {
+                            isDeleted: true,
+                            item: event.item,
+                        };
+                    }
+                    default:
+                        throw exhaustive(event);
+                }
             }),
         );
     }
 
     private _putItems(
         readTime: Date,
-        items: Iterable<
-            [
-                DynamoIndexCursor,
-                {
-                    readonly cursor?: DynamoIndexCursor;
-                } & DynamoGeneralRealtimeItem<Model>,
-            ]
+        itemEntries: Iterable<
+            | {
+                  isDeleted: false;
+                  partitionKey: DynamoIndexPartitionKey;
+                  cursor: DynamoIndexCursor;
+                  item: {
+                      readonly cursor?: DynamoIndexCursor;
+                  } & DynamoGeneralRealtimeItem<Model>;
+              }
+            | {
+                  isDeleted: true;
+                  item: {
+                      key: DynamoItemKey;
+                      version: number;
+                  };
+              }
         >,
     ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
         let itemByCursor = this._itemByCursor;
         let itemVisibilityByKey = this._itemVisibilityByKey;
 
-        for (const [cursor, item] of items) {
-            const isCursorVisible =
-                (this._startCursorBound === null || this._startCursorBound < cursor) &&
-                (this._endCursorBound === null || cursor < this._endCursorBound);
+        for (const itemEntry of itemEntries) {
+            const isVisible =
+                !itemEntry.isDeleted &&
+                // Make sure the item is in the current partition of the index...
+                itemEntry.partitionKey === this._partitionKey &&
+                // Make sure the item is in the query's cursor bounds...
+                (this._startCursorBound === null || this._startCursorBound < itemEntry.cursor) &&
+                (this._endCursorBound === null || itemEntry.cursor < this._endCursorBound);
 
-            const oldItemVisibility = itemVisibilityByKey.get(item.key);
+            const oldItemVisibility = itemVisibilityByKey.get(itemEntry.item.key);
 
             if (oldItemVisibility === undefined) {
-                if (isCursorVisible) {
+                if (isVisible) {
                     itemByCursor = itemByCursor.insert(
-                        cursor,
-                        massageDynamoGeneralRealtimeItem(item, null),
+                        itemEntry.cursor,
+                        massageDynamoGeneralRealtimeItem(itemEntry.item, null),
                     );
-                    itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                    itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                         isVisible: true,
-                        cursor,
+                        cursor: itemEntry.cursor,
                     });
                 } else {
-                    itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                    itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                         isVisible: false,
-                        version: item.version,
+                        version: itemEntry.item.version,
                     });
                 }
             } else {
@@ -497,15 +552,15 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
                 // We may receive items out-of-order. Only put the latest the version of the
                 // item in our query.
-                if (oldItemVersion < item.version) {
-                    if (isCursorVisible) {
+                if (oldItemVersion < itemEntry.item.version) {
+                    if (isVisible) {
                         if (oldItemVisibility.isVisible) {
-                            if (oldItemVisibility.cursor === item.cursor) {
-                                const iterator = itemByCursor.find(item.cursor);
+                            if (oldItemVisibility.cursor === itemEntry.cursor) {
+                                const iterator = itemByCursor.find(itemEntry.cursor);
 
                                 itemByCursor = iterator.update(
                                     massageDynamoGeneralRealtimeItem(
-                                        item,
+                                        itemEntry.item,
                                         // Preserve the `extra` data currently in our query object.
                                         iterator.value!.extra,
                                     ),
@@ -515,40 +570,40 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
                                 itemByCursor = iterator.remove();
                                 itemByCursor = itemByCursor.insert(
-                                    cursor,
+                                    itemEntry.cursor,
                                     massageDynamoGeneralRealtimeItem(
-                                        item,
+                                        itemEntry.item,
                                         // Preserve the `extra` data currently in our query object.
                                         iterator.value!.extra,
                                     ),
                                 );
 
-                                itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                                itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                                     isVisible: true,
-                                    cursor,
+                                    cursor: itemEntry.cursor,
                                 });
                             }
                         } else {
                             itemByCursor = itemByCursor.insert(
-                                cursor,
-                                massageDynamoGeneralRealtimeItem(item, null),
+                                itemEntry.cursor,
+                                massageDynamoGeneralRealtimeItem(itemEntry.item, null),
                             );
-                            itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                            itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                                 isVisible: true,
-                                cursor,
+                                cursor: itemEntry.cursor,
                             });
                         }
                     } else {
                         if (oldItemVisibility.isVisible) {
                             itemByCursor = itemByCursor.remove(oldItemVisibility.cursor);
-                            itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                            itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                                 isVisible: false,
-                                version: item.version,
+                                version: itemEntry.item.version,
                             });
                         } else {
-                            itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                            itemVisibilityByKey = itemVisibilityByKey.set(itemEntry.item.key, {
                                 isVisible: false,
-                                version: item.version,
+                                version: itemEntry.item.version,
                             });
                         }
                     }
@@ -567,6 +622,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: this._indexName,
+            partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
             readTime: readTime > this._readTime ? readTime : this._readTime,
@@ -1060,7 +1116,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
         let itemByCursor = this._itemByCursor;
 
         const iterator = itemByCursor.find(cursor);
-        assert(iterator.value);
+        if (iterator.value === undefined) return this;
 
         const newExtra = update(iterator.value);
         if (newExtra === iterator.value.extra) return this;
@@ -1072,6 +1128,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: this._indexName,
+            partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
             readTime: this._readTime,
@@ -1118,6 +1175,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: this._indexName,
+            partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
             readTime: this._readTime,
@@ -1173,6 +1231,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
         return new DynamoGeneralRealtimeIndexQuery({
             indexName: this._indexName,
+            partitionKey: this._partitionKey,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
             readTime: this._readTime,

@@ -5,7 +5,7 @@ import {
     OverlayTriggerButtonRef,
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 
 const TaskQueryAddFilterMenuButtonForwardRef = forwardRef(TaskQueryAddFilterMenuButton);

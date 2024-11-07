@@ -9,7 +9,14 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileImageContentType} from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {
+    FileImagePreviewPlaceholder,
+    fileImagePreviewPlaceholderBaseSize,
+} from "~/shared/files/file_image_preview_placeholder.js";
+import {
+    maxFilePreviewAspectRatio,
+    minFilePreviewAspectRatio,
+} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -30,12 +37,9 @@ export async function processFileImagePreviewPlaceholder(
     input: Buffer | ArrayBuffer | Uint8Array,
     options?: sharp.SharpOptions,
 ): Promise<FileImagePreviewPlaceholder> {
-    // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
-    const placeholderSize = 5;
-
     const {
         data: outputData,
-        info: {channels, width},
+        info: {channels, width, height},
     } = await sharp(input, {
         ...options,
         pages: 1,
@@ -51,7 +55,15 @@ export async function processFileImagePreviewPlaceholder(
         failOn: "error",
     })
         .timeout({seconds: sharpTimeoutSeconds})
-        .resize(placeholderSize, placeholderSize, {fit: "inside"})
+        // Rotate so that we respect EXIF orientation metadata.
+        .rotate()
+        // This method of placeholder generation gives more detail (pixels) to images
+        // further away from the aspect ratio 1:1. Ideally we'd have about the same
+        // number of pixels no matter the aspect ratio. Unfortunately, at this point we
+        // don't know the image's dimensions.
+        .resize(fileImagePreviewPlaceholderBaseSize, fileImagePreviewPlaceholderBaseSize, {
+            fit: "outside",
+        })
         .toFormat("png")
         .modulate({brightness: 1, saturation: 1.2})
         .raw()
@@ -60,7 +72,38 @@ export async function processFileImagePreviewPlaceholder(
 
     assert(channels === 3 || channels === 4);
 
-    return FileImagePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
+    const aspectRatio = width / height;
+
+    if (aspectRatio < minFilePreviewAspectRatio) {
+        const croppedHeight = Math.round(width / minFilePreviewAspectRatio);
+
+        return FileImagePreviewPlaceholder.fromSerialized([
+            channels === 4,
+            width,
+            outputData.subarray(0, width * croppedHeight * channels),
+        ]);
+    } else if (aspectRatio > maxFilePreviewAspectRatio) {
+        const croppedWidth = Math.round(height * maxFilePreviewAspectRatio);
+        const cropStartX = Math.round((width - croppedWidth) / 2);
+        const croppedOutputData = new Uint8Array(croppedWidth * height * channels);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < croppedWidth; x++) {
+                for (let c = 0; c < channels; c++) {
+                    croppedOutputData[(y * croppedWidth + x) * channels + c] =
+                        outputData[(y * width + (cropStartX + x)) * channels + c]!;
+                }
+            }
+        }
+
+        return FileImagePreviewPlaceholder.fromSerialized([
+            channels === 4,
+            croppedWidth,
+            croppedOutputData,
+        ]);
+    } else {
+        return FileImagePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
+    }
 }
 
 export function processImageFile(
@@ -141,9 +184,20 @@ export function processImageFile(
         }
 
         return {
-            width: metadata.width,
-            height: metadata.height,
+            width:
+                // Respect EXIF orientation metadata. Based on example from `sharp`.
+                // https://sharp.pixelplumbing.com/api-input#metadata
+                metadata.orientation !== undefined && metadata.orientation >= 5
+                    ? metadata.height
+                    : metadata.width,
+            height:
+                // Respect EXIF orientation metadata. Based on example from `sharp`.
+                // https://sharp.pixelplumbing.com/api-input#metadata
+                metadata.orientation !== undefined && metadata.orientation >= 5
+                    ? metadata.width
+                    : metadata.height,
             scale: 1,
+            hasAlpha: metadata.hasAlpha ?? false,
         };
     })();
 
@@ -162,7 +216,7 @@ export function rethrowClassifiedSharpError(error: unknown): never {
     throw classifySharpError(error);
 }
 
-export const pdfPasswordRequiredErrorDisplayMessage = errorDisplayMessage`A password is required to read this file. Try opening the file in a PDF reader that supports password protected files.`;
+export const pdfPasswordRequiredErrorDisplayMessage = errorDisplayMessage`A password is required to open this file. Try opening the file and entering the password.`;
 
 export function classifySharpError(error: unknown): ErrorBase {
     if (!isObject(error) || typeof error.message !== "string") {

@@ -3,11 +3,13 @@ import {Readable as ReadableStream} from "stream";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
+    ffprobeExecutablePath,
+    getFileAudioPreviewMetadataFromFfprobeMetadata,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
     parseFileAudioPreviewDurationIfPossibleFromFfmpegStderr,
 } from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
-import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
+import {getProcessEnvToPropagate, runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {InternalError, UnknownError} from "~/shared/error/error.js";
@@ -16,7 +18,9 @@ import {
     FileMp4AudioContentType,
     FileWebUnsafeAudioContentType,
 } from "~/shared/files/file_content_type.js";
+import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
  * To process an unsafe audio file we transcode the audio file to a format with
@@ -116,8 +120,8 @@ export function createFileWebUnsafeAudioProcessor(
                         if (signal.aborted) throw signal.reason;
 
                         // We include the stderr in error messages even in production since it shouldn't
-                        // contain sensitive user data. Even if it does contain sensitive user data it
-                        // should be so opaque as to not be useful for reconstructing the video file.
+                        // contain sensitive user data. It may contain the file's duration and other
+                        // metadata but it shouldn't be harmful for a developer to read that.
                         //
                         // However, including the stderr will really help us debug any issues.
                         throw new UnknownError(
@@ -156,10 +160,41 @@ export function createFileWebUnsafeAudioProcessor(
                 throw error;
             });
 
+            const audioPreviewMetadataPromise: Promise<FileAudioPreviewMetadata> = (async () => {
+                // Even though technically we're using the FFprobe executable we still name the
+                // span "FFmpeg ..." which'll make it easier for us to search for spans that
+                // call one of the FFmpeg tools.
+                const metadataString = await span.withSpan("FFmpeg get metadata", async span => {
+                    span.addData({
+                        file: {contentType, contentLength},
+                    });
+
+                    return runProcess(
+                        ffprobeExecutablePath,
+                        [["-print_format", "json"], "-show_streams", "-show_format", "-"],
+                        {
+                            cwd: runfilesPath,
+                            stdin: stream,
+                            onStdinError: error => {
+                                // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                                // found the video's metadata. We can unpipe `pausedStream` once we get an `EPIPE`
+                                // error as we don't need data from our input anymore.
+                                if (isObject(error) && error.code === "EPIPE") {
+                                    return {preventDefault: true};
+                                }
+                            },
+                        },
+                    );
+                });
+
+                return getFileAudioPreviewMetadataFromFfprobeMetadata(JSON.parse(metadataString));
+            })();
+
             return {
                 extraPromise,
                 alternativePromise: alternativePromiseResolver.promise,
                 audioPreviewDurationPromise: previewDurationPromiseResolver.promise,
+                audioPreviewMetadataPromise,
             };
         },
     };

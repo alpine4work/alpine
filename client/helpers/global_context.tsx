@@ -9,6 +9,7 @@ let nextGlobalContextId = 1;
 // use `useGlobalContextProvider()`.
 const actualGlobalContextForTest = import.meta.jest ? new Map() : null;
 
+// eslint-disable-next-line react-refresh/only-export-components
 const ActualGlobalContext = createContext<Map<number, any> | null>(actualGlobalContextForTest);
 
 export type GlobalContext<Value> = {

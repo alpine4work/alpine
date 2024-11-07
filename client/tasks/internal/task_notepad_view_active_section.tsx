@@ -3,7 +3,7 @@ import {CaretRight} from "phosphor-react";
 import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {mobileNavigationBarHeight} from "~/client/design/navigation_bar.js";
+import {mobileNavigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -22,8 +22,8 @@ import {
     taskCardViewMinHeight,
     taskNotepadViewActiveSectionCardGap,
     taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-    taskNotepadViewActiveSectionMarginBottom,
     taskNotepadViewActiveSectionMarginTop,
+    taskNotepadViewActiveSectionMinHeight,
     taskNotepadViewActiveSectionPaddingY,
     taskNotepadViewActiveSectionTitleFontSize,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -38,11 +38,15 @@ import {
     TaskGridViewDroppableData,
 } from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
+    taskNotepadAssigneeActiveLoadLimit,
+    taskNotepadAssigneeActiveMinLimit,
+} from "~/client/tasks/task_notepad_assignee_active_limit.js";
+import {
     addRemLengths,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -55,43 +59,11 @@ import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_fi
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
-export const taskNotepadViewActiveSectionMinHeight = {
-    desktop: addRemLengths(
-        spacing[taskNotepadViewActiveSectionMarginTop.desktop],
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.desktop].lineHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        taskCardViewMinHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        spacing[taskNotepadViewActiveSectionMarginBottom],
-    ),
-    mobile: addRemLengths(
-        spacing[taskNotepadViewActiveSectionMarginTop.mobile],
-        fontSizes[taskNotepadViewActiveSectionTitleFontSize.mobile].lineHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        taskCardViewMinHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        spacing[taskNotepadViewActiveSectionMarginBottom],
-    ),
-};
-
 /**
  * The maximum number of cards to render before rendering a card saying you
  * have too many active tasks.
  */
 const maxTaskNotepadActiveCardCount = 7;
-
-/**
- * The minimum number of tasks we expect in our `assigneeActiveQuery`. If the
- * task count dips below this number we'll load more tasks.
- */
-export const taskNotepadAssigneeActiveMinLimit = 25;
-
-/**
- * When loading more tasks in `assigneeActiveQuery` we use this limit. It
- * includes more tasks than the min limit so we have some buffer room so in
- * case active tasks are removed we don't immediately need to load more tasks.
- */
-export const taskNotepadAssigneeActiveLoadLimit = taskNotepadAssigneeActiveMinLimit + 10;
 
 export const taskNotepadViewActiveSectionCardTranslateDurationMs = 200;
 

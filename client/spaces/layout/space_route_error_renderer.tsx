@@ -4,13 +4,19 @@ import {useLocation} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {
+    mobileNavigationBarGap,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {getWebMobileTabFromPathname} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
-import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
+import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
+import {
+    spaceLayoutErrorRendererPaddingX,
+    spaceLayoutErrorRendererPaddingY,
+} from "~/client/styles/space_layout_shared_styles.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
@@ -58,12 +64,10 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
             )}
             <Box display="flex" justifyContent="center">
                 <Box
-                    className={sprinkles({
-                        width: "full",
-                        maxWidth: "128",
-                        paddingX: "8",
-                        paddingY: isMobile ? "6" : "32",
-                    })}
+                    width="full"
+                    maxWidth="128"
+                    paddingX={spaceLayoutErrorRendererPaddingX}
+                    paddingY={spaceLayoutErrorRendererPaddingY}
                 >
                     <ErrorBodyRenderer title={useRouteErrorTitle()} error={error} />
                 </Box>

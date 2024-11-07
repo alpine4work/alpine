@@ -7,7 +7,7 @@ import {
     newLineRegExp,
     newLineRegExpWithoutRepetitionOrCapture,
 } from "~/server/search/data/index/internal/chunk_search_content.js";
-import {HighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -476,7 +476,7 @@ export function parseSearchContent(
         }
     }
 
-    const outputRootNode = schema.nodes.doc.create({}, outputNodes);
+    const outputRootNode = assertExists(schema.nodes.doc.createAndFill({}, outputNodes));
 
     // Make sure the content is correctly formatted.
     outputRootNode.check();

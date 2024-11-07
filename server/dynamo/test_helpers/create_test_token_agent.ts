@@ -49,28 +49,31 @@ export async function createTestTokenAgents<
         }
     });
 
-    const publicKeys = await runAllObjectPromises({
-        appServicePublicKey: fs.readFile(
-            joinPath(keysDirectoryPath, "app_service_rsa.pub"),
-            "utf8",
-        ),
-        edgeServiceFamilyPublicKey: fs.readFile(
-            joinPath(keysDirectoryPath, "edge_service_family_rsa.pub"),
-            "utf8",
-        ),
-        taskRealtimeServicePublicKey: fs.readFile(
-            joinPath(keysDirectoryPath, "task_realtime_service_rsa.pub"),
-            "utf8",
-        ),
-        jobQueueServicePublicKey: fs.readFile(
-            joinPath(keysDirectoryPath, "job_queue_service_rsa.pub"),
-            "utf8",
-        ),
-        fileUploadServicePublicKey: fs.readFile(
-            joinPath(keysDirectoryPath, "file_upload_service_rsa.pub"),
-            "utf8",
-        ),
-    });
+    const [secret, publicKeys] = await runAllPromises([
+        fs.readFile(joinPath(keysDirectoryPath, "token_agent_secret"), "utf8"),
+        runAllObjectPromises({
+            appServicePublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "app_service_rsa.pub"),
+                "utf8",
+            ),
+            edgeServiceFamilyPublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "edge_service_family_rsa.pub"),
+                "utf8",
+            ),
+            taskRealtimeServicePublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "task_realtime_service_rsa.pub"),
+                "utf8",
+            ),
+            jobQueueServicePublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "job_queue_service_rsa.pub"),
+                "utf8",
+            ),
+            fileUploadServicePublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "file_upload_service_rsa.pub"),
+                "utf8",
+            ),
+        }),
+    ]);
 
     return runAllPromises(
         serviceNames.map((serviceName, i): Promise<TokenAgent> => {
@@ -80,10 +83,12 @@ export async function createTestTokenAgents<
                 publicSide: TokenAgentPublicSide.new({
                     serviceName,
                     ...publicKeys,
+                    secret,
                 }),
                 privateSide: runAllObjectPromises({
                     serviceName,
                     servicePrivateKey: fs.readFile(servicePrivateKeyPath, "utf8"),
+                    secret,
                 }).then(options => TokenAgentPrivateSide.new(options)),
             });
         }),

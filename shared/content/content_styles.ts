@@ -7,7 +7,7 @@
 // function in a ProseMirror schema! Otherwise use the `style({})` function in
 // a `.css.ts` file to automatically generate a class name.
 
-import {HighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 
 export const boldClassName = process.env.NODE_ENV !== "production" ? "content_bold" : "c_b";
 
@@ -47,8 +47,8 @@ export const listItemClassName =
 export const listItemIndentationVar =
     process.env.NODE_ENV !== "production" ? "var(--content_listItemIndentation)" : "var(--c_lii)";
 
-export const bulletListItemClassName =
-    process.env.NODE_ENV !== "production" ? "content_bulletListItem" : "c_bli";
+export const unorderedListItemClassName =
+    process.env.NODE_ENV !== "production" ? "content_unorderedListItem" : "c_uli";
 
 export const orderedListItemClassName =
     process.env.NODE_ENV !== "production" ? "content_orderedListItem" : "c_oli";
@@ -83,3 +83,16 @@ export const headingLevel2ClassName =
 
 export const headingLevel3ClassName =
     process.env.NODE_ENV !== "production" ? "content_headingLevel3" : "c_h3";
+
+export const fileRowClassName = process.env.NODE_ENV !== "production" ? "content_fileRow" : "c_fr";
+
+export const fileFloatClassName =
+    process.env.NODE_ENV !== "production" ? "content_fileFloat" : "c_ff";
+
+export const fileFloatLeftClassName =
+    process.env.NODE_ENV !== "production" ? "content_fileFloatLeft" : "c_ffl";
+
+export const fileFloatRightClassName =
+    process.env.NODE_ENV !== "production" ? "content_fileFloatRight" : "c_ffr";
+
+export const fileClassName = process.env.NODE_ENV !== "production" ? "content_file" : "c_f";

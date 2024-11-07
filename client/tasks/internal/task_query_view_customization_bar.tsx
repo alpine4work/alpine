@@ -11,7 +11,7 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {desktopNavigationBarHeightRem} from "~/client/design/navigation_bar.js";
+import {desktopNavigationBarHeightRem} from "~/client/design/navigation_bar_helpers.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
@@ -27,7 +27,7 @@ import {
     desktopTaskQueryFilterEditorHeight,
 } from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -152,6 +152,7 @@ function TaskQueryViewCustomizationBar(
                         filter.type === "Collections" &&
                         !hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef
                     ) {
+                        // eslint-disable-next-line react-compiler/react-compiler
                         hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = true;
                         collectionsOperationValueTriggerButtonRef =
                             firstCollectionsFilterOperationValueTriggerButtonRef;

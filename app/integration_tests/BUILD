@@ -1,17 +1,46 @@
 load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 
+# TODO(calebmer): I want to develop a design catalog using Playwright. The
+# catalog's goal will be to take a screenshot of every single feature in the
+# product. So we can test for visual changes across commits. If a screenshot
+# changes in a commit, it should send a post to a channel of design catalog
+# changes that designers and me (@calebmer) can review.
+#
+# The catalog will also be used to produce marketing screenshots. That way we
+# can reliably reproduce marketing screenshots in case the design changes or
+# we need a new format.
+#
+# Running list of surfaces I want to make sure we have screenshots for:
+#
+# - Marketing materials
+# - All routes across desktop, mobile, and peeks
+# - All routes scrolled down where both the navigation bar is revealed and
+#   hidden
+# - All route shimmers (preferably in debug mode so we can clearly see if
+#   the shimmer lines up with the underlying design)
+# - The preview, desktop viewer, and mobile viewer of all file types
+# - Remember to screenshot as many overlays and modals as possible (e.g.
+#   delete confirmation modals, right click context menus, etc.)
+# - Inline editing states for channel name, channel description, post, task
+#   collection name, etc.
+
 ts_playwright_tests(
     name = "integration_tests",
     data = [
         "//app:app_test",
         "//server/apns:apns_development_certificates",
         "//server/edge",
+        "//server/files/upload",
+        "//server/files/upload:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+        "//server/files/upload:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
+        "//server/files/upload:test_fixtures/wikimedia_png_transparency_demonstration.png",
         "//server/jobs/queue",
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
         "//server/tasks/realtime",
     ],
     skip_projects_by_src = {
         # Explicitly desktop only tests.
+        "documents/document_files_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],

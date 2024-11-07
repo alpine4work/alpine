@@ -9,7 +9,7 @@ import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -58,7 +58,7 @@ import {
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
-import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
+import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,
     Spacing,
@@ -66,7 +66,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
@@ -115,10 +115,7 @@ const Box = null;
 /**
  * Should two messages merge together?
  */
-export function shouldMergeMessages(
-    message1: MessageModelBase,
-    message2: MessageModelBase,
-): boolean {
+function shouldMergeMessages(message1: MessageModelBase, message2: MessageModelBase): boolean {
     return (
         message1.author.id === message2.author.id &&
         Math.abs(differenceInMinutes(message1.createdTime, message2.createdTime)) <

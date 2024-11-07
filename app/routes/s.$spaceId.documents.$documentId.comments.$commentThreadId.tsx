@@ -1,11 +1,12 @@
 import {useMemo} from "react";
 import {Box} from "~/client/design/box.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -21,7 +22,7 @@ import {getInboxEntry} from "~/server/notifications/data/notifications_table.js"
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -202,18 +203,12 @@ export default function DocumentCommentThreadRoute({
         />
     );
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                withMobileLayout={withMobileLayout}
-                maxWidth={documentCommentThreadListViewMaxWidth}
-                borderBottom="grey-10"
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            withMobileLayout: withMobileLayout,
+            maxWidth: documentCommentThreadListViewMaxWidth,
+        },
+        node,
+    );
 }

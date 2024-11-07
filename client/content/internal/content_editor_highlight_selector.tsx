@@ -14,12 +14,13 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {FocusRing, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useIsFocusRingVisible} from "~/client/design/use_is_focus_ring_visible.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {greyElevated2ClassName} from "~/client/styles/styles.js";
-import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor, colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
@@ -301,7 +302,7 @@ function ContentEditorHighlightSelectorButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        (isPressed: boolean) => isPressed && isActive,
+        isPressed => isPressed && isActive,
         [isPressed],
     );
 

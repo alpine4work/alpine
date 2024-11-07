@@ -3,6 +3,8 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+exports_files(glob(["test_fixtures/*"]))
+
 ts_project(
     name = "upload_lib",
     data = ["@ffmpeg"],
@@ -31,6 +33,7 @@ ts_project(
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
         "//:node_modules/@types/node",
+        "//:node_modules/date-fns",
         "//:node_modules/decode-ico",
         "//:node_modules/pretty-bytes",
         "//:node_modules/sharp",

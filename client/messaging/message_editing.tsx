@@ -213,6 +213,7 @@ export function useMessageEditing<RoomKey extends string>({
         if (!state.isEditing || !state.isSaving) return;
 
         if (state.isAwaitingSaveRef.current) return;
+        // eslint-disable-next-line react-compiler/react-compiler
         state.isAwaitingSaveRef.current = true;
 
         onUpdateMessageContent({

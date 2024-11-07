@@ -1,18 +1,31 @@
 import {fireEvent, render, screen} from "@testing-library/react";
+import {closeHistory} from "prosemirror-history";
 import {Node} from "prosemirror-model";
+import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {useState} from "react";
+import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
+    DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContent,
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+    type: "Document",
+    documentId: generateId(),
+});
 
 function TestContentEditor({
     initialContent = emptyDocumentWithoutTitleContent,
@@ -31,6 +44,7 @@ function TestContentEditor({
             withMobileLayout={false}
             state={state}
             onChange={setState}
+            fileAttachmentTarget={fileAttachmentTarget}
         />
     );
 }
@@ -49,6 +63,25 @@ function getEditor(): EditorView {
 // Get the ProseMirror document `Node`.
 function getDoc() {
     return getEditor().state.doc;
+}
+
+// Get the ProseMirror selection.
+function getSelection() {
+    return getEditor().state.selection.toJSON();
+}
+
+// Dispatch a ProseMirror transaction. Use this to simulate a code powered
+// transformation of the document.
+function dispatch(buildTransaction: (state: EditorState) => Transaction) {
+    const editor = getEditor();
+    const transaction = buildTransaction(editor.state);
+
+    // Each of these test transactions should be a single history stack item.
+    closeHistory(transaction);
+
+    act(() => {
+        editor.dispatch(transaction);
+    });
 }
 
 function pasteHtmlTextClipboardEvent(pasteText: string) {
@@ -245,4 +278,193 @@ test("will copy/paste from alpine as div code block lines", async () => {
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}"), codeBlockLine))',
     );
+});
+
+test("pasting paragraph content with selection in title will paste below title", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, []),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<p>While dinosaurs were ancestrally bipedal...</p><p>The first dinosaur fossils were recognized in the early 19th century...</p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, paragraph("While dinosaurs were ancestrally bipedal..."), paragraph("The first dinosaur fossils were recognized in the early 19th century..."))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 119, head: 119});
+});
+
+test("pasting titled content with selection in title will paste into title", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, []),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<h1>Dinosaur</h1><p>While dinosaurs were ancestrally bipedal...</p><p>The first dinosaur fossils were recognized in the early 19th century...</p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title("Dinosaur"), paragraph("While dinosaurs were ancestrally bipedal..."), paragraph("The first dinosaur fossils were recognized in the early 19th century..."))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 127, head: 127});
+});
+
+test("pasting titled content with selection in title will paste into title (with slice open start of 0)", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, []),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<h1 data-pm-slice="0 0 []">Dinosaur</h1><p>While dinosaurs were ancestrally bipedal...</p><p>The first dinosaur fossils were recognized in the early 19th century...</p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title("Dinosaur"), paragraph("While dinosaurs were ancestrally bipedal..."), paragraph("The first dinosaur fossils were recognized in the early 19th century..."))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 127, head: 127});
+});
+
+test("pasting title only with selection in title will paste into title", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, []),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.paste(getTextbox(), pasteHtmlTextClipboardEvent(`<h1>Dinosaur</h1>`));
+
+    expect(getDoc().toString()).toEqual('doc(title("Dinosaur"), paragraph)');
+    expect(getSelection()).toEqual({type: "text", anchor: 9, head: 9});
+});
+
+test("pasting titled content with selection in title and paragraph after will paste into title", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                    DocumentContentProsemirrorSchema.text("foo"),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(title, paragraph("foo"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<h1>Dinosaur</h1><p>While dinosaurs were ancestrally bipedal...</p><p>The first dinosaur fossils were recognized in the early 19th century...</p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title("Dinosaur"), paragraph("While dinosaurs were ancestrally bipedal..."), paragraph("The first dinosaur fossils were recognized in the early 19th century..."), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 127, head: 127});
+});
+
+test("pasting titled content with selection at end of paragraph with text will paste as heading", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                    DocumentContentProsemirrorSchema.text("foo"),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(title, paragraph("foo"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+
+    expect(getDoc().toString()).toEqual('doc(title, paragraph("foo"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<h1>Dinosaur</h1><p>While dinosaurs were ancestrally bipedal...</p><p>The first dinosaur fossils were recognized in the early 19th century...</p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, paragraph("foo"), heading("Dinosaur"), paragraph("While dinosaurs were ancestrally bipedal..."), paragraph("The first dinosaur fossils were recognized in the early 19th century..."))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 134, head: 134});
+});
+
+test("pasting titled content with selection right below title (in empty paragraph) will paste a heading", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, []),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<h1>Dinosaur</h1><p>While dinosaurs were ancestrally bipedal...</p><p>The first dinosaur fossils were recognized in the early 19th century...</p>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, heading("Dinosaur"), paragraph("While dinosaurs were ancestrally bipedal..."), paragraph("The first dinosaur fossils were recognized in the early 19th century..."))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 129, head: 129});
 });

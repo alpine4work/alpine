@@ -2,7 +2,8 @@ import {useDndContext} from "@dnd-kit/core";
 import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
@@ -11,6 +12,10 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskNotepadViewActiveSectionMinHeight,
+    taskNotepadViewPaginatorHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
@@ -18,18 +23,10 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {
-    TaskGridViewVirtualizedListViewRef,
-    useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {
-    TaskNotepadViewActiveSection,
-    taskNotepadViewActiveSectionMinHeight,
-} from "~/client/tasks/internal/task_notepad_view_active_section.js";
-import {
-    TaskNotepadViewPaginator,
-    taskNotepadViewPaginatorHeight,
-} from "~/client/tasks/internal/task_notepad_view_paginator.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
+import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
+import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskGridViewDraggableData,
@@ -40,7 +37,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -54,8 +51,6 @@ import {
     TaskNotepadPageId,
     TaskNotepadPageIdCompressedSet,
 } from "~/shared/tasks/task_notepad_page_id.js";
-
-export {taskNotepadAssigneeActiveLoadLimit} from "~/client/tasks/internal/task_notepad_view_active_section.js";
 
 export function TaskNotepadView({
     withMobileLayout: withMobileLayoutProp,
@@ -180,6 +175,7 @@ export function TaskNotepadView({
                 notepadPageState.notepadPageId &&
             notepadPageState.shouldImmediatelyInitializeEmptyQueryRef.current
         ) {
+            // eslint-disable-next-line react-compiler/react-compiler
             notepadPageState.shouldImmediatelyInitializeEmptyQueryRef.current = false;
 
             store.loadTasksIntoQuery(queryState.pendingQuery, {

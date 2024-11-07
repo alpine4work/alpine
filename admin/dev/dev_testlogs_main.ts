@@ -11,6 +11,8 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -118,9 +120,11 @@ async function main(): Promise<{exitCode: number}> {
         }
     }
 
+    const mutexes = createArrayWithLength(3, () => new Mutex());
+
     const sortedTestInfos = (
         await runAllPromises(
-            mapIterable(testInfos.values(), async testInfo => {
+            mapIterable(testInfos.values(), async (testInfo, i) => {
                 // If we're looking at a testlogs directory that hasn't been cleaned by
                 // `admin/bazel/prepare_bazel_testlogs_failure_artifact.sh` we'll have test
                 // successes and test failures in the directory. Find any test successes and
@@ -128,16 +132,25 @@ async function main(): Promise<{exitCode: number}> {
                 const testXmlPath = joinPath(testlogsPath, testInfo.name, "test.xml");
                 if (await fs.pathExists(testXmlPath)) {
                     // Read only the first three lines of our `test.xml` file.
-                    const testXmlContents = await runProcess("head", ["-3", testXmlPath]);
+                    //
+                    // We only allow 3 `head` process runs at a time to make sure we don't run out
+                    // of file descriptors. We found that running `head` concurrently on many files
+                    // sometimes led to `testXmlContents` returning an empty string without error.
+                    const testXmlContents = await mutexes[i % mutexes.length]!.withLock(() =>
+                        runProcess("head", ["-3", testXmlPath]),
+                    );
 
                     const failuresAndErrorsMatch = testXmlContents.match(
                         /<testsuite name=".*failures="([0-9]+)" errors="([0-9]+)"/,
                     );
 
-                    if (
-                        failuresAndErrorsMatch?.[1] === "0" &&
-                        failuresAndErrorsMatch?.[2] === "0"
-                    ) {
+                    if (!failuresAndErrorsMatch) {
+                        throw new InternalError(
+                            quote`Failed to parse "test.xml" file: ${testXmlPath}`,
+                        );
+                    }
+
+                    if (failuresAndErrorsMatch[1] === "0" && failuresAndErrorsMatch[2] === "0") {
                         return null;
                     }
                 }
@@ -280,7 +293,7 @@ async function main(): Promise<{exitCode: number}> {
 
     const executeChoice = await inquirer.select({
         message: "Which failing test artifact do you want to inspect?",
-        pageSize: 100,
+        pageSize: 30,
         choices: [...choices1, ...choices2, ...choices3],
     });
 

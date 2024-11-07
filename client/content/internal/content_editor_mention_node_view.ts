@@ -33,8 +33,6 @@ export function createContentEditorMentionNodeViewConstructor({
         // mention element may have a background color when mentioning the
         // current account.
         const containerElement = document.createElement("span");
-        containerElement.dataset.mentionAccount = mention.accountId;
-        if (mention.isShort) containerElement.dataset.mentionShort = "true";
 
         const element = document.createElement("span");
         containerElement.appendChild(element);

@@ -1,6 +1,6 @@
 import Color from "color";
 import fs from "fs-extra";
-import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
+import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";

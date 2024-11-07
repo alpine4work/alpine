@@ -1,12 +1,27 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
+import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
+import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
-import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
+import {
+    addParentScrollWhenPointerDownAndOverListener,
+    dispatchParentScrollWhenPointerDownAndOverEvent,
+    parentScrollWhenPointerDownAndOverClassNames,
+    removeParentScrollWhenPointerDownAndOverListener,
+} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {addContentFilePreviewBehavior} from "~/client/content/internal/render_content_file_preview.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
+import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
@@ -14,13 +29,15 @@ import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
@@ -29,17 +46,32 @@ import {
     createContentCodeBlockHtmlSerializationDecorationsStore,
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
+import {
+    ContentWithReferences,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
+import {
+    codeBlockWrapperClassName,
+    fileClassName,
+    linkClassName,
+    paragraphClassName,
+} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {Store} from "~/shared/store/store.js";
@@ -72,29 +104,7 @@ declare global {
     var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
 }
 
-/**
- * A read-only view of content. Used as a complement to `<ContentEditor>` when
- * you want to disable editing of content and only allow reading the content.
- */
-export function ContentView({
-    withMobileLayout,
-    content,
-    contentUpdatedTime,
-    placeholder,
-    className,
-    "aria-label": ariaLabel,
-    "aria-labelledby": ariaLabelledBy,
-    isInert = false,
-    isTruncated = false,
-    isCompact = false,
-    isExtraCompact = false,
-    isEditorInitialAppRender = false,
-    isBackgroundColorGrey5 = false,
-    shouldHighlightComment,
-    withUserSelectNone = false,
-    onSeeMoreContent,
-    onSeeLessContent,
-}: {
+export type ContentViewProps<Content extends ContentWithReferences> = {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
      * in peeks on the desktop platform.
@@ -104,7 +114,19 @@ export function ContentView({
     /**
      * The content to render.
      */
-    content: ContentWithReferences;
+    content: Content;
+
+    /**
+     * Update the references associated with `content`. Should merge the new
+     * references with the old ones with `mergeContentReferences()`.
+     *
+     * This is important for files. If you have a recently uploaded file then
+     * we'll poll the file until it's finished processing. Once it's finished
+     * processing this function is called to update our `FileModel` in state.
+     * If we don't update the `FileModel` in state it'll look like the file is
+     * processing forever.
+     */
+    onMergeContentReferences?: (contentReferences: Content["references"]) => void;
 
     /**
      * This prop puts an `(updated)` message at the end of our content with a
@@ -168,6 +190,23 @@ export function ContentView({
     isBackgroundColorGrey5?: boolean;
 
     /**
+     * If the content editor supports files then you must pass in
+     * `FileAttachmentTarget`. This prop is used:
+     *
+     * 1. Before adding a file to content we need to call either
+     *    `attachFileAsUploader()` or `attachFileFromAttachment()` to make sure
+     *    everyone who has access to the attachment target has access to the file.
+     *    We use the attachment target to create the correct link.
+     *
+     * 2. When refreshing expired signed preview URLs we need the attachment target
+     *    so we can prove the current account has access to the file.
+     *
+     * An error will be thrown if your content supports files but doesn't provide
+     * `fileAttachmentTarget`.
+     */
+    fileAttachmentTarget?: Memo<FileAttachmentTarget>;
+
+    /**
      * Should we highlight the provided comment thread? By default the content view
      * renders no comment highlights.
      */
@@ -183,15 +222,63 @@ export function ContentView({
      * Useful when you want to show snippet of truncated content that expands to
      * more.
      */
-    onSeeMoreContent?: () => void;
+    onSeeMoreContent?: (targetElement: HTMLDivElement) => void;
 
     /**
      * Adds a "See less" button which when clicked should collapse content to a
      * truncated version which a "See more" button should be able to expand (see
      * `onSeeMoreContent`).
      */
-    onSeeLessContent?: () => void;
-}) {
+    onSeeLessContent?: (targetElement: HTMLDivElement) => void;
+
+    /**
+     * Override the screen width provided to `layoutContentFileRow()`. By default
+     * we use the smaller of `clientInfo.screenWidth` and the max content width but
+     * if you're intentionally rendering a narrow `<ContentView>` then you should
+     * set this value for better layout results. Measured in pixels.
+     */
+    fileLayoutScreenWidth?: number;
+};
+
+/**
+ * A read-only view of content. Used as a complement to `<ContentEditor>` when
+ * you want to disable editing of content and only allow reading the content.
+ */
+export function ContentView<Content extends ContentWithReferences>({
+    withMobileLayout,
+    content,
+    onMergeContentReferences,
+    contentUpdatedTime,
+    placeholder,
+    className,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    isInert = false,
+    isTruncated = false,
+    isCompact = false,
+    isExtraCompact = false,
+    isEditorInitialAppRender = false,
+    isBackgroundColorGrey5 = false,
+    fileAttachmentTarget,
+    shouldHighlightComment,
+    withUserSelectNone = false,
+    onSeeMoreContent,
+    onSeeLessContent,
+    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
+}: ContentViewProps<Content>) {
+    assert(
+        !content.doc.type.schema.nodes.file || fileAttachmentTarget,
+        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+    );
+
+    assert(
+        !content.doc.type.schema.nodes.file || onMergeContentReferences,
+        "When the ProseMirror schema supports files then the prop `onMergeContentReferences` is required",
+    );
+
+    const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
+    const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
@@ -200,7 +287,9 @@ export function ContentView({
 
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
+    const context = useAppContextIfExists();
     const spaceContext = useSpaceContextIfExists();
+    const spaceId = spaceContext?.space.id ?? null;
 
     const id = useId();
     const ref = useRef<HTMLDivElement>(null);
@@ -216,9 +305,13 @@ export function ContentView({
     const shouldShowSeeLessContentButton = !!onSeeLessContent;
 
     const events = useEvents({
+        getContent: () => content,
+        onMergeContentReferences: onMergeContentReferences ?? noop,
         onSeeMoreContent: onSeeMoreContent ?? noop,
         onSeeLessContent: onSeeLessContent ?? noop,
     });
+
+    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
 
     const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
         readonly doc: Node;
@@ -258,7 +351,7 @@ export function ContentView({
         setInitialCodeBlockDecorationsState(null);
     }
 
-    const {isTitleEmpty, isBodyEmpty, htmlStore} = useMemo(() => {
+    const {isTitleEmpty, isBodyEmpty, htmlGeneratorStore} = useMemo(() => {
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
         if (contentUpdatedTime) {
@@ -386,10 +479,21 @@ export function ContentView({
             }
         });
 
-        let htmlStore: Store<{
-            html: string;
+        let htmlGeneratorStore: Store<{
+            htmlGenerator: HtmlFragmentGenerator;
             codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
         }>;
+
+        const fileLayoutScreenWidth =
+            fileLayoutScreenWidthFromProps ??
+            // If this is a mobile layout on desktop then we'll use the max width of a peek
+            // as our screen width for computing layouts.
+            (withMobileLayout && !isMobile
+                ? convertRemLengthToPx(
+                      spacing[peekMobileLayoutWidth],
+                      remPxByPlatform[isMobile ? "mobile" : "desktop"],
+                  )
+                : clientInfo.screenWidth);
 
         // If we have some initial code block decorations from server-side rendering
         // then use those instead of trying to compute new decorations. Since we
@@ -399,16 +503,22 @@ export function ContentView({
             const codeBlockDecorationsStore =
                 createContentCodeBlockHtmlSerializationDecorationsStore(content.doc);
 
-            htmlStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
-                renderContentFragmentToHtmlStore(content, {
+            htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
+                renderContentFragmentToHtmlGeneratorStore(content, {
+                    spaceId,
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
-                    placeholder,
+                    screenWidth: fileLayoutScreenWidth,
+                    isMobile,
+                    isInitialAppRender,
                     isInert,
+                    withPosAttribute: true,
+                    placeholder,
                     decorations: [decorations, codeBlockDecorations],
                     shouldHighlightComment,
-                }).map(html => ({
-                    html,
+                    filePreviewExpirationTimers,
+                }).map(htmlGenerator => ({
+                    htmlGenerator,
                     codeBlockDecorations,
                 })),
             );
@@ -425,15 +535,21 @@ export function ContentView({
                 language.getParser();
             });
 
-            htmlStore = renderContentFragmentToHtmlStore(content, {
+            htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
+                spaceId,
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
-                placeholder,
+                screenWidth: fileLayoutScreenWidth,
+                isMobile,
+                isInitialAppRender,
                 isInert,
+                withPosAttribute: true,
+                placeholder,
                 decorations: [decorations, initialCodeBlockDecorations],
                 shouldHighlightComment,
-            }).map(html => ({
-                html,
+                filePreviewExpirationTimers,
+            }).map(htmlGenerator => ({
+                htmlGenerator,
                 codeBlockDecorations: initialCodeBlockDecorations!,
             }));
         }
@@ -441,25 +557,65 @@ export function ContentView({
         return {
             isTitleEmpty: isContentTitleEmpty(content.doc),
             isBodyEmpty: isContentBodyEmpty(content.doc),
-            htmlStore,
+            htmlGeneratorStore,
         };
     }, [
         contentUpdatedTime,
         shouldShowSeeMoreContentButton,
         shouldShowSeeLessContentButton,
         content,
+        fileLayoutScreenWidthFromProps,
+        withMobileLayout,
+        isMobile,
+        clientInfo.screenWidth,
         initialCodeBlockDecorations,
+        id,
+        spaceId,
         accountStore,
         spaceContext?.currentAccount,
-        placeholder,
+        isInitialAppRender,
         isInert,
+        placeholder,
         shouldHighlightComment,
-        id,
+        filePreviewExpirationTimers,
     ]);
 
-    const {html, codeBlockDecorations} = useStore(htmlStore);
+    const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
 
-    const navigate = useNavigate();
+    const previousContentDocRef = useRef<Node>(content.doc);
+    const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        const element = assertExists(ref.current);
+
+        const previousContentDoc = previousContentDocRef.current;
+        previousContentDocRef.current = content.doc;
+        const previousHtmlGenerator = previousHtmlGeneratorRef.current;
+        previousHtmlGeneratorRef.current = htmlGenerator;
+
+        if (previousHtmlGenerator === htmlGenerator) return;
+
+        if (
+            !previousHtmlGenerator ||
+            // Force the content HTML to be re-created if `content.doc` changes. If content
+            // changes dramatically then `patchNode()` has some limitations (e.g. doesn't
+            // handle children insertion, removal, and re-ordering well). For all other
+            // changes try patching our HTML.
+            previousContentDoc !== content.doc
+        ) {
+            // This case happens during a hot reload. We need to remove the children
+            // currently in the DOM.
+            while (element.hasChildNodes()) {
+                element.firstChild!.remove();
+            }
+
+            element.appendChild(htmlGenerator.generateNode());
+        } else {
+            assert(htmlGenerator.patchNode(previousHtmlGenerator, element));
+        }
+    }, [content.doc, htmlGenerator, isInitialAppRender]);
 
     const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
         readonly key: Id;
@@ -502,23 +658,33 @@ export function ContentView({
         );
     }, []);
 
-    useEffect(() => {
-        if (isInert) return;
+    // Some behaviors in this function depend on this effect being a layout effect.
+    // For example, on initial render when `<ContentEditor>` transitions from
+    // `<ContentView>` to ProseMirror's `EditorView` we must run
+    // `addContentFilePreviewBehavior()` `<ContentView>` cleanups before the
+    // `EditorView` is initialized. This only happens if
+    // `addContentFilePreviewBehavior()` is in a layout effect.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
 
-        // Re-run this effect whenever the HTML changes.
+        // Re-run this effect whenever the content changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        html;
+        content.doc;
 
         const parentElement = assertExists(ref.current);
 
         const cleanupFunctions: Array<() => void> = [];
 
         for (const element of parentElement.querySelectorAll(
-            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}`,
+            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}, .${fileClassName}`,
         )) {
             if (!(element instanceof HTMLElement)) continue;
 
-            if (element.classList.contains(linkClassName) && element instanceof HTMLAnchorElement) {
+            if (
+                !isInert &&
+                element.classList.contains(linkClassName) &&
+                element instanceof HTMLAnchorElement
+            ) {
                 let isPointerDownAndOver = false;
 
                 const maybeUpdateStyle = () => {
@@ -532,7 +698,7 @@ export function ContentView({
                 const handleClick = (event: MouseEvent) => {
                     const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
                         event,
-                        getClientInfoWithoutListening(),
+                        getClientInfo(),
                     );
 
                     // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
@@ -554,10 +720,7 @@ export function ContentView({
                     isPointerDownAndOver =
                         event.button === 0 &&
                         (!isModifiedPointerEvent(event) ||
-                            isOpenLinkInSeparateTabPointerEvent(
-                                event,
-                                getClientInfoWithoutListening(),
-                            ));
+                            isOpenLinkInSeparateTabPointerEvent(event, getClientInfo()));
 
                     maybeUpdateStyle();
 
@@ -566,7 +729,7 @@ export function ContentView({
                     // need to implement that manually here given the text is editable.
                     if (
                         (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                        !isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
+                        !isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())
                     ) {
                         return;
                     }
@@ -599,21 +762,35 @@ export function ContentView({
                     maybeUpdateStyle();
                 };
 
+                const handleParentScrollWhenPointerDownAndOver = () => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
                 element.addEventListener("click", handleClick);
                 element.addEventListener("pointerdown", handlePointerDown);
                 element.addEventListener("pointerup", handlePointerUp);
                 element.addEventListener("pointerleave", handlePointerLeave);
                 element.addEventListener("dragstart", handleDragStart);
+                addParentScrollWhenPointerDownAndOverListener(
+                    element,
+                    handleParentScrollWhenPointerDownAndOver,
+                );
+
                 cleanupFunctions.push(() => {
                     element.removeEventListener("click", handleClick);
                     element.removeEventListener("pointerdown", handlePointerDown);
                     element.removeEventListener("pointerup", handlePointerUp);
                     element.removeEventListener("pointerleave", handlePointerLeave);
                     element.removeEventListener("dragstart", handleDragStart);
+                    removeParentScrollWhenPointerDownAndOverListener(
+                        element,
+                        handleParentScrollWhenPointerDownAndOver,
+                    );
                 });
             }
 
-            if (element.classList.contains(contentViewStyles.seeButtonClassName)) {
+            if (!isInert && element.classList.contains(contentViewStyles.seeButtonClassName)) {
                 let isPointerDownAndOver = false;
 
                 const maybeUpdateStyle = () => {
@@ -665,9 +842,9 @@ export function ContentView({
                     }
 
                     if (shouldShowSeeLessContentButton) {
-                        events.onSeeLessContent();
+                        events.onSeeLessContent(assertExists(ref.current));
                     } else if (shouldShowSeeMoreContentButton) {
-                        events.onSeeMoreContent();
+                        events.onSeeMoreContent(assertExists(ref.current));
                     }
                 };
 
@@ -681,11 +858,21 @@ export function ContentView({
                     maybeUpdateStyle();
                 };
 
+                const handleParentScrollWhenPointerDownAndOver = () => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
                 element.addEventListener("click", handleClick);
                 element.addEventListener("pointerdown", handlePointerDown);
                 element.addEventListener("pointerup", handlePointerUp);
                 element.addEventListener("pointerleave", handlePointerLeave);
                 element.addEventListener("dragstart", handleDragStart);
+                addParentScrollWhenPointerDownAndOverListener(
+                    element,
+                    handleParentScrollWhenPointerDownAndOver,
+                );
+
                 cleanupFunctions.push(() => {
                     element.removeEventListener("click", handleClick);
                     element.removeEventListener("pointerdown", handlePointerDown);
@@ -693,9 +880,16 @@ export function ContentView({
                     element.removeEventListener("pointerleave", handlePointerLeave);
                     element.removeEventListener("dragstart", handleDragStart);
                 });
+                removeParentScrollWhenPointerDownAndOverListener(
+                    element,
+                    handleParentScrollWhenPointerDownAndOver,
+                );
             }
 
-            if (element.classList.contains(contentStyles.codeBlockCopyButtonClassName)) {
+            if (
+                !isInert &&
+                element.classList.contains(contentStyles.codeBlockCopyButtonClassName)
+            ) {
                 let isCodeBlockCopyButtonHovered = false;
 
                 // We don't need to cleanup event listeners on DOM nodes created for this
@@ -725,7 +919,9 @@ export function ContentView({
                             handleCodeBlockCopyButtonHoverEnd(element);
                     },
                     onPress: () => {
-                        const posString = element.dataset.pos;
+                        const posString = element.closest<HTMLElement>(
+                            `.${codeBlockWrapperClassName}`,
+                        )?.dataset.pos;
                         assert(posString);
                         const pos = parseInt(posString, 10);
                         assert(!isNaN(pos));
@@ -737,6 +933,7 @@ export function ContentView({
                         writeContentToClipboard(
                             assertExists(spaceContext).space.id,
                             content,
+                            fileAttachmentTarget ?? null,
                             content.doc.slice(pos, pos + node.nodeSize),
                         ).catch(error => {
                             reporter.displayError("Couldn’t copy code", error);
@@ -755,6 +952,56 @@ export function ContentView({
                     }
                 });
             }
+
+            if (element.classList.contains(fileClassName)) {
+                const posString = element.dataset.pos;
+                assert(posString);
+                const pos = parseInt(posString, 10);
+                assert(!isNaN(pos));
+
+                const $pos = content.doc.resolve(pos);
+                assert($pos.nodeAfter?.type.name === "file");
+                const node = $pos.nodeAfter;
+
+                const fileId: FileId | null = node.attrs.fileId;
+                const fileReference = fileId ? content.references.fileById.get(fileId) : undefined;
+
+                const cleanup = addContentFilePreviewBehavior(
+                    () => assertExists(context),
+                    element,
+                    {
+                        spaceId: assertExists(spaceContext).space.id,
+                        node,
+                        reference: fileReference,
+                        attachmentTarget: assertExists(fileAttachmentTarget),
+                        expirationTimers: assertExists(filePreviewExpirationTimers),
+                        isInert,
+                        isInitialAppRender,
+                        isEditorInitialAppRender,
+                        rootNavigate,
+                        getReporter: () => reporter,
+                        onUpdate: (file, signedUrlSearch) => {
+                            events.onMergeContentReferences({
+                                ...emptyContentReferences,
+                                fileById: new Map([[file.id, {signedUrlSearch, file}]]),
+                            });
+                        },
+                        onSignedUrlRefresh: (fileId, signedUrlSearch) => {
+                            const oldFile = events.getContent().references.fileById.get(fileId);
+                            if (!oldFile) return;
+
+                            events.onMergeContentReferences({
+                                ...emptyContentReferences,
+                                fileById: new Map([
+                                    [fileId, {signedUrlSearch, file: oldFile.file}],
+                                ]),
+                            });
+                        },
+                    },
+                );
+
+                cleanupFunctions.push(cleanup);
+            }
         }
 
         return () => {
@@ -764,7 +1011,6 @@ export function ContentView({
         };
     }, [
         events,
-        html,
         isInert,
         navigate,
         handleCodeBlockCopyButtonHoverEnd,
@@ -776,9 +1022,145 @@ export function ContentView({
         handleCodeBlockCopyButtonPress,
         reporter,
         isBackgroundColorGrey5,
+        context,
+        fileAttachmentTarget,
+        filePreviewExpirationTimers,
+        isEditorInitialAppRender,
+        rootNavigate,
+        isInitialAppRender,
     ]);
 
-    useEffect(() => {
+    // Watch all parent elements of our content editor for scroll events. When a
+    // scroll event occurs we want to call
+    // `dispatchParentScrollWhenPointerDownAndOverEvent()` on any pressable
+    // elements.
+    //
+    // This replicates the behavior in `@react-aria/interactions` where a press is
+    // cancelled when a parent element scrolls. This behavior is important for
+    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // `pointercancel` should be dispatched when the user scrolls while pressing on
+    // some element but when the CSS `touch-action: manipulation` is set the press
+    // is not cancelled.
+    //
+    // We can't add listeners to parent scroll elements in our link/mark view code
+    // because ProseMirror does not offer us a cleanup hook for mark views! So we
+    // add listeners at this level and call
+    // `dispatchParentScrollWhenPointerDownAndOverEvent()`.
+    //
+    // IMPORTANT: This is based off of code in `<ContentEditor>`. While this is
+    // necessary for `<ContentEditor>` because custom mark views don't get a
+    // cleanup handler it's not necessary here since we add behavior for our mark
+    // views in an effect which has a cleanup function. Though since we have
+    // reusable behavior code across custom mark/node views in `<ContentEditor>`
+    // and here (e.g. `addContentFilePreviewBehavior()`) it's useful to standardize
+    // this behavior across `<ContentEditor>` and `<ContentView>`.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const element = assertExists(ref.current);
+
+        let isPointerDownAndOverParentScrollReceiver = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            let hasPointerDownAndOverParentScrollReceiverParent = false;
+
+            {
+                let parentElement: HTMLElement | null = event.target as HTMLElement;
+                while (parentElement) {
+                    if (
+                        parentScrollWhenPointerDownAndOverClassNames.some(className =>
+                            parentElement!.classList.contains(className),
+                        )
+                    ) {
+                        hasPointerDownAndOverParentScrollReceiverParent = true;
+                        break;
+                    }
+
+                    parentElement =
+                        parentElement.parentElement !== element
+                            ? parentElement.parentElement
+                            : null;
+                }
+            }
+
+            isPointerDownAndOverParentScrollReceiver =
+                hasPointerDownAndOverParentScrollReceiverParent;
+        };
+
+        const handlePointerUp = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        const handlePointerLeave = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        const handlePointerCancel = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        const handleDragStart = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        element.addEventListener("pointerdown", handlePointerDown);
+        element.addEventListener("pointerup", handlePointerUp);
+        element.addEventListener("pointerleave", handlePointerLeave);
+        element.addEventListener("pointercancel", handlePointerCancel);
+        element.addEventListener("dragstart", handleDragStart);
+
+        const handleScroll = () => {
+            if (!isPointerDownAndOverParentScrollReceiver) return;
+            isPointerDownAndOverParentScrollReceiver = false;
+
+            for (const childElement of element.querySelectorAll(
+                parentScrollWhenPointerDownAndOverClassNames
+                    .map(className => `.${className}`)
+                    .join(", "),
+            )) {
+                dispatchParentScrollWhenPointerDownAndOverEvent(childElement);
+            }
+        };
+
+        const scrollEventTargets: Array<EventTarget> = [window];
+
+        {
+            let parentElement = element.parentElement;
+            while (parentElement) {
+                const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+                if (
+                    overflowX === "auto" ||
+                    overflowX === "scroll" ||
+                    overflowY === "auto" ||
+                    overflowY === "scroll"
+                ) {
+                    scrollEventTargets.push(parentElement);
+                }
+
+                parentElement =
+                    parentElement.parentElement !== document.body
+                        ? parentElement.parentElement
+                        : null;
+            }
+        }
+
+        for (const scrollEventTarget of scrollEventTargets) {
+            scrollEventTarget.addEventListener("scroll", handleScroll, true);
+        }
+
+        return () => {
+            element.removeEventListener("pointerdown", handlePointerDown);
+            element.removeEventListener("pointerup", handlePointerUp);
+            element.removeEventListener("pointerleave", handlePointerLeave);
+            element.removeEventListener("pointercancel", handlePointerCancel);
+            element.removeEventListener("dragstart", handleDragStart);
+
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
+        };
+    }, []);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(ref.current);
 
         const handleFocusChange = (event: FocusEvent) => {
@@ -815,6 +1197,162 @@ export function ContentView({
         );
     }, [id, contentUpdatedTime]);
 
+    // Apply a class to the content editor/view while the user is dragging from a text
+    // element. This way we can change cursor styles like a file's cursor. Normally
+    // files have a pointer cursor but while dragging to select text we want files
+    // elements in the editor/view to inherit the text cursor. Otherwise a user may be
+    // confused as to why while they're dragging the file appears to be clickable.
+    //
+    // IMPORTANT: The same effect (more or less) exists in `<ContentEditor>`. If you
+    // make an update here you'll need to make an update there as well.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const element = assertExists(ref.current);
+
+        let isPointerDownFromSelectableElement = false;
+        let isPointerDownFromSelectableElementAndMoved = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement =
+                event.target instanceof Element &&
+                (getComputedStyle(event.target).userSelect ||
+                    // In Safari `user-select` is behind a vendor prefix.
+                    getComputedStyle(event.target).webkitUserSelect) !== "none";
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handlePointerMove = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElementAndMoved = isPointerDownFromSelectableElement;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handleResetState = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement = false;
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        document.addEventListener("pointerup", handleResetState, true);
+        document.addEventListener("pointercancel", handleResetState, true);
+        document.addEventListener("dragstart", handleResetState, true);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+            document.removeEventListener("pointerup", handleResetState, true);
+            document.removeEventListener("pointercancel", handleResetState, true);
+            document.removeEventListener("dragstart", handleResetState, true);
+        };
+    }, []);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const element = assertExists(ref.current);
+
+        return registerClipboardSerializer(
+            element,
+            ({startNode, startOffset, endNode, endOffset}) => {
+                const content = events.getContent();
+
+                const startPos = element.contains(startNode)
+                    ? assertExists(getProsemirrorPosFromDom(element, startNode, startOffset)?.[0])
+                    : 0;
+
+                const endPos = element.contains(endNode)
+                    ? assertExists(getProsemirrorPosFromDom(element, endNode, endOffset)?.[1])
+                    : content.doc.nodeSize - 2;
+
+                const slice = content.doc.slice(startPos, endPos, true);
+
+                const state = ContentEditorState.create(content)._getInternalState();
+                const {schema} = state.doc.type;
+
+                const view = new EditorView(null, {
+                    state,
+                    domParser: ContentEditorDomParser.fromSchema(schema),
+                    clipboardSerializer:
+                        ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                            schema,
+                            () => assertExists(spaceId),
+                            () => content.references,
+                            () => assertExists(fileAttachmentTarget),
+                        ),
+                    clipboardTextSerializer: slice =>
+                        contentEditorTextClipboardSerializer(
+                            slice,
+                            () => assertExists(spaceId),
+                            () => content.references,
+                        ),
+                });
+
+                const {dom, text} = serializeForClipboard(view, slice);
+
+                let html: globalThis.Node = dom;
+
+                // If the clipboard content was wrapped in a `<div>` with no identifying
+                // characteristics then let's unwrap the wrapper `<div>` so it won't be
+                // included in the copied output.
+                if (
+                    html instanceof Element &&
+                    html.tagName === "DIV" &&
+                    !html.hasAttribute("class") &&
+                    !html.hasAttribute("style")
+                ) {
+                    const htmlFragment = document.createDocumentFragment();
+                    while (dom.firstChild) {
+                        htmlFragment.appendChild(dom.firstChild);
+                    }
+                    html = htmlFragment;
+                }
+
+                return {
+                    requiredLineBreakAroundCount: 2,
+                    text,
+                    html,
+                };
+            },
+        );
+    }, [events, fileAttachmentTarget, spaceId]);
+
     return (
         <>
             <div
@@ -832,9 +1370,11 @@ export function ContentView({
                 style={
                     withUserSelectNone ? {userSelect: "none", WebkitUserSelect: "none"} : undefined
                 }
-                dangerouslySetInnerHTML={{__html: html}}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
+                dangerouslySetInnerHTML={
+                    isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
+                }
             />
             {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
             {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (
@@ -895,4 +1435,133 @@ export function ContentView({
             )}
         </>
     );
+}
+
+type DomNode = globalThis.Node;
+
+/**
+ * Get the position in a ProseMirror node from a DOM position. The DOM position
+ * typically comes from the selection API. Uses the `data-pos` attributes
+ * `serialize_prosemirror_node_to_html.ts` adds to the DOM to figure out how our DOM position
+ */
+function getProsemirrorPosFromDom(
+    parentElement: Element,
+    node: DomNode,
+    offset: number,
+): [number, number] | null {
+    if (!parentElement.contains(node)) return null;
+
+    // If our selection is not in a text node (e.g. it's in an image element) then
+    // find the nearest parent with a `data-pos` attribute. That's our position.
+    if (!(node instanceof Text)) {
+        let currentNode: DomNode | null = node;
+        while (currentNode && currentNode !== parentElement) {
+            const posString =
+                currentNode instanceof Element ? currentNode.getAttribute("data-pos") : null;
+
+            if (posString !== null) {
+                // Double check that we're still inside `parentNode`.
+                if (!parentElement.contains(currentNode)) return null;
+
+                const finalPos = parseInt(posString, 10);
+                return [finalPos, finalPos + 1];
+            }
+
+            currentNode = currentNode.parentNode;
+        }
+
+        return null;
+    }
+
+    let pos = offset;
+
+    let currentNode: DomNode | null = node;
+    while (currentNode) {
+        if (currentNode.previousSibling !== null) {
+            currentNode = currentNode.previousSibling;
+
+            const nodeSize = getProsemirrorInlineNodeSizeFromDom(currentNode);
+
+            if (nodeSize.type === "Pos") {
+                const finalPos = nodeSize.pos + pos;
+                return [finalPos, finalPos];
+            }
+
+            pos += nodeSize.nodeSize;
+        } else {
+            currentNode = currentNode.parentNode;
+
+            // `parentElement` effectively has `data-pos="0"`.
+            if (currentNode === parentElement) {
+                return [pos, pos];
+            }
+
+            if (currentNode instanceof Element) {
+                const posString = currentNode.getAttribute("data-pos");
+
+                if (posString !== null) {
+                    // Check to see if our `data-pos` element is an inline node. If it is an inline
+                    // node then discard the relative position we've been accumulating since the
+                    // true size of the node is 1.
+                    if (currentNode.hasAttribute("data-inline")) {
+                        const finalPos = parseInt(posString, 10);
+                        return [finalPos, finalPos + 1];
+                    }
+
+                    const finalPos = parseInt(posString, 10) + pos + 1;
+                    return [finalPos, finalPos];
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Get what would be the `nodeSize` of the provided DOM node if it were an
+ * inline ProseMirror node (a node where `node.isInline` is true). The size of
+ * inline nodes is equal to the size of its text data. Marks (e.g. bold) add
+ * extra elements but don't contribute to node size.
+ *
+ * If we find the absolute position of a node then we return a `Pos` object
+ * immediately that represents the absolute position at the end of this node.
+ * Since this function is ultimately used for determining the position of some
+ * selection in the DOM.
+ */
+function getProsemirrorInlineNodeSizeFromDom(
+    node: DomNode,
+): {type: "NodeSize"; nodeSize: number} | {type: "Pos"; pos: number} {
+    if (node instanceof Text) {
+        return {type: "NodeSize", nodeSize: node.data.length};
+    } else if (!(node instanceof Element)) {
+        return {type: "NodeSize", nodeSize: 0};
+    }
+
+    // If we find an element with `data-pos` then we know this element represents a
+    // ProseMirror node. We also assume this node doesn't have inline content and
+    // has a `nodeSize` of 2. If ProseMirror allows recursive text block nodes then
+    // we need to update this assumption.
+    //
+    // Immediately return the absolute position at the end of this node instead of
+    // summing up the node size.
+    const posString = node.getAttribute("data-pos");
+    if (posString !== null) {
+        return {type: "Pos", pos: parseInt(posString, 10) + 1};
+    }
+
+    let nodeSize = 0;
+
+    for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        const childNode = node.childNodes[i]!;
+        const childNodeSize = getProsemirrorInlineNodeSizeFromDom(childNode);
+
+        if (childNodeSize.type === "Pos") {
+            return {type: "Pos", pos: childNodeSize.pos + nodeSize};
+        }
+
+        nodeSize += childNodeSize.nodeSize;
+    }
+
+    return {type: "NodeSize", nodeSize};
 }

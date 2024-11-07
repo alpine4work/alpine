@@ -1,6 +1,5 @@
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -52,14 +51,19 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         return outputPromiseResolver.promise;
     }
 
-    public static async resolveLastExecution<Input, Output>(
+    public static getExecutions<Input, Output>(
+        definition: RpcDefinition<Input, Output>,
+    ): ReadonlyArray<{
+        readonly input: Input;
+        readonly outputPromiseResolver: PromiseResolver<Output>;
+    }> {
+        return testRpcExecutions.get(definition) ?? [];
+    }
+
+    public static resolveLastExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         output: Output,
-    ): Promise<void> {
-        // Wait a macrotask before looking for the RPC execution. The execution may not
-        // be fired synchronously and instead fired after a microtask.
-        await waitMacrotask();
-
+    ): void {
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(executions.length > 0, "No pending executions");
 
@@ -70,19 +74,13 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         );
 
         lastExecution.outputPromiseResolver.resolve(output);
-
-        return waitMacrotask();
     }
 
-    public static async resolveExecution<Input, Output>(
+    public static resolveExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         n: number,
         output: Output,
-    ): Promise<void> {
-        // Wait a macrotask before looking for the RPC execution. The execution may not
-        // be fired synchronously and instead fired after a microtask.
-        await waitMacrotask();
-
+    ): void {
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(n < executions.length, "Execution not found");
 
@@ -90,17 +88,11 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         assert(!lastExecution.outputPromiseResolver.isSettled(), "Execution is already resolved");
 
         lastExecution.outputPromiseResolver.resolve(output);
-
-        return waitMacrotask();
     }
 
-    public static async rejectLastExecution<Input, Output>(
+    public static rejectLastExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
-    ): Promise<void> {
-        // Wait a macrotask before looking for the RPC execution. The execution may not
-        // be fired synchronously and instead fired after a microtask.
-        await waitMacrotask();
-
+    ): void {
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(executions.length > 0, "No pending executions");
 
@@ -111,18 +103,12 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         );
 
         lastExecution.outputPromiseResolver.reject(new InternalError("Test rejected"));
-
-        return waitMacrotask();
     }
 
-    public static async rejectExecution<Input, Output>(
+    public static rejectExecution<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         n: number,
-    ): Promise<void> {
-        // Wait a macrotask before looking for the RPC execution. The execution may not
-        // be fired synchronously and instead fired after a microtask.
-        await waitMacrotask();
-
+    ): void {
         const executions = testRpcExecutions.get(definition) ?? [];
         assert(n < executions.length, "Execution not found");
 
@@ -130,8 +116,6 @@ export class TestRpcContextModule extends RpcContextModuleBase {
         assert(!lastExecution.outputPromiseResolver.isSettled(), "Execution is already settled");
 
         lastExecution.outputPromiseResolver.reject(new InternalError("Test rejected"));
-
-        return waitMacrotask();
     }
 
     public override fork() {

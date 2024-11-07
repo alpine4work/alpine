@@ -5,6 +5,7 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {
     HybridLogicalTime,
     zeroHybridLogicalTime,
@@ -16,6 +17,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {assertId, generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
@@ -168,7 +170,49 @@ function createTask(
 
 const noopAffinityManager: TaskClientStoreSearchAffinityManager = {
     markLowIntentUpdateInteraction: () => {},
+    addGlobalLoadingIndicator: () => {},
 };
+
+async function resolveLastRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+    output: Output,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.resolveLastExecution(definition, output);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
+
+async function rejectRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+    n: number,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.rejectExecution(definition, n);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
+
+async function rejectLastRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.rejectLastExecution(definition);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
 
 test("if optimistic task creation is reverted then queries remove the task", async () => {
     const store = new TaskClientStore({
@@ -304,13 +348,13 @@ test("if optimistic task creation is reverted then queries remove the task", asy
         task.id,
     ]);
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
@@ -2294,7 +2338,7 @@ test("references from optimistic task can be removed", async () => {
         new Set([collection1.id, collection2.id, collection3.id]),
     );
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
         task1.id,
@@ -3843,7 +3887,7 @@ test("optimistic update retains task until resolved", async () => {
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3948,7 +3992,7 @@ test("optimistic update retains task until rejected", async () => {
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -4143,7 +4187,7 @@ test("deleting task and all children when subscribed to task and its children", 
         task4.id,
     ]);
 
-    await TestRpcContextModule.resolveLastExecution(deleteTaskAndAllChildren, {
+    await resolveLastRpcExecution(deleteTaskAndAllChildren, {
         actions: [
             {
                 type: "UpdateTask",

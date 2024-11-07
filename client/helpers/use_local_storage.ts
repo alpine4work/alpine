@@ -59,9 +59,7 @@ function useStorageBase<Value>(
     defaultValue: Value | (() => Value),
 ): [Value, (value: Value) => void] {
     const [value, actuallySetValue] = useStateWithDependencies(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (key: string, schema: Schema<Value>): Value =>
-            typeof defaultValue === "function" ? (defaultValue as any)() : defaultValue,
+        (): Value => (typeof defaultValue === "function" ? (defaultValue as any)() : defaultValue),
         [key, schema],
     );
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);

@@ -102,3 +102,10 @@ if (!window.ResizeObserver) {
 } else {
     throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
 }
+
+// Polyfill: https://developer.mozilla.org/en-US/docs/Web/API/Document/elementFromPoint
+if (!Document.prototype.elementFromPoint) {
+    Document.prototype.elementFromPoint = () => null;
+} else {
+    throw new Error("Yay! jsdom supports this now, we can remove our polyfill");
+}

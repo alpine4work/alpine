@@ -1,5 +1,5 @@
-import {useCallback, useMemo, useRef} from "react";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useCallback, useMemo} from "react";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
@@ -28,8 +28,6 @@ export function ChannelDesktopCreator({
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
-    const navigationBarRef = useRef<NavigationBarRef>(null);
-
     const channel = useMemo(
         () =>
             new ChannelModel({
@@ -43,7 +41,6 @@ export function ChannelDesktopCreator({
     );
 
     const navigationBar = useNavigationBar({
-        ref: navigationBarRef,
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: (
@@ -104,12 +101,13 @@ export function ChannelDesktopCreator({
                 () => PostBasicList.new({type: "Many", hasMorePosts: false, posts: []}),
                 [],
             )}
+            onMergePostContentReferences={useCallback(() => {}, [])}
             onTogglePostComments={useCallback(() => {}, [])}
             onUpdatePostComments={useCallback(() => {}, [])}
             onLoadMorePosts={asyncNoop}
             shouldBeConnectedToChannelRealtime={false}
             onPostRealtimeEventTransaction={useCallback(() => {}, [])}
-            navigationBar={{...navigationBar, navigationBarRef}}
+            navigationBar={navigationBar}
         />
     );
 }

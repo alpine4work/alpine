@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/files/test_helpers",
         "//server/messaging/test_helpers",
     ],
     tests = {
@@ -27,6 +28,7 @@ ts_project(
         "//server/content",
         "//server/context",
         "//server/dynamo/core",
+        "//server/files/data",
         "//server/helpers",
         "//server/messaging/helpers",
         "//server/notifications/core",

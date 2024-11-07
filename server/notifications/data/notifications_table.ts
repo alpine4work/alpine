@@ -2,17 +2,26 @@ import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_table.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
-import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
-import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
-    ServerActionContext,
+    FileChatAuthorizer,
+    authorizeChatAccessForAccount,
+    getChatAccountIds,
+} from "~/server/chat/data/chat_table.js";
+import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
+import {
     ServerActionContextModules,
-    ServerSessionActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+    ServerContentSystemActionContext,
+} from "~/server/context/server_content_action_context.js";
+import {
+    FileDocumentAuthorizer,
     getDocumentAndCommentThreadsWithInitialComments,
     getDocumentCommentAuthorId,
     getDocumentCommentThreadNotificationSubscribers,
@@ -27,7 +36,9 @@ import {
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {
+    FilePostAuthorizer,
     getChannelPreview,
     getPost,
     getPostAndInitialComments,
@@ -52,7 +63,11 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {getTaskNotificationSubscribers, getTaskOwner} from "~/server/tasks/data/task_table.js";
+import {
+    FileTaskAuthorizer,
+    getTaskNotificationSubscribers,
+    getTaskOwner,
+} from "~/server/tasks/data/task_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
@@ -84,6 +99,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -128,6 +144,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type InboxActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
+    files: FilesContextModuleBase;
 };
 
 export type InboxActionContextModulesWithBroadcast = ServerActionContextModules &
@@ -489,6 +506,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * content in the inbox entry.
                          */
                         latestPost: Schema.object({
+                            postId: Schema.id<PostId>().nullable().default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: PostContentSchema,
@@ -590,6 +608,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * comment's content in the inbox entry.
                          */
                         firstComment: Schema.object({
+                            commentThreadId: Schema.id<DocumentCommentThreadId>()
+                                .nullable()
+                                .default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
@@ -679,6 +700,11 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             getContentReferencesForNode(
                                 context,
                                 item.spaceId,
+                                FileChatAuthorizer.bind({
+                                    type: "ChatMessage",
+                                    chatId: item.chatId,
+                                    messageIndex: item.latestMessage.index,
+                                }),
                                 item.latestMessage.contentSnippet,
                             ),
                             authorizeChatAccessForAccount(
@@ -731,6 +757,11 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   references: getContentReferencesForNode(
                                       context,
                                       item.spaceId,
+                                      FilePostAuthorizer.bind({
+                                          type: "PostComment",
+                                          postId: item.postId,
+                                          commentIndex: item.latestComment.index,
+                                      }),
                                       item.latestComment.contentSnippet,
                                   ),
                               })
@@ -744,6 +775,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   references: getContentReferencesForNode(
                                       context,
                                       item.spaceId,
+                                      FilePostAuthorizer.bind({type: "Post", postId: item.postId}),
                                       item.postContentSnippetIfMentioned,
                                   ),
                               })
@@ -795,6 +827,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
+                            FilePostAuthorizer.bind({
+                                type: "Post",
+                                // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
+                                // this date. So if we have a channel posts entry where `postId` is null then
+                                // use the first post in `item.postIds` and hope it's right. Getting this wrong
+                                // shouldn't matter since posts created before this date also won't have
+                                // attached files since files weren't implemented yet.
+                                postId:
+                                    item.latestPost.postId ??
+                                    assertExists(iterableFirst(item.postIds)),
+                            }),
                             item.latestPost.contentSnippet,
                         ),
                         otherPostAuthorId
@@ -838,6 +881,12 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComment",
+                                documentId: item.documentId,
+                                commentThreadId: item.commentThreadId,
+                                commentIndex: item.latestComment.index,
+                            }),
                             item.latestComment.contentSnippet,
                         ),
                         item.otherCommentAuthorId
@@ -884,6 +933,20 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComment",
+                                documentId: item.documentId,
+                                // NOTE(calebmer, 2024-09-20): `commentThreadId` didn't exist on `firstComment`
+                                // before this date. So if we have a document comment threads entry where
+                                // `commentThreadId` is null then use the first comment thread in
+                                // `item.commentThreadIds` and hope it's right. Getting this wrong shouldn't
+                                // matter since comment threads created before this date also won't have
+                                // attached files since files weren't implemented yet.
+                                commentThreadId:
+                                    item.firstComment.commentThreadId ??
+                                    assertExists(iterableFirst(item.commentThreadIds)),
+                                commentIndex: 0,
+                            }),
                             item.firstComment.contentSnippet,
                         ),
                         otherCommentThreadAuthorId
@@ -925,6 +988,11 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             references: getContentReferencesForNode(
                                 context,
                                 item.spaceId,
+                                FileTaskAuthorizer.bind({
+                                    type: "TaskComment",
+                                    taskId: item.taskId,
+                                    commentIndex: item.latestComment.index,
+                                }),
                                 item.latestComment.contentSnippet,
                             ),
                         }),
@@ -968,12 +1036,12 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
         >();
 
-        for (const event of eventTransaction) {
+        for (const eventEntry of eventTransaction) {
             getOrSetDefaultMapValue(
                 eventTransactionBySpaceIdAndAccountId,
-                `${event.item.model.spaceId}:${event.item.model.accountId}`,
+                `${eventEntry.itemKey.spaceId}:${eventEntry.itemKey.accountId}`,
                 () => [],
-            ).push(event);
+            ).push(eventEntry.event);
         }
 
         await runAllPromises(
@@ -1074,7 +1142,7 @@ export async function runMoveInboxAttributesItemMigration(
                         sortRangeType: "InboxAttributes",
                     },
                 ),
-                InboxTable.transactionDangerouslyDeleteItemWithoutEventAndBreakFutureUpdates(
+                InboxTable.transactionDangerouslyDeleteItemWithoutGravestoneAndWithoutEvent(
                     legacyItem,
                 ),
             ]);
@@ -1228,14 +1296,15 @@ export async function getInbox(
         if (inbox) return inbox;
 
         // If the inbox item doesn't exist yet, let's create one.
-        const {getRealtimeItem} = await InboxTable.createItem(
+        const {getEvent} = await InboxTable.createItem(
             context,
             getInitialInboxItem(spaceId, context.actor.getAccountId()),
             // By default condition check errors from `createItem()` call won't retry. Make
             // sure we handle race conditions by retrying on condition check error.
             {isConditionCheckErrorRetriable: true},
         );
-        return getRealtimeItem();
+
+        return (await getEvent(context)).item;
     });
 }
 
@@ -1248,7 +1317,7 @@ export async function getInbox(
  * inboxes for spaces the actor has lost access to.
  */
 export async function getOurAccountInboxes(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     spaceIds: ReadonlySet<SpaceId>,
 ): Promise<ReadonlyArray<DynamoGeneralRealtimeItem<InboxModel>>> {
     const inboxes = await parallelMapAsyncIterableToArray(
@@ -1281,7 +1350,7 @@ export async function getOurAccountInboxes(
  * Get the entries for the current account's inbox.
  */
 export async function getInboxEntries(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         spaceId,
         filter,
@@ -1364,7 +1433,7 @@ export async function getInboxEntries(
  * Get a single inbox for the actor based on the provided key.
  */
 export async function getInboxEntry(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         spaceId,
         key,
@@ -1394,7 +1463,7 @@ export async function getInboxEntry(
  * This will backfill updates both for non-archived and archived entries.
  */
 export async function backfillInboxEntries(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1917,7 +1986,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * [1]: https://developer.apple.com/design/human-interface-guidelines/notifications
      */
     getAlertContent: (
-        context: ServerSystemActionContext,
+        context: ServerContentSystemActionContext,
         event: Event,
         options: {
             info: Info;
@@ -2127,22 +2196,13 @@ async function sendPushNotificationToAccountDevices(
                 newInboxEntryItem.spaceId,
                 getInboxEntryKey(newInboxEntryItem),
             );
-            const entryUrl = new URL(
-                entryPath,
-                // We'll discard the domain name before sending a notification so put anything
-                // in there.
-                "https://example.com",
-            );
-
-            // Make sure we show context for the inbox entry.
-            entryUrl.searchParams.set("inbox", "show");
 
             await runAllPromises(
                 accountDevices.map(async accountDevice => {
                     const {wasDeviceTokenUnregistered} = await sendAlert(
                         accountDevice.deviceToken,
                         {
-                            entry: `${entryUrl.pathname}${entryUrl.search}${entryUrl.hash}`,
+                            entry: entryPath,
 
                             aps: {
                                 alert: alertContent ?? undefined,
@@ -2549,12 +2609,14 @@ function getInboxEntryLatestUpdateTime(
 }
 
 async function printNotificationEventAlertContentBody(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
+    fileAuthorizer: FileAuthorizer,
     event: {spaceId: SpaceId; isContentSnippetComplete: boolean; contentSnippet: Node},
 ) {
     const contentReferences = await getContentReferencesForNode(
         context,
         event.spaceId,
+        fileAuthorizer,
         event.contentSnippet,
     );
 
@@ -2745,7 +2807,15 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             entryItem.otherAccountId && entryItem.otherAccountId !== event.authorId
                 ? getAccount(context, event.spaceId, entryItem.otherAccountId)
                 : null,
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FileChatAuthorizer.bind({
+                    type: "ChatMessage",
+                    chatId: event.chatId,
+                    messageIndex: event.messageIndex,
+                }),
+                event,
+            ),
         ]);
 
         // We don't include "Mentioned you" in the subtitle even if there was a
@@ -2908,7 +2978,15 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             // This function is cached which is important since we call this function when
             // building a `InboxPostCommentsEntryModel` for realtime in the same action.
             getPostAuthorAndChannelPreview(context, event.postId),
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FilePostAuthorizer.bind({
+                    type: "PostComment",
+                    postId: event.postId,
+                    commentIndex: event.commentIndex,
+                }),
+                event,
+            ),
         ]);
 
         let subtitle = "";
@@ -3028,6 +3106,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                         !oldItem ||
                         oldItem.latestPost.createdTime.getTime() < event.createdTime.getTime()
                             ? {
+                                  postId: event.postId,
                                   authorId: event.authorId,
                                   createdTime: event.createdTime,
                                   contentSnippet: event.contentSnippet,
@@ -3042,7 +3121,11 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         const [author, channel, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
             getChannelPreview(context, event.channelId),
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FilePostAuthorizer.bind({type: "Post", postId: event.postId}),
+                event,
+            ),
         ]);
 
         let subtitle: string;
@@ -3123,6 +3206,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                         commentThreadIds,
                         commentThreadAuthorIds,
                         firstComment: oldItem?.firstComment ?? {
+                            commentThreadId: event.commentThreadId,
                             authorId: event.authorId,
                             createdTime: event.createdTime,
                             contentSnippet: event.contentSnippet,
@@ -3259,7 +3343,16 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             entryItem.firstCommentAuthorId !== event.authorId
                 ? getAccount(context, event.spaceId, entryItem.firstCommentAuthorId)
                 : null,
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FileDocumentAuthorizer.bind({
+                    type: "DocumentComment",
+                    documentId: event.documentId,
+                    commentThreadId: event.commentThreadId,
+                    commentIndex: event.commentIndex,
+                }),
+                event,
+            ),
         ]);
 
         const truncatedDocumentTitle = truncateDocumentTitleForNotification(document.getTitle());
@@ -3422,7 +3515,15 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
         const [author, task, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
             getTaskOwner(context, event.taskId),
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FileTaskAuthorizer.bind({
+                    type: "TaskComment",
+                    taskId: event.taskId,
+                    commentIndex: event.commentIndex,
+                }),
+                event,
+            ),
         ]);
 
         let subtitle = "";

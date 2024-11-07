@@ -16,7 +16,7 @@ import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {Schema} from "~/shared/schema/schema.js";

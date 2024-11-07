@@ -2,36 +2,34 @@ import {Check, X} from "phosphor-react";
 import {useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentView} from "~/client/content/content_view.js";
+import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
-    channelViewAsidePaddingY,
+    channelViewMetadataSectionGap,
+    desktopLayoutPostFauxInputCreateButtonMarginTop,
+    mobileLayoutChannelViewMetadataMarginTop,
+    mobileLayoutPostFauxInputCreateButtonMarginTop,
     postContentViewOuterMarginY,
-    postFauxInputCreateButtonHeight,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,
     MessageContentWithReferences,
+    assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-
-export const channelViewHeaderMinHeight = addRemLengths(
-    spacing[channelViewAsidePaddingY],
-    spacing[postFauxInputCreateButtonHeight],
-    spacing[postContentViewOuterMarginY],
-);
 
 export function ChannelViewHeader({
     channelHeader,
@@ -42,33 +40,43 @@ export function ChannelViewHeader({
 }) {
     return (
         <>
-            {withMobileLayout &&
-                (channelHeader.isEditingDescription ||
-                    !isContentEmpty(channelHeader.channel.description.doc)) && (
-                    <Box paddingX={{desktop: "3", mobile: "1"}}>
-                        <h3
-                            className={sprinkles({
-                                paddingX: "2",
-                                color: "grey-50",
-                            })}
-                        >
-                            About
-                        </h3>
-                        {!channelHeader.isEditingDescription ? (
-                            <ChannelViewHeaderMobileDescription
-                                description={channelHeader.channel.description}
-                            />
-                        ) : (
-                            <ChannelViewHeaderMobileDescriptionEditor
-                                initialDescription={channelHeader.channel.description}
-                                onCancel={channelHeader.onCancelDescriptionEditing}
-                                onSave={channelHeader.onSaveDescription}
-                            />
-                        )}
-                    </Box>
-                )}
+            {withMobileLayout && (
+                <Box
+                    paddingTop={mobileLayoutChannelViewMetadataMarginTop}
+                    paddingX={screenPaddingX}
+                    display="flex"
+                    flexDirection="column"
+                    gap={channelViewMetadataSectionGap}
+                >
+                    {(channelHeader.isEditingDescription ||
+                        !isContentEmpty(channelHeader.channel.description.doc)) && (
+                        <Box marginBottom="-1.5">
+                            <h3 className={sprinkles({color: "grey-50"})}>About</h3>
+                            {!channelHeader.isEditingDescription ? (
+                                <ChannelViewHeaderMobileDescription
+                                    description={channelHeader.channel.description}
+                                />
+                            ) : (
+                                <ChannelViewHeaderMobileDescriptionEditor
+                                    initialDescription={channelHeader.channel.description}
+                                    onCancel={channelHeader.onCancelDescriptionEditing}
+                                    onSave={channelHeader.onSaveDescription}
+                                />
+                            )}
+                        </Box>
+                    )}
+                    <ChannelViewContributorsSection
+                        channel={channelHeader.channel}
+                        contributors={null}
+                    />
+                </Box>
+            )}
             <Box
-                paddingTop={channelViewAsidePaddingY}
+                paddingTop={
+                    withMobileLayout
+                        ? mobileLayoutPostFauxInputCreateButtonMarginTop
+                        : desktopLayoutPostFauxInputCreateButtonMarginTop
+                }
                 paddingBottom={postContentViewOuterMarginY}
                 paddingX={screenPaddingX}
             >
@@ -89,48 +97,31 @@ function ChannelViewHeaderMobileDescription({
 }) {
     const descriptionSnippet = useMemo(() => {
         return {
-            doc: getContentSnippet(
-                description.doc.resolve(0),
-                {linesAbove: 0, linesBelow: 3},
-                {
-                    // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                    // want to be slightly more aggressive than the default grapheme count (which
-                    // counts the "l" character which is narrower) since we render the entire
-                    // snippet.
-                    maxLineGraphemeCount: 72,
-                },
+            doc: assertMessageContent(
+                getContentSnippet(
+                    description.doc.resolve(0),
+                    {linesAbove: 0, linesBelow: 3},
+                    {
+                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
+                        // want to be slightly more aggressive than the default grapheme count (which
+                        // counts the "l" character which is narrower) since we render the entire
+                        // snippet.
+                        maxLineGraphemeCount: 72,
+                    },
+                ),
             ),
             references: description.references,
         };
     }, [description.doc, description.references]);
 
-    const isDescriptionSnippetTruncated =
-        description.doc.nodeSize !== descriptionSnippet.doc.nodeSize;
-
-    const [isShowingAllContent, setIsShowingAllContent] = useState(!isDescriptionSnippetTruncated);
-    if (!isShowingAllContent && !isDescriptionSnippetTruncated) setIsShowingAllContent(true);
-
     return (
-        <Box paddingY="1">
-            <ContentView
+        <Box paddingTop="1">
+            <ContentViewWithSeeMoreToggle
                 isCompact={true}
                 // Only rendered in mobile layouts.
                 withMobileLayout={true}
-                content={
-                    isDescriptionSnippetTruncated && !isShowingAllContent
-                        ? descriptionSnippet
-                        : description
-                }
-                onSeeMoreContent={
-                    isDescriptionSnippetTruncated && !isShowingAllContent
-                        ? () => setIsShowingAllContent(true)
-                        : undefined
-                }
-                onSeeLessContent={
-                    isDescriptionSnippetTruncated && isShowingAllContent
-                        ? () => setIsShowingAllContent(false)
-                        : undefined
-                }
+                content={description}
+                contentSnippet={descriptionSnippet}
             />
         </Box>
     );
@@ -222,7 +213,10 @@ function ChannelViewHeaderMobileDescriptionEditor({
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
                     id={editorId}
+                    paddingX="1.5"
                     paddingY="1"
+                    marginX="-1.5"
+                    marginBottom="-1"
                     borderRadius="1.5"
                     style={{
                         // Use box shadow to draw the border so it doesn't add 1px to layout like

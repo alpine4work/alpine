@@ -1,5 +1,5 @@
 import {sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 
 const spacerClassName = sprinkles({flexShrink: "0", display: "block"});
 

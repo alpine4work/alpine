@@ -1,11 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug) 1`] = `
-"<h1><br /></h1>
-<div data-scrollbar="false">
-  <code>
-    <div>
-      <div>
+"<h1 class="content_title"><br /></h1>
+<div class="content_codeBlockWrapper" data-scrollbar="false">
+  <code class="content_codeBlock">
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">enum</span>
         <span class="tok-typeName">LinkedList</span>
         &lt;
@@ -14,14 +14,14 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">None</span>
         <span class="tok-punctuation">,</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">Cons</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-typeName">T</span>
@@ -36,14 +36,16 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
         <span class="tok-punctuation">,</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-macroName">println</span>
         <span class="tok-macroName">!</span>
         <span class="tok-punctuation">(</span>
@@ -54,11 +56,11 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
     </div>
   </code>
 </div>
-<p><br /></p>
-<div data-scrollbar="false">
-  <code>
-    <div>
-      <div>
+<p class="content_paragraph"><br /></p>
+<div class="content_codeBlockWrapper" data-scrollbar="false">
+  <code class="content_codeBlock">
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-punctuation">&lt;</span>
         <span class="tok-typeName">div</span>
         <span class="tok-punctuation">&gt;</span>
@@ -70,9 +72,9 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
     </div>
   </code>
 </div>
-<p><br /></p>
-<p><br /></p>
-<p>asdfasdf</p>
+<p class="content_paragraph"><br /></p>
+<p class="content_paragraph"><br /></p>
+<p class="content_paragraph">asdfasdf</p>
 "
 `;
 
@@ -80,12 +82,12 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
 "===================================================================
 --- old.html
 +++ new.html
-@@ -54,17 +54,9 @@
- <p><br /></p>
- <div data-scrollbar="false">
-   <code>
-     <div>
--      <div>
+@@ -56,17 +56,9 @@
+ <p class="content_paragraph"><br /></p>
+ <div class="content_codeBlockWrapper" data-scrollbar="false">
+   <code class="content_codeBlock">
+     <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-punctuation">&lt;</span>
 -        <span class="tok-typeName">div</span>
 -        <span class="tok-punctuation">&gt;</span>
@@ -94,11 +96,11 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
 -        <span class="tok-typeName">div</span>
 -        <span class="tok-punctuation">&gt;</span>
 -      </div>
-+      <div><br /></div>
++      <div class="content_codeBlockLineContent"><br /></div>
      </div>
    </code>
  </div>
- <p><br /></p>
+ <p class="content_paragraph"><br /></p>
 "
 `;
 
@@ -106,15 +108,15 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
 "===================================================================
 --- old.html
 +++ new.html
-@@ -51,22 +51,7 @@
+@@ -53,22 +53,7 @@
      </div>
    </code>
  </div>
- <p><br /></p>
--<div data-scrollbar="false">
--  <code>
--    <div>
--      <div>
+ <p class="content_paragraph"><br /></p>
+-<div class="content_codeBlockWrapper" data-scrollbar="false">
+-  <code class="content_codeBlock">
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-punctuation">&lt;</span>
 -        <span class="tok-typeName">div</span>
 -        <span class="tok-punctuation">&gt;</span>
@@ -126,9 +128,9 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
 -    </div>
 -  </code>
 -</div>
- <p><br /></p>
- <p><br /></p>
- <p>asdfasdf</p>
+ <p class="content_paragraph"><br /></p>
+ <p class="content_paragraph"><br /></p>
+ <p class="content_paragraph">asdfasdf</p>
 "
 `;
 
@@ -136,15 +138,15 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
 "===================================================================
 --- old.html
 +++ new.html
-@@ -51,22 +51,6 @@
+@@ -53,22 +53,6 @@
      </div>
    </code>
  </div>
- <p><br /></p>
--<div data-scrollbar="false">
--  <code>
--    <div>
--      <div>
+ <p class="content_paragraph"><br /></p>
+-<div class="content_codeBlockWrapper" data-scrollbar="false">
+-  <code class="content_codeBlock">
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-punctuation">&lt;</span>
 -        <span class="tok-typeName">div</span>
 -        <span class="tok-punctuation">&gt;</span>
@@ -156,9 +158,9 @@ exports[`can delete multiple lines between two code blocks adjacent to each othe
 -    </div>
 -  </code>
 -</div>
- <p><br /></p>
--<p><br /></p>
- <p>asdfasdf</p>
+ <p class="content_paragraph"><br /></p>
+-<p class="content_paragraph"><br /></p>
+ <p class="content_paragraph">asdfasdf</p>
 "
 `;
 
@@ -166,11 +168,11 @@ exports[`can highlight syntax after adding a new line 1`] = `
 "===================================================================
 --- old.html
 +++ new.html
-@@ -655,8 +655,20 @@
+@@ -702,8 +702,22 @@
        </div>
      </div>
-     <div>
-       <div>
+     <div class="content_codeBlockLine">
+       <div class="content_codeBlockLineContent">
 +        <span class="tok-variableName">console</span>
 +        <span class="tok-operator">.</span>
 +        <span class="tok-propertyName">log</span>
@@ -180,9 +182,11 @@ exports[`can highlight syntax after adding a new line 1`] = `
 +        <span class="tok-punctuation">;</span>
 +      </div>
 +    </div>
-+    <div><div></div></div>
-+    <div>
-+      <div>
++    <div class="content_codeBlockLine">
++      <div class="content_codeBlockLineContent"></div>
++    </div>
++    <div class="content_codeBlockLine">
++      <div class="content_codeBlockLineContent">
          <span class="tok-keyword">const</span>
          <span class="tok-variableName tok-definition">val</span>
          <span class="tok-operator">=</span>
@@ -194,15 +198,15 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 "===================================================================
 --- old.html
 +++ new.html
-@@ -23,350 +23,8 @@
+@@ -44,368 +44,8 @@
+   <p class="content_paragraph">
+     Every close bracket has a corresponding open bracket of the same type.
+   </p>
  </div>
- <div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
-   <p>Every close bracket has a corresponding open bracket of the same type.</p>
- </div>
--<div data-scrollbar="false">
--  <code>
--    <div>
--      <div>
+-<div class="content_codeBlockWrapper" data-scrollbar="false">
+-  <code class="content_codeBlock">
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword">function</span>
 -        <span class="tok-variableName tok-definition">isValid</span>
 -        <span class="tok-punctuation">(</span>
@@ -215,8 +219,8 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword">const</span>
 -        <span class="tok-variableName tok-definition">stack</span>
 -        <span class="tok-punctuation">:</span>
@@ -234,11 +238,11 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><br /></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent"><br /></div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">for</span>
 -        <span class="tok-punctuation">(</span>
 -        <span class="tok-keyword">let</span>
@@ -258,8 +262,8 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword">const</span>
 -        <span class="tok-variableName tok-definition">c</span>
 -        <span class="tok-operator">=</span>
@@ -270,11 +274,11 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><br /></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent"><br /></div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">switch</span>
 -        <span class="tok-punctuation">(</span>
 -        <span class="tok-variableName">c</span>
@@ -282,16 +286,16 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">case</span>
 -        <span class="tok-string">"("</span>
 -        <span class="tok-punctuation">:</span>
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-variableName">stack</span>
 -        <span class="tok-operator">.</span>
 -        <span class="tok-propertyName">push</span>
@@ -301,25 +305,27 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">break</span>
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">case</span>
 -        <span class="tok-string">")"</span>
 -        <span class="tok-punctuation">:</span>
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword">const</span>
 -        <span class="tok-variableName tok-definition">c2</span>
 -        <span class="tok-operator">=</span>
@@ -331,8 +337,8 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">if</span>
 -        <span class="tok-punctuation">(</span>
 -        <span class="tok-variableName">c2</span>
@@ -344,25 +350,27 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">break</span>
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">case</span>
 -        <span class="tok-string">"["</span>
 -        <span class="tok-punctuation">:</span>
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-variableName">stack</span>
 -        <span class="tok-operator">.</span>
 -        <span class="tok-propertyName">push</span>
@@ -372,25 +380,27 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">break</span>
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">case</span>
 -        <span class="tok-string">"]"</span>
 -        <span class="tok-punctuation">:</span>
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword">const</span>
 -        <span class="tok-variableName tok-definition">c2</span>
 -        <span class="tok-operator">=</span>
@@ -402,8 +412,8 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">if</span>
 -        <span class="tok-punctuation">(</span>
 -        <span class="tok-variableName">c2</span>
@@ -415,25 +425,27 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">break</span>
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">case</span>
 -        <span class="tok-string">"{"</span>
 -        <span class="tok-punctuation">:</span>
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-variableName">stack</span>
 -        <span class="tok-operator">.</span>
 -        <span class="tok-propertyName">push</span>
@@ -443,25 +455,27 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">break</span>
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">case</span>
 -        <span class="tok-string">"}"</span>
 -        <span class="tok-punctuation">:</span>
 -        <span class="tok-punctuation">{</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword">const</span>
 -        <span class="tok-variableName tok-definition">c2</span>
 -        <span class="tok-operator">=</span>
@@ -473,8 +487,8 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">if</span>
 -        <span class="tok-punctuation">(</span>
 -        <span class="tok-variableName">c2</span>
@@ -486,23 +500,25 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">break</span>
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">default</span>
 -        <span class="tok-punctuation">:</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">throw</span>
 -        <span class="tok-keyword">new</span>
 -        <span class="tok-variableName">Error</span>
@@ -516,17 +532,21 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
--    <div>
--      <div><br /></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent"><br /></div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">return</span>
 -        <span class="tok-variableName">stack</span>
 -        <span class="tok-operator">.</span>
@@ -536,14 +556,16 @@ exports[`can highlight syntax after deleting a code block 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div><span class="tok-punctuation">}</span></div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
+-        <span class="tok-punctuation">}</span>
+-      </div>
 -    </div>
 -  </code>
 -</div>
- <p>
+ <p class="content_paragraph">
    You are given the heads of two sorted linked lists
-   <code>list1</code>
+   <code class="content_code">list1</code>
    and
 "
 `;
@@ -552,11 +574,11 @@ exports[`can highlight syntax after deleting line 1`] = `
 "===================================================================
 --- old.html
 +++ new.html
-@@ -299,21 +299,8 @@
+@@ -330,21 +330,8 @@
        </div>
      </div>
-     <div>
-       <div>
+     <div class="content_codeBlockLine">
+       <div class="content_codeBlockLineContent">
 -        <span class="tok-keyword tok-controlKeyword">if</span>
 -        <span class="tok-punctuation">(</span>
 -        <span class="tok-variableName">c2</span>
@@ -568,8 +590,8 @@ exports[`can highlight syntax after deleting line 1`] = `
 -        <span class="tok-punctuation">;</span>
 -      </div>
 -    </div>
--    <div>
--      <div>
+-    <div class="content_codeBlockLine">
+-      <div class="content_codeBlockLineContent">
          <span class="tok-keyword tok-controlKeyword">break</span>
          <span class="tok-punctuation">;</span>
        </div>
@@ -581,15 +603,15 @@ exports[`can highlight syntax after inserting a code block 1`] = `
 "===================================================================
 --- old.html
 +++ new.html
-@@ -372,8 +372,23 @@
+@@ -411,8 +411,23 @@
    and
-   <code>list2</code>
+   <code class="content_code">list2</code>
    .
  </p>
-+<div data-scrollbar="false">
-+  <code>
-+    <div>
-+      <div>
++<div class="content_codeBlockWrapper" data-scrollbar="false">
++  <code class="content_codeBlock">
++    <div class="content_codeBlockLine">
++      <div class="content_codeBlockLineContent">
 +        <span class="tok-variableName">console</span>
 +        <span class="tok-operator">.</span>
 +        <span class="tok-propertyName">log</span>
@@ -601,9 +623,9 @@ exports[`can highlight syntax after inserting a code block 1`] = `
 +    </div>
 +  </code>
 +</div>
- <p>
+ <p class="content_paragraph">
    Merge the two lists into one
-   <strong>sorted</strong>
+   <strong class="content_bold">sorted</strong>
    list. The list should be made by splicing together the nodes of the first two
 "
 `;
@@ -612,9 +634,9 @@ exports[`can highlight syntax after updating a single line 1`] = `
 "===================================================================
 --- old.html
 +++ new.html
-@@ -528,15 +528,15 @@
-     <div>
-       <div>
+@@ -571,15 +571,15 @@
+     <div class="content_codeBlockLine">
+       <div class="content_codeBlockLineContent">
          <span class="tok-keyword tok-controlKeyword">while</span>
          <span class="tok-punctuation">(</span>
 -        <span class="tok-variableName">list1</span>
@@ -638,60 +660,81 @@ exports[`can highlight syntax after updating multiple lines 1`] = `
 "===================================================================
 --- old.html
 +++ new.html
-@@ -618,8 +618,9 @@
-       <div><br /></div>
+@@ -665,8 +665,9 @@
+       <div class="content_codeBlockLineContent"><br /></div>
      </div>
-     <div>
-       <div>
+     <div class="content_codeBlockLine">
+       <div class="content_codeBlockLineContent">
 +        <span class="tok-punctuation">{</span>
          <span class="tok-keyword">let</span>
          <span class="tok-variableName tok-definition">mergedList</span>
          <span class="tok-operator">=</span>
          <span class="tok-variableName">list1</span>
-@@ -691,8 +692,9 @@
-       <div>
+@@ -740,8 +741,9 @@
+       <div class="content_codeBlockLineContent">
          <span class="tok-keyword tok-controlKeyword">return</span>
          <span class="tok-variableName">mergedList</span>
          <span class="tok-punctuation">;</span>
 +        <span class="tok-punctuation">}</span>
        </div>
      </div>
-     <div>
-       <div><span class="tok-punctuation">}</span></div>
+     <div class="content_codeBlockLine">
+       <div class="content_codeBlockLineContent">
 "
 `;
 
 exports[`can initially highlight syntax 1`] = `
-"<h1><br /></h1>
-<p>
+"<h1 class="content_title"><br /></h1>
+<p class="content_paragraph">
   Given a string containing just the characters “
-  <code>(</code>
+  <code class="content_code">(</code>
   ”, “
-  <code>)</code>
+  <code class="content_code">)</code>
   ”, “
-  <code>[</code>
+  <code class="content_code">[</code>
   ”, “
-  <code>]</code>
+  <code class="content_code">]</code>
   ”, “
-  <code>{</code>
+  <code class="content_code">{</code>
   ”, and “
-  <code>}</code>
+  <code class="content_code">}</code>
   ” determine if the input string is valid.
 </p>
-<p>An input string is valid if:</p>
-<div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
-  <p>Open brackets must be closed by the same type of brackets.</p>
+<p class="content_paragraph">An input string is valid if:</p>
+<div
+  class="content_listItem content_orderedListItem"
+  style="--content_listItemIndentation: 0"
+  data-list-indent="0"
+  data-list-number="0"
+>
+  <p class="content_paragraph">
+    Open brackets must be closed by the same type of brackets.
+  </p>
 </div>
-<div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
-  <p>Open brackets must be closed in the correct order.</p>
+<div
+  class="content_listItem content_orderedListItem"
+  style="--content_listItemIndentation: 0"
+  data-list-indent="0"
+  data-list-number="0"
+>
+  <p class="content_paragraph">
+    Open brackets must be closed in the correct order.
+  </p>
 </div>
-<div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
-  <p>Every close bracket has a corresponding open bracket of the same type.</p>
+<div
+  class="content_listItem content_orderedListItem"
+  style="--content_listItemIndentation: 0"
+  data-list-indent="0"
+  data-list-number="0"
+>
+  <p class="content_paragraph">
+    Every close bracket has a corresponding open bracket of the same type.
+  </p>
 </div>
-<div data-scrollbar="false">
-  <code>
-    <div>
-      <div>
+<div class="content_codeBlockWrapper" data-scrollbar="false">
+  <code class="content_codeBlock">
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">function</span>
         <span class="tok-variableName tok-definition">isValid</span>
         <span class="tok-punctuation">(</span>
@@ -704,8 +747,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">stack</span>
         <span class="tok-punctuation">:</span>
@@ -723,11 +766,11 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">for</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-keyword">let</span>
@@ -747,8 +790,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">c</span>
         <span class="tok-operator">=</span>
@@ -759,11 +802,11 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">switch</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName">c</span>
@@ -771,16 +814,16 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">case</span>
         <span class="tok-string">"("</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">stack</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">push</span>
@@ -790,25 +833,27 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">break</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">case</span>
         <span class="tok-string">")"</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">c2</span>
         <span class="tok-operator">=</span>
@@ -820,8 +865,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">if</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName">c2</span>
@@ -833,25 +878,27 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">break</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">case</span>
         <span class="tok-string">"["</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">stack</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">push</span>
@@ -861,25 +908,27 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">break</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">case</span>
         <span class="tok-string">"]"</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">c2</span>
         <span class="tok-operator">=</span>
@@ -891,8 +940,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">if</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName">c2</span>
@@ -904,25 +953,27 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">break</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">case</span>
         <span class="tok-string">"{"</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">stack</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">push</span>
@@ -932,25 +983,27 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">break</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">case</span>
         <span class="tok-string">"}"</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">c2</span>
         <span class="tok-operator">=</span>
@@ -962,8 +1015,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">if</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName">c2</span>
@@ -975,23 +1028,25 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">break</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">default</span>
         <span class="tok-punctuation">:</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">throw</span>
         <span class="tok-keyword">new</span>
         <span class="tok-variableName">Error</span>
@@ -1005,17 +1060,21 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">return</span>
         <span class="tok-variableName">stack</span>
         <span class="tok-operator">.</span>
@@ -1025,48 +1084,50 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
   </code>
 </div>
-<p>
+<p class="content_paragraph">
   You are given the heads of two sorted linked lists
-  <code>list1</code>
+  <code class="content_code">list1</code>
   and
-  <code>list2</code>
+  <code class="content_code">list2</code>
   .
 </p>
-<p>
+<p class="content_paragraph">
   Merge the two lists into one
-  <strong>sorted</strong>
+  <strong class="content_bold">sorted</strong>
   list. The list should be made by splicing together the nodes of the first two
   lists.
 </p>
-<p>
+<p class="content_paragraph">
   Return
-  <em>the head of the merged linked list</em>
+  <em class="content_italic">the head of the merged linked list</em>
   .
 </p>
-<div data-scrollbar="false">
-  <code>
-    <div>
-      <div>
+<div class="content_codeBlockWrapper" data-scrollbar="false">
+  <code class="content_codeBlock">
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">class</span>
         <span class="tok-className tok-definition">ListNode</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-propertyName tok-definition">val</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-typeName">number</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-propertyName tok-definition">next</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-typeName">ListNode</span>
@@ -1075,8 +1136,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-propertyName tok-definition">constructor</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName tok-definition">val</span>
@@ -1094,8 +1155,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">this</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">val</span>
@@ -1112,8 +1173,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">this</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">next</span>
@@ -1130,24 +1191,28 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">function</span>
         <span class="tok-variableName tok-definition">mergeTwoLists</span>
         <span class="tok-punctuation">(</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName tok-definition">list1</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-typeName">ListNode</span>
@@ -1156,8 +1221,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">,</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName tok-definition">list2</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-typeName">ListNode</span>
@@ -1166,8 +1231,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">,</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-punctuation">)</span>
         <span class="tok-punctuation">:</span>
         <span class="tok-typeName">ListNode</span>
@@ -1176,8 +1241,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">vals</span>
         <span class="tok-operator">=</span>
@@ -1186,11 +1251,11 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">while</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName">list1</span>
@@ -1204,8 +1269,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">if</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-variableName">list1</span>
@@ -1219,8 +1284,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">vals</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">push</span>
@@ -1232,8 +1297,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">list1</span>
         <span class="tok-operator">=</span>
         <span class="tok-variableName">list1</span>
@@ -1242,15 +1307,15 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-punctuation">}</span>
         <span class="tok-keyword tok-controlKeyword">else</span>
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">vals</span>
         <span class="tok-operator">.</span>
         <span class="tok-propertyName">push</span>
@@ -1262,8 +1327,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">list2</span>
         <span class="tok-operator">=</span>
         <span class="tok-variableName">list2</span>
@@ -1272,17 +1337,21 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">let</span>
         <span class="tok-variableName tok-definition">mergedList</span>
         <span class="tok-operator">=</span>
@@ -1292,11 +1361,11 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">for</span>
         <span class="tok-punctuation">(</span>
         <span class="tok-keyword">let</span>
@@ -1318,8 +1387,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">{</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword">const</span>
         <span class="tok-variableName tok-definition">val</span>
         <span class="tok-operator">=</span>
@@ -1331,8 +1400,8 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-variableName">mergedList</span>
         <span class="tok-operator">=</span>
         <span class="tok-keyword">new</span>
@@ -1345,21 +1414,25 @@ exports[`can initially highlight syntax 1`] = `
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
-    <div>
-      <div><br /></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent"><br /></div>
     </div>
-    <div>
-      <div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
         <span class="tok-keyword tok-controlKeyword">return</span>
         <span class="tok-variableName">mergedList</span>
         <span class="tok-punctuation">;</span>
       </div>
     </div>
-    <div>
-      <div><span class="tok-punctuation">}</span></div>
+    <div class="content_codeBlockLine">
+      <div class="content_codeBlockLineContent">
+        <span class="tok-punctuation">}</span>
+      </div>
     </div>
   </code>
 </div>

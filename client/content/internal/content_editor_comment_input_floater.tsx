@@ -1,7 +1,7 @@
 import {ArrowRight} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
@@ -35,7 +35,9 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
@@ -107,6 +109,22 @@ export function ContentEditorCommentInputFloater({
         }
     }, [isClosing, onCloseWithoutAnimation]);
 
+    const isNodeRange = useMemo(() => {
+        if (range.from === range.to - 1) {
+            const documentRangeNode = state.doc.resolve(range.from).nodeAfter;
+
+            if (
+                documentRangeNode &&
+                !documentRangeNode.inlineContent &&
+                documentRangeNode.type.allowsMarkType(state.schema.marks.comment!)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [range.from, range.to, state.doc, state.schema.marks.comment]);
+
     return (
         <OverlayAnimated
             ref={overlayRef}
@@ -118,18 +136,23 @@ export function ContentEditorCommentInputFloater({
             // existing toolbar.
             isVisible={!isClosing}
             disableAnimation={!isClosing}
-            placement="bottom-start"
+            isBlocking={true}
+            // If the comment input is in our root blocking scope then ProseMirror's
+            // `scrollIntoView()` functionality won't work since the comment input won't be
+            // a child of the document's scroll view.
+            withoutRootBlockingScope={true}
+            placement="bottom"
             offset="3"
-            offsetAlong="-16"
             // No fallback placements! The comment input always stays at the end of the
             // text its commenting on.
-            fallbackPlacements={[]}
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box>
                     <ContentEditorCommentInput
                         withMobileLayout={withMobileLayout}
                         state={state}
                         viewRef={viewRef}
+                        isNodeRange={isNodeRange}
                         range={range}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         onCloseWithAnimation={onCloseWithAnimation}
@@ -140,7 +163,7 @@ export function ContentEditorCommentInputFloater({
             <ContentEditorCursorTracker
                 state={state}
                 viewRef={viewRef}
-                pos={range.to}
+                pos={isNodeRange ? range.from : range}
                 onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
             />
         </OverlayAnimated>
@@ -151,6 +174,7 @@ function ContentEditorCommentInput({
     withMobileLayout,
     state: documentState,
     viewRef: documentViewRef,
+    isNodeRange: isNodeDocumentRange,
     range: documentRange,
     onCloseWithoutAnimation,
     onCloseWithAnimation,
@@ -158,6 +182,7 @@ function ContentEditorCommentInput({
     withMobileLayout: boolean;
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
+    isNodeRange: boolean;
     range: {from: number; to: number};
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
@@ -182,8 +207,12 @@ function ContentEditorCommentInput({
         if (!shouldFocusNextRenderRef.current) return;
         shouldFocusNextRenderRef.current = false;
 
-        const editor = assertExists(editorRef.current);
-        editor.focus({preventScroll: true});
+        scheduleMicrotask(() => {
+            const editor = editorRef.current;
+            if (!editor) return;
+            editor.focus({preventScroll: true});
+            editor.scrollIntoView();
+        });
     }, [shouldShowConfirmCloseDialog]);
 
     const sendComment = async () => {
@@ -199,28 +228,37 @@ function ContentEditorCommentInput({
             current: null,
         };
 
-        assertExists(documentViewRef.current).dispatch(
-            updateContentEditorReferences(
-                documentState.tr
-                    .addMark(
-                        trimmedDocumentRange.from,
-                        trimmedDocumentRange.to,
-                        documentState.schema.mark("comment", {commentThreadId}),
-                    )
-                    .setMeta(createCommentThreadMetaKey, {
-                        commentThreadId,
-                        initialCommentContent: content,
-                        openCommentThreadPromiseRef,
-                    })
-                    .scrollIntoView(),
-                {
-                    type: "UpdateDocumentCommentThread",
-                    commentThreadId,
-                    commentCount: 1,
-                    addCommentAuthor: currentAccount,
-                },
-            ),
-        );
+        const transaction = documentState.tr;
+
+        if (isNodeDocumentRange) {
+            transaction.addNodeMark(
+                trimmedDocumentRange.from,
+                documentState.schema.mark("comment", {commentThreadId}),
+            );
+        } else {
+            transaction.addMark(
+                trimmedDocumentRange.from,
+                trimmedDocumentRange.to,
+                documentState.schema.mark("comment", {commentThreadId}),
+            );
+        }
+
+        transaction.setMeta(createCommentThreadMetaKey, {
+            commentThreadId,
+            initialCommentContent: content,
+            openCommentThreadPromiseRef,
+        });
+
+        transaction.scrollIntoView();
+
+        updateContentEditorReferences(transaction, {
+            type: "UpdateDocumentCommentThread",
+            commentThreadId,
+            commentCount: 1,
+            addCommentAuthor: currentAccount,
+        });
+
+        assertExists(documentViewRef.current).dispatch(transaction);
 
         // `<DocumentContentEditor>` may open the comment thread after we create it.
         // Don't close our floater until this has happened.

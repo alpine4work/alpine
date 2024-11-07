@@ -1,8 +1,9 @@
 import {ChatCircle, ChatCircleDots, Check, DotsThree, Smiley, X} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -11,17 +12,16 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -34,12 +34,11 @@ import {
     mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postCommentSectionGuidelineStartHeight,
-    postContentEditorPaddingX,
-    postContentEditorPaddingY,
+    postContentEditorPadding,
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
-    postContentViewInnerMarginYWithoutContentEditorPaddingY,
+    postContentViewInnerMarginYWithoutContentEditorPadding,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
     postContentViewOuterMarginBottom,
@@ -48,23 +47,32 @@ import {
     screenPaddingXWithoutPostContentEditorPadding,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/forum/post_model.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+
+export type PostContentViewInitialScroll = {
+    readonly type: "File";
+    readonly fileId: FileId;
+};
 
 export function PostContentView({
     withMobileLayout,
@@ -75,7 +83,9 @@ export function PostContentView({
     postEditing,
     hasNavigationBar,
     isSingleLayoutWithPinnedCommentInput,
+    initialScroll,
     idBase,
+    onMergePostContentReferences,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
@@ -87,12 +97,16 @@ export function PostContentView({
     shouldShowChannel: boolean;
     hasNavigationBar: boolean;
     isSingleLayoutWithPinnedCommentInput: boolean;
+    initialScroll: PostContentViewInitialScroll | null;
     idBase: string;
+    onMergePostContentReferences: (references: ContentReferences) => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
+
+    const contentContainerRef = useRef<HTMLDivElement>(null);
 
     const postEditingForThisPost =
         // On mobile we use a modal for the editing UI instead of inline editing.
@@ -107,16 +121,18 @@ export function PostContentView({
             return null;
         } else {
             return {
-                doc: getContentSnippet(
-                    post.content.doc.resolve(0),
-                    {linesAbove: 0, linesBelow: withMobileLayout ? 5 : 16},
-                    {
-                        // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
-                        // want to be slightly more aggressive than the default grapheme count (which
-                        // counts the "l" character which is narrower) since we render the entire
-                        // snippet.
-                        maxLineGraphemeCount: isMobile ? 42 : 72,
-                    },
+                doc: assertPostContent(
+                    getContentSnippet(
+                        post.content.doc.resolve(0),
+                        {linesAbove: 0, linesBelow: withMobileLayout ? 5 : 16},
+                        {
+                            // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
+                            // want to be slightly more aggressive than the default grapheme count (which
+                            // counts the "l" character which is narrower) since we render the entire
+                            // snippet.
+                            maxLineGraphemeCount: isMobile ? 42 : 72,
+                        },
+                    ),
                 ),
                 references: post.content.references,
             };
@@ -133,6 +149,61 @@ export function PostContentView({
 
     const [isShowingAllContent, setIsShowingAllContent] = useState(!isPostSnippetTruncated);
     if (!isShowingAllContent && !isPostSnippetTruncated) setIsShowingAllContent(true);
+
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
+        [post.id],
+    );
+
+    const hasInitializedRef = useRef(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
+        const contentContainerElement = assertExists(contentContainerRef.current);
+
+        if (!initialScroll) return;
+
+        let fileNodePos: number | null = null;
+
+        post.content.doc.descendants((node, pos) => {
+            if (fileNodePos !== null) return false;
+            if (node.type.name !== "file") return;
+            if (node.attrs.fileId !== initialScroll.fileId) return;
+
+            fileNodePos = pos;
+        });
+
+        // We need to run after a microtask since our `<VirtualizedScrollView>` parent
+        // will set scroll top to its initial value (0) in a `useLayoutEffect()`. So we
+        // need to apply our scroll after that.
+        scheduleMicrotask(() => {
+            const fileElement = contentContainerElement.querySelector(
+                `[data-pos="${fileNodePos}"]`,
+            );
+            if (!fileElement) return;
+
+            let scrollElement = contentContainerElement.parentElement;
+            while (scrollElement) {
+                const {overflowY} = getComputedStyle(scrollElement);
+
+                const isScrollable = overflowY === "scroll" || overflowY === "auto";
+                if (isScrollable) break;
+
+                scrollElement = scrollElement.parentElement;
+            }
+
+            if (!scrollElement) return;
+
+            const scrollRect = scrollElement.getBoundingClientRect();
+            const fileRect = fileElement.getBoundingClientRect();
+
+            // Scroll the top of the file 20% from the top of the scroll element.
+            scrollElement.scrollTop =
+                fileRect.top - (scrollRect.top - scrollElement.scrollTop) - scrollRect.height / 5;
+        });
+    }, [initialScroll, post.content.doc]);
 
     return (
         <Box
@@ -214,46 +285,36 @@ export function PostContentView({
                 </Box>
             )}
             <Box
+                ref={contentContainerRef}
                 paddingX={screenPaddingXWithoutPostContentEditorPadding}
                 style={{
-                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
-                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,
+                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPadding,
+                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPadding,
                 }}
             >
                 {!isEditingPost ? (
-                    isSingleLayoutWithPinnedCommentInput ? (
+                    !postSnippet ? (
                         <ContentView
                             withMobileLayout={withMobileLayout}
                             content={post.content}
                             contentUpdatedTime={post.contentUpdatedTime}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({
-                                paddingX: postContentEditorPaddingX,
-                                paddingY: postContentEditorPaddingY,
+                                padding: postContentEditorPadding,
                             })}
+                            onMergeContentReferences={onMergePostContentReferences}
                         />
                     ) : (
-                        <ContentView
+                        <ContentViewWithSeeMoreToggle
                             withMobileLayout={withMobileLayout}
                             contentUpdatedTime={post.contentUpdatedTime}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({
-                                paddingX: postContentEditorPaddingX,
-                                paddingY: postContentEditorPaddingY,
+                                padding: postContentEditorPadding,
                             })}
-                            content={
-                                isPostSnippetTruncated && !isShowingAllContent && postSnippet
-                                    ? postSnippet
-                                    : post.content
-                            }
-                            onSeeMoreContent={
-                                isPostSnippetTruncated && !isShowingAllContent
-                                    ? () => setIsShowingAllContent(true)
-                                    : undefined
-                            }
-                            onSeeLessContent={
-                                isPostSnippetTruncated && isShowingAllContent
-                                    ? () => setIsShowingAllContent(false)
-                                    : undefined
-                            }
+                            content={post.content}
+                            contentSnippet={postSnippet}
+                            onMergeContentReferences={onMergePostContentReferences}
                         />
                     )
                 ) : (
@@ -261,6 +322,7 @@ export function PostContentView({
                         withMobileLayout={withMobileLayout}
                         idBase={idBase}
                         postEditingForThisPost={postEditingForThisPost}
+                        fileAttachmentTarget={fileAttachmentTarget}
                     />
                 )}
             </Box>
@@ -386,7 +448,7 @@ function PostContentViewFooter({
                             }
 
                             const initialLoadMessageCount = getInitialLoadMessageCount(
-                                getClientInfoWithoutListening(),
+                                getClientInfo(),
                             );
 
                             let areAllInitialMessagesLoaded = true;
@@ -560,10 +622,12 @@ function PostContentViewEditor({
     withMobileLayout,
     idBase,
     postEditingForThisPost,
+    fileAttachmentTarget,
 }: {
     withMobileLayout: boolean;
     idBase: string;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
 }) {
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
 
@@ -581,7 +645,9 @@ function PostContentViewEditor({
         <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
             <Box
                 id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-                borderRadius="1.5"
+                // We picked this border radius because it looks good with a selected file's
+                // `<FocusRing>` when they line up in the bottom corners.
+                borderRadius="2.5"
                 style={{
                     // Use box shadow to draw the border so it doesn't add 1px to layout like
                     // `border` CSS would.
@@ -616,9 +682,9 @@ function PostContentViewEditor({
                     // editing modality.
                     withoutMobileDualModality={true}
                     placeholder="Share your ideas…"
+                    fileAttachmentTarget={fileAttachmentTarget}
                     className={sprinkles({
-                        paddingX: postContentEditorPaddingX,
-                        paddingY: postContentEditorPaddingY,
+                        padding: postContentEditorPadding,
                     })}
                     onModEnter={event => {
                         event.preventDefault();
@@ -683,40 +749,4 @@ export function PostContentViewEditingActions({
             </IconButton>
         </Box>
     );
-}
-
-export function getPostMoreActions({
-    currentAccount,
-    post,
-    onStartEditingPost,
-}: {
-    currentAccount: AccountModel;
-    post: PostModel;
-    onStartEditingPost: () => void;
-}) {
-    return [
-        [
-            {
-                label: "Copy link",
-                pressErrorTitle: "Couldn’t copy post link",
-                onPress: async () => {
-                    const url = new URL(
-                        `/s/${post.spaceId}/posts/${post.id}`,
-                        window.location.href,
-                    );
-                    await writeTextToClipboard(url.toString());
-                },
-            },
-        ],
-        ...(currentAccount.id === post.author.id
-            ? [
-                  [
-                      {
-                          label: "Edit",
-                          onPress: onStartEditingPost,
-                      },
-                  ],
-              ]
-            : []),
-    ];
 }

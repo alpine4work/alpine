@@ -30,12 +30,12 @@ type WebSocketClientInternalState<Protocol extends WebSocketProtocolBase> =
               readonly input: unknown;
               readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
-          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
+          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => Promise<void>;
       }
     | {
           readonly type: "Connected";
           readonly connection: WebSocketClientConnection<Protocol>;
-          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
+          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => Promise<void>;
       }
     | {
           readonly type: "WaitingToReconnect";
@@ -44,7 +44,7 @@ type WebSocketClientInternalState<Protocol extends WebSocketProtocolBase> =
               readonly input: unknown;
               readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
-          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
+          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => Promise<void>;
       }
     | {
           readonly type: "Error";
@@ -54,7 +54,7 @@ type WebSocketClientInternalState<Protocol extends WebSocketProtocolBase> =
               readonly input: unknown;
               readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
-          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
+          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => Promise<void>;
       }
     | {
           readonly type: "DocumentNotVisible";
@@ -63,7 +63,7 @@ type WebSocketClientInternalState<Protocol extends WebSocketProtocolBase> =
               readonly input: unknown;
               readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
-          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
+          readonly disconnect: (transition: WebSocketClientDisconnectTransition) => Promise<void>;
       }
     | {
           readonly type: "Disconnected";
@@ -245,8 +245,9 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 wasDisconnected = true;
                 openHealthyTimeout?.clear();
                 openHealthyTimeout = null;
-                void connection.close();
+                const closePromise = connection.close();
                 actuallyDisconnect(transition);
+                return closePromise;
             };
 
             this._state.set({
@@ -345,7 +346,10 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                     type: "Error",
                     error,
                     pendingProcedures,
-                    disconnect: actuallyDisconnect,
+                    disconnect: transition => {
+                        actuallyDisconnect(transition);
+                        return Promise.resolve();
+                    },
                 });
                 return;
             }
@@ -363,6 +367,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 disconnect: transition => {
                     timeout.clear();
                     actuallyDisconnect(transition);
+                    return Promise.resolve();
                 },
             });
         };
@@ -379,7 +384,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             } else {
                 delayedDocumentNotVisibleTimeout = createTimeout(() => {
                     const state = this._state.getSnapshot();
-                    if (state.type !== "Disconnected") state.disconnect("DocumentNotVisible");
+                    if (state.type !== "Disconnected") void state.disconnect("DocumentNotVisible");
                 }, 1000 * 5);
             }
         };
@@ -404,7 +409,10 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                     this._state.set({
                         type: "DocumentNotVisible",
                         pendingProcedures,
-                        disconnect: actuallyDisconnect,
+                        disconnect: transition => {
+                            actuallyDisconnect(transition);
+                            return Promise.resolve();
+                        },
                     });
                     break;
                 }
@@ -419,7 +427,10 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
             this._state.set({
                 type: "DocumentNotVisible",
                 pendingProcedures,
-                disconnect: actuallyDisconnect,
+                disconnect: transition => {
+                    actuallyDisconnect(transition);
+                    return Promise.resolve();
+                },
             });
         }
     }
@@ -429,17 +440,28 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
      *
      * Will throw an error if the WebSocket is already disconnected. Which you can
      * check with `isDisconnected` in state.
+     *
+     * Returns a promise that resolves when the underlying WebSocket actually
+     * closes. If we have some previously executed procedures we are waiting on
+     * acknowledgments for then the underlying WebSocket won't actually close until
+     * we get those acknowledgements.
+     *
+     * This WebSocket client will synchronously accept no new messages after
+     * calling this function. Calling `connect()` will create a new connection even
+     * if the original underlying connection hasn't fully closed yet.
      */
-    public disconnect(): void {
+    public disconnect(): Promise<void> {
         const state = this._state.getSnapshot();
         assert(state.type !== "Disconnected", "WebSocket is already disconnected");
 
-        state.disconnect("Disconnected");
+        const disconnectPromise = state.disconnect("Disconnected");
 
         assert(
             this._state.getSnapshot().type === "Disconnected",
             "WebSocket internals should have updated state to `Disconnected`",
         );
+
+        return disconnectPromise;
     }
 
     /**
@@ -450,7 +472,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     public reconnect() {
         // If we're not disconnected then disconnect...
         if (this._state.getSnapshot().type !== "Disconnected") {
-            this.disconnect();
+            void this.disconnect();
         }
 
         this.connect();

@@ -28,7 +28,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 
@@ -172,6 +172,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
 }) {
     const [inputValue, setInputValue] = useState("");
 
+    // eslint-disable-next-line react-compiler/react-compiler
     const searchedItemsResult = useSearchedItems(inputValue);
     const searchedItems = searchedItemsResult.isLoading
         ? emptyArray
@@ -290,7 +291,6 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             backgroundColor: "transparent",
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
-                            borderBottom: "grey-10",
                         })}
                         placeholder={inputLabel}
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`

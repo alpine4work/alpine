@@ -1,6 +1,6 @@
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders

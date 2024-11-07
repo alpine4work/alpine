@@ -384,6 +384,15 @@ export type TracerEventData = {
      */
     readonly common?: {
         /**
+         * Some type string associated with this span. Should be low cardinality
+         * (recommended below 10 values) to be useful for grouping/filtering. Often the
+         * `type` property of an object we perform an `exhaustive()` switch on.
+         *
+         * Should be an identifier (should pass `isIdentifier()`).
+         */
+        readonly type?: string;
+
+        /**
          * A count of something related to the span. You should be able to tell what
          * the count is referring to by the span name.
          */
@@ -417,6 +426,16 @@ export type TracerEventData = {
          * Was the data we're loading in this span cached? True if so false if not.
          */
         readonly wasCached?: boolean;
+
+        /**
+         * Width of some geometry in whatever units are relevant to the span.
+         */
+        readonly width?: number;
+
+        /**
+         * Height of some geometry in whatever units are relevant to the span.
+         */
+        readonly height?: number;
     };
 
     /**
@@ -1155,6 +1174,9 @@ export type TracerEventData = {
 
             /** The scale of the file preview image. */
             readonly imageScale?: number;
+
+            /** Does the image have an alpha channel? */
+            readonly imageHasAlpha?: boolean;
 
             /** If this is a video, how long is the video in milliseconds? */
             readonly imageVideoDurationMs?: number;

@@ -1,4 +1,5 @@
 import Color from "color";
+import {interpolateHcl} from "d3-interpolate";
 import {useMemo, useRef, useState} from "react";
 import {generateBlobsForContent} from "~/client/blob_factory/generate_blobs_for_content.js";
 import {
@@ -8,24 +9,26 @@ import {
 } from "~/client/blob_factory/internal/draw_blob_factory.js";
 import {useDevConsoleSettingsObject} from "~/client/dev/dev_console.js";
 import {useColorScheme} from "~/client/helpers/color_scheme.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {documentBlobsStyles, sprinkles} from "~/client/styles/styles.js";
 import {titleClassName} from "~/shared/content/content_styles.js";
-import {colors} from "~/shared/design/colors.js";
-import {easeInOutSin} from "~/shared/design/easing.js";
-import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient.js";
-import {themeColors} from "~/shared/design/theme_colors.js";
+import {colors} from "~/shared/design/core/colors.js";
+import {Easing, easeInOutSin} from "~/shared/design/core/easing.js";
+import {themeColors} from "~/shared/design/core/theme_colors.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
+import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // TODO: responsive blobs
 const DefaultContentWidthPx = 768;
 
 export type DocumentBlobFactorySettings = ReturnType<typeof useDocumentBlobSettings>;
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDocumentBlobSettings({defaultSeed}: {defaultSeed: string}) {
     return useDevConsoleSettingsObject("blobs", {
         textFillEnabled: {
@@ -319,4 +322,23 @@ function DocumentBlobFactoryCanvas({
             )}
         </div>
     );
+}
+
+type ColorString = string;
+
+function generateEasedGradient(
+    from: ColorString,
+    to: ColorString,
+    easingFunction: Easing,
+    stops = 6,
+): Array<ColorString> {
+    const interpolate = interpolateHcl(from, to);
+    return createArrayWithLength(stops, index => {
+        const progress = invLerp(0, stops - 1, index);
+        return interpolate(easingFunction(progress));
+    });
+}
+
+function formatCssLinearGradient(sideOrCorner: string, stops: ReadonlyArray<ColorString>): string {
+    return `linear-gradient(${sideOrCorner}, ${stops.join(",")})`;
 }

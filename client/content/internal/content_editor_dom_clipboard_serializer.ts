@@ -1,12 +1,25 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
+import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
+import {remPxByPlatform} from "~/shared/design/core/spacing.js";
+import {
+    FileAttachmentTarget,
+    serializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
+import {
+    isFileWebSafeAudioContentType,
+    isFileWebSafeImageContentType,
+} from "~/shared/files/file_content_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/to_dom.ts#L27
@@ -35,27 +48,32 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         schema: Schema,
         getSpaceId: () => SpaceId,
         getContentReferences: () => ContentReferences,
+        getFileAttachmentTarget: () => FileAttachmentTarget,
     ): ContentEditorDomClipboardSerializer {
         return new ContentEditorDomClipboardSerializer(
             this.nodesFromSchema(schema),
             this.marksFromSchema(schema),
             getSpaceId,
             getContentReferences,
+            getFileAttachmentTarget,
         );
     }
 
     private readonly _getSpaceId: () => SpaceId;
     private readonly _getContentReferences: () => ContentReferences;
+    private readonly _getFileAttachmentTarget: () => FileAttachmentTarget;
 
     protected constructor(
         nodes: {[node: string]: (node: Node) => DOMOutputSpec},
         marks: {[mark: string]: (mark: Mark, inline: boolean) => DOMOutputSpec},
         getSpaceId: () => SpaceId,
         getContentReferences: () => ContentReferences,
+        getFileAttachmentTarget: () => FileAttachmentTarget,
     ) {
         super(nodes, marks);
         this._getSpaceId = getSpaceId;
         this._getContentReferences = getContentReferences;
+        this._getFileAttachmentTarget = getFileAttachmentTarget;
     }
 
     override serializeNodeInner(node: Node, options: {document?: Document}): globalThis.Node {
@@ -87,8 +105,8 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 this._getContentReferences(),
                 mention,
             ).getSnapshot();
-            dom.dataset.mentionAccount = mention.accountId;
-            if (mention.isShort) dom.dataset.mentionShort = "true";
+            dom.setAttribute("data-cy-mention", mention.accountId);
+            if (mention.isShort) dom.setAttribute("data-cy-mention-short", "");
             dom.textContent = `@${mentionText}`;
             return dom;
         }
@@ -98,7 +116,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const codeDom = document.createElement("code");
 
             if (node.attrs.language && node.attrs.language !== "text") {
-                codeDom.setAttribute("data-language", node.attrs.language);
+                codeDom.setAttribute("data-cy-language", node.attrs.language);
             }
 
             let isFirstChild = true;
@@ -134,6 +152,204 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             this.serializeFragment(node.content, options, codeDom);
 
             return codeDom;
+        }
+
+        // We serialize our file parents with very lightweight CSS for rendering files
+        // the same way they might look in a document. That way compatible applications
+        // can parse the clipboard properly. Also, we use these lightweight styles
+        // within Alpine ourselves to parse content back from generated HTML.
+        if (node.type.name === "fileRow" || node.type.name === "fileFloat") {
+            const fileRowDom = document.createElement("div");
+
+            const layouts = layoutContentFileParent(this._getContentReferences(), node, {
+                screenWidth: getClientInfo().screenWidth,
+                isMobile: false,
+            });
+
+            const gap = contentStyles.fileRowGapWidthRem * remPxByPlatform.desktop;
+
+            if (node.type.name === "fileRow") {
+                fileRowDom.style.display = "flex";
+                fileRowDom.style.gap = `${gap}px`;
+                fileRowDom.style.marginTop = `${gap}px`;
+                fileRowDom.style.marginBottom = `${gap}px`;
+            } else if (node.type.name === "fileFloat") {
+                fileRowDom.style.float = node.attrs.direction;
+                fileRowDom.style.clear = "both";
+
+                // Intentionally only `marginBottom`. That way the file is flush with the top
+                // of whatever block it's next to but there's a bit of space between the file
+                // and text that flows below.
+                fileRowDom.style.marginBottom = `${gap}px`;
+
+                if (node.attrs.direction === "left") {
+                    fileRowDom.style.marginRight = `${gap}px`;
+                } else {
+                    fileRowDom.style.marginLeft = `${gap}px`;
+                }
+            }
+
+            this.serializeFragment(node.content, options, fileRowDom);
+
+            // Iterate through our children and set our layout dimensions on each one. That
+            // way the clipboard HTML will end up rendering a gallery that looks close to
+            // what's in Alpine.
+            let index = 0;
+            let fileRowChildDom = fileRowDom.firstElementChild;
+            while (fileRowChildDom) {
+                const layout = layouts[index];
+                if (layout && fileRowChildDom instanceof HTMLElement) {
+                    if (!isHtmlElementBlockLevel(fileRowChildDom)) {
+                        fileRowChildDom.style.display = "block";
+                    }
+                    if (
+                        fileRowChildDom instanceof HTMLImageElement ||
+                        fileRowChildDom instanceof HTMLVideoElement ||
+                        fileRowChildDom instanceof HTMLObjectElement
+                    ) {
+                        fileRowChildDom.width = Math.round(layout.width);
+                        fileRowChildDom.height = Math.round(layout.height);
+                    } else {
+                        fileRowChildDom.style.width = `${Math.round(layout.width)}px`;
+                        fileRowChildDom.style.height = `${Math.round(layout.height)}px`;
+                    }
+                }
+
+                index++;
+                fileRowChildDom = fileRowChildDom.nextElementSibling;
+            }
+
+            return fileRowDom;
+        }
+
+        if (node.type.name === "file") {
+            const fileId: FileId | null = node.attrs.fileId;
+            const fileReference = fileId
+                ? this._getContentReferences().fileById.get(fileId)
+                : undefined;
+
+            // If the file is a web safe image then let's use an `<img>` element in our
+            // generated HTML. If an application is able to process pasted HTML it should
+            // be able to interpret our `<img>` element correctly.
+            //
+            // We use the file itself as the `<img>`'s `src` instead of a processed preview
+            // file or resized file.
+            if (fileReference && isFileWebSafeImageContentType(fileReference.file.contentType)) {
+                const fileDom = document.createElement("img");
+
+                fileDom.setAttribute(
+                    "src",
+                    new URL(
+                        `/files/${this._getSpaceId()}/${fileId}${fileReference.signedUrlSearch}`,
+                        window.location.href,
+                    ).toString(),
+                );
+
+                fileDom.setAttribute(
+                    "data-cy-attached",
+                    serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
+                );
+
+                return fileDom;
+            }
+
+            // If the file is web safe video then let's use a `<video>` element in our
+            // generated HTML. `video/webm` has broad compatibility across browsers. Some
+            // `video/mp4` codecs have broad compatibility across browsers and others
+            // don't. We treat `video/mp4` as web safe video because it's a common format
+            // for sharing video on the web even if it's not 100% web safe.
+            //
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+            else if (
+                fileReference &&
+                (fileReference.file.contentType === "video/webm" ||
+                    fileReference.file.contentType === "video/mp4")
+            ) {
+                const fileDom = document.createElement("video");
+
+                fileDom.setAttribute("controls", "");
+
+                const fileSourceDom = document.createElement("source");
+                fileDom.appendChild(fileSourceDom);
+
+                fileSourceDom.setAttribute(
+                    "src",
+                    new URL(
+                        `/files/${this._getSpaceId()}/${fileId}${fileReference.signedUrlSearch}`,
+                        window.location.href,
+                    ).toString(),
+                );
+
+                fileDom.setAttribute(
+                    "data-cy-attached",
+                    serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
+                );
+
+                return fileDom;
+            }
+
+            // If the file is web safe audio then let's use an `<audio>` element in our
+            // generated HTML. Some `audio/mp4` codecs have broad compatibility across
+            // browsers and others don't. We treat `audio/mp4` as web safe audio because
+            // it's a common format for sharing audio on the web even if it's not 100% web
+            // safe.
+            //
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
+            else if (
+                fileReference &&
+                (isFileWebSafeAudioContentType(fileReference.file.contentType) ||
+                    fileReference.file.contentType === "audio/mp4")
+            ) {
+                const fileDom = document.createElement("audio");
+
+                fileDom.setAttribute("controls", "");
+
+                fileDom.setAttribute(
+                    "src",
+                    new URL(
+                        `/files/${this._getSpaceId()}/${fileId}${fileReference.signedUrlSearch}`,
+                        window.location.href,
+                    ).toString(),
+                );
+
+                fileDom.setAttribute(
+                    "data-cy-attached",
+                    serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
+                );
+
+                return fileDom;
+            }
+
+            // Otherwise, fallback to an `<object>` element. `<object>` elements are the
+            // way you get the browser to use its native PDF renderer.
+            //
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/object
+            else {
+                const fileDom = document.createElement("object");
+
+                if (fileId) {
+                    if (fileReference) {
+                        fileDom.setAttribute("type", fileReference.file.contentType);
+                    }
+
+                    fileDom.setAttribute(
+                        "data",
+                        new URL(
+                            `/files/${this._getSpaceId()}/${fileId}${
+                                fileReference ? fileReference.signedUrlSearch : ""
+                            }`,
+                            window.location.href,
+                        ).toString(),
+                    );
+
+                    fileDom.setAttribute(
+                        "data-cy-attached",
+                        serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
+                    );
+                }
+
+                return fileDom;
+            }
         }
 
         const dom = super.serializeNodeInner(node, options);

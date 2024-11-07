@@ -23,17 +23,6 @@ export type FileContentType =
     | FileAudioContentType
     | FileCodeContentType;
 
-// TODO(calebmer, #files): File types to support:
-//
-// - [x] Images
-// - [x] Documents
-// - [x] Videos
-// - [x] Audio (optional)
-// - [ ] Code (optional)
-//
-// A good reference for file types we should support is Canva:
-// https://www.canva.com/help/upload-formats-requirements
-
 export type FileImageContentType = FileWebSafeImageContentType | FileWebUnsafeImageContentType;
 
 /**
@@ -68,6 +57,36 @@ export type FileWebSafeImageContentType =
  * [3]: https://www.iana.org/assignments/media-types/media-types.xhtml
  */
 export type FileWebUnsafeImageContentType = "image/bmp" | "image/ico" | "image/tiff" | "image/heif";
+
+const fileImageContentTypes: {
+    [Key in FileImageContentType]: Key extends FileWebSafeImageContentType ? true : false;
+} = {
+    "image/apng": true,
+    "image/avif": true,
+    "image/gif": true,
+    "image/jpeg": true,
+    "image/png": true,
+    "image/svg+xml": true,
+    "image/webp": true,
+    "image/bmp": false,
+    "image/ico": false,
+    "image/tiff": false,
+    "image/heif": false,
+};
+
+export function isFileImageContentType(contentType: string): contentType is FileImageContentType {
+    return contentType in fileImageContentTypes;
+}
+
+export function isFileWebSafeImageContentType(
+    contentType: string,
+): contentType is FileWebSafeImageContentType {
+    return isFileImageContentType(contentType) && fileImageContentTypes[contentType];
+}
+
+export function getFileImageContentTypes(): ReadonlyArray<FileImageContentType> {
+    return Object.keys(fileImageContentTypes) as ReadonlyArray<FileImageContentType>;
+}
 
 /**
  * Document file types. All documents file types are converted to [PDF
@@ -229,6 +248,26 @@ export type FileMp4VideoContentType = "video/mp4";
 
 export type FileWebUnsafeVideoContentType = "video/quicktime" | "video/mpeg" | "video/x-matroska";
 
+const fileVideoContentTypes: {
+    [Key in FileVideoContentType]: true;
+} = {
+    "video/webm": true,
+    "video/mp4": true,
+    "video/quicktime": true,
+    "video/mpeg": true,
+    "video/x-matroska": true,
+};
+
+export function isFileVideoContentType(
+    contentType: FileContentType,
+): contentType is FileVideoContentType {
+    return contentType in fileVideoContentTypes;
+}
+
+export function getFileVideoContentTypes(): ReadonlyArray<FileVideoContentType> {
+    return Object.keys(fileVideoContentTypes) as ReadonlyArray<FileVideoContentType>;
+}
+
 /**
  * Audio files we support. We support all the same video types as Canva. See
  * [Canva's upload formats][1]. Like video, audio container format and codec
@@ -314,6 +353,32 @@ export type FileMp4AudioContentType = "audio/mp4";
 
 export type FileWebUnsafeAudioContentType = "audio/ogg";
 
+const fileAudioContentTypes: {
+    [Key in FileAudioContentType]: Key extends FileWebSafeAudioContentType ? true : false;
+} = {
+    "audio/mpeg": true,
+    "audio/wav": true,
+    "audio/webm": true,
+    "audio/mp4": false,
+    "audio/ogg": false,
+};
+
+export function isFileAudioContentType(
+    contentType: FileContentType,
+): contentType is FileAudioContentType {
+    return contentType in fileAudioContentTypes;
+}
+
+export function isFileWebSafeAudioContentType(
+    contentType: FileContentType,
+): contentType is FileWebSafeAudioContentType {
+    return isFileAudioContentType(contentType) && fileAudioContentTypes[contentType];
+}
+
+export function getFileAudioContentTypes(): ReadonlyArray<FileAudioContentType> {
+    return Object.keys(fileAudioContentTypes) as ReadonlyArray<FileAudioContentType>;
+}
+
 /**
  * Content types representing code. Code files are considered to be text based
  * and rendered with a UTF-8 character encoding.
@@ -392,6 +457,43 @@ export const fileContentTypeByCodeBlockLanguageId = {
     erlang: "text/x-erlang",
     ocaml: "text/x-ocaml",
 } as const;
+
+export function isFileCodeContentType(
+    contentType: FileContentType,
+): contentType is FileCodeContentType {
+    return !!getFileContentTypeContentCodeBlockLanguageIdIfExists(contentType);
+}
+
+let codeBlockLanguageIdByFileContentType: Map<
+    FileContentType,
+    keyof typeof fileContentTypeByCodeBlockLanguageId
+> | null = null;
+
+export function getFileContentTypeContentCodeBlockLanguageIdIfExists(
+    contentType: FileContentType,
+): keyof typeof fileContentTypeByCodeBlockLanguageId | null {
+    codeBlockLanguageIdByFileContentType ??= new Map(
+        Object.entries(fileContentTypeByCodeBlockLanguageId).map(
+            ([languageId, contentType]): [
+                FileContentType,
+                keyof typeof fileContentTypeByCodeBlockLanguageId,
+            ] => [contentType, languageId as keyof typeof fileContentTypeByCodeBlockLanguageId],
+        ),
+    );
+    return codeBlockLanguageIdByFileContentType.get(contentType) ?? null;
+}
+
+export function getFileContentTypeContentCodeBlockLanguageId(
+    contentType: FileCodeContentType,
+): keyof typeof fileContentTypeByCodeBlockLanguageId {
+    return getFileContentTypeContentCodeBlockLanguageIdIfExists(contentType)!;
+}
+
+export function getContentCodeBlockLanguageIdFileContentType(
+    languageId: keyof typeof fileContentTypeByCodeBlockLanguageId,
+): FileCodeContentType {
+    return fileContentTypeByCodeBlockLanguageId[languageId];
+}
 
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
@@ -542,6 +644,17 @@ export function canonicalizeFileContentTypeIfExists(contentType: string): FileCo
 }
 
 /**
+ * Get the `FileContentType` for the provided path just based on the file's
+ * extension.
+ */
+export function getPathFileContentTypeIfExists(path: string): FileContentType | null {
+    const extensionMatch = path.match(/\.([a-zA-Z0-9]+)$/);
+    const extension = extensionMatch?.[1]?.toLowerCase();
+    if (!extension) return null;
+    return getFileContentTypeByExtension().get(extension) ?? null;
+}
+
+/**
  * Get the preferred file extension for some `FileContentType`. We'll save
  * files of this type with that extension. Web browsers use MIME types to
  * determine the type of a file but OSes use file extensions to determine the
@@ -576,10 +689,10 @@ export function getFileContentTypePreferredExtension(contentType: FileContentTyp
  * [2]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/tree/master
  * [3]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/blob/815b520eb01992a05d41a5434f1227a8be101e15/data/freedesktop.org.xml.in
  */
-const fileAdditionalContentTypesAndExtensionsByContentType: {
-    [Key in FileContentType]?: {
-        contentTypes?: Array<string>;
-        extensions?: Array<string>;
+export const fileAdditionalContentTypesAndExtensionsByContentType: {
+    readonly [Key in FileContentType]?: {
+        readonly contentTypes?: ReadonlyArray<string>;
+        readonly extensions?: ReadonlyArray<string>;
     };
 } = {
     "image/apng": {
@@ -770,4 +883,25 @@ function getFileCanonicalContentTypeByAdditionalContentType() {
         ),
     );
     return fileCanonicalContentTypeByAdditionalContentType;
+}
+
+let fileContentTypeByExtension: Map<string, FileContentType> | null = null;
+
+function getFileContentTypeByExtension() {
+    fileContentTypeByExtension ??= new Map([
+        ...Object.entries(filePreferredExtensionByContentType).map(
+            ([contentType, extension]): [string, FileContentType] => [
+                extension,
+                contentType as FileContentType,
+            ],
+        ),
+        ...Object.entries(fileAdditionalContentTypesAndExtensionsByContentType).flatMap(
+            ([contentType, {extensions = []}]) =>
+                extensions.map((extension): [string, FileContentType] => [
+                    extension,
+                    contentType as FileContentType,
+                ]),
+        ),
+    ]);
+    return fileContentTypeByExtension;
 }

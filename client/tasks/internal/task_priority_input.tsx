@@ -14,7 +14,7 @@ import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -457,6 +457,10 @@ function TaskPriorityInput(
                 isBlocking={true}
                 withoutRootBlockingScope={true}
                 withoutBlockingTarget={true}
+                onBlockingCoverPointerDown={() => {
+                    if (document.activeElement instanceof HTMLElement)
+                        document.activeElement.blur();
+                }}
                 // Set a constant `overflowBottom` value instead of relying on the current
                 // keyboard height (which will be updated asynchronously after `isEditing` is
                 // true). This stops the overlay placement from jumping around while the
@@ -579,6 +583,20 @@ function TaskPriorityInput(
                                     document.activeElement === event.target &&
                                     !comboBoxState.isOpen
                                 ) {
+                                    comboBoxState.open();
+                                }
+
+                                // When using the mouse, if the user clicks the input and the input isn't
+                                // focused then prevent default and open the combobox. We `preventDefault()`
+                                // since the browser default is to focus on `pointerdown` then set the
+                                // selection on `pointerup`. However, on initial tap we want to focus
+                                // everything (we call `inputElement.select()` in `onOpenChange`) so the
+                                // browser changing the selection in `pointerup` breaks that.
+                                if (
+                                    event.pointerType === "mouse" &&
+                                    document.activeElement !== event.target
+                                ) {
+                                    event.preventDefault();
                                     comboBoxState.open();
                                 }
                             }}

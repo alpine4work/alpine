@@ -12,13 +12,13 @@ import {
     TextItalic,
     TextOutdent,
 } from "phosphor-react";
-import {Command, EditorState, TextSelection} from "prosemirror-state";
+import {Command, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
 import {isContinuouslyTypingInContentEditor} from "~/client/content/content_editor_state.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_input_rules_plugin.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,
@@ -39,7 +39,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {
     useRegisterBottomBarMobileKeyboardToolbarFrame,
     useWebMobileKeyboardToolbarSafeAreaInsetBottom,
@@ -50,7 +50,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -64,7 +64,12 @@ export function ContentEditorMobileKeyboardToolbar({
     onCommentInputOpen,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView | null>;
+    viewRef: RefObject<
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
+    >;
     isFocused: boolean;
     openCommentThread: ((commentThreadId: DocumentCommentThreadId) => Promise<void>) | undefined;
     onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
@@ -490,7 +495,7 @@ function ContentEditorMobileKeyboardToolbarButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        (isPressed: boolean) => isPressed && isActive,
+        isPressed => isPressed && isActive,
         [isPressed],
     );
 

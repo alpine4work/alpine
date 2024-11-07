@@ -1,58 +1,97 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
+    Key,
     ReactElement,
+    ReactNode,
     Ref,
     RefCallback,
+    createContext,
     createRef,
     forwardRef,
     useCallback,
+    useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
 } from "react";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {MenuAction, MenuChildrenAction, MenuItem, menuSizeConstants} from "~/client/design/menu.js";
+import {Menu, MenuAction, MenuItem} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {setElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {generateId} from "~/shared/id/id.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
 
 /**
+ * Add context menu actions to the `contextmenu` `MouseEvent`. Generally prefer
+ * using `<ContextMenuActions>` which manages the event for you.
+ *
+ * Context menu actions are be ordered from most specific to least specific. So
+ * if you have:
+ *
+ * ```jsx
+ * <ContextMenuActions actions={actions2}>
+ *     <ContextMenuActions actions={actions1}>
+ *         ...
+ *     </ContextMenuActions>
+ * </ContextMenuActions>
+ * ```
+ *
+ * ...the parent's actions should come after the child's actions. So `actions2`
+ * should come after `actions1`.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function addContextMenuActions(
+    event: MouseEvent & {
+        [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
+    },
+    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+) {
+    const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
+    eventActions.push(...actions);
+}
+
+/**
  * Create a context menu actions ref if you want to avoid rendering another
  * component with `<ContextMenuActions>` for performance reasons.
+ *
+ * Context menu actions are be ordered from most specific to least specific. So
+ * if you have:
+ *
+ * ```jsx
+ * <ContextMenuActions actions={actions2}>
+ *     <ContextMenuActions actions={actions1}>
+ *         ...
+ *     </ContextMenuActions>
+ * </ContextMenuActions>
+ * ```
+ *
+ * ...the parent's actions should come after the child's actions. So `actions2`
+ * should come after `actions1`.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useContextMenuActionsRef(
     actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
 ): RefCallback<HTMLElement> {
-    const handleContextMenu = useEvent(
-        (
-            event: MouseEvent & {
-                [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
-            },
-        ) => {
-            const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
-            eventActions.unshift(...actions);
-        },
-    );
+    const handleContextMenu = useEvent((event: MouseEvent) => {
+        addContextMenuActions(event, actions);
+    });
 
     const lifecycleRef = useCallback(
         (element: HTMLElement) => {
@@ -89,6 +128,20 @@ export function useContextMenuActionsRef(
  * If you want to add some actions to the context menu then wrap a `<div>` (or
  * other HTML element) in this component. It will listen for context menu
  * events on child elements and add some actions when the user right-clicks.
+ *
+ * Context menu actions are be ordered from most specific to least specific. So
+ * if you have:
+ *
+ * ```jsx
+ * <ContextMenuActions actions={actions2}>
+ *     <ContextMenuActions actions={actions1}>
+ *         ...
+ *     </ContextMenuActions>
+ * </ContextMenuActions>
+ * ```
+ *
+ * ...the parent's actions should come after the child's actions. So `actions2`
+ * should come after `actions1`.
  */
 export function ContextMenuActions({
     actions,
@@ -100,18 +153,33 @@ export function ContextMenuActions({
     return useElementWithRef(children, useContextMenuActionsRef(actions));
 }
 
+const IsContextMenuOpenContext = createContext<boolean>(false);
+
+/**
+ * Returns true if the context menu is open.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useIsContextMenuOpen() {
+    return useContext(IsContextMenuOpenContext);
+}
+
 type ContextMenuInstanceState = {
     readonly x: number;
     readonly y: number;
     readonly actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     readonly focusedMenuItemIndex: number | null;
-    readonly targetId: string;
+    readonly targetElement: Element | null;
 };
 
 type ContextMenuState =
     | {
           readonly isOpen: false;
-          readonly shouldAnimateOut: boolean;
+          readonly shouldAnimateOut: false;
+          readonly lastInstance: null;
+      }
+    | {
+          readonly isOpen: false;
+          readonly shouldAnimateOut: true;
           readonly lastInstance: ContextMenuInstanceState | null;
       }
     | {
@@ -119,7 +187,7 @@ type ContextMenuState =
           readonly instance: ContextMenuInstanceState;
       };
 
-export function ContextMenuManager() {
+export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
     const {isAppleDevice} = useClientInfo();
 
     const [contextMenuState, setContextMenuState] = useState<ContextMenuState>({
@@ -157,107 +225,125 @@ export function ContextMenuManager() {
             const actions: Array<ReadonlyArray<MenuAction>> =
                 event[contextMenuEventActionsSymbol] ?? [];
 
-            // If we right-clicked on a text input then add our standard text
-            // processing actions.
-            if (document.activeElement && isTextInputElement(document.activeElement)) {
-                // Emulate default browser behavior of selecting word the user right clicked.
-                selectWordIfSelectionEmpty(event.target);
+            // Emulate default browser behavior of selecting word the user right clicked.
+            selectWordIfSelectionEmpty(event.target);
 
-                const isTextSelectedInInput =
-                    document.activeElement instanceof HTMLInputElement &&
-                    document.activeElement.selectionStart !== document.activeElement.selectionEnd;
+            const selection = window.getSelection();
 
-                const selection = window.getSelection();
+            let target:
+                | {type: "Input"; element: HTMLInputElement}
+                | {type: "Selection"; selection: Selection}
+                | null = null;
 
-                const isTextSelectedInContentEditable =
-                    document.activeElement instanceof HTMLElement &&
-                    document.activeElement.isContentEditable &&
-                    selection &&
-                    selection.anchorOffset !== selection.focusOffset;
-
-                const isTextSelected = isTextSelectedInInput || isTextSelectedInContentEditable;
-
-                actions.unshift([
-                    {
-                        label: "Cut",
-                        isDisabled: !isTextSelected,
-                        keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
-                        onPress: () => {
-                            document.execCommand("cut");
-                        },
-                    },
-                    {
-                        label: "Copy",
-                        isDisabled: !isTextSelected,
-                        keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
-                        onPress: () => {
-                            document.execCommand("copy");
-                        },
-                    },
-                    {
-                        label: "Paste",
-                        keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
-                        onPress: () => {
-                            // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
-                            // have a desktop app wrapper also ask the user if they want to install the app
-                            // to paste.
-                            setShouldShowPasteWarningDialog(true);
-                        },
-                    },
-                ]);
-            }
-            // If we right-clicked on selectable text then add our standard text
-            // processing actions.
-            else if (
-                (event.target instanceof HTMLElement &&
-                    (getComputedStyle(event.target).userSelect ??
-                        // In Safari `user-select` is behind a vendor prefix.
-                        getComputedStyle(event.target).webkitUserSelect) !== "none") ||
-                // If this is a disabled or read-only input element we allow text
-                // processing actions.
-                (event.target instanceof HTMLInputElement &&
-                    (event.target.disabled || event.target.readOnly))
+            if (event.target instanceof HTMLInputElement) {
+                target = {type: "Input", element: event.target};
+            } else if (
+                event.target instanceof Node &&
+                selection?.containsNode(event.target, true)
             ) {
-                // Emulate default browser behavior of selecting word the user right clicked.
-                selectWordIfSelectionEmpty(event.target);
+                target = {type: "Selection", selection};
+            }
 
-                const selection = window.getSelection();
+            if (target) {
+                let isDisabled: boolean;
+                let isEditable: boolean;
+                let isEmpty: boolean;
 
-                if (
-                    event.target instanceof HTMLInputElement ||
-                    // If user is right-clicking in the margins of some selectable text (e.g. a
-                    // document) don't give them an option to copy. If the right click on a word
-                    // then we'll select a word and let them copy.
-                    (selection && selection.anchorOffset !== selection.focusOffset)
-                ) {
-                    actions.unshift([
-                        {
-                            label: "Copy",
-                            keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
-                            onPress: () => {
-                                document.execCommand("copy");
+                switch (target.type) {
+                    case "Input": {
+                        isDisabled = false;
+
+                        isEditable =
+                            target.element === document.activeElement &&
+                            !(target.element.disabled || target.element.readOnly);
+
+                        isEmpty = target.element.selectionStart === target.element.selectionEnd;
+                        break;
+                    }
+                    case "Selection": {
+                        const isDisabledForNode = (node: Node | null) => {
+                            if (node === null) return true;
+                            if (!(node instanceof Text)) return true;
+
+                            const element = node.parentElement;
+                            if (!element) return true;
+
+                            const userSelect =
+                                getComputedStyle(element).userSelect ||
+                                // In Safari `user-select` is behind a vendor prefix.
+                                getComputedStyle(element).webkitUserSelect;
+
+                            return userSelect === "none";
+                        };
+
+                        isDisabled =
+                            isDisabledForNode(target.selection.anchorNode) &&
+                            isDisabledForNode(target.selection.focusNode);
+
+                        isEditable =
+                            document.activeElement instanceof HTMLElement &&
+                            document.activeElement.isContentEditable &&
+                            target.selection.containsNode(document.activeElement, true);
+
+                        isEmpty =
+                            target.selection.anchorNode === target.selection.focusNode &&
+                            target.selection.anchorOffset === target.selection.focusOffset;
+                        break;
+                    }
+                    default:
+                        throw exhaustive(target);
+                }
+
+                if (!isDisabled) {
+                    if (!isEditable) {
+                        if (!isEmpty) {
+                            actions.unshift([
+                                {
+                                    label: "Copy",
+                                    keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                    onPress: () => {
+                                        document.execCommand("copy");
+                                    },
+                                },
+                            ]);
+                        }
+                    } else {
+                        actions.unshift([
+                            {
+                                label: "Cut",
+                                isDisabled: !isEmpty,
+                                keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
+                                onPress: () => {
+                                    document.execCommand("cut");
+                                },
                             },
-                        },
-                    ]);
+                            {
+                                label: "Copy",
+                                isDisabled: !isEmpty,
+                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                onPress: () => {
+                                    document.execCommand("copy");
+                                },
+                            },
+                            {
+                                label: "Paste",
+                                keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
+                                onPress: () => {
+                                    // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
+                                    // have a desktop app wrapper also ask the user if they want to install the app
+                                    // to paste.
+                                    setShouldShowPasteWarningDialog(true);
+                                },
+                            },
+                        ]);
+                    }
                 }
             }
 
             if (actions.length > 0) {
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
-                runWithImmediatePriority(() => {
-                    // If the right-clicked element doesn't have an `id` then generate an `id` and
-                    // set it on the element.
-                    let targetId: string;
-                    if (!(event.target instanceof HTMLElement)) {
-                        targetId = `ContextMenu:${generateId()}`;
-                    } else {
-                        if (!event.target.id) {
-                            event.target.id = `ContextMenu:${generateId()}`;
-                        }
-                        targetId = event.target.id;
-                    }
-
+                flushSync(() => {
                     setContextMenuState({
                         isOpen: true,
                         instance: {
@@ -265,7 +351,7 @@ export function ContextMenuManager() {
                             y: event.clientY,
                             actions,
                             focusedMenuItemIndex: null,
-                            targetId,
+                            targetElement: event.target instanceof Element ? event.target : null,
                         },
                     });
                 });
@@ -283,57 +369,89 @@ export function ContextMenuManager() {
     const instance = contextMenuState.isOpen
         ? contextMenuState.instance
         : contextMenuState.lastInstance;
-    if (!instance) return null;
+
+    // Set the target of our `<OverlayAnimated>` to be owned by the element the
+    // user right clicked on. This way we won't consider events in the context menu
+    // to be outside the target element.
+    //
+    // We need to use `setElementOwnedBy()` instead of the `data-ownedby` attribute
+    // because we can't add an `id` to arbitrary elements in the DOM. For example,
+    // an element in a ProseMirror `EditorView` will immediately remove any
+    // unexpected DOM changes.
+    const instanceTargetRef = useLifecycleRef<HTMLDivElement>(
+        useCallback(
+            element => {
+                setElementOwnedBy(element, instance?.targetElement ?? null);
+                return () => {
+                    setElementOwnedBy(element, null);
+                };
+            },
+            [instance?.targetElement],
+        ),
+    );
 
     return (
         <>
-            {createPortal(
-                <OverlayAnimated
-                    isBlocking={true}
-                    isVisible={contextMenuState.isOpen}
-                    placement="bottom-start"
-                    disableAnimationIn={true}
-                    disableAnimationOut={
-                        !contextMenuState.isOpen && !contextMenuState.shouldAnimateOut
-                    }
-                    overlay={
-                        <ContextMenu
-                            actions={instance.actions}
-                            targetId={instance.targetId}
-                            focusedMenuItemIndex={instance.focusedMenuItemIndex}
-                            onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
-                                setContextMenuState(contextMenuState => {
-                                    if (!contextMenuState.isOpen) return contextMenuState;
-                                    return {
-                                        ...contextMenuState,
-                                        instance: {
-                                            ...contextMenuState.instance,
-                                            focusedMenuItemIndex,
-                                        },
-                                    };
-                                });
-                            }}
-                            onCloseWithAnimation={() => {
-                                setContextMenuState({
-                                    isOpen: false,
-                                    shouldAnimateOut: true,
-                                    lastInstance: instance,
-                                });
-                            }}
-                            onCloseWithoutAnimation={() => {
+            {instance &&
+                createPortal(
+                    <OverlayAnimated
+                        isBlocking={true}
+                        isVisible={contextMenuState.isOpen}
+                        placement="bottom-start"
+                        disableAnimationIn={true}
+                        disableAnimationOut={
+                            !contextMenuState.isOpen && !contextMenuState.shouldAnimateOut
+                        }
+                        overlay={
+                            <ContextMenu
+                                actions={instance.actions}
+                                focusedMenuItemIndex={instance.focusedMenuItemIndex}
+                                onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
+                                    setContextMenuState(contextMenuState => {
+                                        if (!contextMenuState.isOpen) return contextMenuState;
+                                        return {
+                                            ...contextMenuState,
+                                            instance: {
+                                                ...contextMenuState.instance,
+                                                focusedMenuItemIndex,
+                                            },
+                                        };
+                                    });
+                                }}
+                                onCloseWithAnimation={() => {
+                                    setContextMenuState({
+                                        isOpen: false,
+                                        shouldAnimateOut: true,
+                                        lastInstance: instance,
+                                    });
+                                }}
+                                onCloseWithoutAnimation={() => {
+                                    setContextMenuState({
+                                        isOpen: false,
+                                        shouldAnimateOut: false,
+                                        lastInstance: null,
+                                    });
+                                }}
+                            />
+                        }
+                        onActuallyVisibleChange={isActuallyVisible => {
+                            if (!isActuallyVisible) {
                                 setContextMenuState({
                                     isOpen: false,
                                     shouldAnimateOut: false,
-                                    lastInstance: instance,
+                                    lastInstance: null,
                                 });
-                            }}
+                            }
+                        }}
+                    >
+                        <Box
+                            ref={instanceTargetRef}
+                            position="absolute"
+                            style={{left: instance.x, top: instance.y}}
                         />
-                    }
-                >
-                    <Box position="absolute" style={{left: instance.x, top: instance.y}} />
-                </OverlayAnimated>,
-                document.body,
-            )}
+                    </OverlayAnimated>,
+                    document.body,
+                )}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
                     title={`Can only paste with ${isAppleDevice ? "⌘+V" : "Ctrl+V"}`}
@@ -346,6 +464,9 @@ export function ContextMenuManager() {
                     onClose={() => setShouldShowPasteWarningDialog(false)}
                 />
             )}
+            <IsContextMenuOpenContext.Provider value={!!instance}>
+                {children}
+            </IsContextMenuOpenContext.Provider>
         </>
     );
 }
@@ -353,14 +474,12 @@ export function ContextMenuManager() {
 const ContextMenu = forwardRef(function ContextMenu(
     {
         actions: nestedActions,
-        targetId,
         focusedMenuItemIndex,
         onFocusedMenuItemIndexChange,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
-        targetId: string;
         focusedMenuItemIndex: number | null;
         onFocusedMenuItemIndexChange: (focusedMenuItemIndex: number | null) => void;
         onCloseWithAnimation: () => void;
@@ -368,7 +487,7 @@ const ContextMenu = forwardRef(function ContextMenu(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const [openedAction, setOpenedAction] = useState<MenuChildrenAction | null>(null);
+    const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
     const flattenedActions = useMemo(() => {
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
@@ -398,9 +517,11 @@ const ContextMenu = forwardRef(function ContextMenu(
 
         const focusedAction =
             focusedMenuItemIndex !== null ? flattenedActions[focusedMenuItemIndex] : undefined;
-        setOpenedAction(openedAction =>
-            focusedAction?.type === "Action" && focusedAction.action === openedAction
-                ? openedAction
+        setOpenedActionKey(openedActionKey =>
+            focusedAction?.type === "Action" &&
+            focusedAction.action.hasChildren &&
+            focusedAction.action.key === openedActionKey
+                ? openedActionKey
                 : null,
         );
     }, [flattenedActions, focusedMenuItemIndex]);
@@ -434,6 +555,11 @@ const ContextMenu = forwardRef(function ContextMenu(
     // We don't focus the context menu since that would mean we lose focus on the
     // element where the user right-clicked. Instead we attach a global keydown
     // listener and manage focus in component state.
+    //
+    // TODO(calebmer): This doesn't support `ArrowRight` keyboard events when the
+    // context menu includes a children action. Ideally I'd find a way to refactor
+    // `<Menu>` in a way where its `onKeyDown` logic works with global key down
+    // events when there's no focus.
     const handleGlobalKeyDown = useEvent((event: KeyboardEvent) => {
         switch (event.key) {
             // Don't allow using tab to move keyboard focus while the context menu is open.
@@ -633,15 +759,13 @@ const ContextMenu = forwardRef(function ContextMenu(
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
-                    minWidth: menuSizeConstants.base.desktop.width,
+                    minWidth: Menu.sizeConstants.base.desktop.width,
                     borderRadius: "1.5",
                     padding: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
                 }),
             )}
-            // The context menu is "owned" by the element on which it opened on top of.
-            data-ownedby={targetId}
         >
             {flattenedActions.map((action, index) => {
                 switch (action.type) {
@@ -662,11 +786,11 @@ const ContextMenu = forwardRef(function ContextMenu(
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 isNotFocusable={true}
                                 isFocusRingVisible={focusedMenuItemIndex === index}
-                                openedAction={openedAction}
-                                onActionOpen={setOpenedAction}
+                                openedActionKey={openedActionKey}
+                                onActionOpen={action => setOpenedActionKey(action.key)}
                                 onActionClose={action =>
-                                    setOpenedAction(openedAction =>
-                                        openedAction === action ? null : openedAction,
+                                    setOpenedActionKey(openedActionKey =>
+                                        openedActionKey === action.key ? null : openedActionKey,
                                     )
                                 }
                             />
@@ -721,7 +845,12 @@ function selectWordIfSelectionEmpty(mouseEventTarget: MouseEvent["target"]) {
     if (!(selection.anchorNode instanceof Text)) return;
 
     // Selection is not empty.
-    if (selection.anchorOffset !== selection.focusOffset) return;
+    if (
+        selection.anchorNode !== selection.focusNode ||
+        selection.anchorOffset !== selection.focusOffset
+    ) {
+        return;
+    }
 
     const textSpans = findUnicodeDefaultWordBoundarySpans(selection.anchorNode.nodeValue!);
 

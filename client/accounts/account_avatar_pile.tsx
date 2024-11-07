@@ -7,25 +7,27 @@ import {useAccountModel} from "~/client/accounts/account_client_store_context_pr
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipProps} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
-import {addRemLengths, negateRemLength, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, negateRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export type AccountAvatarPileSize = "3" | "4" | "5" | "6" | "7" | "12";
 
 export function AccountAvatarPile({
     size = "6",
+    topPreviewAccount = "Last",
     previewAccounts,
     accountCount,
     getAllAccounts,
 }: {
     size?: AccountAvatarPileSize;
-    previewAccounts: ReadonlyArray<AccountModel>;
+    topPreviewAccount?: "First" | "Last";
+    previewAccounts: ReadonlyArray<AccountModel | AccountModelData>;
     accountCount: number;
     getAllAccounts: (limit: number) => MaybePromise<ReadonlyArray<AccountModel>>;
 }) {
@@ -88,13 +90,20 @@ export function AccountAvatarPile({
                 ),
             }}
         >
-            {previewAccounts.map((author, index) => (
+            {previewAccounts.map((account, index) => (
                 <Box
-                    key={author.id}
+                    key={account.id}
                     height={avatarSize}
                     width={avatarOverlapWidth}
                     position="relative"
-                    style={{zIndex: 1 + index}}
+                    style={{
+                        zIndex:
+                            // If we're rendering the account count then don't put the first avatar on top
+                            // since we shouldn't occlude the account count.
+                            topPreviewAccount === "First" && accountCount <= previewAccounts.length
+                                ? previewAccounts.length - index
+                                : 1 + index,
+                    }}
                 >
                     <Box
                         height={avatarSize}
@@ -104,7 +113,7 @@ export function AccountAvatarPile({
                             boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
                         }}
                     >
-                        <AccountAvatar account={author} size={avatarSize} />
+                        <AccountAvatar account={account} size={avatarSize} />
                     </Box>
                 </Box>
             ))}

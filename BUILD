@@ -61,10 +61,8 @@ alias(
     actual = select({
         "@bazel_tools//src/conditions:darwin_arm64": "@node_darwin_arm64//:bin/node",
         "@bazel_tools//src/conditions:darwin_x86_64": "@node_darwin_amd64//:bin/node",
+        "@bazel_tools//src/conditions:linux_aarch64": "@node_linux_arm64//:bin/node",
         "@bazel_tools//src/conditions:linux_x86_64": "@node_linux_amd64//:bin/node",
-        "@bazel_tools//src/conditions:linux_s390x": "@node_linux_s390x//:bin/node",
-        "@bazel_tools//src/conditions:linux_ppc64le": "@node_linux_ppc64le//:bin/node",
-        "@bazel_tools//src/conditions:windows": "@node_windows_amd64//:bin/node",
     }),
     visibility = ["//visibility:public"],
 )
@@ -85,7 +83,6 @@ filegroup(
         "//:env_files",
         "//:package_light_json_file",
         "//:remix_config_files_copy_to_bin",
-        "//app:app_client_node_modules",
     ],
     visibility = ["//visibility:public"],
 )
@@ -163,6 +160,26 @@ alias(
         "@bazel_tools//src/conditions:darwin_x86_64": "@cmake_macos//:bin/cmake",
         "@bazel_tools//src/conditions:linux_aarch64": "@cmake_linux_aarch64//:bin/cmake",
         "@bazel_tools//src/conditions:linux_x86_64": "@cmake_linux_x86_64//:bin/cmake",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+# We use Zig's C compiler to build our C dependencies. This way we use a
+# hermetic C compiler instead of whatever is on the developer's system. To
+# learn more about using Zig as a drop-in C compiler read [`zig cc`: a Powerful
+# Drop-In Replacement for GCC/Clang][1]. We learned about this technique from
+# [uber/hermetic_cc_toolchain][2]. We don't use the rules maintained by Uber
+# since we're not currently using Bazel's C toolchain support.
+#
+# [1]: https://andrewkelley.me/post/zig-cc-powerful-drop-in-replacement-gcc-clang.html
+# [2]: https://github.com/uber/hermetic_cc_toolchain
+alias(
+    name = "zig",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "@zig_macos_aarch64//:zig",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@zig_macos_x86_64//:zig",
+        "@bazel_tools//src/conditions:linux_aarch64": "@zig_linux_aarch64//:zig",
+        "@bazel_tools//src/conditions:linux_x86_64": "@zig_linux_x86_64//:zig",
     }),
     visibility = ["//visibility:public"],
 )

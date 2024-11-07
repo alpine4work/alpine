@@ -8,14 +8,15 @@ import {
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
-import {NavigationBarContent} from "~/client/design/navigation_bar.js";
+import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
-import {MessagingViewRef, getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -187,7 +188,7 @@ export default function NewChatRoute({
     //
     // Note that this only really kicks into gear if the chat you START with when
     // `<ChatAccountPicker>` grows is filled with messages. Otherwise the chat
-    // messaging view header (aptly named `chatMessagingViewHeader`) that pushes
+    // messaging view header (aptly named `chatMessagingViewHeaderItem`) that pushes
     // content to the bottom will end up keeping the scroll position correct.
     //
     // This effect does a similar job as
@@ -234,12 +235,7 @@ export default function NewChatRoute({
             display="flex"
             flexDirection="column"
         >
-            <Box
-                ref={accountPickerContainerRef}
-                flexShrink="0"
-                paddingTop="safe-area-inset"
-                borderBottom="grey-10"
-            >
+            <Box ref={accountPickerContainerRef} flexShrink="0" paddingTop="safe-area-inset">
                 {isMobile && (
                     <NavigationBarContent
                         withMobileLayout={withMobileLayout}

@@ -27,11 +27,10 @@ import {
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {MenuSize, menuSizeConstants} from "~/client/design/menu.js";
+import {Menu, MenuSize} from "~/client/design/menu.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -45,7 +44,8 @@ import {
 } from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -215,7 +215,7 @@ export function ContentEditorMentionFloater({
                 view.state.schema.node("mention", {mention}),
             ),
             {
-                type: "AddAccount",
+                type: "SetAccount",
                 account: new AccountModel(accountData),
             },
         );
@@ -397,7 +397,7 @@ export function ContentEditorMentionFloater({
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
     const menuSize: MenuSize = "lg";
-    const {width} = menuSizeConstants[menuSize][isMobile ? "mobile" : "desktop"];
+    const {width} = Menu.sizeConstants[menuSize][isMobile ? "mobile" : "desktop"];
 
     return (
         <OverlayAnimated

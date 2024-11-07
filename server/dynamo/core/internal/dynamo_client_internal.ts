@@ -1,6 +1,7 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
@@ -90,6 +91,10 @@ export class DynamoClientInternal {
         action: DynamoClientAction,
         input: Input,
     ): Promise<Output> {
+        if (import.meta.jest) {
+            dynamoClientExecuteActionTestCounter.incrementForTest(action);
+        }
+
         let request = new Request(this._url, {
             method: "POST",
             headers: {

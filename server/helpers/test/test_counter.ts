@@ -12,6 +12,7 @@ export class TestCounter<
     // JSON stringifiable.
     Key extends SchemaSerializedValue | void,
 > {
+    private _count = 0;
     private _countByKey = new Map<string, number>();
 
     constructor() {
@@ -20,8 +21,21 @@ export class TestCounter<
             assert(import.meta.jest);
 
             afterEach(() => {
-                this._countByKey.clear();
+                this.resetForTest();
             });
+        }
+    }
+
+    /**
+     * Reset all counters to 0.
+     */
+    public resetForTest() {
+        assert(import.meta.jest);
+
+        this._count = 0;
+
+        for (const key of this._countByKey.keys()) {
+            this._countByKey.set(key, 0);
         }
     }
 
@@ -34,11 +48,13 @@ export class TestCounter<
 
         assert(Number.isInteger(n) && n >= 1);
 
+        this._count += n;
+
         const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
         const count = this._countByKey.get(keyString);
 
         // If there is no count, we aren't recording the count for this request. Don't
-        // set a count in our map since that will cause a memory leak in production.
+        // set a count in our map since that may cause memory issues.
         if (count === undefined) return;
 
         this._countByKey.set(keyString, count + n);
@@ -70,5 +86,17 @@ export class TestCounter<
                 return count;
             },
         };
+    }
+
+    /**
+     * Starts recording a count across all keys. Call the returned `getCount` function for
+     * the current count.
+     *
+     * Will throw outside of a test environment.
+     */
+    public recordAllForTest(): {getCount: () => number} {
+        assert(import.meta.jest);
+
+        return {getCount: () => this._count};
     }
 }

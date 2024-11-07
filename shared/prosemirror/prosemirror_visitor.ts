@@ -1,4 +1,4 @@
-import {Mark, Node} from "prosemirror-model";
+import {Fragment, Mark, Node, Slice} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
@@ -20,27 +20,66 @@ export type ProsemirrorVisitor = {
      * ProseMirror steps you could have a mark outside of a node.
      */
     readonly visitMark?: (mark: Mark) => void;
+
+    /**
+     * Called for ProseMirror node attributes.
+     *
+     * This is not the same as looking at attrs in `visitNode` since when visiting
+     * ProseMirror steps you could have an attr without the rest of the node.
+     * (Specifically in `AttrStep`.)
+     */
+    readonly visitAttr?: (attr: string, value: any) => void;
 };
 
 /**
  * Call the visitor for all relevant objects in the provided node.
  */
 export function visitProsemirrorNode(rootNode: Node, visitor: ProsemirrorVisitor) {
+    if (visitor.visitMark) {
+        for (const mark of rootNode.marks) {
+            visitor.visitMark(mark);
+        }
+    }
+
+    if (visitor.visitAttr) {
+        for (const [attr, value] of Object.entries(rootNode.attrs)) {
+            visitor.visitAttr(attr, value);
+        }
+    }
+
     const shouldVisitRootChildren = visitor.visitNode?.(rootNode) ?? true;
     if (!shouldVisitRootChildren) return;
 
-    for (const mark of rootNode.marks) {
-        visitor.visitMark?.(mark);
-    }
+    visitProsemirrorFragment(rootNode.content, visitor);
+}
 
-    rootNode.descendants(node => {
+/**
+ * Call the visitor for all relevant objects in the provided fragment.
+ */
+export function visitProsemirrorFragment(rootFragment: Fragment, visitor: ProsemirrorVisitor) {
+    rootFragment.descendants(node => {
+        if (visitor.visitMark) {
+            for (const mark of node.marks) {
+                visitor.visitMark(mark);
+            }
+        }
+
+        if (visitor.visitAttr) {
+            for (const [attr, value] of Object.entries(node.attrs)) {
+                visitor.visitAttr(attr, value);
+            }
+        }
+
         const shouldVisitChildren = visitor.visitNode?.(node) ?? true;
         if (!shouldVisitChildren) return false;
-
-        for (const mark of node.marks) {
-            visitor.visitMark?.(mark);
-        }
     });
+}
+
+/**
+ * Call the visitor for all relevant objects in the provided slice.
+ */
+export function visitProsemirrorSlice(slice: Slice, visitor: ProsemirrorVisitor) {
+    visitProsemirrorFragment(slice.content, visitor);
 }
 
 /**
@@ -53,6 +92,7 @@ export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor
     const step = rootStep as ExhaustiveStep;
     switch (step.jsonID) {
         case "attr": {
+            visitor.visitAttr?.(step.attr, step.value);
             break;
         }
         case "addMark":
@@ -70,10 +110,7 @@ export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor
         }
         case "replace":
         case "replaceAround": {
-            step.slice.content.descendants(node => {
-                visitProsemirrorNode(node, visitor);
-                return false;
-            });
+            visitProsemirrorSlice(step.slice, visitor);
             break;
         }
         default:

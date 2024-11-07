@@ -1,6 +1,6 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useEffect, useRef, useState} from "react";
+import {RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {
     ContentEditorState,
@@ -11,7 +11,7 @@ import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/mess
 import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -40,7 +40,7 @@ export function ContentEditorMobileCommentInputBottomBar({
 
     const inputRef = useRef<MessageInputRef>(null);
 
-    const [state, setState] = useState(() =>
+    const [commentState, setCommentState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
@@ -73,8 +73,31 @@ export function ContentEditorMobileCommentInputBottomBar({
         onCloseProp();
     };
 
+    const isNodeDocumentRange = useMemo(() => {
+        if (documentState.selection.from === documentState.selection.to - 1) {
+            const documentRangeNode = documentState.doc.resolve(
+                documentState.selection.from,
+            ).nodeAfter;
+
+            if (
+                documentRangeNode &&
+                !documentRangeNode.inlineContent &&
+                documentRangeNode.type.allowsMarkType(documentState.schema.marks.comment!)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [
+        documentState.doc,
+        documentState.schema.marks.comment,
+        documentState.selection.from,
+        documentState.selection.to,
+    ]);
+
     const sendComment = () => {
-        const content = trimContentWithReferencesEnd(state.getContent());
+        const content = trimContentWithReferencesEnd(commentState.getContent());
         if (isContentEmpty(content.doc)) return;
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
@@ -83,27 +106,36 @@ export function ContentEditorMobileCommentInputBottomBar({
             documentState.selection,
         );
 
-        assertExists(documentViewRef.current).dispatch(
-            updateContentEditorReferences(
-                documentState.tr
-                    .addMark(
-                        trimmedDocumentRange.from,
-                        trimmedDocumentRange.to,
-                        documentState.schema.mark("comment", {commentThreadId}),
-                    )
-                    .setMeta(createCommentThreadMetaKey, {
-                        commentThreadId,
-                        initialCommentContent: content,
-                    })
-                    .scrollIntoView(),
-                {
-                    type: "UpdateDocumentCommentThread",
-                    commentThreadId,
-                    commentCount: 1,
-                    addCommentAuthor: currentAccount,
-                },
-            ),
-        );
+        const transaction = documentState.tr;
+
+        if (isNodeDocumentRange) {
+            transaction.addNodeMark(
+                trimmedDocumentRange.from,
+                documentState.schema.mark("comment", {commentThreadId}),
+            );
+        } else {
+            transaction.addMark(
+                trimmedDocumentRange.from,
+                trimmedDocumentRange.to,
+                documentState.schema.mark("comment", {commentThreadId}),
+            );
+        }
+
+        transaction.setMeta(createCommentThreadMetaKey, {
+            commentThreadId,
+            initialCommentContent: content,
+        });
+
+        transaction.scrollIntoView();
+
+        updateContentEditorReferences(transaction, {
+            type: "UpdateDocumentCommentThread",
+            commentThreadId,
+            commentCount: 1,
+            addCommentAuthor: currentAccount,
+        });
+
+        assertExists(documentViewRef.current).dispatch(transaction);
 
         onClose();
     };
@@ -139,7 +171,7 @@ export function ContentEditorMobileCommentInputBottomBar({
                     display="flex"
                     flexDirection="column"
                     ref={useConfirmSaveAfterLosingFocus({
-                        shouldConfirmSave: !isContentEmpty(state.getDoc()),
+                        shouldConfirmSave: !isContentEmpty(commentState.getDoc()),
                         isConfirmingSave: shouldShowConfirmCloseDialog,
                         onCancelSave: onClose,
                         onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
@@ -161,8 +193,8 @@ export function ContentEditorMobileCommentInputBottomBar({
                         // a different way to achieve the same effect. See the comment above the hack
                         // for more info.
                         isNativeMobileRefocusHackDisabled={true}
-                        state={state}
-                        onChange={setState}
+                        state={commentState}
+                        onChange={setCommentState}
                         onSend={sendComment}
                     />
                 </Box>,

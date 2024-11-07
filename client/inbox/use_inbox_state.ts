@@ -1,10 +1,11 @@
-import {useCallback, useEffect, useReducer, useRef, useState} from "react";
+import {useCallback, useEffect, useReducer, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {
     ActionForStateWithOptimisticUpdates,
     StateWithOptimisticUpdates,
@@ -16,12 +17,12 @@ import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
 } from "~/client/inbox/use_archive_inbox_entry.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
@@ -211,7 +212,7 @@ export function useInboxState(props: {
                     spaceId: space.id,
                     filter,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                        getClientInfoWithoutListening(),
+                        getClientInfo(),
                         inboxEntryViewMinHeight,
                     ),
                     afterCursor: null,
@@ -222,11 +223,7 @@ export function useInboxState(props: {
     );
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMore = useEvent(
         (
@@ -246,7 +243,7 @@ export function useInboxState(props: {
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;

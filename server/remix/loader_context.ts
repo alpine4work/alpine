@@ -7,7 +7,7 @@ import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {RpcServerActionContextModules} from "~/server/rpc/rpc_server_action_context.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -18,6 +18,7 @@ import {
     ClientInfoSchema,
     defaultClientInfo,
     defaultMobileClientInfo,
+    getRenderingEngineFromUserAgent,
     isAppleDeviceUserAgent,
 } from "~/shared/remix/client_info.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -51,7 +52,7 @@ export class LoaderContextModule extends ContextModuleBase {
     /**
      * Allow Remix loaders to sign tokens and encrypt data with our token agent.
      */
-    public readonly tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
+    public readonly tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
 
     /**
      * Manipulate the HTTP session cookie. Important to remember that the client
@@ -82,7 +83,7 @@ export class LoaderContextModule extends ContextModuleBase {
             tokenAgent,
             sessionCookie,
         }: {
-            tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
+            tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
             sessionCookie: SessionCookie;
         },
     ) {
@@ -202,6 +203,12 @@ export class LoaderContextModule extends ContextModuleBase {
                     // `isAppleDevice`. Add it with a default value based on the `User-Agent` header.
                     rawClientInfo.isAppleDevice ??= isAppleDeviceUserAgent(userAgentHeader);
 
+                    // NOTE(calebmer, 2023-10-22): Client info cookies before this date won't have
+                    // `renderingEngine`. Add it with a default value based on the `User-Agent`
+                    // header.
+                    rawClientInfo.renderingEngine ??=
+                        getRenderingEngineFromUserAgent(userAgentHeader);
+
                     clientInfo = ClientInfoSchema.deserialize(rawClientInfo);
                 } catch {
                     // Ignore any errors when parsing the client info cookie.
@@ -234,6 +241,7 @@ export class LoaderContextModule extends ContextModuleBase {
                 // `User-Agent` header.
                 clientInfo = {
                     ...clientInfo,
+                    renderingEngine: getRenderingEngineFromUserAgent(userAgentHeader),
                     isAppleDevice: isAppleDeviceUserAgent(userAgentHeader),
                 };
             }

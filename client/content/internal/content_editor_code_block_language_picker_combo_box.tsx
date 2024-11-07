@@ -20,7 +20,7 @@ import {
     contentCodeBlockLanguages,
 } from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
@@ -243,7 +243,6 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
                             backgroundColor: "transparent",
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
-                            borderBottom: "grey-10",
                         })}
                         placeholder="Language"
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`

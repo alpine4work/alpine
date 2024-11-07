@@ -16,7 +16,6 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
-    createContext,
     forwardRef,
     useCallback,
     useContext,
@@ -43,13 +42,12 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     trackNavigationAnimationFinish,
     trackNavigationAnimationStart,
 } from "~/client/design/schedule_after_navigation_animation.js";
-import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {
     GlobalKeyDownEvent,
@@ -61,18 +59,23 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
+import {PeekStackContextDefinition} from "~/client/peek/internal/peek_stack_context_definition.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
-    PeekRemixEmbed,
     PeekRemixEmbedRouter,
     usePeekRemixEmbedRouter,
-} from "~/client/peek/peek_remix_embed.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+} from "~/client/peek/peek_remix_embed_router.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
+import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
+import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     greyElevated1ClassName,
+    spaceLayoutStyles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
@@ -81,7 +84,8 @@ import {
     convertRemLengthToPx,
     parseRemLengthNumber,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -97,7 +101,6 @@ import {
 } from "~/shared/remix/peek_path_helpers.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
@@ -279,12 +282,6 @@ const initialPeekStackState: PeekStackState = {
     wasLastInteractionOutside: true,
 };
 
-export type PeekStackContext = {
-    readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
-};
-
-const PeekStackContext = createContext<PeekStackContext | null>(null);
-
 export type PeekStackContextProviderRef = {
     readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
 };
@@ -293,7 +290,13 @@ const PeekStackContextProviderForwardRef = forwardRef(PeekStackContextProvider);
 export {PeekStackContextProviderForwardRef as PeekStackContextProvider};
 
 function PeekStackContextProvider(
-    {children}: {children?: ReactNode},
+    {
+        globalLoadingIndicator,
+        children,
+    }: {
+        globalLoadingIndicator: GlobalLoadingIndicator | null;
+        children?: ReactNode;
+    },
     ref: Ref<PeekStackContextProviderRef>,
 ) {
     const dataRouterContext = useContext(DataRouterContext);
@@ -478,7 +481,7 @@ function PeekStackContextProvider(
     useImperativeHandle(ref, () => ({push}), [push]);
 
     return (
-        <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
+        <PeekStackContextDefinition.Provider value={useMemo(() => ({push}), [push])}>
             <GlobalKeyDownEvent
                 onGlobalKeyDownBeforeChildren={event => {
                     // If the last interaction was inside the peek, then let the peek try to handle
@@ -596,7 +599,7 @@ function PeekStackContextProvider(
                 >
                     {children}
                 </NavigationEventContextProvider>
-                {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
+                {state.stack.length > 0 || state.unmountingStack.length > 0 ? (
                     <GlobalKeyDownManualContextProvider
                         ref={peekStackGlobalKeyDownManualContextRef}
                     >
@@ -606,33 +609,28 @@ function PeekStackContextProvider(
                             dispatch={dispatch}
                             peekRoutes={peekRoutes}
                             createPeekRouter={createPeekRouter}
+                            globalLoadingIndicator={globalLoadingIndicator}
                         />
                     </GlobalKeyDownManualContextProvider>
+                ) : (
+                    !isMobile &&
+                    globalLoadingIndicator && (
+                        <Box
+                            pointerEvents="none"
+                            position="absolute"
+                            zIndex="10"
+                            bottom="0"
+                            right="0"
+                            borderTopLeftRadius="1"
+                            backgroundColor="grey-0"
+                        >
+                            <GlobalLoadingIndicatorChip indicator={globalLoadingIndicator} />
+                        </Box>
+                    )
                 )}
             </GlobalKeyDownEvent>
-        </PeekStackContext.Provider>
+        </PeekStackContextDefinition.Provider>
     );
-}
-
-const mockPeekStackContextForTest: PeekStackContext | null = import.meta.jest
-    ? {
-          push: () => {
-              throw new InternalError(
-                  "Can not push peeks in tests unless you render your component in `<PeekStackContext>`",
-              );
-          },
-      }
-    : null;
-
-export function usePeekStackContext(): PeekStackContext {
-    const peekStackContext = useContext(PeekStackContext);
-
-    // Provide a mock context implementation in unit tests so components don't throw.
-    if (import.meta.jest && mockPeekStackContextForTest) return mockPeekStackContextForTest;
-
-    assert(peekStackContext, "Must render in a `<PeekStackContext>` to use peeks");
-
-    return peekStackContext;
 }
 
 type PeekStackRef = {
@@ -645,6 +643,7 @@ const PeekStack = forwardRef(function PeekStack(
         dispatch,
         peekRoutes,
         createPeekRouter,
+        globalLoadingIndicator,
     }: {
         state: PeekStackState;
         dispatch: (action: PeekStackAction) => void;
@@ -653,6 +652,7 @@ const PeekStack = forwardRef(function PeekStack(
             history: MemoryHistory;
             hydrationData?: HydrationState;
         }) => PeekRemixEmbedRouter;
+        globalLoadingIndicator: GlobalLoadingIndicator | null;
     },
     ref: Ref<PeekStackRef>,
 ) {
@@ -724,6 +724,7 @@ const PeekStack = forwardRef(function PeekStack(
                 peekRoutes={peekRoutes}
                 createPeekRouter={createPeekRouter}
                 deltaXPercentage={deltaXPercentage}
+                globalLoadingIndicator={globalLoadingIndicator}
             />
         </DndContext>
     );
@@ -736,6 +737,7 @@ function PeekStackDraggable({
     peekRoutes,
     createPeekRouter,
     deltaXPercentage,
+    globalLoadingIndicator,
 }: {
     parentRef: Ref<PeekStackRef>;
     state: PeekStackState;
@@ -746,6 +748,7 @@ function PeekStackDraggable({
         hydrationData?: HydrationState;
     }) => PeekRemixEmbedRouter;
     deltaXPercentage: number;
+    globalLoadingIndicator: GlobalLoadingIndicator | null;
 }) {
     const {
         listeners: draggableListeners,
@@ -846,10 +849,10 @@ function PeekStackDraggable({
                 )}
                 position="absolute"
                 bottom="0"
-                zIndex="10"
+                zIndex="20"
                 style={{
                     right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
-                    width: peekWidth,
+                    width: spacing[peekMobileLayoutWidth],
                     height: peekHeight,
                     transform: dragTransform
                         ? `translate(${dragTransform.x}px, ${dragTransform.y}px)`
@@ -901,6 +904,23 @@ function PeekStackDraggable({
                     />,
                     document.body,
                 )}
+            {globalLoadingIndicator && (
+                <Box
+                    pointerEvents="none"
+                    position="absolute"
+                    zIndex="10"
+                    bottom="0"
+                    borderTopRightRadius={deltaXPercentage < -0.25 ? undefined : "1"}
+                    borderTopLeftRadius={deltaXPercentage < -0.25 ? "1" : undefined}
+                    backgroundColor="grey-0"
+                    style={{
+                        left: deltaXPercentage < -0.25 ? undefined : spaceLayoutStyles.sideBarWidth,
+                        right: deltaXPercentage < -0.25 ? "0" : undefined,
+                    }}
+                >
+                    <GlobalLoadingIndicatorChip indicator={globalLoadingIndicator} />
+                </Box>
+            )}
         </>
     );
 }
@@ -1247,7 +1267,7 @@ function PeekStackOverlay({
                     backgroundColor="grey-0"
                     className={greyElevated1ClassName}
                     style={{
-                        width: peekWidth,
+                        width: spacing[peekMobileLayoutWidth],
                         height: addRemLengths(peekHeight, peekBottomBuffer),
                         paddingBottom: peekBottomBuffer,
                     }}
@@ -1591,12 +1611,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                                 if (!spacePath)
                                     throw new InternalError("Can only expand peek routes");
 
-                                if (
-                                    isOpenLinkInSeparateTabPointerEvent(
-                                        event,
-                                        getClientInfoWithoutListening(),
-                                    )
-                                ) {
+                                if (isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())) {
                                     window.open(
                                         createPath(spacePath),
                                         "_blank",

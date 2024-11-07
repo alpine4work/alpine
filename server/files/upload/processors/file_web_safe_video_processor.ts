@@ -10,7 +10,7 @@ import {
     ffmpegExecutablePath,
     ffmpegImagePreviewContentOutputContentType,
     ffmpegImagePreviewContentOutputExtension,
-    ffmpegImagePreviewContentOutputOptions,
+    getFfmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
@@ -28,6 +28,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
@@ -78,9 +79,19 @@ export function createFileWebSafeVideoProcessor(
                         contentType: FileContentType;
                         data: Buffer;
                     }> => {
-                        const outputPath = joinPath(
+                        const output1Path = joinPath(
                             temporaryDirectoryPath,
-                            `output.${ffmpegImagePreviewContentOutputExtension}`,
+                            `output1.${ffmpegImagePreviewContentOutputExtension}`,
+                        );
+
+                        const output2Path = joinPath(
+                            temporaryDirectoryPath,
+                            `output2.${ffmpegImagePreviewContentOutputExtension}`,
+                        );
+
+                        const output3Path = joinPath(
+                            temporaryDirectoryPath,
+                            `output3.${ffmpegImagePreviewContentOutputExtension}`,
                         );
 
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
@@ -115,12 +126,16 @@ export function createFileWebSafeVideoProcessor(
                                 // in `FileUploadService`.
                                 "-threads",
                                 "2",
-                                // Capture a thumbnail from the first second of the video.
-                                ...ffmpegImagePreviewContentOutputOptions,
+                                // Capture thumbnails from the beginning of the video.
+                                //
                                 // We must output to a file. We can't output to stdout when taking a screenshot
                                 // or else we get the error "[avif] muxer does not support non seekable
                                 // output".
-                                outputPath,
+                                ...getFfmpegImagePreviewContentOutputOptions({
+                                    output1Path,
+                                    output2Path,
+                                    output3Path,
+                                }),
                             ],
                             {
                                 cwd: runfilesPath,
@@ -135,7 +150,6 @@ export function createFileWebSafeVideoProcessor(
                             replayStream.pipe(subprocess.stdin);
                         }
 
-                        let stdout = "";
                         let stderr = "";
 
                         // This function checks to see if the input's duration and width/height have
@@ -149,6 +163,20 @@ export function createFileWebSafeVideoProcessor(
                                 const previewSize =
                                     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
                                         stderr,
+                                        // HACK: Which content types may have an alpha channel? It's ok to return true
+                                        // if the video doesn't actually have any transparent pixels but it's not ok to
+                                        // return false if the video does have transparent pixels.
+                                        //
+                                        // TODO: We should parse the pixel format out of stderr and check if the pixel
+                                        // format has an alpha channel.
+                                        cast<{
+                                            [Key in
+                                                | FileWebmVideoContentType
+                                                | FileMp4VideoContentType]: boolean;
+                                        }>({
+                                            "video/webm": true,
+                                            "video/mp4": false,
+                                        })[contentType],
                                     );
                                 if (!previewSize) return;
                                 previewSizePromiseResolver.resolve(previewSize);
@@ -156,11 +184,6 @@ export function createFileWebSafeVideoProcessor(
                                 previewSizePromiseResolver.reject(error);
                             }
                         };
-
-                        subprocess.stdout.on("data", (chunk: Buffer) => {
-                            const string = chunk.toString("utf8");
-                            stdout += string;
-                        });
 
                         subprocess.stderr.on("data", (chunk: Buffer) => {
                             const string = chunk.toString("utf8");
@@ -190,14 +213,14 @@ export function createFileWebSafeVideoProcessor(
                                 if (signal.aborted) throw signal.reason;
 
                                 // We include the stderr in error messages even in production since it shouldn't
-                                // contain sensitive user data. Even if it does contain sensitive user data it
-                                // should be so opaque as to not be useful for reconstructing the video file.
+                                // contain sensitive user data. It may contain the file's duration and other
+                                // metadata but it shouldn't be harmful for a developer to read that.
                                 //
                                 // However, including the stderr will really help us debug any issues.
                                 throw new UnknownError(
                                     `${
                                         error instanceof Error ? error.message : String(error)
-                                    }\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                                    }\n\nstderr:\n${stderr.trim()}`,
                                     {
                                         cause: error instanceof Error ? error.cause : undefined,
                                     },
@@ -215,8 +238,32 @@ export function createFileWebSafeVideoProcessor(
 
                         if (!previewSizePromiseResolver.isSettled()) {
                             throw new InternalError(
-                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${stderr.trim()}`,
                             );
+                        }
+
+                        // Determine which thumbnail to use. If the second thumbnail (taken at 1s) is
+                        // empty then we need to use the third thumbnail (taken at 0s). If the first
+                        // thumbnail (taken at 10s) is empty but not the second thumbnail then we'll
+                        // use the second thumbnail (taken at 1s).
+                        //
+                        // This way if a video is longer than 10s we'll use the 10s thumbnail.
+                        // Otherwise we'll use the 1s thumbnail.
+                        let outputData;
+                        if (
+                            /(?:^|\n)\[out#1\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
+                                stderr,
+                            )
+                        ) {
+                            outputData = await fs.readFile(output3Path);
+                        } else if (
+                            /(?:^|\n)\[out#0\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
+                                stderr,
+                            )
+                        ) {
+                            outputData = await fs.readFile(output2Path);
+                        } else {
+                            outputData = await fs.readFile(output1Path);
                         }
 
                         return {
@@ -228,7 +275,7 @@ export function createFileWebSafeVideoProcessor(
                             //
                             // Reading the file into memory also allows our temporary directory to be
                             // cleaned up.
-                            data: await fs.readFile(outputPath),
+                            data: outputData,
                         };
                     },
                 );
@@ -322,8 +369,8 @@ export function createFileWebSafeVideoProcessor(
                         if (signal.aborted) throw signal.reason;
 
                         // We include the stderr in error messages even in production since it shouldn't
-                        // contain sensitive user data. Even if it does contain sensitive user data it
-                        // should be so opaque as to not be useful for reconstructing the video file.
+                        // contain sensitive user data. It may contain the file's duration and other
+                        // metadata but it shouldn't be harmful for a developer to read that.
                         //
                         // However, including the stderr will really help us debug any issues.
                         throw new UnknownError(

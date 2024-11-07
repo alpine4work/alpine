@@ -9,17 +9,19 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {InboxContextProvider} from "~/client/inbox/inbox_context.js";
+import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
+import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
 import {InboxEntryView, inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
+import {useInboxDeletedItemAnimationState} from "~/client/inbox/internal/use_inbox_deleted_item_animation_state.js";
 import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
-import {useInboxDeletedItemAnimationState} from "~/client/inbox/use_inbox_deleted_item_animation_state.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
-import {PeekRemixEmbed, PeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
+import {PeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed_router.js";
 import {
     PeekSwitcherStatePeekBase,
     usePeekSwitcherState,
@@ -30,7 +32,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
@@ -192,6 +194,11 @@ export function InboxView({
         [selectedEntryKey, switchPeek],
     );
 
+    const navigation = useMemo(
+        (): InboxContextNavigation => ({nextEntry, previousEntry, selectEntry}),
+        [nextEntry, previousEntry, selectEntry],
+    );
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -231,13 +238,6 @@ export function InboxView({
                 }
             }}
         >
-            <InboxViewTopBar
-                filter={filter}
-                activeEntry={activeEntry?.item ?? null}
-                nextEntry={nextEntry}
-                previousEntry={previousEntry}
-                selectEntry={selectEntry}
-            />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <Box
                     flexShrink="0"
@@ -246,6 +246,7 @@ export function InboxView({
                     backgroundColor="grey-0"
                     borderRight="grey-10"
                 >
+                    <InboxViewTopBar filter={filter} />
                     {query.getItemCount() === 0 ? (
                         <InboxViewEntriesEmpty filter={filter} />
                     ) : (
@@ -265,17 +266,21 @@ export function InboxView({
                     () => (
                         <Box position="relative" flexGrow="1" overflow="hidden">
                             {activePeek && (
-                                <InboxViewPeekContent
-                                    // Fully remount whenever the peek changes...
-                                    key={activePeek.id}
-                                    peekId={activePeek.id}
-                                    routerResult={activePeek.routerResult}
+                                <InboxContextProvider
                                     entry={activeEntry?.item ?? null}
-                                />
+                                    navigation={navigation}
+                                >
+                                    <InboxViewPeekContent
+                                        // Fully remount whenever the peek changes...
+                                        key={activePeek.id}
+                                        peekId={activePeek.id}
+                                        routerResult={activePeek.routerResult}
+                                    />
+                                </InboxContextProvider>
                             )}
                         </Box>
                     ),
-                    [activeEntry?.item, activePeek],
+                    [activeEntry?.item, activePeek, navigation],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -398,6 +403,7 @@ function InboxViewEntries({
                                                 onPressStart={() => {}}
                                                 withMarginTop={isFirstItem}
                                                 withMarginBottom={isLastItem}
+                                                withBorderTop={isFirstItem}
                                                 deletedItemAnimation={
                                                     animation ===
                                                     deletedItemAnimationsState.activeAnimations
@@ -448,6 +454,7 @@ function InboxViewEntries({
                                                 }}
                                                 withMarginTop={isFirstItem}
                                                 withMarginBottom={isLastItem}
+                                                withBorderTop={isFirstItem}
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
                                                 deletedItemAnimation={deletedItemAnimation}
@@ -594,20 +601,16 @@ function InboxViewEntries({
 function InboxViewPeekContent({
     peekId,
     routerResult,
-    entry,
 }: {
     peekId: PeekId;
     routerResult: Result<PeekRemixEmbedRouter>;
-    entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
 }) {
     if (!routerResult.ok) throw routerResult.error;
     const router = routerResult.value;
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            <InboxContextProvider entry={entry}>
-                <PeekRemixEmbed peekId={peekId} withMobileLayout={false} router={router} />
-            </InboxContextProvider>
+            <PeekRemixEmbed peekId={peekId} withMobileLayout={false} router={router} />
         </Box>
     );
 }

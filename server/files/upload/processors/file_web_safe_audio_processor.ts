@@ -4,6 +4,7 @@ import {FileProcessor} from "~/server/files/upload/processors/file_processor.js"
 import {
     ffmpegExecutablePath,
     ffprobeExecutablePath,
+    getFileAudioPreviewMetadataFromFfprobeMetadata,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
 } from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
@@ -15,6 +16,8 @@ import {
     FileMp4AudioContentType,
     FileWebSafeAudioContentType,
 } from "~/shared/files/file_content_type.js";
+import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 
@@ -25,22 +28,25 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 export function createFileWebSafeAudioProcessor(
     contentType: FileWebSafeAudioContentType | FileMp4AudioContentType,
 ): FileProcessor {
-    const processorType = "WebUnsafeAudio";
+    const processorType = "WebSafeAudio";
 
     return {
         type: processorType,
         hasAlternative: false,
         hasPreview: {type: "Audio"},
         process: (stream, signal, {span, contentLength}) => {
-            const audioPreviewDurationPromise = (async () => {
+            const audioPreviewMetadataPromiseResolver =
+                createPromiseResolver<FileAudioPreviewMetadata>();
+
+            const audioPreviewDurationPromise = (async (): Promise<number> => {
                 const replayStream = stream.pipe(new ReplayStream());
 
                 try {
                     // Even though technically we're using the FFprobe executable we still name the
                     // span "FFmpeg ..." which'll make it easier for us to search for spans that
                     // call one of the FFmpeg tools.
-                    const durationString = await span.withSpan(
-                        "FFmpeg get duration",
+                    const metadataString = await span.withSpan(
+                        "FFmpeg get metadata",
                         async span => {
                             span.addData({
                                 file: {contentType, contentLength},
@@ -48,12 +54,7 @@ export function createFileWebSafeAudioProcessor(
 
                             return runProcess(
                                 ffprobeExecutablePath,
-                                [
-                                    ["-v", "error"],
-                                    ["-show_entries", "format=duration"],
-                                    ["-of", "default=noprint_wrappers=1:nokey=1"],
-                                    "-",
-                                ],
+                                [["-print_format", "json"], "-show_streams", "-show_format", "-"],
                                 {
                                     cwd: runfilesPath,
                                     stdin: stream,
@@ -70,14 +71,36 @@ export function createFileWebSafeAudioProcessor(
                         },
                     );
 
-                    const trimmedDurationString = durationString.trim();
+                    const metadata: unknown = JSON.parse(metadataString);
+
+                    audioPreviewMetadataPromiseResolver.resolve(
+                        getFileAudioPreviewMetadataFromFfprobeMetadata(metadata),
+                    );
+
+                    const durationString =
+                        // NOTE(calebmer, 2024-11-01): Our test fixture file
+                        // `pokemon_regirock_un_un_un_meme.wav` sometimes outputs the wrong duration to
+                        // FFprobe and sometimes outputs no duration. I can't find anything online that
+                        // explains this so for now it seems like we can't trust FFprobe's duration for
+                        // WAV files. Set `durationString` to null so we'll always parse the full WAV
+                        // file.
+                        contentType !== "audio/wav" &&
+                        isObject(metadata) &&
+                        isObject(metadata.format) &&
+                        (typeof metadata.format.duration === "string" ||
+                            typeof metadata.format.duration === "number")
+                            ? metadata.format.duration
+                            : null;
 
                     // If the file has duration metadata we can return return that without decoding
                     // the full file. Otherwise, we need to decode the full file...
-                    if (trimmedDurationString !== "N/A") {
+                    if (durationString !== null && durationString !== "N/A") {
                         replayStream.destroy();
 
-                        const durationSeconds = parseFloat(trimmedDurationString);
+                        const durationSeconds =
+                            typeof durationString === "string"
+                                ? parseFloat(durationString)
+                                : durationString;
 
                         assert(!isNaN(durationSeconds));
                         assert(Number.isFinite(durationSeconds));
@@ -148,8 +171,8 @@ export function createFileWebSafeAudioProcessor(
                         if (signal.aborted) throw signal.reason;
 
                         // We include the stderr in error messages even in production since it shouldn't
-                        // contain sensitive user data. Even if it does contain sensitive user data it
-                        // should be so opaque as to not be useful for reconstructing the video file.
+                        // contain sensitive user data. It may contain the file's duration and other
+                        // metadata but it shouldn't be harmful for a developer to read that.
                         //
                         // However, including the stderr will really help us debug any issues.
                         throw new UnknownError(
@@ -177,10 +200,28 @@ export function createFileWebSafeAudioProcessor(
 
                     return parseFfmpegStderrDuration(match[1]!);
                 });
-            })();
+            })().then(
+                duration => {
+                    // All of these promise resolvers MUST have either been resolved or rejected by
+                    // the end of this promise. So any promise resolvers that haven't been settled
+                    // yet reject with an error as a safety mechanism.
+                    if (!audioPreviewMetadataPromiseResolver.isSettled()) {
+                        audioPreviewMetadataPromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+
+                    return duration;
+                },
+                error => {
+                    audioPreviewMetadataPromiseResolver.reject(error);
+                    throw error;
+                },
+            );
 
             return {
                 audioPreviewDurationPromise,
+                audioPreviewMetadataPromise: audioPreviewMetadataPromiseResolver.promise,
             };
         },
     };

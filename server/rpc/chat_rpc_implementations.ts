@@ -1,4 +1,5 @@
 import {
+    FileChatAuthorizer,
     authorizeChatAccess,
     backfillChatMessages,
     deleteChatMessage,
@@ -47,13 +48,19 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const [{index, createdTime}, [author, contentReferences]] = await runAllPromises([
-                sendChatMessage(context, input),
-                authorizeChatAccess(context, input.chatId).then(({spaceId}) =>
-                    runAllPromises([
-                        getAccount(context, spaceId, context.actor.getAccountId()),
-                        getContentReferencesForNode(context, spaceId, input.content),
-                    ]),
+            const {spaceId, index, createdTime} = await sendChatMessage(context, input);
+
+            const [author, contentReferences] = await runAllPromises([
+                getAccount(context, spaceId, context.actor.getAccountId()),
+                getContentReferencesForNode(
+                    context,
+                    spaceId,
+                    FileChatAuthorizer.bind({
+                        type: "ChatMessage",
+                        chatId: input.chatId,
+                        messageIndex: index,
+                    }),
+                    input.content,
                 ),
             ]);
 
@@ -85,7 +92,17 @@ export default implementRpcs(definitions, {
             const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
                 updateChatMessageContent(context.actor.authorizeSession(), input),
                 authorizeChatAccess(context.actor.authorizeSession(), input.chatId).then(
-                    ({spaceId}) => getContentReferencesForNode(context, spaceId, input.content),
+                    ({spaceId}) =>
+                        getContentReferencesForNode(
+                            context,
+                            spaceId,
+                            FileChatAuthorizer.bind({
+                                type: "ChatMessage",
+                                chatId: input.chatId,
+                                messageIndex: input.messageIndex,
+                            }),
+                            input.content,
+                        ),
                 ),
             ]);
 

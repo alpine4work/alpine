@@ -1,19 +1,25 @@
 import classNames from "classnames";
 import {X} from "phosphor-react";
-import {ReactNode, useEffect, useState} from "react";
+import {ReactNode, useEffect, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {
+    isElementOwnedBy,
+    setElementOwnedBy,
+} from "~/client/helpers/elements/is_element_owned_by.js";
 import {
     GlobalKeyDownEvent,
     GlobalKeyDownEventModal,
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
-import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {Sprinkles, greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
+import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
@@ -28,16 +34,22 @@ export function Modal({
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     children,
-    onClose: _onCloseWithoutAnimation,
+    onClose: onCloseWithoutAnimationFromProps,
     "aria-describedby": ariaDescribedBy,
+    "data-ownedby": dataOwnedBy,
+    ownedByElement,
     maxWidth = defaultModalMaxWidth,
     height = "auto",
     maxHeight = "full",
+    margin = "5",
     borderRadius = "1.5",
+    backgroundColor = "grey-0",
     withoutOpenAnimation,
     withoutCloseAnimation,
     withoutCloseButton,
     withoutCloseInteractions,
+    withoutElevatedGrey,
+    withBlurBackdropFilter,
 }: {
     /**
      * The contents of the modal. If the contents are too big for the screen then
@@ -66,6 +78,22 @@ export function Modal({
     "aria-describedby"?: string;
 
     /**
+     * Allows you to set an element that owns this modal. Then
+     * `isElementOwnedBy()` will start reporting the modal as owned by the provided
+     * element which is useful for utilities like `useOutsideInteraction()` to
+     * understand whether an interaction is inside or outside some focused element.
+     */
+    "data-ownedby"?: string;
+
+    /**
+     * Allows you to set an element that owns this modal. Then
+     * `isElementOwnedBy()` will start reporting the modal as owned by the provided
+     * element which is useful for utilities like `useOutsideInteraction()` to
+     * understand whether an interaction is inside or outside some focused element.
+     */
+    ownedByElement?: Element | null;
+
+    /**
      * The maximum width for this modal. Defaults to `128`.
      */
     maxWidth?: Spacing | RemLength | "full";
@@ -86,7 +114,21 @@ export function Modal({
      */
     maxHeight?: Spacing | RemLength | "full";
 
+    /**
+     * How much margin is there around the modal when its width and height are
+     * `full`. Default is `5`.
+     */
+    margin?: "5" | "6" | "7" | "8";
+
+    /**
+     * Border radius for the modal content.
+     */
     borderRadius?: "1.5" | "2";
+
+    /**
+     * Background color for the modal content.
+     */
+    backgroundColor?: Sprinkles["backgroundColor"];
 
     /**
      * The modal will never animate when opening if set to true. Otherwise we fade
@@ -114,6 +156,19 @@ export function Modal({
      * Defaults to false. Automatically sets `withoutCloseButton` to true.
      */
     withoutCloseInteractions?: boolean;
+
+    /**
+     * Don't use an elevated grey color scheme for the modal. By default for
+     * elements with a higher elevation we use a slightly lighter color scheme in
+     * dark mode to make it appear closer to the user.
+     */
+    withoutElevatedGrey?: boolean;
+
+    /**
+     * Should we add a `backdrop-filter` style to the modal? Only useful if you set
+     * `backgroundColor` to something semi-transparent.
+     */
+    withBlurBackdropFilter?: boolean;
 } & (
     | {
           /**
@@ -133,26 +188,38 @@ export function Modal({
           "aria-label"?: undefined;
       }
 )) {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const modalAlertRef = useRef<HTMLDivElement>(null);
+
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can not render modal before portal element is available",
     );
     const [isFadingOut, setIsFadingOut] = useState(false);
 
-    const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
+    const onCloseWithoutAnimation = useEvent(onCloseWithoutAnimationFromProps);
     useEffect(() => {
         if (!isFadingOut) return;
+
+        let resetTimeout: Timeout | null = null;
 
         const timeout = createTimeout(() => {
             onCloseWithoutAnimation();
 
-            // If the `onClose()` callback doesn't actually close the modal in the same
-            // React render, the modal component is still mounted so should be made visible
-            // again.
-            setIsFadingOut(false);
+            // If the `onClose()` callback doesn't actually close the modal after 1s, then
+            // the modal component is still mounted so should be made visible again.
+            //
+            // We wait 1s since sometimes there's a small asynchronous delay between the
+            // `onClose()` prop and the React render which actually closes the modal.
+            resetTimeout = createTimeout(() => {
+                setIsFadingOut(false);
+            }, 1000);
         }, modalStyles.modalFadeOutDuration);
 
-        return () => timeout.clear();
+        return () => {
+            timeout.clear();
+            resetTimeout?.clear();
+        };
     }, [isFadingOut, onCloseWithoutAnimation]);
 
     const onCloseWithAnimation = () => {
@@ -163,8 +230,37 @@ export function Modal({
         }
     };
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const modalElement = assertExists(modalRef.current);
+
+        if (!ownedByElement) return;
+
+        setElementOwnedBy(modalElement, ownedByElement);
+        return () => {
+            setElementOwnedBy(modalElement, null);
+        };
+    }, [ownedByElement]);
+
+    // Immediately focus the modal on mount unless some component in the modal has
+    // already been focused. (e.g. We focus the primary save button in
+    // `<ModalDialog>` on mount.)
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const modalAlertElement = assertExists(modalAlertRef.current);
+        if (
+            !document.activeElement ||
+            !isElementOwnedBy(modalAlertElement, document.activeElement)
+        ) {
+            modalAlertElement.focus();
+        }
+    }, []);
+
     return createPortal(
         <Box
+            ref={modalRef}
             position="fixed"
             // Render over other overlays.
             zIndex="80"
@@ -172,9 +268,10 @@ export function Modal({
             display="flex"
             justifyContent="center"
             alignItems="center"
-            padding="5"
+            padding={margin}
             style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
             overflow="hidden"
+            data-ownedby={dataOwnedBy}
         >
             <Box
                 position="absolute"
@@ -204,6 +301,7 @@ export function Modal({
                         }}
                     >
                         <section
+                            ref={modalAlertRef}
                             role="alertdialog"
                             // It's important the modal is focusable for `<FocusScope contain>`. That way
                             // when you click out of a focusable element in the modal, focus goes to this
@@ -216,13 +314,13 @@ export function Modal({
                             aria-labelledby={ariaLabelledBy}
                             aria-describedby={ariaDescribedBy}
                             className={classNames(
-                                greyElevated1ClassName,
+                                !withoutElevatedGrey && greyElevated1ClassName,
                                 sprinkles({
                                     position: "relative",
                                     zIndex: "0",
                                     width: "full",
                                     height,
-                                    backgroundColor: "grey-0",
+                                    backgroundColor,
                                     boxShadow: "elevation-40",
                                     borderRadius,
                                     display: "flex",
@@ -245,6 +343,7 @@ export function Modal({
                                 animation: !withoutOpenAnimation
                                     ? modalStyles.modalOverlayFadeInAnimation
                                     : undefined,
+                                backdropFilter: withBlurBackdropFilter ? "blur(15px)" : undefined,
                             }}
                         >
                             <Box

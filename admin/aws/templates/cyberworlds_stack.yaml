@@ -986,8 +986,21 @@ Resources:
                   AttributeType: S
                 - AttributeName: sortKey
                   AttributeType: S
+                - AttributeName: index1PartitionKey
+                  AttributeType: S
+                - AttributeName: index1SortKey
+                  AttributeType: S
             BillingMode: PAY_PER_REQUEST
             DeletionProtectionEnabled: true
+            GlobalSecondaryIndexes:
+                - IndexName: Index1
+                  KeySchema:
+                      - AttributeName: index1PartitionKey
+                        KeyType: HASH
+                      - AttributeName: index1SortKey
+                        KeyType: RANGE
+                  Projection:
+                      ProjectionType: KEYS_ONLY
             KeySchema:
                 - AttributeName: partitionKey
                   KeyType: HASH
@@ -1809,7 +1822,8 @@ Resources:
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY"
+                                --servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
                   Environment:
                       - Name: BAZEL_BINDIR
                         Value: .
@@ -1892,6 +1906,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:fileUploadServicePublicKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:TaskRealtimeServiceSecrets:tokenAgentSecret::"
                       - Name: HONEYCOMB_API_KEY
                         ValueFrom:
                             Fn::Join:
@@ -2508,6 +2529,7 @@ Resources:
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
                                 --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY"
                   Environment:
@@ -2582,6 +2604,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:fileUploadServicePublicKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:tokenAgentSecret::"
                       - Name: HONEYCOMB_API_KEY
                         ValueFrom:
                             Fn::Join:
@@ -3257,6 +3286,7 @@ Resources:
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
                                 --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY
                                 --githubAppPrivateKey=\\$GITHUB_APP_PRIVATE_KEY"
@@ -3328,6 +3358,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:jobQueueServicePrivateKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:tokenAgentSecret::"
                       - Name: HONEYCOMB_API_KEY
                         ValueFrom:
                             Fn::Join:

@@ -1,8 +1,17 @@
 import {useHover} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
 import {EditorState} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
-import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {DecorationSet, EditorView} from "prosemirror-view";
+import {
+    Dispatch,
+    RefObject,
+    SetStateAction,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {FocusScope} from "react-aria";
 import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
@@ -22,6 +31,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -34,6 +44,7 @@ export function ContentEditorFloater({
     floaterState,
     setFloaterState,
     isFocused,
+    setDecorationCallbacks,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -42,6 +53,11 @@ export function ContentEditorFloater({
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;
+    setDecorationCallbacks: Dispatch<
+        SetStateAction<
+            ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
+        >
+    >;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -54,6 +70,7 @@ export function ContentEditorFloater({
                     viewRef={viewRef}
                     previousState={floaterState.previousState}
                     isFocused={isFocused}
+                    setDecorationCallbacks={setDecorationCallbacks}
                 />
             );
         }
@@ -175,8 +192,7 @@ function ContentEditorKeyboardHighlightFloater({
     }, [isClosing, onActuallyClose]);
 
     useEffect(() => {
-        assert(selectorRef.current);
-        selectorRef.current.focus({preventScroll: true});
+        selectorRef.current?.focus({preventScroll: true});
     }, []);
 
     return (
@@ -193,12 +209,11 @@ function ContentEditorKeyboardHighlightFloater({
             placement="top-start"
             offset="3"
             offsetAlong="-5"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box
                     ref={useOutsidePress(onClose)}
@@ -303,12 +318,11 @@ function ContentEditorKeyboardLinkFloater({
             placement="top-start"
             offset="3"
             offsetAlong="-5"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box
                     ref={useOutsidePress(onClose)}
@@ -328,11 +342,12 @@ function ContentEditorKeyboardLinkFloater({
                             onClose={onClose}
                         />
                     ) : (
-                        <FocusScope contain restoreFocus autoFocus>
+                        <FocusScope contain restoreFocus>
                             <ContentEditorLinkInput
                                 viewRef={viewRef}
                                 range={range}
                                 mark={mark}
+                                autoFocus={true}
                                 onClose={onClose}
                             />
                         </FocusScope>
@@ -437,12 +452,11 @@ function ContentEditorPointerLinkFloater({
             // a visual text selection indication for what it's targeting.
             offset="1.5"
             offsetAlong="-5"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box {...hoverProps} ref={useOutsidePress(onClose)}>
                     <ContentEditorLinkInput

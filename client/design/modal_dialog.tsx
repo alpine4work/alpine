@@ -1,22 +1,20 @@
 import {useEffect, useId, useRef} from "react";
-import {AppContext, useAppContext} from "~/client/context/app_context.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {
-    ErrorDisplayMessageRenderer,
-    defaultErrorDisplayMessage,
-} from "~/client/design/error_display_message_renderer.js";
+import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
+import {ModalDialogProps} from "~/client/design/modal_dialog_props.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
  * Present information to the user, blocking their experience, and ask them to
@@ -40,26 +38,10 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 const ActualModalDialog = NativeMobileBridge ? ModalDialogNativeMobile : ModalDialog;
 export {ActualModalDialog as ModalDialog};
 
-export type ModalDialogProps = {
-    readonly title: string;
-    readonly description:
-        | string
-        | {readonly type: "Error"; readonly error: unknown; readonly reportingContext?: AppContext};
-    readonly primaryButtonLabel: string;
-    readonly isPrimaryButtonDisabled?: boolean;
-    readonly primaryButtonPressErrorTitle?: string;
-    readonly onPrimaryButtonPress?: () => MaybePromise<void>;
-    readonly cancelButtonLabel?: string;
-    readonly cancelButtonPressErrorTitle?: string;
-    readonly onCancelButtonPress?: () => MaybePromise<void>;
-    readonly shouldHideCancelButton?: boolean;
-    readonly onClose: () => void;
-    readonly withoutCloseInteractions?: boolean;
-};
-
 function ModalDialog({
     title,
     description,
+    "data-ownedby": dataOwnedBy,
     primaryButtonLabel,
     isPrimaryButtonDisabled,
     primaryButtonPressErrorTitle,
@@ -96,6 +78,7 @@ function ModalDialog({
             ref={modalRef}
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
+            data-ownedby={dataOwnedBy}
             onClose={onClose}
             primaryButtonLabel={primaryButtonLabel}
             isPrimaryButtonDisabled={isPrimaryButtonDisabled}

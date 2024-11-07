@@ -13,6 +13,8 @@ CORE_SRCS = [
 ts_project(
     name = "error_core",
     srcs = CORE_SRCS,
+    # We lint and format everything with the below `ts_project()`.
+    lint_and_format_srcs = [],
     test_srcs = [],
     visibility = ["//visibility:public"],
 )

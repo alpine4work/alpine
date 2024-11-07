@@ -24,7 +24,7 @@ import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/sh
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -50,7 +50,7 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -921,114 +921,125 @@ function TaskRowTitleInput(
 
             window.addEventListener("resize", handleWindowResize);
 
-            let touchState: {
-                finish: (event: TouchEvent) => void;
-                cancel: () => void;
-            } | null = null;
-
             // NOTE(calebmer): The logic here is taken almost exactly from
             // `<ContentEditor>` since that component supports dual modality on mobile
             // too. If you make a change here you probably also want to make a change
             // there and vice versa.
-            view.dom.addEventListener("touchstart", event => {
-                touchState?.cancel();
-                touchState = null;
+            let handleDocumentSelectionChange: () => void;
+            {
+                let touchState: {
+                    finish: (event: TouchEvent) => void;
+                    cancel: () => void;
+                } | null = null;
 
-                // If we're not on mobile the document is always editable.
-                if (!isDualModalityRef.current) return;
+                view.dom.addEventListener(
+                    "touchstart",
+                    event => {
+                        touchState?.cancel();
+                        touchState = null;
 
-                // If our view already has focus, we don't need a tap to give it focus.
-                if (view.hasFocus()) return;
+                        // If we're not on mobile the document is always editable.
+                        if (!isDualModalityRef.current) return;
 
-                // Only support a single touch.
-                if (event.touches.length !== 1) return;
-                const touch = event.touches[0]!;
+                        // If our view already has focus, we don't need a tap to give it focus.
+                        if (view.hasFocus()) return;
 
-                // If there's a selection this tap dismisses the selection. It doesn't make the
-                // editor editable.
-                const selection = window.getSelection();
-                const hasSelection =
-                    selection &&
-                    (selection.anchorNode !== selection.focusNode ||
-                        selection.anchorOffset !== selection.focusOffset);
-                if (hasSelection) return;
+                        // Only support a single touch.
+                        if (event.touches.length !== 1) return;
+                        const touch = event.touches[0]!;
 
-                // Long press touch starts dragging the task instead of editing. 0.5 seconds is
-                // the long press duration we use since that's what iOS's default long press
-                // duration is.
-                // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
-                const longPressTimeout = createTimeout(() => {
+                        // If there's a selection this tap dismisses the selection. It doesn't make the
+                        // editor editable.
+                        const selection = window.getSelection();
+                        const hasSelection =
+                            selection &&
+                            (selection.anchorNode !== selection.focusNode ||
+                                selection.anchorOffset !== selection.focusOffset);
+                        if (hasSelection) return;
+
+                        // Long press touch starts dragging the task instead of editing. 0.5 seconds is
+                        // the long press duration we use since that's what iOS's default long press
+                        // duration is.
+                        // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+                        const longPressTimeout = createTimeout(() => {
+                            touchState?.cancel();
+                            touchState = null;
+                        }, 500);
+
+                        touchState = {
+                            finish: event => {
+                                longPressTimeout.clear();
+
+                                const posResult = view.posAtCoords({
+                                    left: touch.clientX,
+                                    top: touch.clientY,
+                                });
+                                if (!posResult) return;
+
+                                // By default, iOS will move the selection to the end of the word you touched.
+                                // We instead want focus moved to the selection specified in our
+                                // `setSelection()` call.
+                                event.preventDefault();
+
+                                // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
+                                // handler after `focus()` is called? Well in this case our editor is not
+                                // editable if we are in dual modality state and `isFocused` is false. When our
+                                // editor is not editable it's also not focusable. So we need to set `isFocused`
+                                // to true to be able to focus!
+                                //
+                                // We must call `focus()` during the `touchend` event since iOS won't open the
+                                // software keyboard unless focus happens in a user-initiated event. So we call
+                                // `flushSync()` to make sure `isFocused` is updated synchronously so we can
+                                // call `focus()` synchronously.
+                                flushSync(() => setIsFocused(true));
+                                view.focus();
+
+                                view.dispatch(
+                                    view.state.tr.setSelection(
+                                        new TextSelection(view.state.doc.resolve(posResult.pos)),
+                                    ),
+                                );
+                            },
+                            cancel: () => {
+                                longPressTimeout.clear();
+                            },
+                        };
+                    },
+                    {passive: true},
+                );
+
+                view.dom.addEventListener(
+                    "touchmove",
+                    () => {
+                        // Touch move turns into a scroll or drag gesture.
+                        touchState?.cancel();
+                        touchState = null;
+                    },
+                    {passive: true},
+                );
+
+                view.dom.addEventListener("touchend", event => {
+                    // If our tap state hasn't been cancelled we actually successfully received
+                    // a tap!
+                    touchState?.finish(event);
+                    touchState = null;
+                });
+
+                view.dom.addEventListener("touchcancel", () => {
                     touchState?.cancel();
                     touchState = null;
-                }, 500);
+                });
 
-                touchState = {
-                    finish: event => {
-                        longPressTimeout.clear();
-
-                        const posResult = view.posAtCoords({
-                            left: touch.clientX,
-                            top: touch.clientY,
-                        });
-                        if (!posResult) return;
-
-                        // By default, iOS will move the selection to the end of the word you touched.
-                        // We instead want focus moved to the selection specified in our
-                        // `setSelection()` call.
-                        event.preventDefault();
-
-                        // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
-                        // handler after `focus()` is called? Well in this case our editor is not
-                        // editable if we are in dual modality state and `isFocused` is false. When our
-                        // editor is not editable it's also not focusable. So we need to set `isFocused`
-                        // to true to be able to focus!
-                        //
-                        // We must call `focus()` during the `touchend` event since iOS won't open the
-                        // software keyboard unless focus happens in a user-initiated event. So we call
-                        // `flushSync()` to make sure `isFocused` is updated synchronously so we can
-                        // call `focus()` synchronously.
-                        flushSync(() => setIsFocused(true));
-                        view.focus();
-
-                        view.dispatch(
-                            view.state.tr.setSelection(
-                                new TextSelection(view.state.doc.resolve(posResult.pos)),
-                            ),
-                        );
-                    },
-                    cancel: () => {
-                        longPressTimeout.clear();
-                    },
+                handleDocumentSelectionChange = () => {
+                    // After a long press, iOS selects text. If we see the selection change during
+                    // a tap we no longer have a tap gesture and instead we have a long press
+                    // gesture.
+                    touchState?.cancel();
+                    touchState = null;
                 };
-            });
 
-            view.dom.addEventListener("touchmove", () => {
-                // Touch move turns into a scroll or drag gesture.
-                touchState?.cancel();
-                touchState = null;
-            });
-
-            view.dom.addEventListener("touchend", event => {
-                // If our tap state hasn't been cancelled we actually successfully received
-                // a tap!
-                touchState?.finish(event);
-                touchState = null;
-            });
-
-            view.dom.addEventListener("touchcancel", () => {
-                touchState?.cancel();
-                touchState = null;
-            });
-
-            const handleSelectionChange = () => {
-                // After a long press, iOS selects text. If we see the selection change during
-                // a tap we no longer have a tap gesture and instead we have a long press
-                // gesture.
-                touchState?.cancel();
-                touchState = null;
-            };
-
-            document.addEventListener("selectionchange", handleSelectionChange);
+                document.addEventListener("selectionchange", handleDocumentSelectionChange);
+            }
 
             // Update `viewRef` and call any callbacks that were waiting for the view to
             // be ready.
@@ -1044,7 +1055,7 @@ function TaskRowTitleInput(
 
             return () => {
                 window.removeEventListener("resize", handleWindowResize);
-                document.removeEventListener("selectionchange", handleSelectionChange);
+                document.removeEventListener("selectionchange", handleDocumentSelectionChange);
 
                 viewRef.current = {isReady: false, callbacks: new Set()};
                 containerElement.removeChild(view.dom);

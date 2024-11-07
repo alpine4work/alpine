@@ -791,8 +791,13 @@ export class DocumentCollaborationConnection {
         commentThreadId: DocumentCommentThreadId,
         optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
     ) {
+        const commentIndex = 0;
+
         const {author, contentReferences} = await getOptimisticDocumentCommentReferences(context, {
             spaceId: this._contentManager.spaceId,
+            documentId: this._contentManager.id,
+            commentThreadId,
+            commentIndex,
             authorId: optimisticCommentThread.initialComment.authorId,
             contentReferencedIds: getContentReferencedIdsForNode(
                 optimisticCommentThread.initialComment.content,
@@ -802,7 +807,7 @@ export class DocumentCollaborationConnection {
         return new DocumentCommentModel({
             documentId: this._contentManager.id,
             commentThreadId,
-            index: 0,
+            index: commentIndex,
             author,
             createdTime: optimisticCommentThread.createdTime,
             payload: {

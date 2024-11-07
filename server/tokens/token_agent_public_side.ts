@@ -5,8 +5,10 @@ import {
     TokenServiceNameSchema,
     tokenServiceShortNameByName,
 } from "~/server/tokens/token_service_name.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
@@ -37,6 +39,7 @@ export class TokenAgentPublicSide {
     private readonly _jobQueueServicePublicKeyForRsaOaep: KeyLike;
     private readonly _fileUploadServicePublicKeyForRs256: KeyLike;
     private readonly _fileUploadServicePublicKeyForRsaOaep: KeyLike;
+    private readonly _secretForHs256: Uint8Array;
 
     private constructor({
         serviceName,
@@ -50,6 +53,7 @@ export class TokenAgentPublicSide {
         jobQueueServicePublicKeyForRsaOaep,
         fileUploadServicePublicKeyForRs256,
         fileUploadServicePublicKeyForRsaOaep,
+        secretForHs256,
     }: {
         serviceName: TokenServiceName;
         appServicePublicKeyForRs256: KeyLike;
@@ -62,6 +66,7 @@ export class TokenAgentPublicSide {
         jobQueueServicePublicKeyForRsaOaep: KeyLike;
         fileUploadServicePublicKeyForRs256: KeyLike;
         fileUploadServicePublicKeyForRsaOaep: KeyLike;
+        secretForHs256: Uint8Array;
     }) {
         this._serviceName = serviceName;
         this._appServicePublicKeyForRs256 = appServicePublicKeyForRs256;
@@ -74,6 +79,7 @@ export class TokenAgentPublicSide {
         this._jobQueueServicePublicKeyForRsaOaep = jobQueueServicePublicKeyForRsaOaep;
         this._fileUploadServicePublicKeyForRs256 = fileUploadServicePublicKeyForRs256;
         this._fileUploadServicePublicKeyForRsaOaep = fileUploadServicePublicKeyForRsaOaep;
+        this._secretForHs256 = secretForHs256;
     }
 
     public static async new({
@@ -83,6 +89,7 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
         jobQueueServicePublicKey: jobQueueServicePublicKeyString,
         fileUploadServicePublicKey: fileUploadServicePublicKeyString,
+        secret: secretString,
     }: {
         serviceName: TokenServiceName;
         appServicePublicKey: string;
@@ -90,6 +97,7 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKey: string;
         jobQueueServicePublicKey: string;
         fileUploadServicePublicKey: string;
+        secret: string;
     }) {
         const [
             appServicePublicKeyForRs256,
@@ -115,6 +123,9 @@ export class TokenAgentPublicSide {
             importSPKI(fileUploadServicePublicKeyString, "RSA-OAEP"),
         ]);
 
+        const secretForHs256 = decodeBase64(secretString.trim());
+        assert(secretForHs256.length === 32);
+
         return new TokenAgentPublicSide({
             serviceName,
             appServicePublicKeyForRs256,
@@ -127,6 +138,7 @@ export class TokenAgentPublicSide {
             jobQueueServicePublicKeyForRsaOaep,
             fileUploadServicePublicKeyForRs256,
             fileUploadServicePublicKeyForRsaOaep,
+            secretForHs256,
         });
     }
 
@@ -179,7 +191,7 @@ export class TokenAgentPublicSide {
     /**
      * Verifies a token produced by any instance of `TokenAgentPrivateSide` and
      * returns the payload associated with the token when we don't know the token
-     * issuer.
+     * issuer. Throws an error if the signed token is invalid.
      *
      * `verifyTokenFromIssuer()` is slightly more efficient when you know the
      * issuer up-front.
@@ -196,7 +208,8 @@ export class TokenAgentPublicSide {
 
     /**
      * Verifies a token produced by any instance of `TokenAgentPrivateSide` and
-     * returns the payload associated with the token.
+     * returns the payload associated with the token. Throws an error if the signed
+     * token is invalid.
      */
     public async verifyTokenFromService(
         serviceName: TokenServiceName,
@@ -224,10 +237,74 @@ export class TokenAgentPublicSide {
                 ],
             }));
         } catch (error) {
-            throw PermissionDeniedError.from(error);
+            throw new PermissionDeniedError(error instanceof Error ? error.message : String(error));
         }
 
         return TokenPayloadSchema.deserialize(serializedPayload as SchemaSerializedValue);
+    }
+
+    private _getUrlToken(url: URL): string {
+        const expirationTimeString = url.searchParams.get("exp");
+        const expirationTime = expirationTimeString ? parseInt(expirationTimeString, 10) : null;
+        const issuer = url.searchParams.get("iss");
+        let audience: Array<string> | string | null = url.searchParams.get("aud");
+        if (audience?.includes(",")) audience = audience.split(",");
+
+        const signature = url.searchParams.get("sig");
+        const signatureParts = signature?.split(".", 3);
+        if (signatureParts?.length !== 3)
+            throw new InvalidArgumentError('URL "sig" search param is invalid');
+
+        const originalUrl = new URL(url);
+        originalUrl.searchParams.delete("exp");
+        originalUrl.searchParams.delete("iss");
+        originalUrl.searchParams.delete("aud");
+        originalUrl.searchParams.delete("sig");
+
+        signatureParts[1] = encodeBase64(
+            new TextEncoder().encode(
+                JSON.stringify({
+                    url: `${originalUrl.pathname}${originalUrl.search}`,
+                    exp: expirationTime ?? undefined,
+                    iss: issuer ?? undefined,
+                    aud: audience ?? undefined,
+                }),
+            ),
+            "Rfc4648Url",
+        );
+
+        return signatureParts.join(".");
+    }
+
+    /**
+     * Verifies a URL produced by any instance of `TokenAgentPrivateSide` when we
+     * don't know the token issuer. Throws an error if the signed URL is invalid.
+     */
+    public async verifyUrl(url: URL): Promise<{
+        serviceName: TokenServiceName;
+    }> {
+        const issuer = url.searchParams.get("iss");
+        const serviceName = TokenServiceNameSchema.deserialize(issuer);
+        await this.verifyUrlFromService(serviceName, url);
+        return {serviceName};
+    }
+
+    /**
+     * Verifies a URL produced by any instance of `TokenAgentPrivateSide`. Throws
+     * an error if the signed URL is invalid.
+     */
+    public async verifyUrlFromService(serviceName: TokenServiceName, url: URL): Promise<void> {
+        const token = this._getUrlToken(url);
+
+        try {
+            await jwtVerify(token, this._secretForHs256, {
+                algorithms: ["HS256"],
+                issuer: tokenServiceShortNameByName[serviceName],
+                audience: tokenServiceShortNameByName[this._serviceName],
+            });
+        } catch (error) {
+            throw new PermissionDeniedError(error instanceof Error ? error.message : String(error));
+        }
     }
 
     /**

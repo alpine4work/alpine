@@ -1,6 +1,6 @@
 import {parse, serialize} from "cookie";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -60,7 +60,7 @@ export type SessionCookie = {
  * `getSessionCookieIfExists()`.
  */
 export async function withSessionCookie(
-    tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>,
+    tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>,
     request: Request,
     action: (sessionCookie: SessionCookie) => Promise<Response>,
 ): Promise<Response> {
@@ -92,7 +92,7 @@ export async function withSessionCookie(
 }
 
 async function getSessionCookieSetCookieHeader(
-    tokenAgentPrivateSide: AppServiceTokenAgentPrivateSide,
+    tokenAgentPrivateSide: TokenAgentAppServicePrivateSide,
     token: SessionTokenPayload | null,
 ) {
     const cookieString = token
@@ -122,7 +122,7 @@ async function getSessionCookieSetCookieHeader(
 
 // Let tests call this function directly.
 export function getSessionCookieSetCookieHeaderForTest(
-    tokenAgentPrivateSide: AppServiceTokenAgentPrivateSide,
+    tokenAgentPrivateSide: TokenAgentAppServicePrivateSide,
     token: SessionTokenPayload | null,
 ) {
     assert(process.env.NODE_ENV === "test");

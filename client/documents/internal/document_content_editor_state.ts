@@ -9,6 +9,7 @@ import {
 import {
     ContentEditorReferencesAction,
     createCommentThreadMetaKey,
+    reduceContentReferencesShared,
 } from "~/client/content/content_editor_state.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
@@ -483,15 +484,6 @@ export function reduceDocumentContentReferences(
     switch (action.type) {
         case "Merge":
             return mergeDocumentContentReferences(references, action.references);
-        case "AddAccount": {
-            return {
-                ...references,
-                accountById: new Map([
-                    ...references.accountById,
-                    [action.account.id, action.account],
-                ]),
-            };
-        }
         // This action should be idempotent and runnable out-of-order. We don't have
         // strong comment thread correctness guarantees but it should converge to a
         // correct value as you use the product.
@@ -534,6 +526,6 @@ export function reduceDocumentContentReferences(
             };
         }
         default:
-            throw exhaustive(action);
+            return reduceContentReferencesShared(references, action);
     }
 }

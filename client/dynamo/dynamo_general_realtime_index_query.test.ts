@@ -2,11 +2,19 @@ import {
     DynamoGeneralRealtimeIndexQuery,
     DynamoGeneralRealtimeIndexQueryItem,
 } from "~/client/dynamo/dynamo_general_realtime_index_query.js";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {
+    DynamoIndexCursor,
+    DynamoIndexPartitionKey,
+    DynamoItemKey,
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 
 function testItemKey(string: string): DynamoItemKey {
     return string as DynamoItemKey;
+}
+
+function testIndexPartitionKey(string: string): DynamoIndexPartitionKey {
+    return string as DynamoIndexPartitionKey;
 }
 
 function testIndexCursor(string: string): DynamoIndexCursor {
@@ -33,6 +41,7 @@ test("initializes an empty query", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -50,6 +59,7 @@ test("initializes a query with items from start", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -117,6 +127,7 @@ test("initializes a query with items from end", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -184,6 +195,7 @@ test("initializes a query with items from start and a next page", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -254,6 +266,7 @@ test("initializes a query with items from end and a previous page", () => {
     const query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -324,6 +337,7 @@ test("items update after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -394,7 +408,12 @@ test("items update after receiving a realtime event", () => {
                 version: 1,
                 model: "item2-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a2")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
         },
     ]);
 
@@ -439,7 +458,12 @@ test("items update after receiving a realtime event", () => {
                 version: 1,
                 model: "item0-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a0")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
         },
     ]);
 
@@ -484,7 +508,12 @@ test("items update after receiving a realtime event", () => {
                 version: 2,
                 model: "item0-v2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a0")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
         },
     ]);
 
@@ -526,6 +555,7 @@ test("items update after receiving a realtime event out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -596,7 +626,12 @@ test("items update after receiving a realtime event out-of-order", () => {
                 version: 1,
                 model: "item2-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a2")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
         },
     ]);
 
@@ -641,7 +676,12 @@ test("items update after receiving a realtime event out-of-order", () => {
                 version: 2,
                 model: "item0-v2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a0")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
         },
     ]);
 
@@ -686,7 +726,12 @@ test("items update after receiving a realtime event out-of-order", () => {
                 version: 1,
                 model: "item0-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a0")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
         },
     ]);
 
@@ -728,6 +773,7 @@ test("items move after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -798,7 +844,12 @@ test("items move after receiving a realtime event", () => {
                 version: 1,
                 model: "item2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("Zy")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("Zy")},
+                ],
+            ]),
         },
     ]);
 
@@ -843,7 +894,12 @@ test("items move after receiving a realtime event", () => {
                 version: 1,
                 model: "item0",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -885,6 +941,7 @@ test("items move after receiving a realtime event out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -955,7 +1012,12 @@ test("items move after receiving a realtime event out-of-order", () => {
                 version: 1,
                 model: "item0-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1000,7 +1062,12 @@ test("items move after receiving a realtime event out-of-order", () => {
                 version: 4,
                 model: "item0-v4",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1045,7 +1112,12 @@ test("items move after receiving a realtime event out-of-order", () => {
                 version: 3,
                 model: "item0-v3",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a0")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
         },
     ]);
 
@@ -1087,6 +1159,7 @@ test("items move out of bounds after receiving a realtime event", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: "Zz",
         endCursorBound: "a3",
         pageInfo: {
@@ -1157,7 +1230,12 @@ test("items move out of bounds after receiving a realtime event", () => {
                 version: 1,
                 model: "item2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("Zy")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("Zy")},
+                ],
+            ]),
         },
     ]);
 
@@ -1192,7 +1270,12 @@ test("items move out of bounds after receiving a realtime event", () => {
                 version: 1,
                 model: "item0",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1214,6 +1297,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: "Zz",
         endCursorBound: "a3",
         pageInfo: {
@@ -1284,7 +1368,12 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 version: 2,
                 model: "item2-v2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("Zy")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("Zy")},
+                ],
+            ]),
         },
     ]);
 
@@ -1319,7 +1408,12 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 version: 2,
                 model: "item0-v2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1344,7 +1438,12 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 version: 1,
                 model: "item0-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a0")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
         },
     ]);
 
@@ -1369,7 +1468,12 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
                 version: 1,
                 model: "item2-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a2")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
         },
     ]);
 
@@ -1391,6 +1495,7 @@ test("item created within the query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -1461,7 +1566,12 @@ test("item created within the query", () => {
                 version: 0,
                 model: "item4",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a1V")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a1V")},
+                ],
+            ]),
         },
     ]);
 
@@ -1513,6 +1623,7 @@ test("item created then moved out of bounds within the query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
         pageInfo: {
@@ -1583,7 +1694,12 @@ test("item created then moved out of bounds within the query", () => {
                 version: 0,
                 model: "item4",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a1V")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a1V")},
+                ],
+            ]),
         },
     ]);
 
@@ -1638,7 +1754,12 @@ test("item created then moved out of bounds within the query", () => {
                 version: 1,
                 model: "item4",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1680,6 +1801,7 @@ test("item created then moved out of bounds within the query received out-of-ord
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
         pageInfo: {
@@ -1750,7 +1872,12 @@ test("item created then moved out of bounds within the query received out-of-ord
                 version: 1,
                 model: "item4",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1795,7 +1922,12 @@ test("item created then moved out of bounds within the query received out-of-ord
                 version: 0,
                 model: "item4",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a1V")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a1V")},
+                ],
+            ]),
         },
     ]);
 
@@ -1837,6 +1969,7 @@ test("item moving in and out of bounds", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
         pageInfo: {
@@ -1907,7 +2040,12 @@ test("item moving in and out of bounds", () => {
                 version: 1,
                 model: "item1-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -1942,7 +2080,12 @@ test("item moving in and out of bounds", () => {
                 version: 2,
                 model: "item1-v2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a1")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a1")},
+                ],
+            ]),
         },
     ]);
 
@@ -1987,7 +2130,12 @@ test("item moving in and out of bounds", () => {
                 version: 3,
                 model: "item1-v3",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -2019,6 +2167,7 @@ test("item moving in and out of bounds received out-of-order", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: "a3",
         pageInfo: {
@@ -2089,7 +2238,12 @@ test("item moving in and out of bounds received out-of-order", () => {
                 version: 1,
                 model: "item1-v1",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -2124,7 +2278,12 @@ test("item moving in and out of bounds received out-of-order", () => {
                 version: 3,
                 model: "item1-v3",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a4")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a4")},
+                ],
+            ]),
         },
     ]);
 
@@ -2159,7 +2318,12 @@ test("item moving in and out of bounds received out-of-order", () => {
                 version: 2,
                 model: "item1-v2",
             },
-            cursorByIndexName: new Map([["Test", testIndexCursor("a1")]]),
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a1")},
+                ],
+            ]),
         },
     ]);
 
@@ -2191,6 +2355,7 @@ test("can load more at the end of a query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2259,6 +2424,7 @@ test("can load more at the end of a query", () => {
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2357,6 +2523,7 @@ test("can load more at the end of a query", () => {
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2484,6 +2651,7 @@ test("can load more at the start of a query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2552,6 +2720,7 @@ test("can load more at the start of a query", () => {
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2650,6 +2819,7 @@ test("can load more at the start of a query", () => {
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2777,6 +2947,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2845,6 +3016,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -2948,6 +3120,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -3016,6 +3189,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -3080,6 +3254,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -3148,6 +3323,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -3251,6 +3427,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -3319,6 +3496,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
     query = query.loadMore({
         readTime: new Date(),
         indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
         startCursorBound: null,
         endCursorBound: null,
         pageInfo: {
@@ -3373,6 +3551,1430 @@ test("can load more at the start in a way that doesn't overlap with the last que
                 key: testItemKey("item2"),
                 version: 0,
                 model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("item is removed if partition key changes after receiving a realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+                model: "item2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p1"), cursor: testIndexCursor("a0V")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item0"),
+                version: 1,
+                model: "item0",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p2"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("item is removed if partition key changes after receiving an out-of-order realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+                model: "item2-v2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p1"), cursor: testIndexCursor("a0V")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item0"),
+                version: 2,
+                model: "item0-v2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p2"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item0"),
+                version: 1,
+                model: "item0-v1",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+                model: "item2-v1",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("item is deleted after receiving a delete realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item0"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("item is deleted after receiving an out-of-order delete realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item0"),
+                version: 2,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item0"),
+                version: 1,
+                model: "item0-v1",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+                model: "item2-v1",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("item is deleted after receiving a delete realtime event after being created by a realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("item is deleted after receiving an out-of-order delete realtime event after being created by a realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a2")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("can undelete deleted item after receiving a delete realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+                model: "item2-v2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0V")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0V"),
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+                model: "item2-v2",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("can delete an undeleted deleted item after receiving a delete realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+                model: "item2-v2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0V")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0V"),
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+                model: "item2-v2",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 3,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+});
+
+test("can delete an undeleted deleted item after receiving an out-of-order delete realtime event", () => {
+    let query = DynamoGeneralRealtimeIndexQuery.new({
+        readTime: new Date(),
+        indexName: "Test",
+        partitionKey: testIndexPartitionKey("p0"),
+        startCursorBound: null,
+        endCursorBound: null,
+        pageInfo: {
+            type: "FromStart",
+            afterCursor: null,
+            hasNextPage: false,
+        },
+        items: [
+            {
+                cursor: testIndexCursor("a0"),
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+            },
+            {
+                cursor: testIndexCursor("a1"),
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+            },
+            {
+                cursor: testIndexCursor("a2"),
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+            },
+        ],
+    });
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a2"),
+            item: {
+                key: testItemKey("item2"),
+                version: 0,
+                model: "item2",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 1,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "DeleteItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 3,
+            },
+            indexes: new Set(["Test"]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
+                extra: null,
+            },
+        },
+    ]);
+
+    query = query.handleEventTransaction(new Date(), [
+        {
+            type: "PutItem",
+            item: {
+                key: testItemKey("item2"),
+                version: 2,
+                model: "item2-v2",
+            },
+            indexes: new Map([
+                [
+                    "Test",
+                    {partitionKey: testIndexPartitionKey("p0"), cursor: testIndexCursor("a0V")},
+                ],
+            ]),
+        },
+    ]);
+
+    expect(testItems(query)).toEqual([
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a0"),
+            item: {
+                key: testItemKey("item0"),
+                version: 0,
+                model: "item0",
+                extra: null,
+            },
+        },
+        {
+            type: "Loaded",
+            cursor: testIndexCursor("a1"),
+            item: {
+                key: testItemKey("item1"),
+                version: 0,
+                model: "item1",
                 extra: null,
             },
         },

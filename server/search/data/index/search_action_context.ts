@@ -1,3 +1,4 @@
+import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
     ServerSessionActionContextModules,
@@ -8,6 +9,7 @@ import {Context} from "~/shared/context/context.js";
 
 type SearchActionExtraContextModules = {
     opensearch: OpensearchContextModule;
+    files: FilesContextModuleBase;
 };
 
 export type SearchActionContextModules = ServerActionContextModules &

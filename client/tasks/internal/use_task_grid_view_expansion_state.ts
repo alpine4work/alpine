@@ -2,10 +2,9 @@ import {CalendarDate} from "@internationalized/date";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {getClientInfoWithoutListening, useBrowserId} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useBrowserId} from "~/client/remix/client_info_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
@@ -13,6 +12,7 @@ import {
     getParentTaskIdIfChildrenQuery,
 } from "~/client/tasks/core/task_client_store.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -427,7 +427,7 @@ export function useTaskGridViewExpansionState({
                     // then actually expand.
                     const queries = Array.from(taskIdsToLoad, taskId =>
                         stateManager.store.ensureAndRetainTaskChildrenQuery(taskId, {
-                            limit: getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                            limit: getTaskGridViewLoadQueryLimit(getClientInfo()),
                         }),
                     );
 

@@ -7,19 +7,20 @@ import {Server} from "http";
 import looksSame from "looks-same";
 import {extname, join as joinPath} from "path";
 import sharp from "sharp";
-import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
-import {getFile} from "~/server/files/data/files_table.js";
+import {getFileAsUploader} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {
     ffmpegExecutablePath,
     ffprobeExecutablePath,
 } from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
-import {UploadFileEventSchema} from "~/server/files/upload/upload_file.js";
+import {
+    filesBindingName,
+    filesBucketName,
+} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -34,16 +35,22 @@ import {
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -62,6 +69,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         width: number;
         height: number;
         scale?: number;
+        hasAlpha?: boolean;
     };
     imagePreviewPlaceholder?: FileImagePreviewPlaceholder;
     isImagePreviewContentAlternative?: boolean;
@@ -70,6 +78,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         similarPath: string;
     };
     audioPreviewDuration?: number;
+    audioPreviewMetadata?: {title?: string; artist?: string; album?: string};
     codePreviewContentLength?: number;
     codePreviewContent?: string;
     previewError?: {
@@ -92,17 +101,22 @@ export function testFileProcessorContentTypes(
     let server: Server;
 
     beforeAll(async () => {
+        port = await getPort();
+
         const r2Storage = new FileStorage(
-            joinPath(context.getTemporaryDirectoryPath(), "r2", filesBucketName),
+            joinPath(context.getTemporaryDirectoryPath(), "r2", filesBindingName),
         );
         r2Bucket = new R2Bucket(r2Storage);
         const r2ContextModule = new CloudflareR2ContextModule(
-            new MiniflareR2Client(new Map([[filesBucketName, r2Bucket]])),
+            new MiniflareR2Client({
+                fileUploadServiceHostname: `localhost:${port}`,
+                bucketByName: new Map([[filesBucketName, r2Bucket]]),
+            }),
         );
 
-        [[serverTokenAgent, tokenAgent], port] = await runAllPromises([
-            createTestTokenAgents(context, ["FileUploadService", "EdgeService"]),
-            getPort(),
+        [serverTokenAgent, tokenAgent] = await createTestTokenAgents(context, [
+            "FileUploadService",
+            "EdgeService",
         ]);
         server = createFileUploadService(context.clone({r2: r2ContextModule}), {
             tokenAgent: serverTokenAgent,
@@ -159,6 +173,7 @@ export function testFileProcessorContentTypes(
             isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
             imagePreviewContent: expectedImagePreviewContent,
             audioPreviewDuration: expectedAudioPreviewDuration,
+            audioPreviewMetadata: expectedAudioPreviewMetadata,
             codePreviewContentLength: expectedCodePreviewContentLength,
             codePreviewContent: expectedCodePreviewContent,
             previewError: expectedPreviewError,
@@ -202,6 +217,7 @@ export function testFileProcessorContentTypes(
                         "ImagePreviewContent",
                         "ImagePreviewVideoDuration",
                         "AudioPreviewDuration",
+                        "AudioPreviewMetadata",
                         "CodePreviewContent",
                         "PreviewError",
                         "Alternative",
@@ -224,7 +240,7 @@ export function testFileProcessorContentTypes(
                         ),
                     );
 
-                    const file = await getFile(space.systemAction(), fileId);
+                    const file = await getFileAsUploader(space.systemAction(), space.id, fileId);
                     expect(file).toEqual(
                         new FileModel({
                             id: fileId,
@@ -253,6 +269,12 @@ export function testFileProcessorContentTypes(
                                       isProcessing: false,
                                       ok: false,
                                       error: expectedPreviewError,
+                                      size: "Error",
+                                      placeholder: "Error",
+                                      content: "Error",
+                                      videoDuration: expectedImagePreviewVideoDuration
+                                          ? "Error"
+                                          : undefined,
                                   }
                                 : expectedImagePreviewSize
                                 ? {
@@ -263,6 +285,7 @@ export function testFileProcessorContentTypes(
                                           width: expectedImagePreviewSize.width,
                                           height: expectedImagePreviewSize.height,
                                           scale: expectedImagePreviewSize.scale ?? 1,
+                                          hasAlpha: expectedImagePreviewSize.hasAlpha ?? false,
                                       },
                                       placeholder: expect.any(FileImagePreviewPlaceholder),
                                       content: expectedImagePreviewContent
@@ -279,6 +302,11 @@ export function testFileProcessorContentTypes(
                                       type: "Audio",
                                       isProcessing: false,
                                       duration: expectedAudioPreviewDuration,
+                                      metadata: {
+                                          title: expectedAudioPreviewMetadata?.title ?? null,
+                                          artist: expectedAudioPreviewMetadata?.artist ?? null,
+                                          album: expectedAudioPreviewMetadata?.album ?? null,
+                                      },
                                   }
                                 : expectedCodePreviewContent !== undefined
                                 ? {
@@ -310,14 +338,18 @@ export function testFileProcessorContentTypes(
                                     ? {type: "Code"}
                                     : null,
                             fileId: expect.any(String),
+                            signedUrlSearch: "",
                         },
                         ...(expectedImagePreviewSize
                             ? [
                                   {
                                       type: "ImagePreviewSize",
-                                      width: expectedImagePreviewSize.width,
-                                      height: expectedImagePreviewSize.height,
-                                      scale: expectedImagePreviewSize.scale ?? 1,
+                                      size: {
+                                          width: expectedImagePreviewSize.width,
+                                          height: expectedImagePreviewSize.height,
+                                          scale: expectedImagePreviewSize.scale ?? 1,
+                                          hasAlpha: expectedImagePreviewSize.hasAlpha ?? false,
+                                      },
                                   },
                               ]
                             : []),
@@ -356,6 +388,14 @@ export function testFileProcessorContentTypes(
                                   {
                                       type: "AudioPreviewDuration",
                                       duration: expectedAudioPreviewDuration,
+                                  },
+                                  {
+                                      type: "AudioPreviewMetadata",
+                                      metadata: {
+                                          title: expectedAudioPreviewMetadata?.title ?? null,
+                                          artist: expectedAudioPreviewMetadata?.artist ?? null,
+                                          album: expectedAudioPreviewMetadata?.album ?? null,
+                                      },
                                   },
                               ]
                             : []),
@@ -416,7 +456,9 @@ export function testFileProcessorContentTypes(
                         if (!object) throw new NotFoundError("File not found");
 
                         const actualContents = Buffer.from(
-                            await convertReadableStreamToUint8Array(object.body),
+                            await waitForReadableStreamUint8Array(
+                                object.body as globalThis.ReadableStream<Uint8Array>,
+                            ),
                         );
 
                         expect(contents.equals(actualContents)).toEqual(true);
@@ -510,7 +552,9 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
     const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
     if (!object) throw new NotFoundError("File alternative not found");
 
-    const actualContents = Buffer.from(await convertReadableStreamToUint8Array(object.body));
+    const actualContents = Buffer.from(
+        await waitForReadableStreamUint8Array(object.body as globalThis.ReadableStream<Uint8Array>),
+    );
 
     const testlogsOutputDirectoryPath = joinPath(
         testlogsPath,
@@ -974,7 +1018,9 @@ async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimila
     if (!object) throw new NotFoundError("File preview image file not found");
 
     const [actualImageContents, expectedImageContents] = await runAllPromises([
-        convertReadableStreamToUint8Array(object.body).then(buffer => Buffer.from(buffer)),
+        waitForReadableStreamUint8Array(object.body as globalThis.ReadableStream<Uint8Array>).then(
+            buffer => Buffer.from(buffer),
+        ),
         fs.readFile(
             joinPath(
                 runfilesPath,
@@ -983,6 +1029,22 @@ async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimila
             ),
         ),
     ]);
+
+    // Make sure the preview image actually matches the expected format.
+    expect(
+        pickObject(await sharp(actualImageContents).metadata(), ["format", "compression"]),
+    ).toEqual(
+        expectedImagePreviewContent.contentType === "image/avif"
+            ? {
+                  format: "heif",
+                  compression: "av1",
+              }
+            : {
+                  format: getFileContentTypePreferredExtension(
+                      expectedImagePreviewContent.contentType,
+                  ),
+              },
+    );
 
     const result = await looksSame(actualImageContents, expectedImageContents, {
         tolerance: looksSameTolerance,
@@ -1102,30 +1164,6 @@ function compareFileImagePreviewPlaceholders(
             `Placeholder pixel doesn't match (average distance = ${averageDistance}), actual placeholder: ${actualPlaceholderString}`,
         );
     }
-}
-
-function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
-    const result = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
-    let offset = 0;
-
-    for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-    }
-
-    return result;
-}
-
-async function convertReadableStreamToUint8Array(
-    stream: ReadableStream<Uint8Array>,
-): Promise<Uint8Array> {
-    const chunks: Array<Uint8Array> = [];
-
-    for await (const chunk of stream) {
-        chunks.push(chunk);
-    }
-
-    return concatUint8Arrays(chunks);
 }
 
 function removePathExtension(path: string): string {

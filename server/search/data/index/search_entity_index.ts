@@ -1875,7 +1875,7 @@ export async function searchChannelsByKeywords(
  * recommendations should be used to boost keyword search results.
  */
 export async function searchChannelsByAffinity(
-    context: ServerSessionActionContext,
+    context: SearchSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
     Array<{

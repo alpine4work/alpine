@@ -5,13 +5,13 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MessageContentPayloadModel, MessageModel} from "~/shared/messaging/message_model.js";
 

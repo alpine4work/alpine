@@ -20,11 +20,20 @@ export type FileImagePreviewSize = SchemaType<typeof FileImagePreviewSizeSchema>
  *   the `.pdf` preview image at 2x the file's dimensions so we don't lose
  *   detail on retina screens. So `scale` is typically 2 for `.pdf`s. For
  *   images and other raster formats `scale` is basically always 1.
+ *
+ * - `hasAlpha`: Is there an alpha channel in the image?
+ *
+ *   Is sometimes true even if all pixels in the preview image have an alpha
+ *   value of 1. True means an alpha channel is definitely present in the image
+ *   even if it doesn't contribute to the image. If you want to check if the
+ *   image has transparent pixels then one approach is to look at `placeholder`
+ *   which averages the preview image's pixels together.
  */
 export const FileImagePreviewSizeSchema = Schema.object({
     width: Schema.integer,
     height: Schema.integer,
     scale: Schema.float.default(1),
+    hasAlpha: Schema.boolean.default(false),
 });
 
 /**
@@ -131,6 +140,15 @@ export const FileImagePreviewSchema = Schema.booleanUnion(
                 code: Schema.enum(getErrorCodes()),
                 displayMessage: ErrorDisplayMessageSchema,
             }),
+            size: errorSchema(FileImagePreviewSizeSchema),
+            placeholder: errorSchema(FileImagePreviewPlaceholder.schema),
+            content: errorSchema(
+                Schema.object({
+                    contentType: FileContentTypeSchema,
+                    contentLength: Schema.integer,
+                }),
+            ).optional(),
+            videoDuration: errorSchema(Schema.integer).optional(),
         }),
     ),
 ).validation(
@@ -142,6 +160,14 @@ export const FileImagePreviewSchema = Schema.booleanUnion(
         preview.content === "Processing" ||
         preview.videoDuration === "Processing",
 );
+
+export type FileAudioPreviewMetadata = SchemaType<typeof FileAudioPreviewMetadataSchema>;
+
+export const FileAudioPreviewMetadataSchema = Schema.object({
+    title: Schema.string.nullable(),
+    artist: Schema.string.nullable(),
+    album: Schema.string.nullable(),
+});
 
 /**
  * Preview we display for audio files. For audio all we show is the duration of
@@ -157,15 +183,20 @@ export const FileAudioPreviewSchema = Schema.booleanUnion(
         type: Schema.value("Audio"),
         isProcessing: Schema.value(true),
         duration: processingSchema(Schema.integer),
+        metadata: processingSchema(FileAudioPreviewMetadataSchema).optional(),
     }),
     Schema.object({
         type: Schema.value("Audio"),
         isProcessing: Schema.value(false),
         duration: Schema.integer,
+        metadata: FileAudioPreviewMetadataSchema.optional(),
     }),
 ).validation(
     "When `isProcessing` is true some preview data must be processing",
-    preview => !preview.isProcessing || preview.duration === "Processing",
+    preview =>
+        !preview.isProcessing ||
+        preview.duration === "Processing" ||
+        preview.metadata === "Processing",
 );
 
 /**
@@ -199,6 +230,22 @@ export const FilePreviewSchema = Schema.union({
     Code: FileCodePreviewSchema,
 });
 
+export type FileHasPreview = SchemaType<typeof FileHasPreviewSchema>;
+
+export const FileHasPreviewSchema = Schema.union({
+    Image: Schema.object({
+        type: Schema.value("Image"),
+        hasContent: Schema.boolean,
+        hasVideoDuration: Schema.boolean,
+    }),
+    Audio: Schema.object({
+        type: Schema.value("Audio"),
+    }),
+    Code: Schema.object({
+        type: Schema.value("Code"),
+    }),
+});
+
 /**
  * Take a schema and give it an explicit `"Processing"` state. Under the hood
  * this uses `schema.nullable()` so in the database processing is treated as
@@ -218,6 +265,29 @@ function processingSchema<Value>(schema: Schema<Value>): Schema<Value | "Process
             assert(value !== "Processing");
 
             return value === null ? "Processing" : value;
+        },
+    });
+}
+
+/**
+ * Take a schema and give it an explicit `"Error"` state. Under the hood
+ * this uses `schema.nullable()` so in the database processing is treated as
+ * null. In our code you must explicitly deal with the `"Error"` state.
+ */
+function errorSchema<Value>(schema: Schema<Value>): Schema<Value | "Error"> {
+    return schema.nullable().transform<Value | "Error">({
+        serialize: value => {
+            // `value` must not be null or else the serialized value may be ambiguous.
+            assert(value !== null);
+
+            return value === "Error" ? null : value;
+        },
+        deserialize: value => {
+            // `value` must not be `"Error"` or else the serialized value may be
+            // ambiguous.
+            assert(value !== "Error");
+
+            return value === null ? "Error" : value;
         },
     });
 }

@@ -16,7 +16,7 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay_helpers.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     useRegisterBottomBarMobileKeyboardToolbarFrame,
@@ -34,7 +34,7 @@ import {spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -593,7 +593,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        (isPressed: boolean) => isPressed && isActive,
+        isPressed => isPressed && isActive,
         [isPressed],
     );
 

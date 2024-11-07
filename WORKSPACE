@@ -545,3 +545,49 @@ http_archive(
     strip_prefix = "opus-1.4",
     url = "https://github.com/xiph/opus/releases/download/v1.4/opus-1.4.tar.gz",
 )
+
+http_archive(
+    name = "zlib",
+    build_file = "@//admin/bazel:third_party/BUILD.zlib.bazel",
+    integrity = "sha256-mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM=",
+    strip_prefix = "zlib-1.3.1",
+    url = "https://zlib.net/zlib-1.3.1.tar.gz",
+)
+
+# NOTE(calebmer, 2024-11-07): Unfortunately we're using the `zig` nightly
+# 0.14.0 build for now because it has a fix we need that's not in 0.13.0. `zig`
+# releases appear to be every 6 months so we should be able to update this
+# soon.
+#
+# https://github.com/ziglang/zig/issues/20493
+http_archive(
+    name = "zig_macos_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-8nC3eymCfrqQDsEyh1HTrB2ie239mPPSCwRcjaUBsTk=",
+    strip_prefix = "zig-macos-x86_64-0.14.0-dev.2183+ee9f00d67",
+    url = "https://ziglang.org/builds/zig-macos-x86_64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+)
+
+http_archive(
+    name = "zig_macos_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-EsReZE46yJCZvf9qPDfPuNMN5tRBKJm8CVBF3G9L54E=",
+    strip_prefix = "zig-macos-aarch64-0.14.0-dev.2183+ee9f00d67",
+    url = "https://ziglang.org/builds/zig-macos-aarch64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+)
+
+http_archive(
+    name = "zig_linux_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-O/hEJmE4XgAgIHunEmuyhC5IHL58HCqKd8loA8NquWI=",
+    strip_prefix = "zig-linux-x86_64-0.14.0-dev.2183+ee9f00d67",
+    url = "https://ziglang.org/builds/zig-linux-x86_64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+)
+
+http_archive(
+    name = "zig_linux_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
+    integrity = "sha256-QIepC4l9eRqmnQJXqKuN7HFlotG8gP74MvMPw7qf+Bw=",
+    strip_prefix = "zig-linux-aarch64-0.14.0-dev.2183+ee9f00d67",
+    url = "https://ziglang.org/builds/zig-linux-aarch64-0.14.0-dev.2183+ee9f00d67.tar.xz",
+)

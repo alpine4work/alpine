@@ -3,11 +3,16 @@ import {useContext, useMemo} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
+import {usePeekContext} from "~/client/peek/peek_context.js";
 import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
-import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
+import {
+    GlobalLoadingIndicatorChip,
+    GlobalLoadingIndicatorContextProvider,
+} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -123,9 +128,32 @@ export default function PeekLayout() {
             >
                 <LoadingIndicatorSpaceOutletContainer
                     routeId="routes/s.$spaceId.peek"
-                    withMobileLayout={true}
+                    withMobileLayout={peekContext.withMobileLayout}
                 >
-                    <Outlet />
+                    <GlobalLoadingIndicatorContextProvider>
+                        {globalLoadingIndicator => (
+                            <>
+                                <Outlet />
+                                {globalLoadingIndicator && (
+                                    <Box
+                                        pointerEvents="none"
+                                        position="absolute"
+                                        zIndex="10"
+                                        bottom="0"
+                                        // Render on the left instead of the right so we're not
+                                        // rendering over the scrollbar.
+                                        left="0"
+                                        borderTopRightRadius="1"
+                                        backgroundColor="grey-0"
+                                    >
+                                        <GlobalLoadingIndicatorChip
+                                            indicator={globalLoadingIndicator}
+                                        />
+                                    </Box>
+                                )}
+                            </>
+                        )}
+                    </GlobalLoadingIndicatorContextProvider>
                 </LoadingIndicatorSpaceOutletContainer>
             </NavigationContextProvider>
         </AppContextProvider>

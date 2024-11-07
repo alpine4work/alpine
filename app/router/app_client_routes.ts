@@ -1,9 +1,9 @@
 import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/remix/process_loader_result.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase, FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -188,7 +188,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                         displayMessage:
                             // If we're in a web browser, if we failed to make a request it's probably the
                             // user's internet connection and they should look into a fix.
-                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                            typeof window !== "undefined" && !navigator.onLine
+                                ? offlineErrorDisplayMessage
+                                : undefined,
                     },
                 );
             }
@@ -219,7 +221,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                         displayMessage:
                             // If we're in a web browser, if we failed to make a request it's probably the
                             // user's internet connection and they should look into a fix.
-                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                            typeof window !== "undefined" && !navigator.onLine
+                                ? offlineErrorDisplayMessage
+                                : undefined,
                     },
                 );
             }
@@ -253,7 +257,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                         displayMessage:
                             // If we're in a web browser, if we failed to make a request it's probably the
                             // user's internet connection and they should look into a fix.
-                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                            typeof window !== "undefined" && !navigator.onLine
+                                ? offlineErrorDisplayMessage
+                                : undefined,
                     },
                 );
             }

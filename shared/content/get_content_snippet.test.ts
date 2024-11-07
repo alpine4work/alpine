@@ -4,7 +4,9 @@ import {
     setDefaultMaxLineGraphemeCountForTest,
 } from "~/shared/content/get_content_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 
 // NOTE(calebmer): These tests were written with the constant 237. Instead of
 // updating the tests to work with the new constant I'm hardcoding the old one
@@ -1010,6 +1012,133 @@ test("snips a single line in the middle of multiple paragraphs", () => {
             node("paragraph", {}, [
                 text(
                     "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos",
+                ),
+            ]),
+        ]),
+    );
+});
+
+test("snips a single line in the middle of multiple paragraphs ignoring `fileFloat`s", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    expectSnippet(
+        {pos: 0.5, lines: 1},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text(
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi. Curabitur pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque. Mauris vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file1Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file2Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file3Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file4Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file5Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file6Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Nunc sed nulla vitae libero auctor facilisis. Nulla lectus lacus, egestas a ante at, ultricies vehicula tellus. Donec consequat urna ac ligula commodo rutrum. Aenean semper nisl at tortor tristique dictum. Donec sed pulvinar ipsum. Nam ultricies justo at cursus tempus. Etiam placerat lacus arcu, vel scelerisque eros rhoncus ac.",
+                ),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text(
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi. Curabitur pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque. Mauris vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file1Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file2Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file3Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor.",
+                ),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.6, lines: 1},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text(
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi. Curabitur pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque. Mauris vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file1Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file2Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file3Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file4Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file5Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file6Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Nunc sed nulla vitae libero auctor facilisis. Nulla lectus lacus, egestas a ante at, ultricies vehicula tellus. Donec consequat urna ac ligula commodo rutrum. Aenean semper nisl at tortor tristique dictum. Donec sed pulvinar ipsum. Nam ultricies justo at cursus tempus. Etiam placerat lacus arcu, vel scelerisque eros rhoncus ac.",
+                ),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text(
+                    "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos",
+                ),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.7, lines: 1},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text(
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi. Curabitur pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque. Mauris vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file1Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file2Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file3Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file4Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file5Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file6Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Nunc sed nulla vitae libero auctor facilisis. Nulla lectus lacus, egestas a ante at, ultricies vehicula tellus. Donec consequat urna ac ligula commodo rutrum. Aenean semper nisl at tortor tristique dictum. Donec sed pulvinar ipsum. Nam ultricies justo at cursus tempus. Etiam placerat lacus arcu, vel scelerisque eros rhoncus ac.",
+                ),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text(
+                    "Integer feugiat ex eget augue porta, in interdum nisi condimentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Praesent non vulputate massa, sed egestas augue. Phasellus eu elementum elit, eget dapibus felis. Proin scelerisque erat et lobortis interdum. Nulla facilisi. Aenean porttitor sodales aliquet. Maecenas sagittis quam a urna rhoncus eleifend eget nec dolor. Ut convallis leo vel lacus bibendum, nec venenatis est pretium. Nullam fringilla, sem at dictum rhoncus, nisi sem ullamcorper ipsum, id congue arcu dolor eu urna. Sed luctus ac nulla sit amet sodales. Cras dignissim rutrum metus sed mattis. In ultrices semper tempor. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
+                ),
+            ]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file4Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file5Id})]),
+            node("fileFloat", {direction: "right"}, [node("file", {fileId: file6Id})]),
+            node("paragraph", {}, [
+                text(
+                    "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Nunc sed nulla vitae libero auctor facilisis. Nulla lectus lacus, egestas a ante at, ultricies vehicula tellus. Donec consequat urna ac ligula commodo",
                 ),
             ]),
         ]),

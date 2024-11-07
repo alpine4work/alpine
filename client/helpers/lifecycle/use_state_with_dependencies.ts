@@ -1,4 +1,5 @@
 import {DependencyList, Dispatch, SetStateAction, useCallback, useMemo, useState} from "react";
+import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 
 /**
  * `useState()` with a dependency list. When that dependency list changes, the
@@ -9,7 +10,7 @@ import {DependencyList, Dispatch, SetStateAction, useCallback, useMemo, useState
  * combination.
  */
 export function useStateWithDependencies<State, const Dependencies extends DependencyList>(
-    initializeState: State | ((...dependencies: Dependencies) => State),
+    initializeState: State | ((...dependencies: BlockInference<Dependencies>) => State),
     dependencies: Dependencies,
 ): [State, Dispatch<SetStateAction<State>>] {
     // Give `initialState` the same lifetime as our dependencies array. You can
@@ -19,6 +20,7 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
             typeof initializeState === "function"
                 ? (initializeState as (...dependencies: Dependencies) => State)(...dependencies)
                 : initializeState,
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/exhaustive-deps
         dependencies,
     );
@@ -67,6 +69,7 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                 });
             }
         },
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/exhaustive-deps
         dependencies,
     );

@@ -1,5 +1,5 @@
 import {DragEvent, MouseEvent, PointerEvent, useRef} from "react";
-import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 
 /**
  * When a user clicks out of bounds on a document it selects the nearest line

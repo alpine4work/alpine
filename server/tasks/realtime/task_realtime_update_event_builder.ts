@@ -13,10 +13,8 @@ import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
@@ -101,7 +99,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     protected readonly _spaceId: SpaceId;
     private _isFinished = false;
     private _isFinishing = false;
-    private _promises: Array<PromiseLike<unknown>> = [];
+    private _promiseWaiter = new PromiseWaiter();
 
     protected _originClientId: TaskRealtimeClientId | null = null;
     protected _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null = null;
@@ -125,38 +123,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         assert(!this._isFinishing);
         this._isFinishing = true;
 
-        let hasError = false;
-        let errorPriority = 0;
-        let error: unknown;
-
-        // Wait for all our `waitUntil()` promises to resolve before building the
-        // final event.
-        //
-        // Even if there's an error. Only throw our error at the very end.
-        while (this._promises.length > 0) {
-            const promises = this._promises;
-            this._promises = [];
-
-            try {
-                await runAllPromises(promises);
-            } catch (newError) {
-                const newErrorPriority = getAggregateErrorPriority(newError);
-
-                if (!hasError) {
-                    hasError = true;
-                    errorPriority = newErrorPriority;
-                    error = newError;
-                }
-                // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                // just the first one. Probably by using an `AggregateError`.
-                else if (newErrorPriority > errorPriority) {
-                    errorPriority = newErrorPriority;
-                    error = newError;
-                }
-            }
-        }
-
-        if (hasError) throw error;
+        await this._promiseWaiter.wait();
 
         assert(!this._isFinished);
         this._isFinished = true;
@@ -177,10 +144,12 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         promise: PromiseLike<unknown>,
     ) {
         assert(!this._isFinished);
-        this._promises.push(promise);
+        this._promiseWaiter.waitUntil(promise);
 
         // You must pass in a context where you create the promise so we can call
         // `waitUntil()` on the context as well to make sure it's not destroyed.
+        //
+        // NOTE(calebmer, 2024-10-03): Is this really necessary?
         context.process.waitUntil(promise instanceof Promise ? promise : Promise.resolve(promise));
     }
 

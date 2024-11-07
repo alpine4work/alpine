@@ -1,5 +1,6 @@
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessagePayload, MessagePayloadModel} from "~/shared/messaging/message_model.js";
@@ -9,8 +10,9 @@ import {MessagePayload, MessagePayloadModel} from "~/shared/messaging/message_mo
  * `MessagePayload` (what we store in the database).
  */
 export async function createMessagePayloadModel(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
+    fileAuthorizer: FileAuthorizer,
     payload: MessagePayload,
 ): Promise<MessagePayloadModel> {
     switch (payload.type) {
@@ -22,6 +24,7 @@ export async function createMessagePayloadModel(
                     references: await getContentReferencesForNode(
                         context,
                         spaceId,
+                        fileAuthorizer,
                         payload.content,
                     ),
                 },

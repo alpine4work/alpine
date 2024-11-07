@@ -27,6 +27,9 @@ export const contentNodeTypeNames = {
     divider: true,
     mention: true,
     title: true,
+    fileRow: true,
+    fileFloat: true,
+    file: true,
 };
 
 /**
@@ -82,6 +85,8 @@ export const contentBlockNodeTypeNames = {
     checkListItem: true,
     heading: true,
     divider: true,
+    fileRow: true,
+    fileFloat: true,
 };
 
 /**

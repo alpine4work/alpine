@@ -3,14 +3,19 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {createDocument} from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {createChannel, createPost} from "~/server/forum/data/forum_table.js";
+import {
+    createChannel,
+    createOrReplacePostDraft,
+    createPost,
+} from "~/server/forum/data/forum_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
 
@@ -68,12 +73,25 @@ const testCases: Array<{
     {
         name: "post (new)",
         setup: async ({page, isMobile, space, session}) => {
+            const draftId = generateChronologicalId<PostDraftId>();
+
             const channel = await createChannel(session.action(), {
                 spaceId: space.id,
                 name: "Test Channel",
             });
 
-            await page.goto(`/s/${space.id}/posts/new/${generateId()}?channel=${channel.id}`);
+            await createOrReplacePostDraft(
+                session.action(),
+                space.id,
+                session.account.id,
+                draftId,
+                {
+                    channelId: channel.id,
+                    content: emptyPostContent,
+                },
+            );
+
+            await page.goto(`/s/${space.id}/posts/new/${draftId}`);
 
             return {
                 editorLocator: page.getByRole("textbox", {name: "New post"}),

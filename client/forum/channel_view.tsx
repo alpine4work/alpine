@@ -1,63 +1,74 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
+import {NavigationBarProps} from "~/client/design/navigation_bar_types.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
+import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
-import {subscribeToOptimisticCreatePostEvent} from "~/client/forum/post_creator.js";
+import {optimisticCreatePostEventEmitter} from "~/client/forum/internal/optimistic_create_post_event_emitter.js";
 import {
     PostListChannelHeader,
     PostQueryList,
     PostQueryListDynamoGeneralRealtimeIndexQuery,
 } from "~/client/forum/post_list.js";
-import {PostListView, postListViewAsideMaxWidth} from "~/client/forum/post_list_view.js";
+import {PostListView} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
-import {contentStyles} from "~/client/styles/styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    channelViewAsidePostFileCount,
+    postContentViewMinHeightWithClosedCommentSection,
+    postListViewAsideMaxWidth,
+} from "~/client/styles/forum_shared_styles.js";
+import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
-    DynamoGeneralRealtimeItem,
+    DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostModel} from "~/shared/forum/post_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {
+    backfillChannelAndMetadata,
     backfillChannelPosts,
+    getChannelAndMetadata,
     getChannelPosts,
-    getChannelWithStrongReadConsistency,
     updateChannelDescription,
     updateChannelName,
     updateChannelNameAndDescription,
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
-export {newChannelNamePlaceholder} from "~/client/forum/internal/channel_view_name_editor.js";
-
 export function ChannelView({
     withMobileLayout: withMobileLayoutProp,
-    initialChannel,
+    initialChannelResult,
     initialPostsResult,
 }: {
     withMobileLayout: boolean;
-    initialChannel: DynamoGeneralRealtimeItem<ChannelModel>;
+    initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
 }) {
     const context = useAppContext();
     const isMobile = useIsMobile();
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
-    const channelId = initialChannel.model.id;
+    assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
+
+    const channelId = initialChannelResult.items[0].model.id;
 
     const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
         "ChannelRealtimeService",
@@ -65,20 +76,35 @@ export function ChannelView({
         `/api/durable-objects/channels/${channelId}`,
     );
 
-    const {
-        item: {model: channel},
-        handleEventTransaction: handleEventTransactionForChannel,
-    } = useDynamoGeneralRealtimeItem(initialChannel, {
-        isConnected,
-        subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
-            [subscribeToEvents],
-        ),
-        reloadItemWithStrongReadConsistency: useCallback(async () => {
-            const {channel} = await getChannelWithStrongReadConsistency(context, {channelId});
-            return channel;
-        }, [channelId, context]),
-    });
+    const {query: channelAndMetadataQuery, handleEvent: handleEventForChannel} =
+        useDynamoGeneralRealtimeQuery(initialChannelResult, {
+            isConnected,
+            subscribeToEvents: useCallback(
+                subscriber => subscribeToEvents(event => subscriber(event)),
+                [subscribeToEvents],
+            ),
+            backfillQuery: useCallback(
+                async ({readTime}) => {
+                    const {backfillChannelResult} = await backfillChannelAndMetadata(context, {
+                        channelId,
+                        readTime,
+                    });
+                    return backfillChannelResult;
+                },
+                [context, channelId],
+            ),
+            reloadQuery: useCallback(async () => {
+                const {channelResult} = await getChannelAndMetadata(context, {
+                    channelId,
+                    postFilesLimit: channelViewAsidePostFileCount,
+                });
+                return channelResult;
+            }, [channelId, context]),
+        });
+
+    const channelItem = channelAndMetadataQuery.getFirstItemIfExists();
+    assert(channelItem?.model instanceof ChannelModel);
+    const channel = channelItem.model;
 
     const [posts, setPosts] = useState(() => PostQueryList.new(initialPostsResult));
 
@@ -123,7 +149,7 @@ export function ChannelView({
                 const {postsResult} = await getChannelPosts(context, {
                     channelId,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                        getClientInfoWithoutListening(),
+                        getClientInfo(),
                         postContentViewMinHeightWithClosedCommentSection,
                     ),
                     beforeCursor: null,
@@ -138,7 +164,7 @@ export function ChannelView({
     // emits an event after a post has been successfully created and we handle
     // that event here.
     useEffect(() => {
-        return subscribeToOptimisticCreatePostEvent(event => {
+        return optimisticCreatePostEventEmitter.subscribe(event => {
             if (event.channelId !== channel.id) return;
 
             setPosts(posts =>
@@ -160,14 +186,7 @@ export function ChannelView({
     if (editNameAndDescriptionMobileModalState && !isMobile)
         setEditNameAndDescriptionMobileModalState(null);
 
-    const hasAside =
-        !withMobileLayout &&
-        (!isContentEmpty(channel.description.doc) || isEditingDescriptionInline);
-
-    const navigationBarRef = useRef<NavigationBarRef>(null);
-
-    const navigationBar = useNavigationBar({
-        ref: navigationBarRef,
+    const navigationBarProps: Omit<NavigationBarProps, "ref"> = {
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
@@ -185,7 +204,7 @@ export function ChannelView({
 
                     // Immediately apply a realtime event transaction to update our channel in case
                     // our realtime WebSocket connection is slow.
-                    handleEventTransactionForChannel(event.eventTransaction);
+                    handleEventForChannel(event);
                 }}
             />
         ) : (
@@ -203,7 +222,7 @@ export function ChannelView({
                 {channel.name}
             </Box>
         ),
-        desktopMaxWidth: hasAside
+        desktopMaxWidth: !withMobileLayout
             ? addRemLengths(
                   spacing[contentStyles.contentMaxWidth],
                   spacing[postListViewAsideMaxWidth],
@@ -252,8 +271,24 @@ export function ChannelView({
                     },
                 },
             ],
+            ...(withMobileLayout
+                ? [
+                      [
+                          {
+                              label: "See all files",
+                              pressErrorTitle: "Couldn’t open files",
+                              onPress: () =>
+                                  navigate(
+                                      `/s/${space.id}/channels/${channelId}/files?from=channel`,
+                                  ),
+                          },
+                      ],
+                  ]
+                : []),
         ],
-    });
+    };
+
+    const navigationBar = useNavigationBar({...navigationBarProps, isDisabled: !withMobileLayout});
 
     const channelHeader = useMemo(
         (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
@@ -272,18 +307,65 @@ export function ChannelView({
 
                 // Immediately apply a realtime event transaction to update our channel in case
                 // our realtime WebSocket connection is slow.
-                handleEventTransactionForChannel(event.eventTransaction);
+                handleEventForChannel(event);
             },
         }),
-        [channel, channelId, context, handleEventTransactionForChannel, isEditingDescriptionInline],
+        [channel, channelId, context, handleEventForChannel, isEditingDescriptionInline],
     );
 
     return (
-        <>
+        <Box
+            position="relative"
+            flexGrow="1"
+            display="flex"
+            flexDirection="column"
+            overflow="hidden"
+            height="full"
+        >
+            {!withMobileLayout && (
+                <Box
+                    position="absolute"
+                    zIndex="10"
+                    left="0"
+                    right="0"
+                    backgroundColor="grey-0-opacity-80"
+                    style={{
+                        // TODO(calebmer, 2024-11-05): Trying this effect out. Seeing how I feel about
+                        // it. If I like it, will add to more places. Otherwise should remove for
+                        // consistency.
+                        //
+                        // Some quick reasons I like it:
+                        //
+                        // - I'm liking border-less designs. Makes the app feel very spacious and clean
+                        //
+                        // - The problem with no borders is sticky navigation bar UI cutting off
+                        //   content can look a little weird, it can look like the content flows into
+                        //   the navigation bar
+                        //
+                        // - Using a reinforced frosted glass effect brings back a sense of depth to
+                        //   the UI
+                        //
+                        // - Opacity alone doesn't feel right to me, opacity + blur also doesn't feel
+                        //   right, but the reinforced frosted glass effect (of opacity + blur + see
+                        //   through dots) abstracts the background even more and makes the navigation
+                        //   bar feel more solid
+                        backdropFilter: "blur(3px)",
+                        backgroundImage: `radial-gradient(transparent 1px, ${colorSchemeVars["grey-0"]} 1px)`,
+                        backgroundSize: "4px 4px",
+                    }}
+                >
+                    <NavigationBarContent {...navigationBarProps} />
+                </Box>
+            )}
             <PostListView
                 withMobileLayout={withMobileLayout}
                 channelHeader={channelHeader}
                 posts={posts}
+                onMergePostContentReferences={useCallback(
+                    (postId, references) =>
+                        setPosts(posts => posts.mergePostContentReferences(postId, references)),
+                    [],
+                )}
                 onTogglePostComments={useCallback(
                     postId => setPosts(posts => posts.togglePostComments(postId)),
                     [],
@@ -310,16 +392,18 @@ export function ChannelView({
                     );
                 }, [])}
                 aside={
-                    hasAside && (
+                    !withMobileLayout && (
                         <ChannelViewAside
                             channel={channel}
+                            channelAndMetadataQuery={channelAndMetadataQuery}
                             isEditingDescription={isEditingDescriptionInline}
                             onCancelEditingDescription={channelHeader.onCancelDescriptionEditing}
                             onSaveDescription={channelHeader.onSaveDescription}
                         />
                     )
                 }
-                navigationBar={{...navigationBar, navigationBarRef}}
+                withStaticNavigationBar={!withMobileLayout}
+                navigationBar={navigationBar}
             />
             {editNameAndDescriptionMobileModalState && (
                 <MobileFullScreenModal
@@ -340,13 +424,13 @@ export function ChannelView({
 
                                 // Immediately apply a realtime event transaction to update our channel in case
                                 // our realtime WebSocket connection is slow.
-                                handleEventTransactionForChannel(event.eventTransaction);
+                                handleEventForChannel(event);
                             }}
                             onCloseWithAnimation={() => onCloseWithAnimation()}
                         />
                     )}
                 </MobileFullScreenModal>
             )}
-        </>
+        </Box>
     );
 }

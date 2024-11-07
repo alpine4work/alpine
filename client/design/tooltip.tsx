@@ -1,11 +1,9 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
-    MutableRefObject,
     ReactElement,
     ReactNode,
     Ref,
-    createContext,
     forwardRef,
     useCallback,
     useContext,
@@ -19,18 +17,19 @@ import {
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {
-    Overlay,
-    OverlayPlacement,
-    OverlayRef,
-    useIsWaitingForOverlayPortalElement,
-} from "~/client/design/overlay.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+    TooltipCoordinationActiveSymbolContext,
+    TooltipCoordinationContext,
+    tooltipCoordinationContextForTest,
+} from "~/client/design/internal/tooltip_coordination_context.js";
+import {Overlay, OverlayPlacement, OverlayRef} from "~/client/design/overlay.js";
+import {useIsWaitingForOverlayPortalElement} from "~/client/design/overlay_helpers.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,
@@ -39,7 +38,8 @@ import {
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -417,6 +417,7 @@ function Tooltip(
     const overlayRef = useRef<OverlayRef>(null);
 
     const isMounted = useIsMounted();
+    const canPrimaryInputHover = useCanPrimaryInputHover();
 
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -425,7 +426,8 @@ function Tooltip(
     );
 
     const activeTooltipSymbol = useContext(TooltipCoordinationActiveSymbolContext);
-    const coordinationContext = useContext(TooltipCoordinationContext);
+    const coordinationContext =
+        useContext(TooltipCoordinationContext) ?? tooltipCoordinationContextForTest;
     assert(
         coordinationContext !== null,
         "Expected a parent `<TooltipCoordinationContextProvider>` component",
@@ -642,12 +644,16 @@ function Tooltip(
             const tooltipElement = tooltipRef.current;
 
             function handleMouseEnter(event: MouseEvent) {
+                // Ignore `mouseenter` events emulated by iOS.
+                if (!canPrimaryInputHover) return;
+
                 if (event.target !== targetElement) return;
 
                 // If there is a visible tooltip that will fade out soon, cancel the fade out
                 // and immediately show our tooltip.
                 const isFadingIn = tooltipSymbolAboutToFadeOutRef.current === null;
                 tooltipSymbolAboutToFadeOutRef.current?.immediatelyHide();
+                // eslint-disable-next-line react-compiler/react-compiler
                 tooltipSymbolAboutToFadeOutRef.current = null;
 
                 setState((state): TooltipState => {
@@ -670,6 +676,9 @@ function Tooltip(
             }
 
             function handleMouseLeave(event: MouseEvent) {
+                // Ignore `mouseleave` events emulated by iOS.
+                if (!canPrimaryInputHover) return;
+
                 if (event.target !== targetElement) return;
 
                 const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {
@@ -877,6 +886,7 @@ function Tooltip(
         [
             isVisible,
             isWaitingForOverlayPortalElement,
+            canPrimaryInputHover,
             tooltipSymbolAboutToFadeOutRef,
             getHasActiveTooltipSymbol,
             tooltipSymbol,
@@ -966,269 +976,4 @@ function Tooltip(
         children,
         targetElement,
     ]);
-}
-
-/**
- * While a component is rendered with this hook, we will make sure no tooltips
- * may be rendered.
- */
-export function useShouldDisableTooltips(shouldDisableTooltips: boolean = true) {
-    const tooltipSymbol = useMemo(() => Symbol(), []);
-
-    const coordinationContext = useContext(TooltipCoordinationContext);
-    assert(coordinationContext !== null);
-
-    useEffect(() => {
-        if (shouldDisableTooltips) {
-            coordinationContext.addDisableTooltipSymbol(tooltipSymbol);
-            return () => {
-                coordinationContext.deleteDisableTooltipSymbol(tooltipSymbol);
-            };
-        }
-    }, [coordinationContext, shouldDisableTooltips, tooltipSymbol]);
-}
-
-// We have a separate context for the active tooltip symbol because it updates
-// frequently. Our second context, updates rarely.
-const TooltipCoordinationActiveSymbolContext = createContext<symbol | null>(null);
-
-type TooltipCoordinationContext = {
-    readonly tooltipSymbolAboutToFadeOutRef: MutableRefObject<{
-        readonly tooltipSymbol: symbol;
-        readonly immediatelyHide: () => void;
-    } | null>;
-    readonly addHoveredAndAddFocusedTooltipSymbol: (symbol: symbol) => void;
-    readonly addHoveredAndDeleteFocusedTooltipSymbol: (symbol: symbol) => void;
-    readonly deleteHoveredAndAddFocusedTooltipSymbol: (symbol: symbol) => void;
-    readonly deleteHoveredAndDeleteFocusedTooltipSymbol: (symbol: symbol) => void;
-    readonly addDisableTooltipSymbol: (symbol: symbol) => void;
-    readonly deleteDisableTooltipSymbol: (symbol: symbol) => void;
-    readonly skipTooltipHoverDelay: () => void;
-};
-
-const TooltipCoordinationContext = createContext<TooltipCoordinationContext | null>(null);
-
-type TooltipCoordinationContextState = {
-    readonly hoveredTooltipsStatus: "WarmingUp" | "WarmedUp" | "CooledDown";
-    readonly hoveredTooltipSymbols: ReadonlySet<symbol>;
-    readonly focusedTooltipSymbols: ReadonlySet<symbol>;
-    readonly disableTooltipSymbols: ReadonlySet<symbol>;
-};
-
-const initialTooltipCoordinationContextState: TooltipCoordinationContextState = {
-    hoveredTooltipsStatus: "CooledDown",
-    hoveredTooltipSymbols: new Set(),
-    focusedTooltipSymbols: new Set(),
-    disableTooltipSymbols: new Set(),
-};
-
-/**
- * Coordinates any tooltips rendered under this context so that only one tooltip
- * is visible at once.
- */
-export function TooltipCoordinationContextProvider({children}: {children: ReactNode}) {
-    const [state, setState] = useState<TooltipCoordinationContextState>(
-        initialTooltipCoordinationContextState,
-    );
-
-    // Discover the one currently active tooltip across the application.
-    let activeTooltipSymbol: symbol | null = null;
-
-    // Don't allow there to be an active symbol if we have some disable tooltip
-    // symbols.
-    if (!(state.disableTooltipSymbols.size > 0)) {
-        // Focused tooltips take precedence over hovered tooltips.
-        if (activeTooltipSymbol === null) {
-            for (const tooltipSymbol of state.focusedTooltipSymbols) {
-                activeTooltipSymbol = tooltipSymbol;
-                break;
-            }
-        }
-
-        // Hovered tooltips can only be active after tooltip hovering has been
-        // warmed up.
-        if (activeTooltipSymbol === null && state.hoveredTooltipsStatus === "WarmedUp") {
-            for (const tooltipSymbol of state.hoveredTooltipSymbols) {
-                activeTooltipSymbol = tooltipSymbol;
-                break;
-            }
-        }
-    }
-
-    const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
-
-    const hasHoveredTooltipSymbols =
-        !(state.disableTooltipSymbols.size > 0) && state.hoveredTooltipSymbols.size > 0;
-
-    // If our state transitioned to `WarmingUp` let's run our warm up timeout and
-    // switch the state to `WarmedUp`. We don't show tooltips while we are
-    // warming up.
-    useEffect(() => {
-        if (state.hoveredTooltipsStatus === "WarmingUp" && hasHoveredTooltipSymbols) {
-            const timeoutId = setTimeout(() => {
-                setState(oldState => {
-                    return {
-                        ...oldState,
-                        hoveredTooltipsStatus: "WarmedUp",
-                    };
-                });
-            }, tooltipDelayMs);
-
-            return () => {
-                clearTimeout(timeoutId);
-            };
-        }
-    }, [hasHoveredTooltipSymbols, state.hoveredTooltipsStatus]);
-
-    // If we're warmed up, but there's no longer an active tooltip we want to
-    // transition back to our cooled down state after a timeout.
-    //
-    // This is a separate effect because it has an extra dependency.
-    useEffect(() => {
-        if (state.hoveredTooltipsStatus === "WarmedUp" && !hasActiveTooltipSymbol) {
-            const timeoutId = setTimeout(() => {
-                setState(oldState => {
-                    return {
-                        ...oldState,
-                        hoveredTooltipsStatus: "CooledDown",
-                    };
-                });
-            }, 1000);
-
-            return () => {
-                clearTimeout(timeoutId);
-            };
-        }
-    }, [hasActiveTooltipSymbol, state.hoveredTooltipsStatus]);
-
-    const tooltipSymbolAboutToFadeOutRef = useRef<{
-        readonly tooltipSymbol: symbol;
-        readonly immediatelyHide: () => void;
-    } | null>(null);
-
-    const context = useMemo((): TooltipCoordinationContext => {
-        const addHoveredTooltipSymbolUpdater = (
-            state: TooltipCoordinationContextState,
-            tooltipSymbol: symbol,
-        ): TooltipCoordinationContextState => {
-            if (state.hoveredTooltipSymbols.has(tooltipSymbol)) return state;
-
-            const hoveredTooltipSymbols = new Set(state.hoveredTooltipSymbols);
-            hoveredTooltipSymbols.add(tooltipSymbol);
-
-            return {
-                ...state,
-                hoveredTooltipSymbols,
-                hoveredTooltipsStatus:
-                    state.hoveredTooltipsStatus !== "WarmedUp"
-                        ? "WarmingUp"
-                        : state.hoveredTooltipsStatus,
-            };
-        };
-
-        const addFocusedTooltipSymbolUpdater = (
-            state: TooltipCoordinationContextState,
-            tooltipSymbol: symbol,
-        ): TooltipCoordinationContextState => {
-            if (state.focusedTooltipSymbols.has(tooltipSymbol)) return state;
-
-            const focusedTooltipSymbols = new Set(state.focusedTooltipSymbols);
-            focusedTooltipSymbols.add(tooltipSymbol);
-
-            return {...state, focusedTooltipSymbols};
-        };
-
-        const deleteHoveredTooltipSymbolUpdater = (
-            state: TooltipCoordinationContextState,
-            tooltipSymbol: symbol,
-        ): TooltipCoordinationContextState => {
-            if (!state.hoveredTooltipSymbols.has(tooltipSymbol)) return state;
-
-            const hoveredTooltipSymbols = new Set(state.hoveredTooltipSymbols);
-            hoveredTooltipSymbols.delete(tooltipSymbol);
-
-            return {...state, hoveredTooltipSymbols};
-        };
-
-        const deleteFocusedTooltipSymbolUpdater = (
-            state: TooltipCoordinationContextState,
-            tooltipSymbol: symbol,
-        ): TooltipCoordinationContextState => {
-            if (!state.focusedTooltipSymbols.has(tooltipSymbol)) return state;
-
-            const focusedTooltipSymbols = new Set(state.focusedTooltipSymbols);
-            focusedTooltipSymbols.delete(tooltipSymbol);
-
-            return {...state, focusedTooltipSymbols};
-        };
-
-        return {
-            tooltipSymbolAboutToFadeOutRef,
-            addHoveredAndAddFocusedTooltipSymbol: tooltipSymbol => {
-                setState(state => {
-                    state = addHoveredTooltipSymbolUpdater(state, tooltipSymbol);
-                    state = addFocusedTooltipSymbolUpdater(state, tooltipSymbol);
-                    return state;
-                });
-            },
-            addHoveredAndDeleteFocusedTooltipSymbol: tooltipSymbol => {
-                setState(state => {
-                    state = addHoveredTooltipSymbolUpdater(state, tooltipSymbol);
-                    state = deleteFocusedTooltipSymbolUpdater(state, tooltipSymbol);
-                    return state;
-                });
-            },
-            deleteHoveredAndAddFocusedTooltipSymbol: tooltipSymbol => {
-                setState(state => {
-                    state = deleteHoveredTooltipSymbolUpdater(state, tooltipSymbol);
-                    state = addFocusedTooltipSymbolUpdater(state, tooltipSymbol);
-                    return state;
-                });
-            },
-            deleteHoveredAndDeleteFocusedTooltipSymbol: tooltipSymbol => {
-                setState(state => {
-                    state = deleteHoveredTooltipSymbolUpdater(state, tooltipSymbol);
-                    state = deleteFocusedTooltipSymbolUpdater(state, tooltipSymbol);
-                    return state;
-                });
-            },
-            addDisableTooltipSymbol: tooltipSymbol => {
-                setState(state => {
-                    if (state.disableTooltipSymbols.has(tooltipSymbol)) return state;
-
-                    const disableTooltipSymbols = new Set(state.disableTooltipSymbols);
-                    disableTooltipSymbols.add(tooltipSymbol);
-
-                    return {...state, disableTooltipSymbols};
-                });
-            },
-            deleteDisableTooltipSymbol: tooltipSymbol => {
-                setState(state => {
-                    if (!state.disableTooltipSymbols.has(tooltipSymbol)) return state;
-
-                    const disableTooltipSymbols = new Set(state.disableTooltipSymbols);
-                    disableTooltipSymbols.delete(tooltipSymbol);
-
-                    return {...state, disableTooltipSymbols};
-                });
-            },
-            skipTooltipHoverDelay: () => {
-                setState(state => {
-                    if (state.hoveredTooltipsStatus === "WarmingUp") {
-                        return {...state, hoveredTooltipsStatus: "WarmedUp"};
-                    } else {
-                        return state;
-                    }
-                });
-            },
-        };
-    }, []);
-
-    return (
-        <TooltipCoordinationContext.Provider value={context}>
-            <TooltipCoordinationActiveSymbolContext.Provider value={activeTooltipSymbol}>
-                {children}
-            </TooltipCoordinationActiveSymbolContext.Provider>
-        </TooltipCoordinationContext.Provider>
-    );
 }

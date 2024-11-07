@@ -11,12 +11,17 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
@@ -95,12 +100,14 @@ import {
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
 import {
     AddMarksAfterRemoveAllStep,
+    AddMarksAfterRemoveAllStepRange,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
@@ -199,12 +206,7 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
         Resolved: Schema.object({
             type: Schema.value("Resolved"),
             version: Schema.integer,
-            ranges: Schema.array(
-                Schema.object({
-                    from: Schema.integer,
-                    to: Schema.integer,
-                }),
-            ),
+            ranges: Schema.array(AddMarksAfterRemoveAllStepRangeSchema),
         }),
     }).default({
         type: "Unresolved",
@@ -649,6 +651,14 @@ type DocumentCommentItem = DynamoTableItemType<
     "Comments"
 >;
 
+export const FileDocumentAuthorizer = FileAuthorizer.new(
+    DocumentsTable,
+    "Document",
+    // TODO(calebmer): Once documents get a read-only permission level we should
+    // update `authorizeDocumentAccess()` to support `expectedAccessLevel`.
+    (context, target) => authorizeDocumentAccess(context, target.documentId),
+);
+
 /**
  * Scan every document and document comment in our database. Use when
  * migrating data.
@@ -806,7 +816,50 @@ export async function createDocument(
     };
 }
 
-const DocumentPreviewContextCache = new ContextCache<DocumentId, DocumentPreviewModel | null>();
+const DocumentAttributesItemContextCache = new ContextCache<
+    DocumentId,
+    DocumentAttributesItem | null
+>();
+
+function getDocumentItemIfExistsWithCache(
+    context: ServerActionContext,
+    id: DocumentId,
+    {
+        consistency = "Eventual",
+        allowsEventualReadConsistency = false,
+    }: {
+        consistency?: DynamoReadConsistency;
+        allowsEventualReadConsistency?: boolean;
+    } = {},
+): Promise<DocumentAttributesItem | null> {
+    const get = async () => {
+        const item = await DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "Attributes",
+            },
+            {consistency, allowsEventualReadConsistency},
+        );
+
+        if (!item) return null;
+
+        await authorizeSpaceAccess(context, item.spaceId);
+
+        return item;
+    };
+
+    // We can't use a cached value when reading with strong consistency but we can
+    // save the read value to the cache for later.
+    if (consistency === "Strong") {
+        const getPromise = get();
+        DocumentAttributesItemContextCache.set(context, id, getPromise);
+        return getPromise;
+    } else {
+        return DocumentAttributesItemContextCache.get(context, id, get);
+    }
+}
 
 /**
  * Get a preview of the document with the provided id.
@@ -817,50 +870,24 @@ const DocumentPreviewContextCache = new ContextCache<DocumentId, DocumentPreview
  * times in the same action you'll get the same result without issuing a
  * network request.
  */
-export function getDocumentPreviewIfExists(
+export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
-    {
-        consistency = "Eventual",
-        allowsEventualReadConsistency = false,
-    }: {
+    options?: {
         consistency?: DynamoReadConsistency;
         allowsEventualReadConsistency?: boolean;
-    } = {},
+    },
 ): Promise<DocumentPreviewModel | null> {
-    const get = async () => {
-        const attributes = await DocumentsTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "Attributes",
-            },
-            {consistency, allowsEventualReadConsistency},
-        );
+    const item = await getDocumentItemIfExistsWithCache(context, id, options);
+    if (!item) return null;
 
-        if (!attributes) return null;
-
-        await authorizeSpaceAccess(context, attributes.spaceId);
-
-        return new DocumentPreviewModel({
-            id,
-            createdTime: attributes.createdTime,
-            spaceId: attributes.spaceId,
-            version: attributes.version,
-            titleWithoutFallback: attributes.titleWithoutFallback,
-        });
-    };
-
-    // We can't use a cached value when reading with strong consistency but we can
-    // save the read value to the cache for later.
-    if (consistency === "Strong") {
-        const getPromise = get();
-        DocumentPreviewContextCache.set(context, id, getPromise);
-        return getPromise;
-    } else {
-        return DocumentPreviewContextCache.get(context, id, get);
-    }
+    return new DocumentPreviewModel({
+        id,
+        createdTime: item.createdTime,
+        spaceId: item.spaceId,
+        version: item.version,
+        titleWithoutFallback: item.titleWithoutFallback,
+    });
 }
 
 /**
@@ -894,8 +921,8 @@ export async function getDocumentPreview(
 export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
-): Promise<{spaceId: SpaceId}> {
-    let document = await getDocumentPreviewIfExists(
+): Promise<{spaceId: SpaceId; creatorId: AccountId | null}> {
+    let item = await getDocumentItemIfExistsWithCache(
         context,
         documentId,
         // It's ok to call this function when expecting strong read consistency.
@@ -906,12 +933,12 @@ export async function authorizeDocumentAccess(
 
     // If we couldn't find the document with eventual consistency, try again with
     // strong consistency in case it was just created.
-    if (!document) {
-        document = await getDocumentPreviewIfExists(context, documentId, {consistency: "Strong"});
+    if (!item) {
+        item = await getDocumentItemIfExistsWithCache(context, documentId, {consistency: "Strong"});
     }
 
-    if (!document) throw new NotFoundError("Document not found");
-    return {spaceId: document.spaceId};
+    if (!item) throw new NotFoundError("Document not found");
+    return {spaceId: item.spaceId, creatorId: item.creatorId};
 }
 
 type InternalDocument = {
@@ -956,6 +983,12 @@ async function getInternalDocumentIfExists(
         switch (item.sortRangeType) {
             case "Attributes":
                 attributes = item;
+
+                // Save the document attributes item to our context cache so if
+                // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
+                // references) the document preview is already available and can be used to
+                // authorize.
+                DocumentAttributesItemContextCache.set(context, id, item);
                 break;
             case "StepTransactionsAfterSnapshot":
                 stepTransactionsAfterSnapshot.push(item);
@@ -1043,7 +1076,7 @@ async function getInternalDocumentIfExists(
  * exist.
  */
 export async function getDocument(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     documentId: DocumentId,
 ): Promise<DocumentModel> {
     return (await getDocumentAndCommentThreads(context, {documentId, commentThreadIds: []}))
@@ -1054,7 +1087,7 @@ export async function getDocument(
  * Get the full document with the provided id. Return null if it doesn't exist.
  */
 export async function getDocumentIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     documentId: DocumentId,
 ): Promise<DocumentModel | null> {
     return (
@@ -1071,7 +1104,7 @@ export async function getDocumentIfExists(
  * in the `archivedCommentThreadById` map.
  */
 export async function getDocumentAndCommentThreads(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     options: {
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading
@@ -1093,7 +1126,7 @@ export async function getDocumentAndCommentThreads(
 }
 
 async function getDocumentAndCommentThreadsIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadIds: _requestedCommentThreadIds,
@@ -1140,6 +1173,12 @@ async function getDocumentAndCommentThreadsIfExists(
                 case "Attributes":
                     _attributes = item;
                     spaceIdPromiseResolver?.resolve(item.spaceId);
+
+                    // Save the document attributes item to our context cache so if
+                    // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
+                    // references) the document preview is already available and can be used to
+                    // authorize.
+                    DocumentAttributesItemContextCache.set(context, documentId, item);
                     break;
                 case "StepTransactionsAfterSnapshot":
                     stepTransactionsAfterSnapshot.push(item);
@@ -1248,7 +1287,12 @@ async function getDocumentAndCommentThreadsIfExists(
             referencedCommentThreadById,
             {requestedCommentThreadIds, archivedCommentThreadById},
         ] = await runAllPromises([
-            getContentReferencesForNode(context, attributes.spaceId, content),
+            getContentReferencesForNode(
+                context,
+                attributes.spaceId,
+                FileDocumentAuthorizer.bind({type: "Document", documentId}),
+                content,
+            ),
             runAllPromises(mapIterable(referencedCommentThreadIds, getCommentThread)).then(
                 commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable)),
             ),
@@ -1379,7 +1423,7 @@ export async function getDocumentContent(
  * Get a single document comment thread model object.
  */
 export async function getDocumentCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -1420,7 +1464,7 @@ function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentComme
  * comments underneath the thread.
  */
 async function createDocumentCommentThreadModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: DocumentCommentThreadItem,
 ): Promise<DocumentCommentThreadModel> {
@@ -1435,7 +1479,12 @@ async function createDocumentCommentThreadModelFromItem(
     const [firstCommentAuthor, fallbackContentSnippetReferences] = await runAllPromises([
         firstCommentAuthorId ? getAccount(context, spaceId, firstCommentAuthorId) : null,
         fallbackContentSnippetNode
-            ? getContentReferencesForNode(context, spaceId, fallbackContentSnippetNode)
+            ? getContentReferencesForNode(
+                  context,
+                  spaceId,
+                  FileDocumentAuthorizer.bind({type: "Document", documentId: item.documentId}),
+                  fallbackContentSnippetNode,
+              )
             : null,
     ]);
 
@@ -2120,7 +2169,7 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
  *   the majority of updates we only save the steps.
  */
 export async function updateDocumentContent(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         id,
         version: clientVersion,
@@ -2757,7 +2806,7 @@ export async function updateDocumentContent(
         if (resolveCommentThreadIds.length > 0) {
             await runAllPromises(
                 resolveCommentThreadIds.map(async commentThreadId => {
-                    const ranges: Array<{from: number; to: number}> = [];
+                    const ranges: Array<AddMarksAfterRemoveAllStepRange> = [];
 
                     for (const invertedStep of invertedSteps) {
                         if (
@@ -3807,16 +3856,13 @@ export async function createDocumentComment(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     index: number;
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [documentItem, commentThreadItem, parentCommentItem] = await runAllPromises([
-            DocumentsTable.getItem(context, {
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                documentId,
-            }),
+        const [{spaceId}, commentThreadItem, parentCommentItem] = await runAllPromises([
+            authorizeDocumentAccess(context, documentId),
             getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
@@ -3831,8 +3877,6 @@ export async function createDocumentComment(
                   })
                 : null,
         ]);
-
-        await authorizeSpaceAccess(context, documentItem.spaceId);
 
         const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
@@ -3886,7 +3930,7 @@ export async function createDocumentComment(
             event: {
                 type: "CreateDocumentComment",
                 id: generateId(),
-                spaceId: documentItem.spaceId,
+                spaceId,
                 documentId,
                 commentThreadId,
                 commentIndex,
@@ -3900,7 +3944,7 @@ export async function createDocumentComment(
 
         context.jobs.send({
             type: "IndexSearchEntity",
-            spaceId: documentItem.spaceId,
+            spaceId,
             update: {
                 type: "DocumentComment",
                 documentId,
@@ -3912,8 +3956,8 @@ export async function createDocumentComment(
 
         context.process.waitUntil(
             markSearchAffinityInteraction(context, {
-                spaceId: documentItem.spaceId,
-                affinityId: `Document:${documentItem.documentId}`,
+                spaceId,
+                affinityId: `Document:${documentId}`,
                 interaction: {type: "MediumIntentUpdate"},
             }),
         );
@@ -3926,11 +3970,9 @@ export async function createDocumentComment(
         // explicitly choosing to reference them.)
         for (const mentionedAccountId of mentionedAccountIds) {
             context.process.waitUntil(async () => {
-                if (
-                    await isAccountMemberOfSpace(context, documentItem.spaceId, mentionedAccountId)
-                ) {
+                if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
                     await markSearchAffinityInteraction(context, {
-                        spaceId: documentItem.spaceId,
+                        spaceId,
                         affinityId: `Account:${mentionedAccountId as AccountId}`,
                         interaction: {type: "HighIntentUpdate"},
                     });
@@ -3939,6 +3981,7 @@ export async function createDocumentComment(
         }
 
         return {
+            spaceId,
             index: commentIndex,
             createdTime,
         };
@@ -3949,7 +3992,7 @@ export async function createDocumentComment(
  * Get a single document comment.
  */
 export async function getDocumentComment(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4072,13 +4115,23 @@ async function getDocumentCommentItem(
 }
 
 async function createDocumentCommentModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: DocumentCommentItem,
 ): Promise<DocumentCommentModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
-        createMessagePayloadModel(context, spaceId, item.payload),
+        createMessagePayloadModel(
+            context,
+            spaceId,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComment",
+                documentId: item.documentId,
+                commentThreadId: item.commentThreadId,
+                commentIndex: item.commentIndex,
+            }),
+            item.payload,
+        ),
     ]);
 
     return new DocumentCommentModel({
@@ -4322,7 +4375,7 @@ export function deleteDocumentComment(
  * Get a document comment thread and some initial comments for that thread.
  */
 export async function getDocumentCommentThreadAndInitialCommentsIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4391,7 +4444,7 @@ export async function getDocumentCommentThreadAndInitialCommentsIfExists(
  * Get a document comment thread and some initial comments for that thread.
  */
 export async function getDocumentCommentThreadAndInitialComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     input: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
@@ -4423,7 +4476,7 @@ export async function getDocumentCommentThreadAndInitialComments(
  * contain.
  */
 export async function getDocumentAndCommentThreadsWithInitialComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadIds,
@@ -4534,7 +4587,7 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
  * Paginate through document comments from start to finish.
  */
 export async function getDocumentCommentsFromStart(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4592,7 +4645,7 @@ export async function getDocumentCommentsFromStart(
 }
 
 async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4718,7 +4771,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
  * Paginate through document comments from finish to start.
  */
 export async function getDocumentCommentsFromEnd(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4776,7 +4829,7 @@ export async function getDocumentCommentsFromEnd(
 }
 
 async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4924,7 +4977,7 @@ export type DocumentCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillDocumentComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -5040,7 +5093,7 @@ export async function backfillDocumentComments(
 }
 
 async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         spaceId,
         commentThreadItem,
@@ -5112,6 +5165,12 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                             references: await getContentReferencesForNode(
                                 context,
                                 spaceId,
+                                FileDocumentAuthorizer.bind({
+                                    type: "DocumentComment",
+                                    documentId: item.documentId,
+                                    commentThreadId: item.commentThreadId,
+                                    commentIndex: item.commentIndex,
+                                }),
                                 item.change.content,
                             ),
                         },
@@ -5155,22 +5214,8 @@ export async function getDocumentCommentThreadNotificationSubscribers(
 ): Promise<{
     accountIds: Set<AccountId | ContentMentionAccountId>;
 }> {
-    const [documentItem, commentThreadItem] = await runAllPromises([
-        (async () => {
-            const documentItem = await DocumentsTable.getItem(
-                context,
-                {
-                    partitionType: "Document",
-                    sortRangeType: "Attributes",
-                    documentId,
-                },
-                {consistency},
-            );
-
-            await authorizeSpaceAccess(context, documentItem.spaceId);
-
-            return documentItem;
-        })(),
+    const [{creatorId}, commentThreadItem] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId),
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -5180,7 +5225,7 @@ export async function getDocumentCommentThreadNotificationSubscribers(
 
     const accountIds = new Set<ContentMentionAccountId>(
         concatIterables(
-            isFirstComment && documentItem.creatorId ? [documentItem.creatorId] : [],
+            isFirstComment && creatorId ? [creatorId] : [],
             commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
             commentThreadItem.commentsSummary.mentionCountByAccountId.keys(),
         ),
@@ -5209,7 +5254,7 @@ export async function getResolvedDocumentCommentThreadRanges(
     },
 ): Promise<{
     version: number;
-    ranges: ReadonlyArray<{from: number; to: number}>;
+    ranges: ReadonlyArray<AddMarksAfterRemoveAllStepRange>;
 }> {
     let [, commentThreadItem] = await runAllPromises([
         authorizeDocumentAccess(context, documentId),

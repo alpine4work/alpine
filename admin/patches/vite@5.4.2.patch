@@ -1,8 +1,104 @@
 diff --git a/dist/node/chunks/dep-BzOvws4Y.js b/dist/node/chunks/dep-BzOvws4Y.js
-index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa2ce535dc 100644
+index 184597a2d7b1acc23556e16264e6677457023e81..8b3255b16487fafc9d3f21a3c3751e0f442d39ae 100644
 --- a/dist/node/chunks/dep-BzOvws4Y.js
 +++ b/dist/node/chunks/dep-BzOvws4Y.js
-@@ -51766,6 +51766,14 @@ async function loadAndTransform(id, url, server, options, timestamp, mod, resolv
+@@ -49958,14 +49958,53 @@ async function initDevSsrDepsOptimizer(config, server) {
+   return await creatingDevSsrOptimizer;
+ }
+ async function createDepsOptimizer(config, server) {
+-  const { logger } = config;
+   const ssr = false;
++  const options = getDepOptimizationConfig(config, ssr);
++  // NOTE(calebmer): We prebuild optimized dependencies with Bazel so Vite doesn't
++  // have to build them at runtime. This way optimized dependencies get all the
++  // usual Bazel benefits. Like being able to build them in parallel with other
++  // assets and having the ability to remotely cache optimized dependencies.
++  if (options.hasBazelPrebuild) {
++    const depsCacheDir = getDepsCacheDir(config, ssr);
++    const metadataPath = path$n.join(depsCacheDir, METADATA_FILENAME);
++    const metadata = parseDepsOptimizerMetadata(
++      await fsp.readFile(metadataPath, "utf-8"),
++      depsCacheDir
++    );
++
++    const depsOptimizer = {
++      metadata,
++      registerMissingImport: (id) => {
++        const optimized = metadata.optimized[id];
++        if (optimized) {
++          return optimized;
++        }
++        const chunk = metadata.chunks[id];
++        if (chunk) {
++          return chunk;
++        }
++        throw new Error(`Missing import "${id}" not found in prebuilt optimized dependencies`);
++      },
++      run: () => {
++        // noop...
++      },
++      isOptimizedDepFile: createIsOptimizedDepFile(config),
++      isOptimizedDepUrl: createIsOptimizedDepUrl(config),
++      getOptimizedDepId: (depInfo) => `${depInfo.file}?v=${depInfo.browserHash}`,
++      close: () => {
++        // noop...
++      },
++      options
++    };
++    depsOptimizerMap.set(config, depsOptimizer);
++    return;
++  }
++  const { logger } = config;
+   const sessionTimestamp = Date.now().toString();
+   const cachedMetadata = await loadCachedDepOptimizationMetadata(config, ssr);
+   let debounceProcessingHandle;
+   let closed = false;
+   let metadata = cachedMetadata || initDepsOptimizerMetadata(config, ssr, sessionTimestamp);
+-  const options = getDepOptimizationConfig(config, ssr);
+   const { noDiscovery, holdUntilCrawlEnd } = options;
+   const depsOptimizer = {
+     metadata,
+@@ -50415,6 +50454,39 @@ ${e.stack}`),
+   }
+ }
+ async function createDevSsrDepsOptimizer(config) {
++  // NOTE(calebmer): We prebuild optimized dependencies with Bazel so Vite doesn't
++  // have to build them at runtime. This way optimized dependencies get all the
++  // usual Bazel benefits. Like being able to build them in parallel with other
++  // assets and having the ability to remotely cache optimized dependencies.
++  if (config.ssr.optimizeDeps.hasBazelPrebuild) {
++    const depsCacheDir = getDepsCacheDir(config, true);
++    const metadataPath = path$n.join(depsCacheDir, METADATA_FILENAME);
++    const metadata = parseDepsOptimizerMetadata(
++      await fsp.readFile(metadataPath, "utf-8"),
++      depsCacheDir
++    );
++
++    const depsOptimizer = {
++      metadata,
++      isOptimizedDepFile: createIsOptimizedDepFile(config),
++      isOptimizedDepUrl: createIsOptimizedDepUrl(config),
++      getOptimizedDepId: (depInfo) => `${depInfo.file}?v=${depInfo.browserHash}`,
++      registerMissingImport: () => {
++        throw new Error(
++          "Vite Internal Error: registerMissingImport is not supported in dev SSR"
++        );
++      },
++      // noop, there is no scanning during dev SSR
++      // the optimizer blocks the server start
++      run: () => {
++      },
++      close: async () => {
++      },
++      options: config.ssr.optimizeDeps
++    };
++    devSsrDepsOptimizerMap.set(config, depsOptimizer);
++    return;
++  }
+   const metadata = await optimizeServerSsrDeps(config);
+   const depsOptimizer = {
+     metadata,
+@@ -51766,6 +51838,14 @@ async function loadAndTransform(id, url, server, options, timestamp, mod, resolv
      }
      if (options.ssr || isFileServingAllowed(file, server)) {
        try {
@@ -17,7 +113,7 @@ index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa
          code = await fsp.readFile(file, "utf-8");
          debugLoad?.(`${timeFrom(loadStart)} [fs] ${prettyUrl}`);
        } catch (e) {
-@@ -62687,7 +62695,7 @@ async function _createServer(inlineConfig = {}, options) {
+@@ -62687,7 +62767,7 @@ async function _createServer(inlineConfig = {}, options) {
      setClientErrorHandler(httpServer, config.logger);
    }
    const watchEnabled = serverConfig.watch !== null;
@@ -26,7 +122,7 @@ index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa
      // config file dependencies and env file might be outside of root
      [
        root,
-@@ -62699,6 +62707,99 @@ async function _createServer(inlineConfig = {}, options) {
+@@ -62699,6 +62779,126 @@ async function _createServer(inlineConfig = {}, options) {
      ],
      resolvedWatchOptions
    ) : createNoopWatcher(resolvedWatchOptions);
@@ -51,6 +147,7 @@ index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa
 +    });
 +
 +    let pendingEvents = null;
++    const secondaryPendingUnlinkEvents = new Map();
 +
 +    function preparePendingEvents() {
 +      if (pendingEvents !== null) return;
@@ -60,7 +157,33 @@ index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa
 +        () => {
 +          const events = pendingEvents;
 +          pendingEvents = null;
++
 +          for (const event of events) {
++            // We extend chokidar's `atomic` timeout until after `waitForBazelBuild()`
++            // finishes. Because Bazel unlinks files at the beginning of its build and adds
++            // them back at the end of its build. So in case chokidar gets an `add` event
++            // after the Bazel build completes we still want to treat it as an atomic
++            // `change` if there was an `unlink` during the build.
++            if (resolvedWatchOptions.atomic) {
++              if (event[0] === "unlink") {
++                secondaryPendingUnlinkEvents.set(event[1][0], event[1]);
++                setTimeout(() => {
++                  if (secondaryPendingUnlinkEvents.get(event[1][0]) === event[1]) {
++                    secondaryPendingUnlinkEvents.delete(event[1][0]);
++                    emitter.emit(event[0], ...event[1]);
++                    emitter.emit("all", event[0], ...event[1]);
++                  }
++                }, typeof resolvedWatchOptions.atomic === "number" ? resolvedWatchOptions.atomic : 100);
++                break;
++              }
++              if (event[0] === "add" && secondaryPendingUnlinkEvents.has(event[1][0])) {
++                secondaryPendingUnlinkEvents.delete(event[1][0]);
++                emitter.emit("change", ...event[1]);
++                emitter.emit("all", "change", ...event[1]);
++                break;
++              }
++            }
++
 +            emitter.emit(event[0], ...event[1]);
 +            emitter.emit("all", event[0], ...event[1]);
 +          }
@@ -126,11 +249,70 @@ index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa
    const moduleGraph = new ModuleGraph(
      (url, ssr) => container.resolveId(url, void 0, { ssr })
    );
+@@ -62934,8 +63134,28 @@ async function _createServer(inlineConfig = {}, options) {
+     if (isUnlink) moduleGraph.onFileDelete(file);
+     await onHMRUpdate(isUnlink ? "delete" : "create", file);
+   };
++  // NOTE(calebmer): For some files, we want to make sure the file's contents
++  // have actually changed before emitting a `change` event. For example
++  // `~/client/styles/other/styles_other.js` emits a change event whenever our
++  // CSS is updated even if the generated JavaScript file hasn't changed. If we
++  // want to hot reload the CSS we need to skip the change to the JavaScript file
++  // which'll cause a full page reload.
++  const fileHashById = new Map();
++  if (config.watchFilesForActualChanges) {
++    for (let file of config.watchFilesForActualChanges) {
++      file = normalizePath$3(file);
++      const fileHash = getHash(readFileSync(file, "utf-8"), 64);
++      fileHashById.set(file, fileHash);
++    }
++  }
+   watcher.on("change", async (file) => {
+     file = normalizePath$3(file);
++    const oldFileHash = fileHashById.get(file);
++    if (oldFileHash) {
++      const newFileHash = getHash(readFileSync(file, "utf-8"), 64);
++      if (oldFileHash === newFileHash) return;
++      fileHashById.set(file, newFileHash);
++    }
+     await container.watchChange(file, { event: "update" });
+     moduleGraph.onFileChange(file);
+     await onHMRUpdate("update", file);
+@@ -66618,7 +66838,7 @@ function getDepOptimizationConfig(config, ssr) {
+ }
+ function isDepsOptimizerEnabled(config, ssr) {
+   const optimizeDeps = getDepOptimizationConfig(config, ssr);
+-  return !(optimizeDeps.noDiscovery && !optimizeDeps.include?.length);
++  return !(optimizeDeps.noDiscovery && !optimizeDeps.include?.length) || !!optimizeDeps.hasBazelPrebuild;
+ }
+ function optimizeDepsDisabledBackwardCompatibility(resolved, optimizeDeps, optimizeDepsPath = "") {
+   const optimizeDepsDisabled = optimizeDeps.disabled;
+@@ -66650,3 +66870,8 @@ function optimizeDepsDisabledBackwardCompatibility(resolved, optimizeDeps, optim
+ }
+ 
+ export { colors$1 as A, getDefaultExportFromCjs as B, commonjsGlobal as C, index$1 as D, index as E, build$1 as F, preview$1 as G, arraify as a, build as b, createServer as c, defineConfig as d, preprocessCSS as e, formatPostcssSourceMap as f, buildErrorMessage as g, fetchModule as h, isInNodeModules$1 as i, mergeAlias as j, createFilter as k, loadConfigFromFile as l, mergeConfig as m, normalizePath$3 as n, optimizeDeps as o, preview as p, rollupVersion as q, resolveConfig as r, sortUserPlugins as s, transformWithEsbuild as t, send as u, createLogger as v, searchForWorkspaceRoot as w, isFileServingAllowed as x, loadEnv as y, resolveEnvPrefix as z };
++
++// NOTE(calebmer): We build optimized deps with Bazel instead of Vite so we get
++// Bazel's usual benefits like hermeticity, dependency tracking, and remote
++// caching.
++export { prepareEsbuildOptimizerRun, esbuildOutputFromId, flattenId, needsInterop, stringifyDepsOptimizerMetadata, tryNodeResolve };
 diff --git a/dist/node/index.d.ts b/dist/node/index.d.ts
-index 8592398c31e06c937468f1458650bf1194e18f8e..58e3338eede019880eb6521811d3bfd61d7e1643 100644
+index 8592398c31e06c937468f1458650bf1194e18f8e..82a36c9c9c26dd3fab0e98a116034578615ab1f8 100644
 --- a/dist/node/index.d.ts
 +++ b/dist/node/index.d.ts
-@@ -3411,6 +3411,11 @@ interface ResolvedWorkerOptions {
+@@ -2670,6 +2670,11 @@ interface DepOptimizationConfig {
+      * @experimental
+      */
+     holdUntilCrawlEnd?: boolean;
++    // NOTE(calebmer): We prebuild optimized dependencies with Bazel so Vite doesn't
++    // have to build them at runtime. This way optimized dependencies get all the
++    // usual Bazel benefits. Like being able to build them in parallel with other
++    // assets and having the ability to remotely cache optimized dependencies.
++    hasBazelPrebuild?: boolean;
+ }
+ type DepOptimizationOptions = DepOptimizationConfig & {
+     /**
+@@ -3411,6 +3416,18 @@ interface ResolvedWorkerOptions {
  interface InlineConfig extends UserConfig {
      configFile?: string | false;
      envFile?: false;
@@ -139,6 +321,26 @@ index 8592398c31e06c937468f1458650bf1194e18f8e..58e3338eede019880eb6521811d3bfd6
 +    // Bazel has removed a file but before Bazel has added it back. So wait for
 +    // Bazel builds to finish before reading from the file system.
 +    waitForBazelBuild?: () => Promise<void>;
++    // NOTE(calebmer): For some files, we want to make sure the file's contents
++    // have actually changed before emitting a `change` event. For example
++    // `~/client/styles/other/styles_other.js` emits a change event whenever our
++    // CSS is updated even if the generated JavaScript file hasn't changed. If we
++    // want to hot reload the CSS we need to skip the change to the JavaScript file
++    // which'll cause a full page reload.
++    watchFilesForActualChanges?: Array<string>;
  }
  type ResolvedConfig = Readonly<Omit<UserConfig, 'plugins' | 'css' | 'assetsInclude' | 'optimizeDeps' | 'worker' | 'build'> & {
      configFile: string | undefined;
+diff --git a/dist/node/index.js b/dist/node/index.js
+index c62e12e7f52daea4543114b149807e13b1f6c972..62a3020db3ef805a718eba0a48561d0b9c32db13 100644
+--- a/dist/node/index.js
++++ b/dist/node/index.js
+@@ -258,3 +258,8 @@ async function createViteRuntime(server, options = {}) {
+ }
+ 
+ export { ServerHMRConnector, createViteRuntime, isCSSRequest, splitVendorChunk, splitVendorChunkPlugin };
++
++// NOTE(calebmer): We build optimized deps with Bazel instead of Vite so we get
++// Bazel's usual benefits like hermeticity, dependency tracking, and remote
++// caching.
++export { prepareEsbuildOptimizerRun, esbuildOutputFromId, flattenId, needsInterop, stringifyDepsOptimizerMetadata, tryNodeResolve } from './chunks/dep-BzOvws4Y.js';

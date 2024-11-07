@@ -8,7 +8,7 @@ import {
 } from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
-import {ReactElement, useCallback, useContext, useEffect, useMemo} from "react";
+import {ReactElement, useCallback, useContext, useEffect, useMemo, useRef} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -16,45 +16,48 @@ import {
     useRouteError,
 } from "react-router";
 import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display_message.js";
+import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
+import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {MobileFullScreenModalContextProvider} from "~/client/design/mobile_full_screen_modal.js";
-import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {ReporterContextProvider} from "~/client/design/reporter.js";
-import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
-import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
-import {
-    ColorSchemeManager,
-    getColorSchemeWithoutListeningIfBrowser,
-} from "~/client/helpers/color_scheme.js";
+import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {ReporterContextProvider} from "~/client/design/reporter_context_provider.js";
+import {TooltipCoordinationContextProvider} from "~/client/design/tooltip_coordination_context_provider.js";
+import {getColorSchemeWithoutListeningIfBrowser} from "~/client/helpers/color_scheme.js";
+import {ColorSchemeManager} from "~/client/helpers/color_scheme_manager.js";
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
-import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useClientInfoContextProvider} from "~/client/remix/client_info_context.js";
+import {CurrentTimeContextProvider} from "~/client/remix/current_time_context_provider.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
-import stylesHref from "~/client/styles/styles.css?url";
+import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
+import {fontsCriticalCss} from "~/client/styles/core/fonts_critical_css.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -84,7 +87,7 @@ export function links(): Array<LinkDescriptor> {
             type: "font/woff2",
             crossOrigin: "anonymous",
         },
-        {rel: "stylesheet", href: stylesHref},
+        {rel: "stylesheet", href: stylesUrl},
         // Recommend the SVG favicon so it can render in light and dark mode.
         {rel: "icon", href: "/favicon.svg"},
     ];
@@ -348,6 +351,7 @@ export default function Root() {
                     tracer={context.tracer.getRoot()}
                     inertRouterState={null}
                     onUpdateMetaTitle={onUpdateMetaTitle}
+                    globalLoadingIndicator={null}
                     style={outletContainerStyle}
                 />
             );
@@ -418,6 +422,7 @@ export default function Root() {
                         tracer={context.tracer.getRoot()}
                         inertRouterState={inertRouterState}
                         onUpdateMetaTitle={onUpdateMetaTitle}
+                        globalLoadingIndicator={null}
                         style={outletContainerStyle}
                     />,
                 );
@@ -501,11 +506,39 @@ export default function Root() {
     );
 
     const wrappedChildren = useGlobalContextProvider(
-        useAppInitialRenderContextProvider(loaderData?.initialAppRenderId, wrappedChildren2),
+        useAppInitialRenderContextProvider(
+            initialTime,
+            loaderData?.initialAppRenderId,
+            wrappedChildren2,
+        ),
     );
+
+    const htmlRef = useRef<HTMLHtmlElement>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const htmlElement = assertExists(htmlRef.current);
+
+        const handleCopy = (event: ClipboardEvent) => {
+            if (event.defaultPrevented) return;
+            handleCopyEventIfNotTextInputElement(event);
+        };
+
+        const handleDragStart = (event: DragEvent) => {
+            if (event.defaultPrevented) return;
+            handleDragStartEventIfNotTextInputElement(event);
+        };
+
+        htmlElement.addEventListener("copy", handleCopy);
+        htmlElement.addEventListener("dragstart", handleDragStart);
+        return () => {
+            htmlElement.removeEventListener("copy", handleCopy);
+            htmlElement.removeEventListener("dragstart", handleDragStart);
+        };
+    }, []);
 
     return (
         <html
+            ref={htmlRef}
             lang="en"
             data-platform={isMobile ? "mobile" : "desktop"}
             data-color-scheme={getColorSchemeWithoutListeningIfBrowser()}
@@ -546,6 +579,7 @@ export default function Root() {
                     content="telephone=no, date=no, email=no, address=no"
                 />
                 <Meta />
+                <style dangerouslySetInnerHTML={{__html: fontsCriticalCss}} />
                 <Links />
                 <ColorSchemeManager />
                 {loaderData?.isIntegrationTest && (

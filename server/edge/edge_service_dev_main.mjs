@@ -34,7 +34,10 @@ async function main() {
             jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
             fileUploadServicePublicKey: fileUploadServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
+            tokenAgentSecret: tokenAgentSecretPath,
             fileUploadServiceHostname,
+            cacheLocalDataPath,
+            cloudflareR2LocalDataPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
         },
@@ -48,7 +51,10 @@ async function main() {
             jobQueueServicePublicKey: {type: "string"},
             fileUploadServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
+            tokenAgentSecret: {type: "string"},
             fileUploadServiceHostname: {type: "string"},
+            cacheLocalDataPath: {type: "string"},
+            cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
         },
@@ -70,7 +76,10 @@ async function main() {
         throw new Error("Missing `fileUploadServicePublicKeyPath` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
+    if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
     if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
+    if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
+    if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
 
     const [
         appServicePublicKey,
@@ -79,6 +88,7 @@ async function main() {
         jobQueueServicePublicKey,
         fileUploadServicePublicKey,
         edgeServiceFamilyPrivateKey,
+        tokenAgentSecret,
     ] = await Promise.all([
         fs.readFile(appServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
@@ -86,6 +96,7 @@ async function main() {
         fs.readFile(jobQueueServicePublicKeyPath, "utf8"),
         fs.readFile(fileUploadServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
+        fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
 
     const port = parseInt(portString, 10);
@@ -104,6 +115,8 @@ async function main() {
         scriptPath: joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js"),
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
         upstream: appServiceUrl,
+        cachePersist: cacheLocalDataPath,
+        r2Persist: cloudflareR2LocalDataPath,
         bindings: {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
@@ -111,6 +124,7 @@ async function main() {
             JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
             FILE_UPLOAD_SERVICE_PUBLIC_KEY: fileUploadServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
+            TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_UPLOAD_SERVICE_HOSTNAME: fileUploadServiceHostname,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },

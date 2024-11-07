@@ -7,12 +7,13 @@ import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -247,13 +248,18 @@ export default function TaskRoute({
     );
     const context = useAppContext();
     const reporter = useReporter();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
     const events = useEvents({
         getContext: () => context,
         getReporter: () => reporter,
+        addGlobalLoadingIndicator,
     });
 
     const [notesClient, setNotesClient] = useState(() => {
-        return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+        return new TaskDetailNotesContentEditorWebSocketClient({
+            getContext: events.getContext,
+            addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
             taskId,
             initialNotesVersion,
             initialNotesContent,
@@ -264,7 +270,9 @@ export default function TaskRoute({
     // Re-initialize state if the `TaskId` changes.
     if (notesClient.taskId !== taskId) {
         setNotesClient(() => {
-            return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+            return new TaskDetailNotesContentEditorWebSocketClient({
+                getContext: events.getContext,
+                addGlobalLoadingIndicator: events.addGlobalLoadingIndicator,
                 taskId,
                 initialNotesVersion,
                 initialNotesContent,
@@ -343,19 +351,13 @@ export default function TaskRoute({
         </Box>
     );
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                withMobileLayout={withMobileLayout}
-                maxWidth="full"
-                borderBottom="grey-10"
-                sidebarRightWidth={taskDetailViewCommentSidebarWidth}
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            withMobileLayout: withMobileLayout,
+            maxWidth: "full",
+            sidebarRightWidth: taskDetailViewCommentSidebarWidth,
+        },
+        node,
+    );
 }

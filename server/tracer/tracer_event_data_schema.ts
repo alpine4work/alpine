@@ -161,11 +161,14 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         },
     },
     common: {
+        type: IdentifierStringSchema,
         count: Schema.integer,
         isBlocking: Schema.boolean,
         didNothing: Schema.boolean,
         processDurationMs: Schema.float,
         wasCached: Schema.boolean,
+        width: Schema.float,
+        height: Schema.float,
     },
     context: {
         handler: Schema.string,
@@ -391,6 +394,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             imageWidth: Schema.integer,
             imageHeight: Schema.integer,
             imageScale: Schema.float,
+            imageHasAlpha: Schema.boolean,
             imageVideoDurationMs: Schema.float,
             audioDurationMs: Schema.float,
             codeContentLength: Schema.integer,

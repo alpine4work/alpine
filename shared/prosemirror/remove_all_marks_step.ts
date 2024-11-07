@@ -1,5 +1,5 @@
 import {Mark, Node} from "prosemirror-model";
-import {AddMarkStep, Mappable, Step, StepResult} from "prosemirror-transform";
+import {AddMarkStep, AddNodeMarkStep, Mappable, Step, StepResult} from "prosemirror-transform";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 
 /**
@@ -36,6 +36,7 @@ export class RemoveAllMarksStep extends Step {
             }
 
             let newChildren: Array<Node> | null = null;
+            const newMarks = this.mark.removeFromSet(node.marks);
 
             for (let i = 0; i < node.childCount; i++) {
                 const oldChildNode = node.child(i);
@@ -55,23 +56,27 @@ export class RemoveAllMarksStep extends Step {
                 }
             }
 
-            if (newChildren === null) return node;
+            if (newChildren === null && newMarks === node.marks) return node;
 
-            return node.type.create(node.attrs, newChildren, node.marks);
+            return node.type.create(node.attrs, newChildren, newMarks);
         };
 
         return StepResult.ok(remove(doc));
     }
 
     public override invert(doc: Node) {
-        const ranges: Array<{from: number; to: number}> = [];
+        const ranges: Array<AddMarksAfterRemoveAllStepRange> = [];
 
         const collectRanges = (pos: number, node: Node) => {
             if (node.isInline) {
                 if (this.mark.isInSet(node.marks)) {
-                    ranges.push({from: pos, to: pos + node.nodeSize});
+                    ranges.push({isNode: false, from: pos, to: pos + node.nodeSize});
                 }
             } else {
+                if (this.mark.isInSet(node.marks)) {
+                    ranges.push({isNode: true, pos});
+                }
+
                 pos += 1;
 
                 for (let i = 0; i < node.childCount; i++) {
@@ -99,6 +104,17 @@ export class RemoveAllMarksStep extends Step {
     }
 }
 
+export type AddMarksAfterRemoveAllStepRange =
+    | {
+          readonly isNode: false;
+          readonly from: number;
+          readonly to: number;
+      }
+    | {
+          readonly isNode: true;
+          readonly pos: number;
+      };
+
 /**
  * A step to act as the inverse of `RemoveAllMarksStep`. Adds multiple
  * instances of a mark throughout the document.
@@ -115,18 +131,9 @@ export class AddMarksAfterRemoveAllStep extends Step {
     public override readonly jsonID = "addMarksAfterRemoveAll";
 
     public readonly mark: Mark;
-    public readonly ranges: ReadonlyArray<{
-        readonly from: number;
-        readonly to: number;
-    }>;
+    public readonly ranges: ReadonlyArray<AddMarksAfterRemoveAllStepRange>;
 
-    constructor(
-        mark: Mark,
-        ranges: ReadonlyArray<{
-            readonly from: number;
-            readonly to: number;
-        }>,
-    ) {
+    constructor(mark: Mark, ranges: ReadonlyArray<AddMarksAfterRemoveAllStepRange>) {
         super();
         this.mark = mark;
         this.ranges = ranges;
@@ -135,7 +142,11 @@ export class AddMarksAfterRemoveAllStep extends Step {
     public override apply(doc: Node) {
         return this.ranges.reduce((stepResult, range) => {
             if (!stepResult.doc) return stepResult;
-            return new AddMarkStep(range.from, range.to, this.mark).apply(stepResult.doc);
+            if (range.isNode) {
+                return new AddNodeMarkStep(range.pos, this.mark).apply(stepResult.doc);
+            } else {
+                return new AddMarkStep(range.from, range.to, this.mark).apply(stepResult.doc);
+            }
         }, StepResult.ok(doc));
     }
 
@@ -144,12 +155,21 @@ export class AddMarksAfterRemoveAllStep extends Step {
     }
 
     public override map(mapping: Mappable) {
-        const ranges = filterMapArray(this.ranges, range => {
-            const from = mapping.mapResult(range.from, 1);
-            const to = mapping.mapResult(range.to, -1);
-            if ((from.deleted && to.deleted) || from.pos >= to.pos) return;
-            return {from: from.pos, to: to.pos};
-        });
+        const ranges = filterMapArray(
+            this.ranges,
+            (range): AddMarksAfterRemoveAllStepRange | undefined => {
+                if (range.isNode) {
+                    const pos = mapping.mapResult(range.pos, 1);
+                    if (pos.deleted) return;
+                    return {isNode: true, pos: pos.pos};
+                } else {
+                    const from = mapping.mapResult(range.from, 1);
+                    const to = mapping.mapResult(range.to, -1);
+                    if ((from.deleted && to.deleted) || from.pos >= to.pos) return;
+                    return {isNode: false, from: from.pos, to: to.pos};
+                }
+            },
+        );
 
         if (ranges.length === 0) return null;
         return new AddMarksAfterRemoveAllStep(this.mark, ranges);

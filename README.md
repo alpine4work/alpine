@@ -4,8 +4,8 @@
 
 To develop for Cyberworlds, run the following after you've cloned the repo:
 
-```
-$ ./admin/bin/dev
+```bash
+./admin/bin/dev
 ```
 
 We use [Bazel](https://bazel.build) which installs all the tools you need. Including
@@ -35,11 +35,17 @@ We recommend the following setup steps as well:
     mode services will expose for launching a JavaScript inspector. See `.env.development` for
     configuring these ports.
 
+## Optional setup
+
+-   If you want to test uploading Microsoft Office documents (Word, Excel, and PowerPoint) you'll
+    need to install [LibreOffice](https://www.libreoffice.org/download/download-libreoffice) on your
+    system.
+
 ## Troubleshooting
 
 <details>
 
-<summary>Error message while running `dev`: Could not determine Xcode version at all. This likely
+<summary>Error message while running <code>dev</code>: Could not determine Xcode version at all. This likely
 means Xcode isn't available</summary>
 
 If while running `dev` you get an error that looks like:

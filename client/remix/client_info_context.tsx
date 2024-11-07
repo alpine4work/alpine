@@ -9,35 +9,54 @@ import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
-import {ClientInfo, defaultClientInfo, isAppleDeviceUserAgent} from "~/shared/remix/client_info.js";
+import {
+    ClientInfo,
+    defaultClientInfo,
+    getRenderingEngineFromUserAgent,
+    isAppleDeviceUserAgent,
+} from "~/shared/remix/client_info.js";
 
-const clientInfo = new Lazy(
-    (): ClientInfo => ({
+const clientInfo = new Lazy((): ClientInfo => {
+    // In Jest tests we use a dummy client info since properties like
+    // `window.screen.width` report 0.
+    if (import.meta.jest) {
+        return defaultClientInfo;
+    }
+
+    return {
         screenWidth: window.screen.width,
         screenHeight: window.screen.height,
         timeZone: getCurrentTimeZone(),
         locale: defaultLocale,
+        renderingEngine: getRenderingEngineFromUserAgent(navigator.userAgent),
+        // On the client, use `navigator.platform` to test if this is an Apple device
+        // in case the user agent header is spoofed.
         isAppleDevice:
-            typeof navigator !== "undefined"
-                ? // On the client, use `navigator.platform` to test if this is an Apple device
-                  // in case the user agent header is spoofed.
-                  isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform)
-                : false,
+            isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform),
         // We can safely look for `CyberworldsNativeMobile` in the user agent since
         // it's a unique string that should only be used by our native app shells.
         isNativeMobile: /CyberworldsNativeMobile/.test(navigator.userAgent),
-    }),
-);
+    };
+});
 
 /**
- * Get the current client info without listening for changes.
+ * Get the current client info without listening for changes. Can only be
+ * called on the client otherwise will throw an error. Prefer
+ * `useClientInfo()` which works on both the client and server.
+ *
+ * `ClientInfo` never changes after the page's initial load. All data in
+ * `ClientInfo` should be immutable facts about the current device. Which is
+ * why we don't have a `WithoutListening` suffix like other functions such as
+ * `getIsMobileWithoutListening()`.
  */
-export function getClientInfoWithoutListening(): ClientInfo {
+export function getClientInfo(): ClientInfo {
     assert(typeof window !== "undefined");
     return clientInfo.get();
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const BrowserIdContext = createContext<BrowserId | null>(null);
+// eslint-disable-next-line react-refresh/only-export-components
 const ClientInfoContext = createContext<ClientInfo | null>(null);
 
 /**
@@ -73,7 +92,7 @@ export function useClientInfo(): ClientInfo {
     const clientInfo = useContext(ClientInfoContext);
 
     if (clientInfo === null) {
-        // In Jest tests use a dummy date context instead of requiring a root
+        // In Jest tests use a dummy client info context instead of requiring a root
         // context provider.
         if (import.meta.jest) {
             return defaultClientInfo;
@@ -100,7 +119,7 @@ export function useClientInfoContextProvider(
     const [clientInfo, setClientInfo] = useState(initialClientInfo);
 
     useEffect(() => {
-        const actualClientInfo = getClientInfoWithoutListening();
+        const actualClientInfo = getClientInfo();
 
         setClientInfo(clientInfo => {
             if (isDeepEqual(clientInfo, actualClientInfo)) return clientInfo;

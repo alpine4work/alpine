@@ -10,7 +10,7 @@ import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";

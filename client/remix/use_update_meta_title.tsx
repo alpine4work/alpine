@@ -7,11 +7,16 @@ import {InternalError} from "~/shared/error/error.js";
 export const metaDefaultTitle = "Cyberworlds";
 
 /**
+ * Character we use for separating different parts of a title.
+ */
+export const metaTitleSeparator = "|";
+
+/**
  * String we put at the end of titles to identify our product in the user's
  * browser tab. If we use a title for a peek then we will strip this postfix
  * since it's clear what product we're in.
  */
-export const metaTitlePostfix = ` | ${metaDefaultTitle}`;
+export const metaTitlePostfix = ` ${metaTitleSeparator} ${metaDefaultTitle}`;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const noopUpdateMetaTitle = (title => {}) as Memo<(title: string) => void>;
@@ -26,6 +31,7 @@ const UpdateMetaTitleContext = createContext<Memo<(title: string) => void> | nul
  * Lives in `app/internal` so you can only use it directly in route modules.
  * Try to avoid leaking knowledge of the meta title to sub-components.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUpdateMetaTitle(): Memo<(title: string) => void> {
     const updateMetaTitle = useContext(UpdateMetaTitleContext);
 

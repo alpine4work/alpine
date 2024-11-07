@@ -1,6 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {CaretRight, ChatCircleDots, IconContext, Lock, Trash} from "phosphor-react";
-import {redo as redoCommand, undo as undoCommand} from "prosemirror-history";
 import {
     Memo,
     ReactNode,
@@ -24,7 +23,8 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -83,10 +83,8 @@ import {
     TaskDetailTitleInput,
     TaskDetailTitleInputRef,
 } from "~/client/tasks/internal/task_detail_title_input.js";
-import {
-    TaskGridViewVirtualizedListViewRef,
-    useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskGridViewVirtualizedListViewRef} from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
@@ -96,7 +94,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -364,9 +362,9 @@ export function TaskDetailView({
                     if (!contentEditor) return false;
 
                     if (type === "Undo") {
-                        contentEditor.dispatchCommand(undoCommand);
+                        contentEditor.undo();
                     } else {
-                        contentEditor.dispatchCommand(redoCommand);
+                        contentEditor.redo();
                     }
                     break;
                 }
@@ -704,7 +702,7 @@ export function TaskDetailView({
               icon: <ChatCircleDots />,
               description: "Open comments",
               onPress: async () => {
-                  await navigate(`/s/${spaceId}/tasks/${taskId}/comments`);
+                  await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
               },
               pressErrorTitle: "Couldn't open comments",
           }

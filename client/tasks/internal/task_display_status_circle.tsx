@@ -5,7 +5,7 @@ import {
     buttonStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
@@ -178,6 +178,10 @@ export function TaskDisplayStatusCircle({
                 <Check
                     weight="bold"
                     size={addRemLengths(spacing["2"], spacing["0.5"])}
+                    // We need this to make sure we don't inherit the color from
+                    // `<IconContext.Provider>` (e.g. when used as a menu item in
+                    // `getTaskStatusMenuActions()`).
+                    color="currentColor"
                     style={{transform: `scale(${sizeInt / 4})`}}
                 />
             )}

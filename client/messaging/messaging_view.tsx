@@ -1,10 +1,8 @@
 import {
     Memo,
     MutableRefObject,
-    ReactElement,
     ReactNode,
     Ref,
-    cloneElement,
     forwardRef,
     useCallback,
     useEffect,
@@ -17,37 +15,33 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
-import {Spacer} from "~/client/design/spacer.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
+import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
-import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
-import {MessageView, bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
+import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {
-    MessagingTypingIndicators,
-    messagingTypingIndicatorsMinHeight,
-} from "~/client/messaging/messaging_typing_indicators.js";
+    getMessageListItemKey,
+    renderMessageListItem,
+} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {messageViewMarginY, messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
-    getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, screenPaddingX} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -60,22 +54,6 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {ClientInfo} from "~/shared/remix/client_info.js";
-
-export const messagingViewMarginBottomCalcExpression =
-    "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
-
-export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcExpression})`;
-
-/**
- * Get the initial number of messages to load.
- */
-export function getInitialLoadMessageCount(clientInfo: ClientInfo) {
-    return getInitialVirtualizedScrollViewRenderedItemCount(
-        clientInfo,
-        messageViewMinHeight[getInitialAppRenderIsMobile(clientInfo) ? "mobile" : "desktop"],
-    );
-}
 
 type MessagingViewStateItem<Message extends MessageModel> =
     | {
@@ -433,11 +411,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     );
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMoreData = useEvent(
         (
@@ -456,7 +430,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;
@@ -766,269 +740,4 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             </div>
         </>
     );
-}
-
-/**
- * If you are manually implementing a `<VirtualizedScrollView>` for your
- * `MessageList` (not recommended) then you may call this function to render
- * a `MessageListItem`.
- */
-// NOTE(calebmer): Ideally `<PostListView>` would reuse some code with this
-// function but `<PostListView>` was written before `<MessagingView>` so it'll
-// take some work to migrate.
-export function renderMessageListItem<
-    RoomKey extends string,
-    Message extends MessageModel<RoomKey>,
->({
-    isMobile,
-    withMobileLayout,
-    messageNoun,
-    messageStartOfSentenceNoun,
-    messages,
-    groupKey,
-    index,
-    item,
-    randomSeedForShimmer,
-    messageEditing,
-    shouldHighlightRef,
-    onJumpToMessage,
-    onReplyToMessage,
-    onDeleteMessage,
-    getMessageUrl,
-    roomDisplayedCreatedTime,
-    shouldAddMarginTop = index === 0,
-    shouldAddMarginBottom = false,
-    paddingX,
-    render: customRender,
-}: {
-    isMobile: boolean;
-    withMobileLayout: boolean;
-    messageNoun?: string;
-    messageStartOfSentenceNoun?: string;
-    messages: MessageList<Message>;
-    groupKey: string | null;
-    index: number;
-    item: MessageListItem<Message>;
-    randomSeedForShimmer: string;
-    messageEditing: MessageEditing<RoomKey>;
-    shouldHighlightRef: MutableRefObject<boolean> | null;
-    onJumpToMessage: Memo<(message: Message) => void>;
-    onReplyToMessage: (message: Message) => void;
-    onDeleteMessage: (message: Message) => Promise<void>;
-    getMessageUrl: (messageIndex: number) => URL;
-    roomDisplayedCreatedTime?: Date | undefined;
-    shouldAddMarginTop?: boolean;
-    shouldAddMarginBottom?: boolean | string;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
-    render?: (node: ReactNode) => ReactElement;
-}): VirtualizedScrollViewItem {
-    switch (item.type) {
-        case "Loaded":
-        case "Unloaded":
-        case "Optimistic": {
-            const previousItem = index > 0 ? messages.getItem(index - 1) : null;
-            const nextItem =
-                index < messages.getItemCount() - 1 ? messages.getItem(index + 1) : null;
-
-            const previousMessage =
-                previousItem?.type === "Loaded" || previousItem?.type === "Optimistic"
-                    ? previousItem.message
-                    : null;
-            const nextMessage =
-                nextItem?.type === "Loaded" || nextItem?.type === "Optimistic"
-                    ? nextItem.message
-                    : null;
-
-            const actuallyRender = (
-                disableExpensiveFeaturesDuringScroll: boolean,
-            ): ReactElement => {
-                return item.type === "Loaded" || item.type === "Optimistic" ? (
-                    <MessageView
-                        withMobileLayout={withMobileLayout}
-                        messageNoun={messageNoun}
-                        messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                        message={item.message}
-                        isFirstMessage={item.messageIndex === 0}
-                        previousMessage={previousMessage}
-                        nextMessage={nextMessage}
-                        messages={messages}
-                        messageEditing={messageEditing}
-                        shouldHighlightRef={shouldHighlightRef}
-                        onJumpToMessage={onJumpToMessage}
-                        onReplyToMessage={() => {
-                            if (item.message.isOptimistic) return;
-                            onReplyToMessage(item.message);
-                        }}
-                        onDeleteMessage={async () => {
-                            if (item.message.isOptimistic) return;
-                            await onDeleteMessage(item.message);
-                        }}
-                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
-                        getMessageUrl={getMessageUrl}
-                        roomDisplayedCreatedTime={roomDisplayedCreatedTime}
-                        paddingX={paddingX}
-                    />
-                ) : (
-                    <MessageListMessageShimmer
-                        randomSeed={randomSeedForShimmer}
-                        index={item.messageIndex}
-                        previousMessage={previousMessage}
-                        nextMessage={nextMessage}
-                        messages={messages}
-                        paddingX={paddingX}
-                    />
-                );
-            };
-
-            // It's important to reuse nodes across renders because then React won't try to
-            // re-render the component.
-            let elementWithExpensiveFeaturesDisabled: ReactElement | null = null;
-            let elementWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
-
-            // NOTE(calebmer): This is an inline implementation of
-            // `renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll()`.
-            // That helper was added after this code and this code has some `customRender`
-            // stuff I'm going to leave alone. Ideally this code would use the helper.
-            const render = (isScrolling: boolean) => {
-                // If we already rendered the node without expensive features disabled, don't
-                // render a new version since that will cause a frame drop right at the start
-                // of the scroll as React re-renders every message.
-                if (elementWithoutExpensiveFeaturesDisabled !== null)
-                    return elementWithoutExpensiveFeaturesDisabled;
-
-                if (isScrolling) {
-                    elementWithExpensiveFeaturesDisabled ??= actuallyRender(true);
-                    return elementWithExpensiveFeaturesDisabled;
-                } else {
-                    elementWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
-                    return elementWithoutExpensiveFeaturesDisabled;
-                }
-            };
-
-            return {
-                key:
-                    typeof groupKey === "string"
-                        ? item.type === "Loaded" || item.type === "Optimistic"
-                            ? `Message:${groupKey}:${item.messageIndex}`
-                            : `UnloadedMessage:${groupKey}:${item.messageIndex}`
-                        : item.type === "Loaded" || item.type === "Optimistic"
-                        ? `Message:${item.messageIndex}`
-                        : `UnloadedMessage:${item.messageIndex}`,
-                minHeight: messageViewMinHeight[isMobile ? "mobile" : "desktop"],
-                withManualLayout: true,
-                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
-                    if (!customRender) {
-                        return (
-                            <div
-                                ref={ref}
-                                style={{
-                                    minHeight:
-                                        messageViewMinHeight[isMobile ? "mobile" : "desktop"],
-                                    ...(shouldRenderWithRelativePositioning
-                                        ? {position: "relative"}
-                                        : {
-                                              position: "absolute",
-                                              top: offset,
-                                              left: 0,
-                                              right: 0,
-                                          }),
-                                }}
-                            >
-                                {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling)}
-                                {shouldAddMarginBottom && (
-                                    <div
-                                        style={{
-                                            height:
-                                                typeof shouldAddMarginBottom === "string"
-                                                    ? shouldAddMarginBottom
-                                                    : messagingViewMarginBottom,
-                                        }}
-                                    />
-                                )}
-                            </div>
-                        );
-                    } else {
-                        const node = customRender(
-                            <>
-                                {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling)}
-                                {shouldAddMarginBottom && (
-                                    <div
-                                        style={{
-                                            height:
-                                                typeof shouldAddMarginBottom === "string"
-                                                    ? shouldAddMarginBottom
-                                                    : messagingViewMarginBottom,
-                                        }}
-                                    />
-                                )}
-                            </>,
-                        );
-
-                        return cloneElement(node, {
-                            ref,
-                            style: {
-                                ...node.props.style,
-                                minHeight: messageViewMinHeight,
-                                ...(shouldRenderWithRelativePositioning
-                                    ? {position: "relative"}
-                                    : {
-                                          position: "absolute",
-                                          top: offset,
-                                          left: 0,
-                                          right: 0,
-                                      }),
-                            },
-                        });
-                    }
-                },
-            };
-        }
-        case "TypingIndicators": {
-            const node = (
-                <MessagingTypingIndicators
-                    typingStateByConnectionId={item.typingStateByConnectionId}
-                    paddingX={paddingX}
-                    shouldAddMarginTop={shouldAddMarginTop}
-                    shouldAddMarginBottom={shouldAddMarginBottom}
-                />
-            );
-
-            return {
-                key:
-                    typeof groupKey === "string"
-                        ? `TypingIndicators:${groupKey}`
-                        : "TypingIndicators",
-                minHeight: messagingTypingIndicatorsMinHeight,
-                node: customRender ? customRender(node) : node,
-            };
-        }
-        default:
-            throw exhaustive(item);
-    }
-}
-
-export function getMessageListItemKey<Message extends MessageModel>(
-    item: MessageListItem<Message>,
-    groupKey: string | null,
-) {
-    switch (item.type) {
-        case "Loaded":
-        case "Optimistic":
-            return typeof groupKey === "string"
-                ? `Message:${groupKey}:${item.messageIndex}`
-                : `Message:${item.messageIndex}`;
-        case "Unloaded":
-            return typeof groupKey === "string"
-                ? `UnloadedMessage:${groupKey}:${item.messageIndex}`
-                : `UnloadedMessage:${item.messageIndex}`;
-        case "TypingIndicators":
-            return typeof groupKey === "string"
-                ? `TypingIndicators:${groupKey}`
-                : "TypingIndicators";
-
-        default:
-            throw exhaustive(item);
-    }
 }

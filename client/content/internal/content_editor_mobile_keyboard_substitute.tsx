@@ -3,11 +3,14 @@ import {
     ArrowLeft,
     Check,
     Code,
+    File,
     IconContext,
+    Image,
     Link as LinkIcon,
     ListBullets,
     ListChecks,
     ListNumbers,
+    Minus,
     Palette,
     TextBolder,
     TextHOne,
@@ -18,7 +21,7 @@ import {
     X,
 } from "phosphor-react";
 import {Mark} from "prosemirror-model";
-import {Command, EditorState} from "prosemirror-state";
+import {Command, EditorState, Selection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     ReactNode,
@@ -35,9 +38,13 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
-    ContentEditorMobileLinkModalState,
-    getContentEditorMobileLinkModalSelectionSliceText,
-} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+    insertContentCodeBlock,
+    insertContentDivider,
+    insertContentFiles,
+    insertContentQuoteBlock,
+} from "~/client/content/internal/content_editor_insert.js";
+import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {getContentEditorMobileLinkModalSelectionSliceText} from "~/client/content/internal/get_content_editor_mobile_link_modal_selection_slice_text.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
@@ -46,6 +53,7 @@ import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_
 import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
 import {expandSelectionAroundMark} from "~/client/content/internal/helpers/expand_selection_around_mark.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {Box, BoxProps} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -54,10 +62,13 @@ import {
     mobileFullScreenModalAnimationDurationMs,
     mobileFullScreenModalAnimationEasingParsedCubicBezier,
 } from "~/client/design/mobile_full_screen_modal.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
+import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {buttonStyles, colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {
@@ -66,11 +77,20 @@ import {
     linkClassName,
     strikeClassName,
 } from "~/shared/content/content_styles.js";
-import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {HighlightColor, colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
+import {spacing} from "~/shared/design/core/spacing.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {
+    getFileAudioContentTypes,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export type ContentEditorMobileKeyboardSubstituteRef = {
@@ -93,7 +113,15 @@ function ContentEditorMobileKeyboardSubstitute(
         onLinkModalOpen,
     }: {
         state: EditorState & {schema: ContentProsemirrorSchema};
-        viewRef: RefObject<EditorView | null>;
+        viewRef: RefObject<
+            | (EditorView & {
+                  insertFiles: (
+                      posOrSelection: number | Selection,
+                      files: ReadonlyArray<File>,
+                  ) => void;
+              })
+            | null
+        >;
         onClose: () => void;
         onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
     },
@@ -169,8 +197,9 @@ function ContentEditorMobileKeyboardSubstitute(
         [],
     );
 
-    const [isHighlightSelectorOpen, setIsHighlightSelectorOpen] = useState(false);
-    if (!schema.marks.highlight && isHighlightSelectorOpen) setIsHighlightSelectorOpen(false);
+    const [variant, setVariant] = useState<"Styles" | "HighlightStyle" | "Insert">("Styles");
+
+    if (!schema.marks.highlight && variant === "HighlightStyle") setVariant("Styles");
 
     const selectionMarks = useMemo(
         () => getMarksSpanningAcrossEntireRange(state.doc, state.selection),
@@ -261,17 +290,52 @@ function ContentEditorMobileKeyboardSubstitute(
                 </Box>
                 <Box
                     flexShrink="0"
-                    paddingX="4"
+                    paddingX="1.5"
                     height="10"
                     display="flex"
                     alignItems="center"
-                    fontSize="50"
-                    color="grey-60"
+                    gap="1"
                 >
-                    Styles
+                    {variant === "HighlightStyle" ? (
+                        <Box paddingLeft="0.5" display="flex" alignItems="center" gap="2">
+                            <IconButton
+                                // Tapping on the button shouldn't unfocus the content editor.
+                                isFocusable={false}
+                                size="md"
+                                description="Back"
+                                withoutTooltip={true}
+                                onPress={() => setVariant("Styles")}
+                            >
+                                <ArrowLeft />
+                            </IconButton>
+                            <Palette color={colorSchemeVars["grey-70"]} size={spacing["4"]} />
+                            <Box color="grey-100" fontSize="100">
+                                Highlight
+                            </Box>
+                        </Box>
+                    ) : (
+                        <>
+                            <Button
+                                variant={variant === "Styles" ? "quiet-on" : "quiet-off"}
+                                height="7"
+                                borderRadius="2"
+                                onPress={() => setVariant("Styles")}
+                            >
+                                Styles
+                            </Button>
+                            <Button
+                                variant={variant === "Insert" ? "quiet-on" : "quiet-off"}
+                                height="7"
+                                borderRadius="2"
+                                onPress={() => setVariant("Insert")}
+                            >
+                                Insert
+                            </Button>
+                        </>
+                    )}
                 </Box>
-                {!isHighlightSelectorOpen ? (
-                    <ContentEditorMobileKeyboardSubstituteMain
+                {variant === "Styles" ? (
+                    <ContentEditorMobileKeyboardSubstituteStyles
                         state={state}
                         viewRef={viewRef}
                         selectionMarks={selectionMarks}
@@ -280,15 +344,18 @@ function ContentEditorMobileKeyboardSubstitute(
                         // No animation when switching to the highlight selector. iOS has no animation
                         // when switching keyboard types. I promise following platform convention is
                         // the reason, not that I'm lazy.
-                        onHighlightSelectorOpen={() => setIsHighlightSelectorOpen(true)}
+                        onHighlightSelectorOpen={() => setVariant("HighlightStyle")}
                         onSelectHighlightColor={selectHighlightColor}
                     />
-                ) : (
-                    <ContentEditorMobileKeyboardSubstituteHighlightSelector
+                ) : variant === "HighlightStyle" ? (
+                    <ContentEditorMobileKeyboardSubstituteHighlightStyle
                         activeHighlightMark={activeHighlightMark}
-                        onBack={() => setIsHighlightSelectorOpen(false)}
                         onSelectHighlightColor={selectHighlightColor}
                     />
+                ) : variant === "Insert" ? (
+                    <ContentEditorMobileKeyboardSubstituteInsert state={state} viewRef={viewRef} />
+                ) : (
+                    throwError(exhaustive(variant))
                 )}
             </Box>
         </Box>,
@@ -298,7 +365,7 @@ function ContentEditorMobileKeyboardSubstitute(
     );
 }
 
-function ContentEditorMobileKeyboardSubstituteMain({
+function ContentEditorMobileKeyboardSubstituteStyles({
     state,
     viewRef,
     selectionMarks,
@@ -597,7 +664,7 @@ function ContentEditorMobileKeyboardSubstituteButton({
     icon: ReactNode;
     label: string;
     labelProps?: BoxProps;
-    isActive: boolean;
+    isActive?: boolean;
     onPress: () => void;
 }) {
     const {isHovered, hoverProps} = useHover({});
@@ -606,7 +673,7 @@ function ContentEditorMobileKeyboardSubstituteButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        (isPressed: boolean) => isPressed && isActive,
+        isPressed => isPressed && isActive,
         [isPressed],
     );
 
@@ -650,56 +717,37 @@ function fromCommand(viewRef: RefObject<EditorView | null>, command: Command): (
     };
 }
 
-function ContentEditorMobileKeyboardSubstituteHighlightSelector({
+function ContentEditorMobileKeyboardSubstituteHighlightStyle({
     activeHighlightMark,
-    onBack,
     onSelectHighlightColor,
 }: {
     activeHighlightMark: Mark | null;
-    onBack: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {
     return (
-        <Box>
-            <Box paddingLeft="4" display="flex" alignItems="center" gap="2.5">
-                <IconButton
-                    // Tapping on the button shouldn't unfocus the content editor.
-                    isFocusable={false}
-                    size="md"
-                    description="Back"
-                    withoutTooltip={true}
-                    onPress={onBack}
-                >
-                    <ArrowLeft />
-                </IconButton>
-                <Palette color={colorSchemeVars["grey-70"]} size={spacing["4"]} />
-                <Box color="grey-100" fontSize="100">
-                    Highlight
-                </Box>
-            </Box>
-            <Spacer space="4" />
+        <Box paddingTop="4">
             <Box paddingX="4" display="flex" gap="2.5">
-                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                <ContentEditorMobileKeyboardSubstituteHighlightStyleButton
                     activeHighlightMark={activeHighlightMark}
                     highlightColor={HighlightColor.Red}
                     onSelectHighlightColor={onSelectHighlightColor}
                 />
-                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                <ContentEditorMobileKeyboardSubstituteHighlightStyleButton
                     activeHighlightMark={activeHighlightMark}
                     highlightColor={HighlightColor.Orange}
                     onSelectHighlightColor={onSelectHighlightColor}
                 />
-                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                <ContentEditorMobileKeyboardSubstituteHighlightStyleButton
                     activeHighlightMark={activeHighlightMark}
                     highlightColor={HighlightColor.Green}
                     onSelectHighlightColor={onSelectHighlightColor}
                 />
-                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                <ContentEditorMobileKeyboardSubstituteHighlightStyleButton
                     activeHighlightMark={activeHighlightMark}
                     highlightColor={HighlightColor.Blue}
                     onSelectHighlightColor={onSelectHighlightColor}
                 />
-                <ContentEditorMobileKeyboardSubstituteHighlightSelectorButton
+                <ContentEditorMobileKeyboardSubstituteHighlightStyleButton
                     activeHighlightMark={activeHighlightMark}
                     highlightColor={HighlightColor.Purple}
                     onSelectHighlightColor={onSelectHighlightColor}
@@ -721,7 +769,7 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelector({
     );
 }
 
-function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
+function ContentEditorMobileKeyboardSubstituteHighlightStyleButton({
     activeHighlightMark,
     highlightColor,
     onSelectHighlightColor,
@@ -786,6 +834,134 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
                     style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                 />
             )}
+        </Box>
+    );
+}
+
+function ContentEditorMobileKeyboardSubstituteInsert({
+    state,
+    viewRef,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    viewRef: RefObject<
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
+    >;
+}) {
+    const {schema} = state;
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const hasFewerRows = !schema.marks.highlight && !schema.nodes.checkListItem;
+
+    return (
+        <Box
+            ref={containerRef}
+            flexGrow="1"
+            paddingBottom={
+                // If there are fewer available styles, add some padding to the end so the
+                // existing style buttons aren't too big.
+                hasFewerRows ? "4" : undefined
+            }
+            style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gridTemplateRows:
+                    // We need different grid layouts depending on the available styles. Documents
+                    // need 6 rows whereas task notes only need 5 rows.
+                    hasFewerRows ? "repeat(5, 1fr)" : "repeat(6, 1fr)",
+                gridAutoFlow: "column",
+                // Simple border down the middle with gradient. Solution inspired by:
+                // https://stackoverflow.com/a/61678228/1568890
+                background: `linear-gradient(${colorSchemeVars["grey-5"]}, ${colorSchemeVars["grey-5"]}) center/1px 100% no-repeat`,
+            }}
+        >
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<Image />}
+                label="Image"
+                onPress={() => {
+                    selectFiles(assertExists(containerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileImageContentTypes(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
+                        })
+                        .catch(scheduleUncaughtError);
+                }}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<VideoIcon />}
+                label="Video"
+                onPress={() => {
+                    selectFiles(assertExists(containerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileVideoContentTypes(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
+                        })
+                        .catch(scheduleUncaughtError);
+                }}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<WaveformIcon />}
+                label="Audio"
+                onPress={() => {
+                    selectFiles(assertExists(containerRef.current), {
+                        multiple: true,
+                        acceptContentTypes: getFileAudioContentTypes(),
+                    })
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
+                        })
+                        .catch(scheduleUncaughtError);
+                }}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<File />}
+                label="File"
+                onPress={() => {
+                    selectFiles(assertExists(containerRef.current), {multiple: true})
+                        .then(files => {
+                            if (files.length === 0) return;
+                            if (!viewRef.current) return;
+                            insertContentFiles(viewRef.current, files);
+                        })
+                        .catch(scheduleUncaughtError);
+                }}
+            />
+            <Box />
+            {!hasFewerRows && <Box />}
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<Minus />}
+                label="Divider"
+                onPress={() => {
+                    insertContentDivider(assertExists(viewRef.current));
+                }}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<QuoteBlockIcon />}
+                label="Quote block"
+                onPress={() => {
+                    insertContentQuoteBlock(assertExists(viewRef.current));
+                }}
+            />
+            <ContentEditorMobileKeyboardSubstituteButton
+                icon={<CodeBlockIcon />}
+                label="Code block"
+                onPress={() => {
+                    insertContentCodeBlock(assertExists(viewRef.current));
+                }}
+            />
         </Box>
     );
 }

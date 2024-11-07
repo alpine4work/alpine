@@ -1,9 +1,9 @@
 import {EntryContext} from "@remix-run/server-runtime";
 import {renderToString} from "react-dom/server";
+import {stylesUrl} from "~/app/helpers/styles_url.js";
 import {AppRemixServer} from "~/app/router/app_remix_server.js";
 import {AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
-import stylesHref from "~/client/styles/styles.css?url";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isErrorCode} from "~/shared/error/error_code.js";
@@ -86,11 +86,11 @@ export default async function handleRequest(
         // always will need the main stylesheet and Inter so deliver those as quickly
         // as possible.
         //
-        // // https://developers.cloudflare.com/cache/advanced-configuration/early-hints
+        // https://developers.cloudflare.com/cache/advanced-configuration/early-hints
         // https://developers.cloudflare.com/workers/examples/103-early-hints
         responseHeaders.set(
             "link",
-            `<${stylesHref}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
+            `<${stylesUrl}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
         );
 
         const response = new Response("<!DOCTYPE html>" + markup, {

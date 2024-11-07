@@ -6,25 +6,58 @@
 
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
-import {useState} from "react";
+import {TextSelection} from "prosemirror-state";
+import {ReactNode, useState} from "react";
+import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {
+    ContentEditorState,
+    getContentEditorReferences,
+} from "~/client/content/content_editor_state.js";
+import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/render_content_file_preview.js";
+import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
+import {ReactContextModule} from "~/client/context/react_context_module.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
+import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {listItemIndentationVar} from "~/shared/content/content_styles.js";
+import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import * as contentClassNameByName from "~/shared/content/content_styles.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+import {assertId} from "~/shared/id/id.js";
+import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
+import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+// We use constant, expired, signed URLs so our test snapshots don't change
+// every test run. Disable URL refreshing in this test file.
+disableContentFilePreviewSignedUrlRefreshForTest();
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 const blockTestCases: Array<{
+    only?: CommitBlocker;
     name: string;
-    disableContentTests?: boolean;
     disableInlineTests?: boolean | ((inlineTestCase: (typeof inlineTestCases)[number]) => boolean);
+    references?: ContentReferences;
     build: (content: Array<Node>) => Node;
+    buildPasted?: (content: Array<Node>) => Node;
 }> = [
     {
         name: "paragraph",
@@ -50,6 +83,17 @@ const blockTestCases: Array<{
         name: "code",
         disableInlineTests: inlineTestCase => inlineTestCase.name === "code",
         build: content => schema.node("codeBlock", {}, schema.node("codeBlockLine", {}, content)),
+
+        // When pasting a single line of code, we don't maintain the code block.
+        // Instead we unwrap the code block into plain text with the `code` mark. That
+        // way you can copy a single word from a code block and paste it into a
+        // paragraph without creating a new code block in the middle of the paragraph.
+        buildPasted: content =>
+            schema.node(
+                "paragraph",
+                {},
+                content.map(node => node.mark(schema.mark("code").addToSet(node.marks))),
+            ),
     },
     {
         name: "code (multiline)",
@@ -61,11 +105,6 @@ const blockTestCases: Array<{
                 schema.node("codeBlockLine", {}, [schema.text("  "), ...content]),
                 schema.node("codeBlockLine", {}, content),
             ]),
-    },
-    {
-        name: "divider",
-        disableContentTests: true,
-        build: content => schema.node("divider", {}, content),
     },
     {
         name: "bullet list",
@@ -125,13 +164,29 @@ const inlineTestCases: Array<{
     },
 ];
 
+const contentClassNameAndVars = new Set<string>(
+    concatIterables(
+        Object.values(omitObject(contentClassNameByName, ["highlightClassNameByColor"])),
+        Object.values(contentClassNameByName.highlightClassNameByColor),
+    ),
+);
+
 // CSS classes and variable names may change after minor modifications to our
 // vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking.
+// our test doesn't keep breaking. We keep any class names declared in
+// `content_styles.ts` since those stay constant.
 function stripHtml(originalElement: HTMLElement): HTMLElement {
     const element = originalElement.cloneNode(true) as HTMLElement;
 
-    element.removeAttribute("class");
+    for (const className of [...element.classList]) {
+        if (!contentClassNameAndVars.has(className)) {
+            element.classList.remove(className);
+        }
+    }
+
+    if (element.classList.length === 0) {
+        element.removeAttribute("class");
+    }
 
     // Remove code block toolbars from the DOM since they contribute the text of
     // their language picker button label.
@@ -142,28 +197,124 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
     }
 
     for (const childElement of element.querySelectorAll("[class]")) {
-        childElement.removeAttribute("class");
+        for (const className of [...childElement.classList]) {
+            if (!contentClassNameAndVars.has(className)) {
+                childElement.classList.remove(className);
+            }
+        }
+
+        if (childElement.classList.length === 0) {
+            childElement.removeAttribute("class");
+        }
     }
 
     for (const childElement of element.querySelectorAll("[style]")) {
         assert(childElement instanceof HTMLElement);
 
+        const removeProperties: Array<string> = [];
+
         for (let i = 0; i < childElement.style.length; i++) {
             const property = childElement.style[i]!;
-            if (`var(${property})` !== listItemIndentationVar) continue;
 
-            const propertyValue = childElement.style.getPropertyValue(property);
-            childElement.style.removeProperty(property);
-            childElement.style.setProperty("--list-item-indent", propertyValue);
-            break;
+            if (property.startsWith("--") && !contentClassNameAndVars.has(`var(${property})`)) {
+                removeProperties.push(property);
+            }
         }
+
+        for (const property of removeProperties) {
+            childElement.style.removeProperty(property);
+        }
+    }
+
+    // Clear SVG image element contents.
+    for (const svgElement of element.querySelectorAll("svg")) {
+        svgElement.innerHTML = "";
     }
 
     return element;
 }
 
+const createdTime = new Date("2024-10-02T14:15:13.833Z");
+
+const space = new SpaceModel({
+    id: assertId("pv9hmw9x4nkzpnn404ntddmbp0"),
+    name: "Test Space",
+});
+
+const currentAccount = new AccountModel({
+    id: assertId("y6j4bejce5hf26d8kmatrf9dec"),
+    version: 0,
+    name: "Budd Deey",
+    nameVersion: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
+});
+
+const otherAccount = new AccountModel({
+    id: assertId("nyghmwnpt2pwy22qrn9b6j9254"),
+    version: 0,
+    name: "Sara Smith",
+    nameVersion: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
+});
+
+const context: AppContext = Context.new({
+    tracer: new TracerContextModule(testTracer),
+    rpc: new TestRpcContextModule(),
+    react: ReactContextModule.newForClient(),
+});
+
+function TestContextProvider({children}: {children: ReactNode}) {
+    return (
+        <AppContextProvider value={context}>
+            <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
+                {children}
+            </TestSpaceContextProvider>
+        </AppContextProvider>
+    );
+}
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+    type: "Document",
+    documentId: assertId("ccnhhk3ndrf5n254dwwm9asvx0"),
+});
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const otherFileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+    type: "Document",
+    documentId: assertId("6p2w6asgyqpnetx2k4gnw6rmjw"),
+});
+
+const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
+    [
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+    ],
+    [
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+    ],
+    [
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+    ],
+]);
+
 for (const blockTestCase of blockTestCases) {
-    test(`${blockTestCase.name} empty`, () => {
+    const test = blockTestCase.only ? globalThis.test.only : globalThis.test;
+
+    test(`${blockTestCase.name} empty`, async () => {
         const content = schema.node("doc", {}, [blockTestCase.build([])]);
         render(
             <ContentEditor
@@ -171,9 +322,10 @@ for (const blockTestCase of blockTestCases) {
                 withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
-                    references: emptyContentReferences,
+                    references: blockTestCase.references ?? emptyContentReferences,
                 })}
                 onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
             />,
         );
 
@@ -181,18 +333,14 @@ for (const blockTestCase of blockTestCases) {
 
         expect(strippedElement).toHaveTextContent("");
 
-        if (blockTestCase.disableContentTests) {
-            expect(strippedElement).toMatchSnapshot();
-        }
-
-        expectClipboardRoundtripToWork();
+        await expectClipboardRoundtripToWork(
+            blockTestCase.buildPasted
+                ? schema.node("doc", {}, [blockTestCase.buildPasted([])])
+                : undefined,
+        );
     });
 
-    if (blockTestCase.disableContentTests) {
-        continue;
-    }
-
-    test(`${blockTestCase.name} plain`, () => {
+    test(`${blockTestCase.name} plain`, async () => {
         const content = schema.node("doc", {}, [
             blockTestCase.build([schema.text("Hello world!")]),
         ]);
@@ -202,16 +350,21 @@ for (const blockTestCase of blockTestCases) {
                 withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
-                    references: emptyContentReferences,
+                    references: blockTestCase.references ?? emptyContentReferences,
                 })}
                 onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
             />,
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
         expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-        expectClipboardRoundtripToWork();
+        await expectClipboardRoundtripToWork(
+            blockTestCase.buildPasted
+                ? schema.node("doc", {}, [blockTestCase.buildPasted([schema.text("Hello world!")])])
+                : undefined,
+        );
     });
 
     for (const inlineTestCase of inlineTestCases) {
@@ -223,7 +376,7 @@ for (const blockTestCase of blockTestCases) {
             continue;
         }
 
-        test(`${blockTestCase.name} ${inlineTestCase.name}`, () => {
+        test(`${blockTestCase.name} ${inlineTestCase.name}`, async () => {
             const content = schema.node("doc", {}, [
                 blockTestCase.build([
                     schema.text("Hello "),
@@ -237,23 +390,34 @@ for (const blockTestCase of blockTestCases) {
                     withMobileLayout={false}
                     state={ContentEditorState.create({
                         doc: content,
-                        references: emptyContentReferences,
+                        references: blockTestCase.references ?? emptyContentReferences,
                     })}
                     onChange={() => {}}
+                    fileAttachmentTarget={fileAttachmentTarget}
                 />,
             );
 
             expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
 
             if (!inlineTestCase.disableClipboardTests) {
-                expectClipboardRoundtripToWork();
+                await expectClipboardRoundtripToWork(
+                    blockTestCase.buildPasted
+                        ? schema.node("doc", {}, [
+                              blockTestCase.buildPasted([
+                                  schema.text("Hello "),
+                                  schema.text("world", [inlineTestCase.build()]),
+                                  schema.text("!"),
+                              ]),
+                          ])
+                        : undefined,
+                );
             }
         });
     }
 }
 
 for (const inlineTestCase of inlineTestCases) {
-    test(`${inlineTestCase.name}`, () => {
+    test(`${inlineTestCase.name}`, async () => {
         const content = schema.node("doc", {}, [
             schema.node("paragraph", {}, [
                 schema.text("Hello "),
@@ -270,6 +434,7 @@ for (const inlineTestCase of inlineTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
             />,
         );
 
@@ -277,15 +442,16 @@ for (const inlineTestCase of inlineTestCases) {
         expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
         if (!inlineTestCase.disableClipboardTests) {
-            expectClipboardRoundtripToWork();
+            await expectClipboardRoundtripToWork();
         }
     });
 }
 
-function expectClipboardRoundtripToWork() {
+async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     assert(getEditorViewForTest);
     // eslint-disable-next-line testing-library/no-node-access
     const editor = getEditorViewForTest(screen.getByRole("textbox").parentNode);
+    const sourceContentReferences = getContentEditorReferences(editor.state).references;
 
     const copiedDoc = editor.state.doc;
     const copiedFragment = editor.props.clipboardSerializer!.serializeFragment(copiedDoc.content);
@@ -304,17 +470,30 @@ function expectClipboardRoundtripToWork() {
                 references: emptyContentReferences,
             }),
         );
+
         return (
-            <ContentEditor
-                aria-label="Test"
-                withMobileLayout={false}
-                state={state}
-                onChange={setState}
-            />
+            <TestContextProvider>
+                <ContentEditor
+                    aria-label="Test"
+                    withMobileLayout={false}
+                    state={state}
+                    onChange={setState}
+                    // Use a different file attachment target to exercise `<ContentEditor>`s ability
+                    // to create a new attachment.
+                    fileAttachmentTarget={otherFileAttachmentTarget}
+                />
+            </TestContextProvider>
         );
     }
 
     const {container, unmount} = render(<TestContentEditor />);
+
+    // eslint-disable-next-line testing-library/no-node-access
+    const pasteEditor = getEditorViewForTest((container as any).firstElementChild);
+
+    expect(pasteEditor.state.doc.toString()).toEqual("doc(paragraph)");
+    expect(pasteEditor.state.selection.anchor).toEqual(1);
+    expect(pasteEditor.state.selection.head).toEqual(1);
 
     // eslint-disable-next-line testing-library/no-node-access
     fireEvent.paste((container as any).firstElementChild.firstElementChild, {
@@ -325,17 +504,108 @@ function expectClipboardRoundtripToWork() {
         },
     });
 
-    // eslint-disable-next-line testing-library/no-node-access
-    const pastedDoc = getEditorViewForTest((container as any).firstElementChild).state.doc;
+    // Wait for the promise microtask queue to empty so we can observe
+    // `<ContentEditor>`'s RPC executions.
+    await waitMacrotask();
 
-    expect(pastedDoc.toString()).toEqual(copiedDoc.toString());
+    const isAsync =
+        TestRpcContextModule.getExecutions(getAccountsIfExist).length > 0 ||
+        TestRpcContextModule.getExecutions(attachFileFromAttachment).length > 0;
+
+    if (isAsync) {
+        // For asynchronous pastes we want to exercise that the selection is properly
+        // remembered. So insert some content and move the selection into that content.
+        // We'll delete the extra content once the paste is done.
+        //
+        // The paste should happen in the empty paragraph which is where the selection
+        // was when we fired the paste event.
+        act(() => {
+            const transaction = pasteEditor.state.tr.insert(
+                0,
+                schema.node("paragraph", {}, [schema.text("test")]),
+            );
+
+            pasteEditor.dispatch(
+                transaction.setSelection(new TextSelection(transaction.doc.resolve(3))),
+            );
+        });
+
+        expect(pasteEditor.state.doc.toString()).toEqual('doc(paragraph("test"), paragraph)');
+        expect(pasteEditor.state.selection.anchor).toEqual(3);
+        expect(pasteEditor.state.selection.head).toEqual(3);
+
+        await act(async () => {
+            for (const execution of TestRpcContextModule.getExecutions(getAccountsIfExist)) {
+                if (execution.outputPromiseResolver.isSettled()) continue;
+
+                Array.from(
+                    execution.input.accountIds,
+                    accountId => sourceContentReferences.accountById.get(accountId) ?? null,
+                );
+
+                execution.outputPromiseResolver.resolve({
+                    accounts: Array.from(
+                        execution.input.accountIds,
+                        accountId => sourceContentReferences.accountById.get(accountId) ?? null,
+                    ),
+                });
+            }
+
+            for (const execution of TestRpcContextModule.getExecutions(attachFileFromAttachment)) {
+                if (execution.outputPromiseResolver.isSettled()) continue;
+
+                const {file} = assertExists(
+                    sourceContentReferences.fileById.get(execution.input.fileId),
+                );
+
+                execution.outputPromiseResolver.resolve({
+                    signedUrlSearch: "?exp=1727963390&sig=test-clipboard",
+                    file,
+                });
+            }
+
+            // Wait for the promise microtask queue to empty so we can observe
+            // `<ContentEditor>`'s update to the DOM after resolving
+            // `attachFileFromAttachment()`.
+            await waitMacrotask();
+        });
+
+        expect(pasteEditor.state.doc.toString()).not.toEqual('doc(paragraph("test"), paragraph)');
+        expect(pasteEditor.state.doc.toString()).toMatch(/^doc\(paragraph\("test"\),/);
+
+        act(() => {
+            pasteEditor.dispatch(pasteEditor.state.tr.delete(0, 5));
+        });
+    }
+
+    const pastedDoc = pasteEditor.state.doc;
+
+    expect(pastedDoc.toString()).toEqual((expectedPastedDoc ?? copiedDoc).toString());
 
     // The string representation of a doc doesn't include all attributes. So do a
     // full JSON equality test as well.
-    expect(pastedDoc.toJSON()).toEqual(copiedDoc.toJSON());
+    expect(pastedDoc.toJSON()).toEqual((expectedPastedDoc ?? copiedDoc).toJSON());
 
     unmount();
 }
+
+test("divider", async () => {
+    const content = schema.node("doc", {}, [schema.node("divider")]);
+
+    render(
+        <ContentEditor
+            aria-label="Test"
+            withMobileLayout={false}
+            state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
+            onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
+        />,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
 
 test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
@@ -349,6 +619,7 @@ test("heading cannot have a level lower than 1", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -365,6 +636,7 @@ test("heading cannot have a level lower than 1", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -383,6 +655,7 @@ test("heading cannot have a level greater than 3", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -399,6 +672,7 @@ test("heading cannot have a level greater than 3", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -417,6 +691,7 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -433,6 +708,7 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -449,6 +725,7 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -467,6 +744,7 @@ test("heading is converted into an integer", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -492,6 +770,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -514,6 +793,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -532,13 +812,14 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
 });
 
-test("bullet list with multiple items", () => {
+test("bullet list with multiple items", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "unorderedListItem",
@@ -556,41 +837,45 @@ test("bullet list with multiple items", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("ordered list with multiple items", () => {
+test("ordered list with multiple items", async () => {
     const content = schema.node("doc", {}, [
         schema.node("orderedListItem", {}, schema.node("paragraph", {}, schema.text("Item 1"))),
         schema.node("orderedListItem", {}, schema.node("paragraph", {}, schema.text("Item 2"))),
         schema.node("orderedListItem", {}, schema.node("paragraph", {}, schema.text("Item 3"))),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("check list with multiple items", () => {
+test("check list with multiple items", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "checkListItem",
@@ -608,21 +893,23 @@ test("check list with multiple items", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("bullet list with sub-list", () => {
+test("bullet list with sub-list", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "unorderedListItem",
@@ -645,21 +932,23 @@ test("bullet list with sub-list", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("ordered list with sub-list", () => {
+test("ordered list with sub-list", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "orderedListItem",
@@ -682,21 +971,23 @@ test("ordered list with sub-list", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("check list with sub-list", () => {
+test("check list with sub-list", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "checkListItem",
@@ -719,21 +1010,23 @@ test("check list with sub-list", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("bullet list with sub-list of another type", () => {
+test("bullet list with sub-list of another type", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "unorderedListItem",
@@ -756,21 +1049,23 @@ test("bullet list with sub-list of another type", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("ordered list with sub-list of another type", () => {
+test("ordered list with sub-list of another type", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "orderedListItem",
@@ -793,21 +1088,23 @@ test("ordered list with sub-list of another type", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("check list with sub-list of another type", () => {
+test("check list with sub-list of another type", async () => {
     const content = schema.node("doc", {}, [
         schema.node(
             "checkListItem",
@@ -830,21 +1127,23 @@ test("check list with sub-list of another type", () => {
             schema.node("paragraph", {}, schema.text("Item 3")),
         ),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("can put hard breaks inside paragraphs", () => {
+test("breaks inside paragraphs", async () => {
     const content = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
             schema.text("Hello…"),
@@ -852,21 +1151,23 @@ test("can put hard breaks inside paragraphs", () => {
             schema.text("…world!"),
         ]),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("can put hard breaks inside list items", () => {
+test("breaks inside list items", async () => {
     const content = schema.node("doc", {}, [
         schema.node("unorderedListItem", {}, [
             schema.node("paragraph", {}, [
@@ -876,37 +1177,623 @@ test("can put hard breaks inside list items", () => {
             ]),
         ]),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
 });
 
-test("can put multiple paragraphs inside list items", () => {
+test("multiple paragraphs inside list items", async () => {
     const content = schema.node("doc", {}, [
         schema.node("unorderedListItem", {}, [
             schema.node("paragraph", {}, [schema.text("Hello…")]),
             schema.node("paragraph", {}, [schema.text("…world!")]),
         ]),
     ]);
+
     render(
         <ContentEditor
             aria-label="Test"
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
     expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-    expectClipboardRoundtripToWork();
+    await expectClipboardRoundtripToWork();
+});
+
+test("account long mention", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {mention: {accountId: otherAccount.id, isShort: false}}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        accountById: new Map([[assertId(otherAccount.id), otherAccount]]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("account short mention", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {mention: {accountId: otherAccount.id, isShort: true}}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        accountById: new Map([[assertId(otherAccount.id), otherAccount]]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("unknown account mention", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {mention: {accountId: otherAccount.id, isShort: true}}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (one file)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [schema.node("file", {fileId: "0694v4cbx7m1126vx03wpkpg8g"})]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                {
+                    signedUrlSearch: "?exp=1727963596&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4cbx7m1126vx03wpkpg8g"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (one file, null reference)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [schema.node("file", {fileId: null})]),
+    ]);
+
+    const contentReferences: ContentReferences = emptyContentReferences;
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (one file, image type)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [schema.node("file", {fileId: "0694vd0kf4fdbwb7f1jqtzgt7g"})]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694vd0kf4fdbwb7f1jqtzgt7g"),
+                {
+                    signedUrlSearch: "?exp=1727880757&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694vd0kf4fdbwb7f1jqtzgt7g"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (one file, video type)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [schema.node("file", {fileId: "0694vdm01x4ngm31kmm41wsg3m"})]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694vdm01x4ngm31kmm41wsg3m"),
+                {
+                    signedUrlSearch: "?exp=1727880767&sig=test-video",
+                    file: new FileModel({
+                        id: assertId("0694vdm01x4ngm31kmm41wsg3m"),
+                        contentType: "video/mp4",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                            videoDuration: 5000,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (one file, audio type)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [schema.node("file", {fileId: "0694vdt0nc1d3zr0vh2j2jrtvg"})]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694vdt0nc1d3zr0vh2j2jrtvg"),
+                {
+                    signedUrlSearch: "?exp=1727880774&sig=test-audio",
+                    file: new FileModel({
+                        id: assertId("0694vdt0nc1d3zr0vh2j2jrtvg"),
+                        contentType: "audio/mp4",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Audio",
+                            isProcessing: false,
+                            duration: 5000,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (two files)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [
+            schema.node("file", {fileId: "0694v4mxds3kj518c0dygx272c"}),
+            schema.node("file", {fileId: "0694v4myryc3289pwhcnwt7f7r"}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4mxds3kj518c0dygx272c"),
+                {
+                    signedUrlSearch: "?exp=1727963615&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4mxds3kj518c0dygx272c"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+            [
+                assertId("0694v4myryc3289pwhcnwt7f7r"),
+                {
+                    signedUrlSearch: "?exp=1727963629&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4myryc3289pwhcnwt7f7r"),
+                        contentType: "image/heif",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: {
+                            isProcessing: false,
+                            contentType: "image/avif",
+                            contentLength: 1200 ** 2,
+                            isImagePreviewContent: true,
+                        },
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                            content: {
+                                contentType: "image/avif",
+                                contentLength: 1200 ** 2,
+                            },
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (three files)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [
+            schema.node("file", {fileId: "0694v4nwky4vgc8ep46mzz5th8"}),
+            schema.node("file", {fileId: "0694v4phegz57116pce7eg5j30"}),
+            schema.node("file", {fileId: "0694v4q3yh9765742w7305p0fg"}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4nwky4vgc8ep46mzz5th8"),
+                {
+                    signedUrlSearch: "?exp=1727963706&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4nwky4vgc8ep46mzz5th8"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+            [
+                assertId("0694v4phegz57116pce7eg5j30"),
+                {
+                    signedUrlSearch: "?exp=1727963711&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4phegz57116pce7eg5j30"),
+                        contentType: "image/heif",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: {
+                            isProcessing: false,
+                            contentType: "image/avif",
+                            contentLength: 1200 ** 2,
+                            isImagePreviewContent: true,
+                        },
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                            content: {
+                                contentType: "image/avif",
+                                contentLength: 1200 ** 2,
+                            },
+                        },
+                    }),
+                },
+            ],
+            [
+                assertId("0694v4q3yh9765742w7305p0fg"),
+                {
+                    signedUrlSearch: "?exp=1727963716&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4q3yh9765742w7305p0fg"),
+                        contentType: "image/png",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file float (left direction)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileFloat", {direction: "left"}, [
+            schema.node("file", {fileId: "0694v4sk2v7sxcrpdd9qdxxx78"}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4sk2v7sxcrpdd9qdxxx78"),
+                {
+                    signedUrlSearch: "?exp=1727963748&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4sk2v7sxcrpdd9qdxxx78"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file float (right direction)", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node("fileFloat", {direction: "right"}, [
+            schema.node("file", {fileId: "0694v4v4se8v5pxdk7j5adnecm"}),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: new Map([
+            [
+                assertId("0694v4v4se8v5pxdk7j5adnecm"),
+                {
+                    signedUrlSearch: "?exp=1727963751&sig=test-image",
+                    file: new FileModel({
+                        id: assertId("0694v4v4se8v5pxdk7j5adnecm"),
+                        contentType: "image/jpeg",
+                        contentLength: 1200 ** 2,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
+                            type: "Image",
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 1200, height: 1200, scale: 1, hasAlpha: false},
+                            placeholder: fileImagePreviewPlaceholder,
+                        },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
 });

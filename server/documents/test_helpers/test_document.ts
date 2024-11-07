@@ -79,7 +79,14 @@ export class TestDocument {
             : assertDocumentContent(
                   schema.node("doc", {}, [
                       schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
-                      schema.node("paragraph", {}, options.body ? [schema.text(options.body)] : []),
+                      ...(options.body
+                          ? options.body
+                                .trimEnd()
+                                .split("\n")
+                                .map(bodyLine =>
+                                    schema.node("paragraph", {}, [schema.text(bodyLine)]),
+                                )
+                          : [schema.node("paragraph", {}, [])]),
                   ]),
               );
 
@@ -199,7 +206,7 @@ export class TestDocument {
      */
     public createCommentThread(
         session: TestSpaceSession,
-        range: {from: number; to: number},
+        range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | MessageContent,
     ) {
         return TestDocumentCommentThread._create(this, session, range, content);

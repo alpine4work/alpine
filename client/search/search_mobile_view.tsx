@@ -3,7 +3,8 @@ import {useCallback, useRef} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto_growing_height.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -33,7 +34,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchResult} from "~/shared/search/search_result.js";
@@ -51,7 +52,7 @@ export function SearchMobileView({
     const maxWidth = !isMobile ? "96" : undefined;
 
     const {output, queryText, onQueryTextChange} = useSearchState({
-        initialQueryText: "",
+        isSearchParamControlled: false,
         debugOptions: null,
         affinityResults,
     });
@@ -198,6 +199,7 @@ export function SearchMobileView({
                         <SearchMobileViewResult
                             spaceId={space.id}
                             searchKey={output.key}
+                            searchTime={output.queryTime}
                             result={result}
                             isFirstItem={isFirstItem}
                             isLastItem={isLastItem}
@@ -212,6 +214,7 @@ export function SearchMobileView({
             maxWidth,
             onQueryTextChange,
             output.key,
+            output.queryTime,
             queryText,
             results,
             shouldShowLoadingIndicator,
@@ -267,12 +270,14 @@ export function SearchMobileView({
 function SearchMobileViewResult({
     spaceId,
     searchKey,
+    searchTime,
     result,
     isFirstItem,
     isLastItem,
 }: {
     spaceId: SpaceId;
     searchKey: string;
+    searchTime: Date;
     result: SearchResult;
     isFirstItem: boolean;
     isLastItem: boolean;
@@ -285,10 +290,9 @@ function SearchMobileViewResult({
                 getSearchResultDestinationPath({
                     spaceId: spaceId,
                     resultId: result.id,
-                    options: {
-                        searchKey,
-                        withDesktopLayout: false,
-                    },
+                    searchKey,
+                    searchTime,
+                    withDesktopLayout: false,
                 }),
             );
         },

@@ -4,12 +4,16 @@ import {
     createDynamoGeneralRealtimeEventSchema,
     createDynamoGeneralRealtimeIndexQuerySchema,
     createDynamoGeneralRealtimeItemSchema,
+    createDynamoGeneralRealtimeQuerySchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {
+    DynamoIndexCursorSchema,
+    DynamoItemKeySchema,
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -83,6 +87,42 @@ export const getChannelWithStrongReadConsistency = defineRpc({
     },
 });
 
+export const getChannelAndMetadata = defineRpc({
+    name: "getChannelAndMetadata",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        postFilesLimit: Schema.integer,
+        afterItemKey: DynamoItemKeySchema.optional(),
+    },
+    output: {
+        channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
+    },
+});
+
+export const backfillChannelAndMetadata = defineRpc({
+    name: "backfillChannelAndMetadata",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        readTime: Schema.date,
+    },
+    output: {
+        backfillChannelResult: createDynamoGeneralRealtimeBackfillResultSchema(
+            ChannelOrMetadataModelSchema,
+        ),
+    },
+});
+
+export const getChannelContributors = defineRpc({
+    name: "getChannelContributors",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        contributors: Schema.array(AccountModel.schema),
+    },
+});
+
 export const getChannelPosts = defineRpc({
     name: "getChannelPosts",
     input: {
@@ -121,6 +161,7 @@ export const createPost = defineRpc({
     name: "createPost",
     input: {
         channelId: Schema.id<ChannelId>(),
+        draftId: Schema.id<PostDraftId>().optional(),
         content: PostContentSchema,
     },
     output: {
@@ -269,4 +310,15 @@ export const backfillPostComments = defineRpc({
             }),
         }),
     },
+});
+
+export const createOrReplacePostDraft = defineRpc({
+    name: "createOrReplacePostDraft",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        draftId: Schema.id<PostDraftId>(),
+        channelId: Schema.id<ChannelId>().nullable(),
+        content: PostContentSchema,
+    },
+    output: {},
 });

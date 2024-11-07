@@ -4,7 +4,7 @@ import {Mapping, StepMap} from "prosemirror-transform";
 import {useMemo} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -134,8 +134,18 @@ export function useDocumentContentEditorPhantomSelections({
 
         const filteredThemeColors = themeColors.filter(
             // TODO(calebmer): When the theme color is configurable, we should use that
-            // instead of the default theme color.
-            themeColor => themeColor !== defaultThemeColor && themeColor !== "yellow",
+            // instead of `defaultThemeColor`.
+            themeColor =>
+                themeColor !== defaultThemeColor &&
+                themeColor !== "yellow" &&
+                // If our theme color is a shade of blue then don't allow selecting a color for
+                // phantom cursors that's also a shade of blue.
+                !(
+                    (defaultThemeColor === "cyan" ||
+                        defaultThemeColor === "blue" ||
+                        defaultThemeColor === "indigo") &&
+                    (themeColor === "cyan" || themeColor === "blue" || themeColor === "indigo")
+                ),
         );
 
         for (const presenceState of presenceStates) {

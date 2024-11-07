@@ -1,5 +1,10 @@
 import {fontSizes} from "~/client/styles/styles.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 
 export const searchMobileInputFontSize = "100";
 export const searchMobileInputPaddingX = "3";

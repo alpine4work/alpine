@@ -4,7 +4,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createTaskComment} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {mobileMaxScreenWidth} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 

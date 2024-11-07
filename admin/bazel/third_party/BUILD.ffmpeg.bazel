@@ -5,6 +5,7 @@ genrule(
         "@libaom",
         "@libopus",
         "@libvpx",
+        "@zlib",
     ] + glob(
         include = ["**"],
         exclude = [
@@ -39,7 +40,29 @@ genrule(
     #
     # - We replace the Bazel sandbox path in `config.h` with `${bazel_sandbox}` to
     #   obfuscate the implementation detail of where FFmpeg was built.
+    #
+    # - On MacOS, we use the system installed linker for `CC_LD` instead of `zig`.
+    #   FFmpeg adds `-dynamic` to linker flags on MacOS which is not supported by
+    #   `zig ld.lld`. Is this an issue with FFmpeg or with `zig`? Not sure. From
+    #   some brief research it looks like the `-dynamic` option is only supported
+    #   by Apple's linker.
+    #
+    #   We need to pass the compiler program into FFmpeg's `--ld` option since it
+    #   passes arguments via `-Wl`. e.g. `-Wl,-dynamic`.
     cmd = """
+export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export CXX="$$(pwd)/$(location @//:zig) c++"
+export AR="$$(pwd)/$(location @//:zig) ar"
+export LD="$$(pwd)/$(location @//:zig) ld.lld"
+if [ "$$(uname)" == "Darwin" ]; then
+    export CC_LD=gcc
+else
+    export CC_LD="$$(pwd)/$(location @//:zig) cc"
+fi
+export CFLAGS+=" -O3 -fPIC"
+
 bazel_sandbox=$$(pwd)
 
 cd $(RULEDIR)
@@ -53,12 +76,17 @@ mkdir pkgconfig
 cp ../libvpx/install/lib/pkgconfig/vpx.pc pkgconfig/vpx.pc
 cp ../libopus/install/lib/pkgconfig/opus.pc pkgconfig/opus.pc
 cp ../libaom/install/lib/pkgconfig/aom.pc pkgconfig/aom.pc
+cp ../zlib/install/lib/pkgconfig/zlib.pc pkgconfig/zlib.pc
 
 escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
 sed -i.bak "s/\\$${bazel_sandbox}/$$escaped_bazel_sandbox/g" pkgconfig/*
 
 PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     "$$bazel_sandbox/$(location configure)" \\
+    "--cc=$$CC" \\
+    "--cxx=$$CXX" \\
+    "--ar=$$AR" \\
+    "--ld=$$CC_LD" \\
     "--prefix=$$(pwd)/install" \\
     "--pkg-config=$$(pwd)/../pkg_config/install/bin/pkg-config" \\
     --pkg-config-flags=--static \\
@@ -74,6 +102,8 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --enable-libaom \\
     --enable-libopus \\
     --enable-libvpx \\
+    --enable-decoder=png \\
+    --enable-zlib \\
     >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 
 sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" config.h
@@ -94,5 +124,6 @@ echo >> cmd.log
 make --jobs=6 install >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 """,
     tags = ["cpu:6"],
+    tools = ["@//:zig"],
     visibility = ["//visibility:public"],
 )

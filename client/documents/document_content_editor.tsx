@@ -10,7 +10,6 @@ import {
     SpinnerGap,
     X,
 } from "phosphor-react";
-import {redo, undo} from "prosemirror-history";
 import {
     Memo,
     Ref,
@@ -28,24 +27,22 @@ import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
-import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu.js";
 import {
     mobileFullScreenModalAnimationDurationLongMs,
     mobileFullScreenModalAnimationDurationMs,
     mobileFullScreenModalAnimationEasingParsedCubicBezier,
-    useIsBehindMobileFullScreenModal,
 } from "~/client/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
@@ -64,8 +61,8 @@ import {
 } from "~/client/documents/use_document_content_editor_web_socket.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -73,11 +70,12 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
@@ -101,9 +99,9 @@ import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
-    screenPaddingXRem,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -122,6 +120,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -132,13 +131,17 @@ import {MessageContentWithReferences} from "~/shared/messaging/message_content_s
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
-export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
 
-export type DocumentContentEditorInitialScroll = {
-    readonly type: "CommentThread";
-    readonly commentThreadId: DocumentCommentThreadId;
-};
+export type DocumentContentEditorInitialScroll =
+    | {
+          readonly type: "CommentInOpenThread";
+          readonly commentIndex: number;
+      }
+    | {
+          readonly type: "CommentThread";
+          readonly commentThreadId: DocumentCommentThreadId;
+      };
 
 type DocumentContentEditorSidebarState =
     | {
@@ -185,7 +188,6 @@ export function DocumentContentEditor({
     documentId,
     initialDocument,
     initialCommentThreadResult,
-    initialScrollToCommentIndex,
     initialScroll,
     shouldInitiallyFocus,
     onCreate,
@@ -201,7 +203,6 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
-    initialScrollToCommentIndex: number | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
     onCreate?: () => void;
@@ -382,18 +383,19 @@ export function DocumentContentEditor({
                 contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
-            const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
-            const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
+            const sidebarWidth = convertRemLengthToPx(
+                spacing[documentContentEditorSidebarWidth],
+                remPx,
+            );
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
             const oldContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx + sidebarWidth - blockMaxWidth) /
-                    2,
+                (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
             );
             const newContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
+                (editorContainerElement.clientWidth - blockMaxWidth) / 2,
             );
 
             animation = timeline(
@@ -534,18 +536,19 @@ export function DocumentContentEditor({
                 contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
-            const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
-            const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
+            const sidebarWidth = convertRemLengthToPx(
+                spacing[documentContentEditorSidebarWidth],
+                remPx,
+            );
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
             const oldContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx - sidebarWidth - blockMaxWidth) /
-                    2,
+                (editorContainerElement.clientWidth - blockMaxWidth) / 2,
             );
             const newContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
+                (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
             );
 
             animation = timeline(
@@ -804,6 +807,7 @@ export function DocumentContentEditor({
             sidebarState.mobileState.onAnimationFinishedRef.current
         ) {
             const onAnimationFinished = sidebarState.mobileState.onAnimationFinishedRef.current;
+            // eslint-disable-next-line react-compiler/react-compiler
             sidebarState.mobileState.onAnimationFinishedRef.current = null;
             onAnimationFinished();
         }
@@ -830,7 +834,7 @@ export function DocumentContentEditor({
     const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
 
     const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
-        documentContentEditorSidebarWidth,
+        spacing[documentContentEditorSidebarWidth],
         useRemPx(),
     );
 
@@ -861,7 +865,7 @@ export function DocumentContentEditor({
         const dataPromise = procedures
             .getCommentThreadAndInitialCommentsIfExists({
                 commentThreadId,
-                limit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+                limit: getInitialLoadMessageCount(getClientInfo()),
             })
             .then((data): DocumentContentEditorSidebarData | null => {
                 if (data.commentThread === null) return null;
@@ -1334,30 +1338,34 @@ export function DocumentContentEditor({
 
             const editorContainerElement = assertExists(editorContainerRef.current);
 
-            if (initialCommentThreadResult) {
-                if (initialScrollToCommentIndex !== null) {
-                    commentThreadListViewRef.current?.jumpToCommentIndex(
-                        initialCommentThreadResult.commentThread.id,
-                        initialScrollToCommentIndex,
+            if (!initialScroll) return;
+
+            switch (initialScroll.type) {
+                case "CommentInOpenThread": {
+                    if (initialCommentThreadResult) {
+                        commentThreadListViewRef.current?.jumpToCommentIndex(
+                            initialCommentThreadResult.commentThread.id,
+                            initialScroll.commentIndex,
+                        );
+                    }
+                    break;
+                }
+                case "CommentThread": {
+                    const firstCommentMarkElement = editorContainerElement.querySelector(
+                        `[data-comment="${initialScroll.commentThreadId}"]`,
                     );
+                    if (firstCommentMarkElement) {
+                        scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
+                            behavior: "instant",
+                            prefer: "top",
+                        });
+                    }
+                    break;
                 }
-            } else if (initialScroll) {
-                const firstCommentMarkElement = editorContainerElement.querySelector(
-                    `[data-comment="${initialScroll.commentThreadId}"]`,
-                );
-                if (firstCommentMarkElement) {
-                    scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
-                        behavior: "instant",
-                        prefer: "top",
-                    });
-                }
+                default:
+                    throw exhaustive(initialScroll);
             }
-        }, [
-            initialCommentThreadResult,
-            initialScroll,
-            initialScrollToCommentIndex,
-            scrollToEditorRect,
-        ]);
+        }, [initialCommentThreadResult, initialScroll, scrollToEditorRect]);
     }
 
     /* ========================================================================== *\
@@ -1471,23 +1479,6 @@ export function DocumentContentEditor({
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
-    const contextMenuActions: Array<Array<MenuAction>> = [
-        [
-            {
-                label: "Undo",
-                isDisabled: editorState.undoDepth() === 0,
-                keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                onPress: () => assertExists(editorRef.current).dispatchCommand(undo),
-            },
-            {
-                label: "Redo",
-                isDisabled: editorState.redoDepth() === 0,
-                keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                onPress: () => assertExists(editorRef.current).dispatchCommand(redo),
-            },
-        ],
-    ];
-
     const navigationBarRef = useRef<NavigationBarRef>(null);
     const titleBoundaryRef = useRef<HTMLElement | null>(null);
 
@@ -1515,6 +1506,18 @@ export function DocumentContentEditor({
         withMobileLayout,
         title: getDocumentContentTitle(content.doc),
         titleBoundaryRef,
+        titleBoundaryMarginTop: useMemo(
+            () =>
+                addRemLengths(
+                    isMobile
+                        ? contentStyles.mobilePlatformTitlePaddingTop
+                        : withMobileLayout
+                        ? contentStyles.mobileLayoutTitlePaddingTop
+                        : contentStyles.desktopTitlePaddingTop,
+                    spacing["4"],
+                ),
+            [isMobile, withMobileLayout],
+        ),
         menuActions: [
             [
                 {
@@ -1534,7 +1537,20 @@ export function DocumentContentEditor({
                     },
                 },
             ],
-            ...contextMenuActions,
+            [
+                {
+                    label: "Undo",
+                    isDisabled: editorState.undoDepth() === 0,
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
+                    onPress: () => assertExists(editorRef.current).undo(),
+                },
+                {
+                    label: "Redo",
+                    isDisabled: editorState.redoDepth() === 0,
+                    keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
+                    onPress: () => assertExists(editorRef.current).redo(),
+                },
+            ],
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
@@ -1543,411 +1559,403 @@ export function DocumentContentEditor({
     });
 
     return (
-        <ContextMenuActions actions={contextMenuActions}>
+        <Box
+            ref={containerResizeRef}
+            flexGrow="1"
+            position="relative"
+            zIndex="0"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            backgroundColor="grey-0"
+        >
             <Box
-                ref={containerResizeRef}
+                ref={useMergedRefs<HTMLDivElement>(
+                    editorContainerRef,
+                    useScrollbar({insetTop: scrollbarInsetTop}),
+                    scrollViewRef,
+                )}
+                id={editorContainerId}
+                data-testid="DocumentContentEditorMain"
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
-                overflow="hidden"
-                display="flex"
-                flexDirection="column"
-                backgroundColor="grey-0"
+                overflowX="hidden"
+                overflowY="auto"
+                style={{
+                    width:
+                        !withMobileLayout && sidebarState.isOpen
+                            ? `calc(100% - ${spacing[documentContentEditorSidebarWidth]})`
+                            : "100%",
+                }}
             >
-                <Box
-                    ref={useMergedRefs<HTMLDivElement>(
-                        editorContainerRef,
-                        useScrollbar({insetTop: scrollbarInsetTop}),
-                        scrollViewRef,
-                    )}
-                    id={editorContainerId}
-                    data-testid="DocumentContentEditorMain"
-                    flexGrow="1"
-                    position="relative"
-                    zIndex="0"
-                    overflowX="hidden"
-                    overflowY="auto"
-                    style={{
-                        width:
-                            !withMobileLayout && sidebarState.isOpen
-                                ? `calc(100% - ${documentContentEditorSidebarWidth})`
-                                : "100%",
-                    }}
-                >
-                    <OverlayScopeContextProvider>
-                        <Box position="relative" className={contentEditorStyles.containerClassName}>
-                            <ContentEditor
-                                ref={editorRef}
-                                state={editorState}
-                                onChange={(state, transaction) => {
-                                    onChangeEditorState(state);
+                <OverlayScopeContextProvider>
+                    <Box className={contentEditorStyles.containerClassName}>
+                        <ContentEditor
+                            ref={editorRef}
+                            state={editorState}
+                            onChange={(state, transaction) => {
+                                onChangeEditorState(state);
 
-                                    const createCommentThread: {
-                                        commentThreadId: DocumentCommentThreadId;
-                                        initialCommentContent: MessageContentWithReferences;
-                                        openCommentThreadPromiseRef?: {
-                                            current: Promise<void> | null;
-                                        };
-                                    } | null =
-                                        transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                                const createCommentThread: {
+                                    commentThreadId: DocumentCommentThreadId;
+                                    initialCommentContent: MessageContentWithReferences;
+                                    openCommentThreadPromiseRef?: {
+                                        current: Promise<void> | null;
+                                    };
+                                } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
 
-                                    if (
-                                        createCommentThread &&
-                                        createCommentThread.openCommentThreadPromiseRef &&
-                                        sidebarState.isOpen &&
-                                        sidebarState.animationState !== "Closing"
-                                    ) {
-                                        // `<ContentEditorCommentInput>` will wait on this promise before closing after
-                                        // creating a comment thread when it exists. If the sidebar is not already open
-                                        // then we rely on our document's global loading indicator to tell us when
-                                        // comments have successfully saved.
-                                        createCommentThread.openCommentThreadPromiseRef.current =
-                                            openCommentThread(createCommentThread.commentThreadId);
-                                    }
+                                if (
+                                    createCommentThread &&
+                                    createCommentThread.openCommentThreadPromiseRef &&
+                                    sidebarState.isOpen &&
+                                    sidebarState.animationState !== "Closing"
+                                ) {
+                                    // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                    // creating a comment thread when it exists. If the sidebar is not already open
+                                    // then we rely on our document's global loading indicator to tell us when
+                                    // comments have successfully saved.
+                                    createCommentThread.openCommentThreadPromiseRef.current =
+                                        openCommentThread(createCommentThread.commentThreadId);
+                                }
 
-                                    if (transaction.docChanged) {
-                                        onContentLocalChange?.();
-                                    }
-                                }}
-                                aria-label="Document"
-                                placeholder="Share your ideas…"
-                                withMobileLayout={withMobileLayout}
-                                // While the sidebar is open, don't render our document toolbar. It would be
-                                // weird for it to pop up when writing a comment.
-                                withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                                className={documentContentStyles.documentContentClassName}
-                                phantomSelections={phantomSelections}
-                                openCommentThread={openCommentThread}
-                                onCommentThreadPressedChange={(commentThreadId, isHovered) => {
-                                    setPressedCommentThreadId(pressedCommentThreadId => {
-                                        if (isHovered) return commentThreadId;
-                                        if (
-                                            !isHovered &&
-                                            pressedCommentThreadId === commentThreadId
-                                        )
-                                            return null;
-                                        return pressedCommentThreadId;
-                                    });
-                                }}
-                            />
-                            {
-                                // IMPORTANT: It's important that this element is below `<ContentEditor>` so
-                                // that `<ContentEditor>` is first in the tab order! This matters when
-                                // auto-focusing a document peek when we open it up.
-                                navigationBar
-                            }
-                            {useMemo(
-                                // Memoize side decorations since it can be an expensive component
-                                // to re-render. Especially during animations.
-                                () =>
-                                    !isMobile && (
-                                        <DocumentContentEditorSideDecorations
-                                            editorContainerWidth={editorContainerWidth}
-                                            contentReferences={content.references}
-                                            decorations={decorations}
-                                            openCommentThread={openCommentThread}
-                                        />
-                                    ),
-                                [
-                                    content.references,
-                                    decorations,
-                                    editorContainerWidth,
-                                    isMobile,
-                                    openCommentThread,
-                                ],
+                                if (transaction.docChanged) {
+                                    onContentLocalChange?.();
+                                }
+                            }}
+                            aria-label="Document"
+                            placeholder="Share your ideas…"
+                            withMobileLayout={withMobileLayout}
+                            // While the sidebar is open, don't render our document toolbar. It would be
+                            // weird for it to pop up when writing a comment.
+                            withoutMobileKeyboardToolbar={sidebarState.isOpen}
+                            className={documentContentStyles.documentContentClassName}
+                            phantomSelections={phantomSelections}
+                            fileAttachmentTarget={useMemo(
+                                () => ({type: "Document", documentId}),
+                                [documentId],
                             )}
-                        </Box>
-                    </OverlayScopeContextProvider>
-                </Box>
-                {sidebarState.isOpen && (
-                    <>
-                        {withMobileLayout && (
-                            <Box
-                                // While the mobile comment thread overlay is open render a cover to prevent
-                                // the user from interacting with the underlying document. Tapping the cover
-                                // will close the comment thread.
-                                position="absolute"
-                                zIndex="10"
-                                inset="0"
-                                onPointerDown={onSidebarClose}
-                            />
+                            onEnsureFileAttachmentTarget={ensureCreateDocument}
+                            openCommentThread={openCommentThread}
+                            onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                                setPressedCommentThreadId(pressedCommentThreadId => {
+                                    if (isHovered) return commentThreadId;
+                                    if (!isHovered && pressedCommentThreadId === commentThreadId)
+                                        return null;
+                                    return pressedCommentThreadId;
+                                });
+                            }}
+                        />
+                        {
+                            // IMPORTANT: It's important that this element is below `<ContentEditor>` so
+                            // that `<ContentEditor>` is first in the tab order! This matters when
+                            // auto-focusing a document peek when we open it up.
+                            navigationBar
+                        }
+                        {useMemo(
+                            // Memoize side decorations since it can be an expensive component
+                            // to re-render. Especially during animations.
+                            () =>
+                                !isMobile && (
+                                    <DocumentContentEditorSideDecorations
+                                        editorContainerWidth={editorContainerWidth}
+                                        contentReferences={content.references}
+                                        decorations={decorations}
+                                        openCommentThread={openCommentThread}
+                                    />
+                                ),
+                            [
+                                content.references,
+                                decorations,
+                                editorContainerWidth,
+                                isMobile,
+                                openCommentThread,
+                            ],
                         )}
+                    </Box>
+                </OverlayScopeContextProvider>
+            </Box>
+            {sidebarState.isOpen && (
+                <>
+                    {withMobileLayout && (
                         <Box
+                            // While the mobile comment thread overlay is open render a cover to prevent
+                            // the user from interacting with the underlying document. Tapping the cover
+                            // will close the comment thread.
                             position="absolute"
-                            zIndex="20"
-                            top={!withMobileLayout ? "0" : undefined}
-                            right={!withMobileLayout ? "-4" : "0"}
-                            left={!withMobileLayout ? undefined : "0"}
-                            paddingRight={!withMobileLayout ? "4" : undefined}
+                            zIndex="10"
+                            inset="0"
+                            onPointerDown={onSidebarClose}
+                        />
+                    )}
+                    <Box
+                        position="absolute"
+                        zIndex="20"
+                        top={!withMobileLayout ? "0" : undefined}
+                        right={!withMobileLayout ? "-4" : "0"}
+                        left={!withMobileLayout ? undefined : "0"}
+                        paddingRight={!withMobileLayout ? "4" : undefined}
+                        style={{
+                            width: !withMobileLayout
+                                ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
+                                  addRemLengths(
+                                      spacing[documentContentEditorSidebarWidth],
+                                      spacing["4"],
+                                  )
+                                : "100%",
+                            // In the mobile layout (mobile devices and peeks) we show the comment thread
+                            // in a bottom sheet. When the comment input is focused on mobile devices we
+                            // then animate the sidebar to take the full screen space since the virtual
+                            // keyboard will open and the user still needs to see comments. In peeks on
+                            // desktop we don't expand to fullscreen because the user can type on their
+                            // physical keyboard.
+                            height: !withMobileLayout
+                                ? undefined
+                                : `calc(100% - (${
+                                      isMobile
+                                          ? spacing["1"]
+                                          : spacing[documentContentEditorMobileSidebarInsetTop]
+                                  } + var(--safe-area-inset-top, 0px)))`,
+                            bottom: isMobile
+                                ? `-${spacing[documentContentEditorMobileSidebarInsetTop]}`
+                                : 0,
+                        }}
+                    >
+                        <Box
+                            ref={sidebarRef}
+                            width="full"
+                            height="full"
+                            borderLeft={!withMobileLayout ? "grey-10" : undefined}
+                            backgroundColor="grey-0"
+                            borderTopRadius={!withMobileLayout ? undefined : "3"}
+                            boxShadow={!withMobileLayout ? undefined : "elevation-40-from-bottom"}
+                            overflow="hidden"
                             style={{
-                                width: !withMobileLayout
-                                    ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
-                                      addRemLengths(documentContentEditorSidebarWidth, spacing["4"])
-                                    : "100%",
-                                // In the mobile layout (mobile devices and peeks) we show the comment thread
-                                // in a bottom sheet. When the comment input is focused on mobile devices we
-                                // then animate the sidebar to take the full screen space since the virtual
-                                // keyboard will open and the user still needs to see comments. In peeks on
-                                // desktop we don't expand to fullscreen because the user can type on their
-                                // physical keyboard.
-                                height: !withMobileLayout
-                                    ? undefined
-                                    : `calc(100% - (${
-                                          isMobile
-                                              ? spacing["1"]
-                                              : spacing[documentContentEditorMobileSidebarInsetTop]
-                                      } + var(--safe-area-inset-top, 0px)))`,
-                                bottom: isMobile
-                                    ? `-${spacing[documentContentEditorMobileSidebarInsetTop]}`
-                                    : 0,
+                                // Let the browser know we'll be basically immediately animating in the sidebar
+                                // so it can prepare a compositing layer.
+                                willChange: "transform",
                             }}
                         >
-                            <Box
-                                ref={sidebarRef}
-                                width="full"
-                                height="full"
-                                borderLeft={!withMobileLayout ? "grey-10" : undefined}
-                                backgroundColor="grey-0"
-                                borderTopRadius={!withMobileLayout ? undefined : "3"}
-                                boxShadow={
-                                    !withMobileLayout ? undefined : "elevation-40-from-bottom"
+                            <DocumentContentEditorSidebar
+                                pinnedCommentInputRef={pinnedCommentInputRef}
+                                documentId={documentId}
+                                content={content}
+                                isMobile={isMobile}
+                                withMobileLayout={withMobileLayout}
+                                mobileState={sidebarState.mobileState}
+                                onSidebarMobileFullScreenExpand={onSidebarMobileFullScreenExpand}
+                                onSidebarMobileFullScreenContract={
+                                    onSidebarMobileFullScreenContract
                                 }
-                                overflow="hidden"
-                                style={{
-                                    // Let the browser know we'll be basically immediately animating in the sidebar
-                                    // so it can prepare a compositing layer.
-                                    willChange: "transform",
-                                }}
-                            >
-                                <DocumentContentEditorSidebar
-                                    pinnedCommentInputRef={pinnedCommentInputRef}
-                                    documentId={documentId}
-                                    content={content}
-                                    isMobile={isMobile}
-                                    withMobileLayout={withMobileLayout}
-                                    mobileState={sidebarState.mobileState}
-                                    onSidebarMobileFullScreenExpand={
-                                        onSidebarMobileFullScreenExpand
-                                    }
-                                    onSidebarMobileFullScreenContract={
-                                        onSidebarMobileFullScreenContract
-                                    }
-                                    commentThreadId={sidebarState.commentThreadId}
-                                    onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
-                                    initialDataPromise={sidebarState.dataPromise}
-                                    isConnected={isConnected}
-                                    procedures={procedures}
-                                    subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                                    unpersistedResolutionStateByCommentThreadId={
-                                        unpersistedResolutionStateByCommentThreadId
-                                    }
-                                    totalDecoratedCommentThreads={totalDecoratedCommentThreads}
-                                    decorations={decorations}
-                                    commentThreadListViewRef={commentThreadListViewRef}
-                                    onClose={onSidebarClose}
-                                    openCommentThread={openCommentThread}
-                                />
-                            </Box>
+                                commentThreadId={sidebarState.commentThreadId}
+                                onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
+                                initialDataPromise={sidebarState.dataPromise}
+                                isConnected={isConnected}
+                                procedures={procedures}
+                                subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                unpersistedResolutionStateByCommentThreadId={
+                                    unpersistedResolutionStateByCommentThreadId
+                                }
+                                totalDecoratedCommentThreads={totalDecoratedCommentThreads}
+                                decorations={decorations}
+                                commentThreadListViewRef={commentThreadListViewRef}
+                                onClose={onSidebarClose}
+                                openCommentThread={openCommentThread}
+                            />
                         </Box>
-                        {isMobile &&
-                            (!sidebarState.mobileState.isFullScreen ||
-                                sidebarState.mobileState.animationState !== null) && (
-                                // On mobile while the comment thread is not fullscreen, we render a fake
-                                // comment input that when touched expands the comment thread to take the full
-                                // screen.
-                                <>
-                                    <Box
-                                        ref={mobileFakeCommentInputRef}
-                                        position="absolute"
-                                        zIndex="30"
-                                        left="0"
-                                        right="0"
-                                        bottom="0"
-                                        backgroundColor="grey-0"
-                                        style={{
-                                            paddingBottom:
-                                                "var(--window-safe-area-inset-bottom, 0px)",
-                                        }}
-                                        onPointerDown={event => {
-                                            const editorElement = assertExists(
-                                                mobileFakeCommentInputEditorRef.current,
-                                            );
+                    </Box>
+                    {isMobile &&
+                        (!sidebarState.mobileState.isFullScreen ||
+                            sidebarState.mobileState.animationState !== null) && (
+                            // On mobile while the comment thread is not fullscreen, we render a fake
+                            // comment input that when touched expands the comment thread to take the full
+                            // screen.
+                            <>
+                                <Box
+                                    ref={mobileFakeCommentInputRef}
+                                    position="absolute"
+                                    zIndex="30"
+                                    left="0"
+                                    right="0"
+                                    bottom="0"
+                                    backgroundColor="grey-0"
+                                    style={{
+                                        paddingBottom: "var(--window-safe-area-inset-bottom, 0px)",
+                                    }}
+                                    onPointerDown={event => {
+                                        const editorElement = assertExists(
+                                            mobileFakeCommentInputEditorRef.current,
+                                        );
 
-                                            if (
-                                                event.target instanceof HTMLElement &&
-                                                event.target !== editorElement &&
-                                                !editorElement.contains(event.target)
-                                            ) {
-                                                onSidebarMobileFullScreenExpand();
-                                            }
+                                        if (
+                                            event.target instanceof HTMLElement &&
+                                            event.target !== editorElement &&
+                                            !editorElement.contains(event.target)
+                                        ) {
+                                            onSidebarMobileFullScreenExpand();
+                                        }
+                                    }}
+                                >
+                                    <Box
+                                        paddingX={screenPaddingX}
+                                        paddingY={messageInputPaddingY}
+                                        display="flex"
+                                        gap="2"
+                                        style={{
+                                            height: messageInputMinHeight[
+                                                isMobile ? "mobile" : "desktop"
+                                            ],
                                         }}
                                     >
                                         <Box
-                                            paddingX={screenPaddingX}
-                                            paddingY={messageInputPaddingY}
-                                            display="flex"
-                                            gap="2"
+                                            ref={mobileFakeCommentInputEditorRef}
+                                            className={classNames(
+                                                contentStyles.docClassName,
+                                                isMobile && contentStyles.extraCompactDocClassName,
+                                            )}
+                                            flexGrow="1"
+                                            borderRadius={messageViewBubbleBorderRadius}
+                                            paddingX={messageViewBubblePaddingX}
+                                            paddingY={messageViewBubblePaddingY}
+                                            // If the user has a mouse, make this feel like a text input.
+                                            cursor="text"
+                                            style={{
+                                                height: messageViewBubbleMinHeight[
+                                                    isMobile ? "mobile" : "desktop"
+                                                ],
+                                                boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                                            }}
+                                            onPointerDown={() => {
+                                                onSidebarMobileFullScreenExpand({
+                                                    onAnimationFinished: () => {
+                                                        pinnedCommentInputRef.current?.focus();
+                                                    },
+                                                });
+                                            }}
+                                        >
+                                            <Box
+                                                className={paragraphClassName}
+                                                userSelect="none"
+                                                style={inputPlaceholderStyles}
+                                            >
+                                                Add a comment
+                                            </Box>
+                                        </Box>
+                                        <Box flexShrink="0" display="flex" alignItems="flex-end">
+                                            <Box
+                                                width={messageInputAccountAvatarSize}
+                                                style={{
+                                                    paddingTop:
+                                                        messageInputAccountAvatarPaddingY[
+                                                            isMobile ? "mobile" : "desktop"
+                                                        ],
+                                                    paddingBottom:
+                                                        messageInputAccountAvatarPaddingY[
+                                                            isMobile ? "mobile" : "desktop"
+                                                        ],
+                                                }}
+                                            >
+                                                <Box
+                                                    width={messageInputAccountAvatarSize}
+                                                    height={messageInputAccountAvatarSize}
+                                                    backgroundColor="grey-5"
+                                                    color="grey-30"
+                                                    borderRadius="full"
+                                                    display="flex"
+                                                    justifyContent="center"
+                                                    alignItems="center"
+                                                >
+                                                    <ArrowUp size={spacing["4"]} />
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                                {isNativeMobile && !isInert && (
+                                    // In our native mobile app, include an invisible bottom bar which only serves
+                                    // to make sure the vertical scroll indicator insets are correct.
+                                    <Box
+                                        id={`nmbb-${editorContainerId}`}
+                                        position="absolute"
+                                        left="0"
+                                        right="0"
+                                        bottom="0"
+                                        pointerEvents="none"
+                                        style={{
+                                            paddingBottom:
+                                                "var(--window-safe-area-inset-bottom, 0px)",
+                                            // Our native mobile wrapper looks for compositing layers created from an
+                                            // element with an ID that starts with `nmbb-` and ties their position to
+                                            // the tab bar and software keyboard. So we get smooth animations while the
+                                            // keyboard opens or the tab bar shifts offscreen. To create a compositing
+                                            // layer we need to set `will-change: transform`. It's not specified that
+                                            // `will-change: transform` MUST create a compositing layer, instead some
+                                            // browser engines implement this hint themselves as an optimization.
+                                            //
+                                            // It so happens that WebKit is one of those browsers. Here's the code in
+                                            // WebKit that does this: [part 1][1], [part 2][2].
+                                            //
+                                            // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                                            // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                                            willChange: "transform",
+                                        }}
+                                        // Suppress React hydration warnings in our native mobile app. The native
+                                        // mobile app sets the `transform` property on this element. Sometimes before
+                                        // React finishes hydrating. This is expected, React can ignore the difference.
+                                        suppressHydrationWarning={true}
+                                    >
+                                        <Box
                                             style={{
                                                 height: messageInputMinHeight[
                                                     isMobile ? "mobile" : "desktop"
                                                 ],
                                             }}
-                                        >
-                                            <Box
-                                                ref={mobileFakeCommentInputEditorRef}
-                                                className={classNames(
-                                                    contentStyles.docClassName,
-                                                    isMobile &&
-                                                        contentStyles.extraCompactDocClassName,
-                                                )}
-                                                flexGrow="1"
-                                                borderRadius={messageViewBubbleBorderRadius}
-                                                paddingX={messageViewBubblePaddingX}
-                                                paddingY={messageViewBubblePaddingY}
-                                                // If the user has a mouse, make this feel like a text input.
-                                                cursor="text"
-                                                style={{
-                                                    height: messageViewBubbleMinHeight[
-                                                        isMobile ? "mobile" : "desktop"
-                                                    ],
-                                                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                                                }}
-                                                onPointerDown={() => {
-                                                    onSidebarMobileFullScreenExpand({
-                                                        onAnimationFinished: () => {
-                                                            pinnedCommentInputRef.current?.focus();
-                                                        },
-                                                    });
-                                                }}
-                                            >
-                                                <Box
-                                                    className={paragraphClassName}
-                                                    userSelect="none"
-                                                    style={inputPlaceholderStyles}
-                                                >
-                                                    Add a comment
-                                                </Box>
-                                            </Box>
-                                            <Box
-                                                flexShrink="0"
-                                                display="flex"
-                                                alignItems="flex-end"
-                                            >
-                                                <Box
-                                                    width={messageInputAccountAvatarSize}
-                                                    style={{
-                                                        paddingTop:
-                                                            messageInputAccountAvatarPaddingY[
-                                                                isMobile ? "mobile" : "desktop"
-                                                            ],
-                                                        paddingBottom:
-                                                            messageInputAccountAvatarPaddingY[
-                                                                isMobile ? "mobile" : "desktop"
-                                                            ],
-                                                    }}
-                                                >
-                                                    <Box
-                                                        width={messageInputAccountAvatarSize}
-                                                        height={messageInputAccountAvatarSize}
-                                                        backgroundColor="grey-5"
-                                                        color="grey-30"
-                                                        borderRadius="full"
-                                                        display="flex"
-                                                        justifyContent="center"
-                                                        alignItems="center"
-                                                    >
-                                                        <ArrowUp size={spacing["4"]} />
-                                                    </Box>
-                                                </Box>
-                                            </Box>
-                                        </Box>
+                                        />
                                     </Box>
-                                    {isNativeMobile && !isInert && (
-                                        // In our native mobile app, include an invisible bottom bar which only serves
-                                        // to make sure the vertical scroll indicator insets are correct.
-                                        <Box
-                                            id={`nmbb-${editorContainerId}`}
-                                            position="absolute"
-                                            left="0"
-                                            right="0"
-                                            bottom="0"
-                                            pointerEvents="none"
-                                            style={{
-                                                paddingBottom:
-                                                    "var(--window-safe-area-inset-bottom, 0px)",
-                                                // Our native mobile wrapper looks for compositing layers created from an
-                                                // element with an ID that starts with `nmbb-` and ties their position to
-                                                // the tab bar and software keyboard. So we get smooth animations while the
-                                                // keyboard opens or the tab bar shifts offscreen. To create a compositing
-                                                // layer we need to set `will-change: transform`. It's not specified that
-                                                // `will-change: transform` MUST create a compositing layer, instead some
-                                                // browser engines implement this hint themselves as an optimization.
-                                                //
-                                                // It so happens that WebKit is one of those browsers. Here's the code in
-                                                // WebKit that does this: [part 1][1], [part 2][2].
-                                                //
-                                                // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
-                                                // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
-                                                willChange: "transform",
-                                            }}
-                                            // Suppress React hydration warnings in our native mobile app. The native
-                                            // mobile app sets the `transform` property on this element. Sometimes before
-                                            // React finishes hydrating. This is expected, React can ignore the difference.
-                                            suppressHydrationWarning={true}
-                                        >
-                                            <Box
-                                                style={{
-                                                    height: messageInputMinHeight[
-                                                        isMobile ? "mobile" : "desktop"
-                                                    ],
-                                                }}
-                                            />
-                                        </Box>
-                                    )}
-                                </>
-                            )}
-                    </>
-                )}
-                {mobileDiscardSidebarCommentInputModalState && (
-                    <ModalDialog
-                        title="Discard comment?"
-                        description="Continuing will discard your comment. Use the send button to save your comment."
-                        primaryButtonLabel="Discard"
-                        onClose={() => setMobileDiscardSidebarCommentInputModalState(null)}
-                        onPrimaryButtonPress={() => {
-                            pinnedCommentInputRef.current?.clear();
-                            mobileDiscardSidebarCommentInputModalState.onDiscard();
-                        }}
-                    />
-                )}
-                {useMemo(
-                    // We style hovered and active comments with a `<style>` element containing
-                    // CSS with a dynamic selector that changes when our state changes. We do this
-                    // for two reasons:
-                    //
-                    // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
-                    //    even if they are different elements in the DOM
-                    // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
-                    //    ProseMirror's mutation observer and since the observer doesn't know why
-                    //    the change happened it destroys and recreates the mark elements
-                    () =>
-                        activeCommentThreadId && (
-                            <style
-                                key={activeCommentThreadId}
-                                dangerouslySetInnerHTML={{
-                                    __html: contentStyles.commentActiveDynamicCssTemplate
-                                        .replaceAll(
-                                            "$containerId",
-                                            editorContainerId.replaceAll(":", "\\:"),
-                                        )
-                                        .replaceAll("$commentThreadId", activeCommentThreadId),
-                                }}
-                            />
-                        ),
-                    [activeCommentThreadId, editorContainerId],
-                )}
-            </Box>
-        </ContextMenuActions>
+                                )}
+                            </>
+                        )}
+                </>
+            )}
+            {mobileDiscardSidebarCommentInputModalState && (
+                <ModalDialog
+                    title="Discard comment?"
+                    description="Continuing will discard your comment. Use the send button to save your comment."
+                    primaryButtonLabel="Discard"
+                    onClose={() => setMobileDiscardSidebarCommentInputModalState(null)}
+                    onPrimaryButtonPress={() => {
+                        pinnedCommentInputRef.current?.clear();
+                        mobileDiscardSidebarCommentInputModalState.onDiscard();
+                    }}
+                />
+            )}
+            {useMemo(
+                // We style hovered and active comments with a `<style>` element containing
+                // CSS with a dynamic selector that changes when our state changes. We do this
+                // for two reasons:
+                //
+                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
+                //    even if they are different elements in the DOM
+                // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
+                //    ProseMirror's mutation observer and since the observer doesn't know why
+                //    the change happened it destroys and recreates the mark elements
+                () =>
+                    activeCommentThreadId && (
+                        <style
+                            key={activeCommentThreadId}
+                            dangerouslySetInnerHTML={{
+                                __html: contentStyles.commentActiveDynamicCssTemplate
+                                    .replaceAll(
+                                        "$containerId",
+                                        editorContainerId.replaceAll(":", "\\:"),
+                                    )
+                                    .replaceAll("$commentThreadId", activeCommentThreadId),
+                            }}
+                        />
+                    ),
+                [activeCommentThreadId, editorContainerId],
+            )}
+        </Box>
     );
 }
 
@@ -1969,11 +1977,28 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     if (commentThreadIds.length === 0) return null;
 
     return (state, doc, offset) => {
-        const coords = state.editor.coordsAtPos(offset);
+        let coords: {top: number; bottom: number; left: number; right: number} | undefined;
+
+        // If this is a non-text node like `file` then get the DOM element for the node
+        // and use the dimensions of that element instead of the result of
+        // `coordsAtPos()` which will have a height of 0.
+        if (!node.type.inlineContent && !node.type.isText) {
+            const nodeDom = state.editor.nodeDom(offset);
+            if (nodeDom instanceof Element) {
+                coords = nodeDom.getBoundingClientRect();
+            }
+        }
+
+        coords ??= state.editor.coordsAtPos(offset);
+
         const markTop =
             coords.top - state.editorContainerRect.top + state.editorContainerElement.scrollTop;
 
-        const markHeight = coords.bottom - coords.top;
+        const markHeight = Math.min(
+            coords.bottom - coords.top,
+            // Max height for large nodes like files.
+            convertRemLengthToPx(spacing["5"], getRemPxWithoutListening()),
+        );
 
         for (const commentThreadId of commentThreadIds) {
             if (state.seenCommentThreadIds.has(commentThreadId)) continue;
@@ -2150,7 +2175,7 @@ function DocumentContentEditorSidebar({
                 </>
             )}
             {(!mobileState.isFullScreen || mobileState.animationState === "Contracting") && (
-                <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center" gap="1">
+                <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center">
                     <IconButton
                         ref={previousCommentThreadButtonRef}
                         size={isMobile ? "md" : "xs"}
@@ -2167,7 +2192,7 @@ function DocumentContentEditorSidebar({
                     </IconButton>
                     {withMobileLayout && (
                         <Box
-                            paddingX={isMobile ? "1.5" : "1"}
+                            paddingX={isMobile ? "2.5" : "2"}
                             color="grey-70"
                             textAlign="center"
                             style={{fontVariantNumeric: "tabular-nums"}}
@@ -2196,7 +2221,8 @@ function DocumentContentEditorSidebar({
                     </IconButton>
                     {!withMobileLayout && decoratedCommentThreadIndex !== null && (
                         <Box
-                            paddingX="1.5"
+                            paddingLeft="2.5"
+                            paddingRight="1.5"
                             color="grey-70"
                             style={{fontVariantNumeric: "tabular-nums"}}
                         >
@@ -2327,6 +2353,12 @@ function DocumentContentEditorSidebar({
                                     (!mobileState.isFullScreen ||
                                         mobileState.animationState === "Expanding")
                                         ? spacing[documentContentEditorMobileSidebarInsetTop]
+                                        : undefined
+                                }
+                                // Provide the sidebar width for better layout results when previewing files.
+                                previewFileLayoutScreenWidth={
+                                    !withMobileLayout
+                                        ? spacing[documentContentEditorSidebarWidth]
                                         : undefined
                                 }
                                 // If we're focusing the pinned comment input because the user swiped to reply

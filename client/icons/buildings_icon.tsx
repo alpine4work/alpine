@@ -23,8 +23,8 @@ export function BuildingsIcon({
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
-            fill={color ?? contextColor}
             viewBox="0 0 256 256"
+            fill={color ?? contextColor}
             {...context}
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.

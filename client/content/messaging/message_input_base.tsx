@@ -34,16 +34,14 @@ import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
-import {
-    MobileFullScreenModal,
-    useIsBehindMobileFullScreenModal,
-} from "~/client/design/mobile_full_screen_modal.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {
     useRegisterBottomBarFrame,
     useWebMobileKeyboardToolbarSafeAreaInsetBottom,
 } from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -75,7 +73,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

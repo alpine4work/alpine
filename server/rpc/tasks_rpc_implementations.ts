@@ -6,6 +6,7 @@ import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {searchTaskCollections} from "~/server/tasks/data/task_index.js";
 import {
+    FileTaskAuthorizer,
     authorizeTaskAccess,
     backfillTaskComments,
     commitTaskActionTransaction,
@@ -107,11 +108,12 @@ export default implementRpcs(definitions, {
 
     getTaskNotesContentReferences: {
         visibility: ["TaskNotesCollaborationService"],
-        execute: async (context, input) => {
+        execute: async (context, {spaceId, taskId, referenceIds}) => {
             const references = await getContentReferences(
                 context,
-                input.spaceId,
-                input.referenceIds,
+                spaceId,
+                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                referenceIds,
             );
             return {references};
         },
@@ -123,10 +125,8 @@ export default implementRpcs(definitions, {
             const context = _context.actor.authorizeSession();
 
             const [{spaceId}, editResult] = await runAllPromises([
-                authorizeTaskAccess(context, input.taskId, "View", null),
-                captureResultPromise(() =>
-                    authorizeTaskAccess(context, input.taskId, "Edit", null),
-                ),
+                authorizeTaskAccess(context, input.taskId, "View"),
+                captureResultPromise(() => authorizeTaskAccess(context, input.taskId, "Edit")),
             ]);
 
             return {spaceId, editResult};
@@ -170,7 +170,16 @@ export default implementRpcs(definitions, {
 
             const [author, contentReferences] = await runAllPromises([
                 getAccount(context, spaceId, context.actor.getAccountId()),
-                getContentReferencesForNode(context, spaceId, input.content),
+                getContentReferencesForNode(
+                    context,
+                    spaceId,
+                    FileTaskAuthorizer.bind({
+                        type: "TaskComment",
+                        taskId: input.taskId,
+                        commentIndex: index,
+                    }),
+                    input.content,
+                ),
             ]);
 
             const comment = new TaskCommentModel({
@@ -203,6 +212,11 @@ export default implementRpcs(definitions, {
             const contentReferences = await getContentReferencesForNode(
                 context,
                 spaceId,
+                FileTaskAuthorizer.bind({
+                    type: "TaskComment",
+                    taskId: input.taskId,
+                    commentIndex: input.commentIndex,
+                }),
                 input.content,
             );
 

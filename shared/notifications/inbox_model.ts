@@ -73,17 +73,17 @@ export const InboxEntryKeySchema = Schema.union({
 export function getInboxEntryKeyPath(spaceId: SpaceId, key: InboxEntryKey): string {
     switch (key.type) {
         case "Chat":
-            return `/s/${spaceId}/chat/${key.chatId}`;
+            return `/s/${spaceId}/chat/${key.chatId}?inbox=show`;
         case "PostComments":
-            return `/s/${spaceId}/posts/${key.postId}`;
+            return `/s/${spaceId}/posts/${key.postId}?inbox=show`;
         case "ChannelPosts":
-            return `/s/${spaceId}/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}`;
+            return `/s/${spaceId}/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}?inbox=show`;
         case "DocumentCommentThread":
-            return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}`;
+            return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}?inbox=show`;
         case "DocumentNewCommentThreads":
-            return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}`;
+            return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
         case "Task":
-            return `/s/${spaceId}/tasks/${key.taskId}/comments`;
+            return `/s/${spaceId}/tasks/${key.taskId}/comments?inbox=show`;
         default:
             throw exhaustive(key);
     }

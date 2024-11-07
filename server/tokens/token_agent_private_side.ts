@@ -5,7 +5,9 @@ import {
     TokenPayloadSchema,
 } from "~/server/tokens/token_payload.js";
 import {TokenServiceName, tokenServiceShortNameByName} from "~/server/tokens/token_service_name.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
@@ -23,43 +25,61 @@ export class TokenAgentPrivateSide {
     protected readonly _serviceName: TokenServiceName;
     protected readonly _servicePrivateKeyForRs256: KeyLike;
     protected readonly _servicePrivateKeyForRsaOaep: KeyLike;
+    protected readonly _secretForHs256: Uint8Array;
 
     protected constructor({
         serviceName,
         servicePrivateKeyForRs256,
         servicePrivateKeyForRsaOaep,
+        secretForHs256,
     }: {
         serviceName: TokenServiceName;
         servicePrivateKeyForRs256: KeyLike;
         servicePrivateKeyForRsaOaep: KeyLike;
+        secretForHs256: Uint8Array;
     }) {
         this._serviceName = serviceName;
         this._servicePrivateKeyForRs256 = servicePrivateKeyForRs256;
         this._servicePrivateKeyForRsaOaep = servicePrivateKeyForRsaOaep;
+        this._secretForHs256 = secretForHs256;
     }
 
     public static async new({
         serviceName,
         servicePrivateKey: servicePrivateKeyString,
+        secret: secretString,
     }: {
         serviceName: TokenServiceName;
         servicePrivateKey: string;
+        secret: string;
     }) {
         const [servicePrivateKeyForRs256, servicePrivateKeyForRsaOaep] = await runAllPromises([
             importPKCS8(servicePrivateKeyString, "RS256"),
             importPKCS8(servicePrivateKeyString, "RSA-OAEP"),
         ]);
 
+        const secretForHs256 = decodeBase64(secretString.trim());
+        assert(secretForHs256.length === 32);
+
         return new TokenAgentPrivateSide({
             serviceName,
             servicePrivateKeyForRs256,
             servicePrivateKeyForRsaOaep,
+            secretForHs256,
         });
     }
 
     /**
      * Sign a token for a specific audience that only lives for a short period of
-     * time. (Less than ten minutes.)
+     * time. (Less than two minutes.)
+     *
+     * Uses RS256 as the signing algorithm. Which is an asymmetric cryptography
+     * algorithm. So each service has its own private key and other services verify
+     * it against their public key. If a service's private key is discovered by an
+     * attacker they still wouldn't be able to create keys that let them
+     * impersonate another service. (e.g. If `FileUploadService` is compromised an
+     * attacker couldn't use that access to create a session token as
+     * `AppService`.)
      *
      * This is used to authenticate the execution of a single action.
      *
@@ -93,6 +113,95 @@ export class TokenAgentPrivateSide {
     }
 
     /**
+     * Sign a URL for a specific audience that only lives for a short period of
+     * time. (Less than two minutes by default.) We only sign the `pathname` and
+     * `search` part of the URL.
+     *
+     * Uses HS256 as the signing algorithm. Unlike RS256 (used by
+     * `dangerouslySignShortLivedUrl()`) HS256 is a symmetric signing algorithm.
+     * This means all instances of `TokenAgent` across all our services have the
+     * same HS256 secret key. To learn more about these two algorithms read "[RS256
+     * vs HS256: What's The Difference?][1]". If an attacker gets access to
+     * `FileUploadService` than they'll be able to sign URLs same as `AppService`
+     * since they have the secret key.
+     *
+     * So HS256 is a little less secure than RS256 (but not by much, practically).
+     * We use it because it generates much shorter signatures (2.5x smaller!).
+     * Which is useful if you're signing a bunch of URLs and sending them all to
+     * the client. Like we do for file URLs.
+     *
+     * Useful if you need to make a `GET` request and the data you need to sign is
+     * all in the URL. We use this for signing file URLs (e.g. images) that the
+     * client needs to download with a separate HTTP request to `EdgeService`. By
+     * providing the client a signed URL, `EdgeService` doesn't have to reauthorize
+     * the client's access to a file.
+     *
+     * The signed URL has all the same behaviors as a JWT. The URL expires, can
+     * only be verified by an audience, and includes the issuer so we know which
+     * public key to verify with. We add a `sig` parameter which is a detached JWT.
+     * Taking inspiration from the [detached JWS format][2] which is
+     * `${protected}..${signature}` instead of
+     * `${protected}.${payload}.${signature}`.
+     *
+     * [1]: https://auth0.com/blog/rs256-vs-hs256-whats-the-difference/
+     * [2]: https://datatracker.ietf.org/doc/html/rfc7797#section-4.2
+     */
+    public async dangerouslySignShortLivedUrl(
+        audience: TokenServiceName | Array<TokenServiceName>,
+        originalUrl: URL,
+        {
+            currentTimeForTest,
+            expirationMinutes,
+        }: {currentTimeForTest?: Date; expirationMinutes?: number} = {},
+    ): Promise<URL> {
+        assert(currentTimeForTest === undefined || import.meta.jest);
+
+        if (originalUrl.searchParams.has("exp"))
+            throw new InvalidArgumentError('URL already has "exp" search param');
+        if (originalUrl.searchParams.has("iss"))
+            throw new InvalidArgumentError('URL already has "iss" search param');
+        if (originalUrl.searchParams.has("aud"))
+            throw new InvalidArgumentError('URL already has "aud" search param');
+        if (originalUrl.searchParams.has("sig"))
+            throw new InvalidArgumentError('URL already has "sig" search param');
+
+        const currentTime =
+            currentTimeForTest !== undefined ? currentTimeForTest.getTime() : Date.now();
+
+        const expirationTime = Math.floor(
+            (currentTime + 1000 * 60 * (expirationMinutes ?? 2)) / 1000,
+        );
+        const issuer = tokenServiceShortNameByName[this._serviceName];
+        const actualAudience =
+            typeof audience === "string"
+                ? tokenServiceShortNameByName[audience]
+                : audience.map(audience => tokenServiceShortNameByName[audience]);
+
+        const signer = new SignJWT({url: `${originalUrl.pathname}${originalUrl.search}`})
+            .setProtectedHeader({alg: "HS256"})
+            .setExpirationTime(expirationTime)
+            .setIssuer(issuer)
+            .setAudience(actualAudience);
+
+        const token = await signer.sign(this._secretForHs256);
+        const tokenParts = token.split(".", 3);
+        tokenParts[1] = "";
+        const detachedToken = tokenParts.join(".");
+
+        const url = new URL(originalUrl);
+
+        url.searchParams.set("exp", String(expirationTime));
+        url.searchParams.set("iss", issuer);
+        url.searchParams.set(
+            "aud",
+            typeof actualAudience === "string" ? actualAudience : actualAudience.join(","),
+        );
+        url.searchParams.set("sig", detachedToken);
+
+        return url;
+    }
+
+    /**
      * Decrypt some sensitive data that was encrypted with `encrypt()` (a JWE
      * string) with our token agent's private key.
      */
@@ -105,27 +214,32 @@ export class TokenAgentPrivateSide {
     }
 }
 
-export class AppServiceTokenAgentPrivateSide extends TokenAgentPrivateSide {
+export class TokenAgentAppServicePrivateSide extends TokenAgentPrivateSide {
     protected constructor({
         servicePrivateKeyForRs256,
         servicePrivateKeyForRsaOaep,
+        secretForHs256,
     }: {
         servicePrivateKeyForRs256: KeyLike;
         servicePrivateKeyForRsaOaep: KeyLike;
+        secretForHs256: Uint8Array;
     }) {
         super({
             serviceName: "AppService",
             servicePrivateKeyForRs256,
             servicePrivateKeyForRsaOaep,
+            secretForHs256,
         });
     }
 
     public static override async new({
         serviceName,
         servicePrivateKey: servicePrivateKeyString,
+        secret: secretString,
     }: {
         serviceName: TokenServiceName;
         servicePrivateKey: string;
+        secret: string;
     }) {
         assert(serviceName === "AppService");
 
@@ -134,9 +248,13 @@ export class AppServiceTokenAgentPrivateSide extends TokenAgentPrivateSide {
             importPKCS8(servicePrivateKeyString, "RSA-OAEP"),
         ]);
 
-        return new AppServiceTokenAgentPrivateSide({
+        const secretForHs256 = decodeBase64(secretString.trim());
+        assert(secretForHs256.length === 32);
+
+        return new TokenAgentAppServicePrivateSide({
             servicePrivateKeyForRs256,
             servicePrivateKeyForRsaOaep,
+            secretForHs256,
         });
     }
 

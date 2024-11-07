@@ -16,16 +16,7 @@ import type {
     PointerEventHandlers,
     PointerSensorProps,
 } from "@dnd-kit/core/dist/sensors";
-import {
-    ReactElement,
-    ReactNode,
-    RefObject,
-    createContext,
-    useContext,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {ReactElement, ReactNode, RefObject, useContext, useMemo, useRef, useState} from "react";
 import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -42,8 +33,9 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {fontSizesByPlatform} from "~/shared/design/fonts.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
+import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -55,12 +47,6 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
-
-const TaskGridViewHasDndContext = createContext(false);
-
-export function useHasTaskGridViewDndContext() {
-    return useContext(TaskGridViewHasDndContext);
-}
 
 export type TaskGridViewDraggableData =
     | {
@@ -457,8 +443,8 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
     const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
     assert(typeof activeData.type === "string");
 
-    const collisions: Array<CollisionDescriptor> = [];
-    let nearestFallbackCollision: CollisionDescriptor | null = null;
+    const intersectingCollisions: Array<CollisionDescriptor> = [];
+    let nearestNonIntersectingCollision: CollisionDescriptor | null = null;
 
     for (const droppableContainer of droppableContainers) {
         const droppableData = assertExists(
@@ -483,9 +469,10 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
 
         if (
             distance > 0 &&
-            (!nearestFallbackCollision || nearestFallbackCollision.data.value > distance)
+            (!nearestNonIntersectingCollision ||
+                nearestNonIntersectingCollision.data.value > distance)
         ) {
-            nearestFallbackCollision = {id, data: {droppableContainer, value: distance}};
+            nearestNonIntersectingCollision = {id, data: {droppableContainer, value: distance}};
         } else if (distance === 0) {
             // There may be more than a single rectangle intersecting with the pointer
             // coordinates. In order to sort the colliding rectangles, we measure the
@@ -509,17 +496,17 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
                     ),
                 0,
             );
-            const effectiveDistance = Number((distances / 4).toFixed(4));
+            const effectiveDistance = distances / 4;
 
-            collisions.push({id, data: {droppableContainer, value: effectiveDistance}});
+            intersectingCollisions.push({id, data: {droppableContainer, value: effectiveDistance}});
         }
     }
 
-    if (collisions.length > 0) {
-        return collisions.sort((a, b) => a.data.value - b.data.value);
+    if (intersectingCollisions.length > 0) {
+        return intersectingCollisions.sort((a, b) => a.data.value - b.data.value);
     }
 
-    return nearestFallbackCollision ? [nearestFallbackCollision] : [];
+    return nearestNonIntersectingCollision ? [nearestNonIntersectingCollision] : [];
 };
 
 function TaskRowViewDragPortals() {

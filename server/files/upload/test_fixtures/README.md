@@ -3,8 +3,13 @@ Files we use for testing our image processing in
 `${source}_${name}.${extension}`. Many files we've converted from their original format to another
 format using some image editor program (e.g. `.jpeg` to `.avif` conversion).
 
+Ideally, all examples in this folder are under 100 KB or even better under 50 KB. We take source
+images from the internet and shrink them down before making them a test fixture.
+
 Some links to sources we used (not all sources are listed):
 
+-   `blender_*`: Files derived from [Blender's Peach open movie project](https://peach.blender.org/)
+    which have a creative commons license. Most notably, the Big Buck Bunny movie.
 -   `file_examples_*`: Files from [File Examples](https://file-examples.com/) a service for
     developers and testers that provides sample documents. e.g. This
     [Microsoft Word sample](https://file-examples.com/index.php/sample-documents-download/sample-doc-download/).

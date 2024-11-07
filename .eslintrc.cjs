@@ -100,7 +100,14 @@ module.exports = {
     [Symbol.for("cyberworlds.typeCheckingOverride")]: typeCheckingConfigOverride,
 
     extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
-    plugins: ["@typescript-eslint", "jest", "jest-dom", "testing-library"],
+    plugins: [
+        "@typescript-eslint",
+        "jest",
+        "jest-dom",
+        "testing-library",
+        "react-compiler",
+        "react-refresh",
+    ],
     reportUnusedDisableDirectives: true,
     globals: {
         globalThis: true,
@@ -257,7 +264,10 @@ module.exports = {
         "react-hooks/exhaustive-deps": [
             "warn",
             {
-                additionalHooks: `^(${["useLayoutEffectWithoutServerSideWarning"].join("|")})$`,
+                additionalHooks: `^(${[
+                    "useInsertionEffect",
+                    "useLayoutEffectWithoutServerSideWarning",
+                ].join("|")})$`,
             },
         ],
     },
@@ -363,6 +373,24 @@ module.exports = {
 
                 // Inconvenient to annotate every type import with `import type`.
                 "@typescript-eslint/consistent-type-imports": "off",
+
+                // Error on `react-compiler` violations. This typically means we're breaking
+                // some React rule.
+                "react-compiler/react-compiler": "error",
+
+                // To improve our developer experience, make sure React files only export React
+                // components and constants. This way our hot reload implementation won't need
+                // to trigger a full page reload since some unrelated function or object
+                // changed.
+                //
+                // As a workaround you can export functions and objects as properties of your
+                // React component. For example `MyComponent.myFunction = myFunction`.
+                "react-refresh/only-export-components": [
+                    "warn",
+                    {
+                        allowConstantExport: true,
+                    },
+                ],
             },
         },
         // Check a global variable to let our ESLint test script disable lint rules
@@ -472,6 +500,35 @@ module.exports = {
                 // Our RPC implementations system also exports an RPC implementation
                 // object from the default export.
                 "import/no-default-export": "off",
+            },
+        },
+        {
+            files: ["app/routes/**/*", "app/root.*"],
+            rules: {
+                // To improve our developer experience, make sure React files only export React
+                // components and constants. This way our hot reload implementation won't need
+                // to trigger a full page reload since some unrelated function or object
+                // changed.
+                //
+                // As a workaround you can export functions and objects as properties of your
+                // React component. For example `MyComponent.myFunction = myFunction`.
+                "react-refresh/only-export-components": [
+                    "warn",
+                    {
+                        allowConstantExport: true,
+
+                        // Remix handles hot-reloading route files. Don't warn if Remix exports are
+                        // exported.
+                        allowExportNames: [
+                            "meta",
+                            "links",
+                            "headers",
+                            "loader",
+                            "action",
+                            "shouldRevalidate",
+                        ],
+                    },
+                ],
             },
         },
         {

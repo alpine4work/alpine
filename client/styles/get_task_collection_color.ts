@@ -1,5 +1,5 @@
 import {Sprinkles} from "~/client/styles/styles.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 
 /**
  * Get the color we render for a task collection's `ThemeColor`. This is in

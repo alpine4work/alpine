@@ -6,6 +6,7 @@ import {
     DocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state.js";
+import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {
     WebSocketClient,
     WebSocketClientProcedures,
@@ -17,6 +18,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -88,6 +90,10 @@ export class DocumentContentEditorWebSocketClient {
 
     public readonly documentId: DocumentId;
     private readonly _getContext: () => AppContext;
+    private readonly _addGlobalLoadingIndicator: (
+        promise: Promise<void>,
+        indicator: GlobalLoadingIndicator,
+    ) => void;
     private readonly _client: WebSocketClient<typeof DocumentCollaborationProtocol>;
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
@@ -104,13 +110,23 @@ export class DocumentContentEditorWebSocketClient {
         return this._client.state;
     }
 
-    constructor(
-        getContext: () => AppContext,
-        documentId: DocumentId,
-        initialState: DocumentContentEditorState,
-    ) {
+    constructor({
+        getContext,
+        addGlobalLoadingIndicator,
+        documentId,
+        initialState,
+    }: {
+        getContext: () => AppContext;
+        addGlobalLoadingIndicator: (
+            promise: Promise<void>,
+            indicator: GlobalLoadingIndicator,
+        ) => void;
+        documentId: DocumentId;
+        initialState: DocumentContentEditorState;
+    }) {
         this.documentId = documentId;
         this._getContext = getContext;
+        this._addGlobalLoadingIndicator = addGlobalLoadingIndicator;
         this._client = new WebSocketClient(
             getContext,
             "DocumentCollaborationService",
@@ -285,12 +301,6 @@ export class DocumentContentEditorWebSocketClient {
                     break;
                 }
                 case "PersistedContent": {
-                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                    // content has persisted!
-                    //
-                    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                    // close the page if we haven't finished saving their document. It will
-                    // look ok on their machine but might not be on the server.
                     this._dispatch({type: "Persisted", newVersion: event.newVersion});
                     break;
                 }
@@ -340,7 +350,26 @@ export class DocumentContentEditorWebSocketClient {
             }
         });
 
+        let savingPromiseResolver: PromiseResolver<void> | null = null;
+
         const unsubscribeFromState = this._state.subscribe(() => {
+            const state = this._state.getSnapshot();
+
+            const isSaving =
+                state.pendingSendableSteps !== null ||
+                (state.lastReceivedSendableStepsVersion !== null &&
+                    state.lastReceivedSendableStepsVersion > state.persistedVersion);
+
+            if (savingPromiseResolver === null && isSaving) {
+                savingPromiseResolver = createPromiseResolver();
+                this._addGlobalLoadingIndicator(savingPromiseResolver.promise, {type: "Saving"});
+            }
+
+            if (savingPromiseResolver !== null && !isSaving) {
+                savingPromiseResolver.resolve();
+                savingPromiseResolver = null;
+            }
+
             maybeSendUpdatesToServer();
         });
 
@@ -522,7 +551,27 @@ export class DocumentContentEditorWebSocketClient {
             unsubscribeFromClientState();
             unsubscribeFromClientMessages();
             unsubscribeFromState();
-            this._client.disconnect();
+
+            void this._client.disconnect().finally(() => {
+                // Only resolve our saving promise once the client actually disconnects. Since
+                // if we're soft closing the connection we want to wait for any `updateContent`
+                // procedures to finish. Two downsides here:
+                //
+                // 1. If there are other pending procedures besides `updateContent` we'll have
+                //    to wait for those to finish too.
+                //
+                // 2. Just because `updateContent` finished doesn't mean our content has
+                //    persisted. A soft closed client won't receive a `PersistedContent`
+                //    message.
+                //
+                // A better approach is to leave a phantom WebSocket connection until we see a
+                // `PersistedContent` message and then disconnect. But that's complicated so
+                // I'm writing it like this for now.
+                if (savingPromiseResolver !== null) {
+                    savingPromiseResolver.resolve();
+                    savingPromiseResolver = null;
+                }
+            });
         };
     }
 

@@ -3,14 +3,14 @@
 // `client/messaging`. For example `client/content`.
 
 import {contentStyles} from "~/client/styles/styles.js";
-import {fontSizesByPlatform} from "~/shared/design/fonts.js";
+import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
     Spacing,
     addRemLengths,
     parseRemLengthNumber,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const messageViewBubbleMinWidth: Spacing = "6";
@@ -84,3 +84,8 @@ export const messageInputMinHeight = mapObjectValues(
             spacing[messageInputPaddingY],
         ),
 );
+
+export const messagingViewMarginBottomCalcExpression =
+    "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
+
+export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcExpression})`;

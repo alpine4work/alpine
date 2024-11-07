@@ -10,7 +10,7 @@ import {
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";

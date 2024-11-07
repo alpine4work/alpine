@@ -5,21 +5,21 @@ import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
-    useNavigationBar,
-} from "~/client/design/navigation_bar.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+} from "~/client/design/navigation_bar_helpers.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -188,7 +188,7 @@ export function ChannelMobileEditor({
                                             }));
                                         }}
                                         className={sprinkles({
-                                            paddingX: "0.5",
+                                            paddingX: "2.5",
                                             paddingY: "1.5",
                                         })}
                                         // Always in editing mode. User won't be reading while in the modal.

@@ -2,6 +2,7 @@ import {addMinutes, subMinutes} from "date-fns";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     archiveInboxEntry,
     backfillInboxEntries,
@@ -35,7 +36,6 @@ import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
-    createSimplePostContent,
     emptyPostContent,
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
@@ -6824,6 +6824,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: null,
                 endCursorBound: null,
                 pageInfo: {
@@ -7007,6 +7008,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: expect.any(String),
                 endCursorBound: null,
                 pageInfo: {
@@ -7139,6 +7141,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: expect.any(String),
                 endCursorBound: null,
                 pageInfo: {
@@ -7244,6 +7247,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: null,
                 endCursorBound: expect.any(String),
                 pageInfo: {
@@ -7402,6 +7406,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual({
                 readTime: expect.any(Date),
                 indexName: "InboxEntries",
+                partitionKey: expect.any(String),
                 startCursorBound: null,
                 endCursorBound: expect.any(String),
                 pageInfo: {
@@ -12105,7 +12110,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 otherPostAuthor: null,
                             }),
                         },
-                        cursorByIndexName: expect.any(Map),
+                        indexes: expect.any(Map),
                     },
                 ],
             });
@@ -12174,7 +12179,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 otherPostAuthor: null,
                             }),
                         },
-                        cursorByIndexName: expect.any(Map),
+                        indexes: expect.any(Map),
                     },
                 ],
             });
@@ -12198,15 +12203,8 @@ for (const [currentProcessingType, processingMultiple] of [
         const session1 = await space.createSession();
         const session2 = await space.createSession();
 
-        const channel = await createChannel(session1.action(), {
-            spaceId: space.id,
-            name: "Test channel",
-        });
-
-        const post = await createPost(session1.action(), {
-            channelId: channel.id,
-            content: createSimplePostContent("Test post"),
-        });
+        const channel = await TestChannel.create(session1);
+        const post = await channel.createPost(session1);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12611,15 +12609,8 @@ for (const [currentProcessingType, processingMultiple] of [
         const session1 = await space.createSession({hasInternalAccess: true});
         const session2 = await space.createSession();
 
-        const channel = await createChannel(session1.action(), {
-            spaceId: space.id,
-            name: "Test channel",
-        });
-
-        const post = await createPost(session2.action(), {
-            channelId: channel.id,
-            content: createSimplePostContent("Test post"),
-        });
+        const channel = await TestChannel.create(session1);
+        const post = await channel.createPost(session2);
 
         await expect(
             getInboxEntry(session2.action(), {

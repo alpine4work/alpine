@@ -2,7 +2,7 @@ import {
     messageInputMinHeight,
     messageViewMinHeight,
 } from "~/client/styles/messaging_shared_styles.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const documentCommentThreadPreviewHeight = "48";
@@ -30,3 +30,5 @@ export const documentCommentThreadCountAgainstLimit = mapObjectValues(
             addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight[platform]),
         ) / parseRemLengthNumber(messageViewMinHeight),
 );
+
+export const documentContentEditorSidebarWidth = "96";

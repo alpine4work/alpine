@@ -12,14 +12,16 @@ import {
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
-import {fontSizesByPlatform} from "~/shared/design/fonts.js";
-import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {
     DocumentContentReferences,
     UncheckedDocumentContentWithReferences,
+    mergeDocumentContentReferences,
 } from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -35,6 +37,7 @@ export function DocumentCommentThreadPreview({
     contentReferences,
     onCommentThreadSnippetPress,
     isResolveButtonPending,
+    fileLayoutScreenWidthRem,
 }: {
     withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
@@ -43,6 +46,7 @@ export function DocumentCommentThreadPreview({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
     isResolveButtonPending: boolean;
+    fileLayoutScreenWidthRem: number;
 }) {
     const remPx = useRemPx();
     const previewRef = useRef<HTMLDivElement>(null);
@@ -70,7 +74,29 @@ export function DocumentCommentThreadPreview({
     if (previousContent && currentContent && previousContent !== currentContent)
         setPreviousContent(currentContent);
 
-    const content = currentContent ?? previousContent ?? commentThread.fallbackContentSnippet;
+    const contentWithoutUpdatedReferences =
+        currentContent ?? previousContent ?? commentThread.fallbackContentSnippet;
+
+    // We'll lose content reference updates when this component unmounts (e.g.
+    // because the user scrolled their virtualized scroll view). So ideally
+    // we'd update the content references wherever we're sourcing the data from
+    // (e.g. `DocumentCommentThreadModel` if we're using
+    // `commentThread.fallbackContentSnippet` and the document itself if we're
+    // using `currentContent`). We're not doing that for now because it's complex.
+    const [updatedContentReferences, setUpdatedContentReferences] =
+        useState<DocumentContentReferences | null>(null);
+
+    const content = useMemo(() => {
+        const content = contentWithoutUpdatedReferences;
+        if (!content) return null;
+
+        return {
+            doc: content.doc,
+            references: updatedContentReferences
+                ? mergeDocumentContentReferences(content.references, updatedContentReferences)
+                : content.references,
+        };
+    }, [contentWithoutUpdatedReferences, updatedContentReferences]);
 
     // NOTE(calebmer): This offset was picked to intentionally clip off some text
     // from the top and bottom lines in a block of text to make it clear you're
@@ -133,6 +159,11 @@ export function DocumentCommentThreadPreview({
     if (showMarkRemovedWarning !== shouldShowMarkRemovedWarning && !isResolveButtonPending) {
         setShowMarkRemovedWarning(shouldShowMarkRemovedWarning);
     }
+
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "Document", documentId: commentThread.documentId}),
+        [commentThread.documentId],
+    );
 
     return (
         <FocusRing offset="border">
@@ -198,10 +229,25 @@ export function DocumentCommentThreadPreview({
                             <ContentView
                                 withMobileLayout={withMobileLayout}
                                 content={content}
+                                onMergeContentReferences={references => {
+                                    setUpdatedContentReferences(updatedContentReferences =>
+                                        updatedContentReferences
+                                            ? mergeDocumentContentReferences(
+                                                  updatedContentReferences,
+                                                  references,
+                                              )
+                                            : references,
+                                    );
+                                }}
                                 // Don't allow interacting with the content at all. (Like clicking links.)
                                 // Clicking on the preview opens it in the document.
                                 isInert={true}
                                 shouldHighlightComment={shouldHighlightComment}
+                                fileLayoutScreenWidth={
+                                    (fileLayoutScreenWidthRem / documentCommentThreadPreviewScale) *
+                                    remPx
+                                }
+                                fileAttachmentTarget={fileAttachmentTarget}
                             />
                         )}
                     </Box>

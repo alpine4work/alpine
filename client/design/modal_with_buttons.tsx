@@ -3,8 +3,8 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {Modal} from "~/client/design/modal.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {RemLength, Spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -34,6 +34,7 @@ function ModalWithButtons(
         shouldHideCancelButton,
         onClose,
         "aria-describedby": ariaDescribedBy,
+        "data-ownedby": dataOwnedBy,
         maxWidth,
         withoutCloseAnimation,
         withoutCloseButton,
@@ -55,6 +56,7 @@ function ModalWithButtons(
         shouldHideCancelButton?: boolean;
         onClose: () => void;
         "aria-describedby"?: string;
+        "data-ownedby"?: string;
         maxWidth?: Spacing | RemLength;
         withoutCloseAnimation?: boolean;
         withoutCloseButton?: boolean;
@@ -83,6 +85,7 @@ function ModalWithButtons(
         <Modal
             aria-labelledby={ariaLabelledBy}
             aria-describedby={ariaDescribedBy}
+            data-ownedby={dataOwnedBy}
             onClose={onClose}
             maxWidth={maxWidth}
             withoutCloseAnimation={withoutCloseAnimation}

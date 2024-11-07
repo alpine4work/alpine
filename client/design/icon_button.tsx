@@ -21,7 +21,7 @@ import {
     addTriggeredOverlayOpenEventListener,
     removeTriggeredOverlayCloseEventListener,
     removeTriggeredOverlayOpenEventListener,
-} from "~/client/design/overlay_trigger_button.js";
+} from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
@@ -37,9 +37,10 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
@@ -49,6 +50,7 @@ export type IconButtonVariant =
     | "quiet"
     | "quiet-above-grey-5-background"
     | "quiet-above-grey-5-dark-background"
+    | "quiet-above-content-file-viewer-modal"
     | "outline";
 
 export type IconButtonSize = "lg" | "base" | "md" | "sm" | "xs";
@@ -339,75 +341,140 @@ function IconButton(
 
     const isHoveredOrTriggeredOverlayOpen = isHovered || isTriggeredOverlayOpen;
 
-    const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {
-        accent: !isDisabled
-            ? {
-                  backgroundColor: accentThemeBackgroundColor,
-                  color: accentThemeForegroundColor,
-              }
-            : {
-                  backgroundColor: "grey-5",
-                  color: "grey-30",
-              },
-        quiet: !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-10"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-5"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-70",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-above-grey-5-background": !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? "grey-20"
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? "grey-10"
-                      : undefined,
-                  color: isPressed ? "grey-100" : "grey-70",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        "quiet-above-grey-5-dark-background": !isDisabled
-            ? {
-                  backgroundColor: isPressed
-                      ? {light: "grey-10", dark: "grey-20"}
-                      : isHoveredOrTriggeredOverlayOpen
-                      ? {light: "grey-5", dark: "grey-10"}
-                      : undefined,
-                  color: isPressed ? "grey-90" : "grey-70",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-        outline: !isDisabled
-            ? {
-                  backgroundColor: isPressed ? "grey-10" : undefined,
-                  color: "grey-100",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
-    };
+    let styles: Sprinkles;
+    let isQuietVariant = false;
 
-    const {buttonSize, iconSize} = (
-        {
-            lg: {buttonSize: "8", iconSize: "5"},
-            base: {buttonSize: "7", iconSize: "5"},
-            md: {buttonSize: "6", iconSize: "4"},
-            sm: {buttonSize: "5", iconSize: "4"},
-            xs: {buttonSize: "5", iconSize: "3"},
-        } as const
-    )[size];
+    switch (variant) {
+        case "accent": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: accentThemeBackgroundColor,
+                      color: accentThemeForegroundColor,
+                  }
+                : {
+                      backgroundColor: "grey-5",
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-10"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-5"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-70",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-above-grey-5-background": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? "grey-20"
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? "grey-10"
+                          : undefined,
+                      color: isPressed ? "grey-100" : "grey-70",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        case "quiet-above-grey-5-dark-background": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? {light: "grey-10", dark: "grey-20"}
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? {light: "grey-5", dark: "grey-10"}
+                          : undefined,
+                      color: isPressed ? "grey-90" : "grey-70",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        // Variant for a quiet icon button specifically over our
+        // `<ContentFileViewerModal>` component which has hand picked dark grey
+        // background color for both light and dark mode.
+        case "quiet-above-content-file-viewer-modal": {
+            isQuietVariant = true;
+
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed
+                          ? {light: "grey-40-const", dark: "grey-60-const"}
+                          : isHoveredOrTriggeredOverlayOpen
+                          ? {light: "grey-50-const", dark: "grey-70-const"}
+                          : undefined,
+                      color: isPressed ? "grey-0-const" : "grey-10-const",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30-const",
+                  };
+            break;
+        }
+        case "outline": {
+            styles = !isDisabled
+                ? {
+                      backgroundColor: isPressed ? "grey-10" : undefined,
+                      color: "grey-100",
+                  }
+                : {
+                      backgroundColor: undefined,
+                      color: "grey-30",
+                  };
+            break;
+        }
+        default:
+            throw exhaustive(variant);
+    }
+
+    let buttonSize: Spacing;
+    let iconSize: Spacing;
+
+    switch (size) {
+        case "lg":
+            buttonSize = "8";
+            iconSize = "5";
+            break;
+        case "base":
+            buttonSize = "7";
+            iconSize = "5";
+            break;
+        case "md":
+            buttonSize = "6";
+            iconSize = "4";
+            break;
+        case "sm":
+            buttonSize = "5";
+            iconSize = "4";
+            break;
+        case "xs":
+            buttonSize = "5";
+            iconSize = "3";
+            break;
+        default:
+            throw exhaustive(size);
+    }
 
     const touchSlop = useTouchSlop(buttonSize);
 
@@ -415,11 +482,6 @@ function IconButton(
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
     const shouldShowPendingSpinner =
         useDelayLoadingIndicator(isPending) && !withoutLoadingIndicator;
-
-    const isQuietVariant =
-        variant === "quiet" ||
-        variant === "quiet-above-grey-5-background" ||
-        variant === "quiet-above-grey-5-dark-background";
 
     const isOutlineVariant = variant === "outline";
 
@@ -472,9 +534,15 @@ function IconButton(
             isDisabled={isDisabled || withoutTooltip || isPending}
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
         >
-            <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
+            <FocusRing
+                offset={isQuietVariant ? "0" : "0.5"}
+                // Make sure the `<FocusRing>` doesn't render around the touch slop area. Just
+                // the button area.
+                inset={touchSlop.slop}
+            >
                 {createElement(
                     isFocusable ? "button" : "div",
+                    // eslint-disable-next-line react-compiler/react-compiler
                     {
                         ...mergeProps(buttonProps, hoverProps, {onPointerLeave, onKeyDownCapture}),
                         ref: useCallback(
@@ -542,10 +610,8 @@ function IconButton(
                             cursor: "default",
                             position: "relative",
                             zIndex: "0",
-                            ...stylesByVariant[variant],
-                            backgroundColor:
-                                backgroundColorFromProps ??
-                                stylesByVariant[variant].backgroundColor,
+                            ...styles,
+                            backgroundColor: backgroundColorFromProps ?? styles.backgroundColor,
                         })}
                         style={{
                             // Use a box-shadow for drawing the border so it doesn't affect layout.

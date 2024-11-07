@@ -13,12 +13,14 @@ import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -864,6 +866,23 @@ type TaskCollectionEssentialAttributesItemBase = Omit<
 type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 
 type TaskCommentItem = DynamoTableItemType<typeof TaskTable, "Task", "Comments">;
+
+export const FileTaskAuthorizer = FileAuthorizer.new(
+    TaskTable,
+    "Task",
+    async (context, target, spaceId, expectedAccessLevel) => {
+        switch (target.type) {
+            case "TaskNotes":
+                await authorizeTaskAccess(context, target.taskId, expectedAccessLevel);
+                break;
+            case "TaskComment":
+                await authorizeTaskAccess(context, target.taskId, "Comment");
+                break;
+            default:
+                throw exhaustive(target);
+        }
+    },
+);
 
 /**
  * Scan every task and task collection in our database. Use when
@@ -3947,7 +3966,7 @@ export async function authorizeTaskAccess(
         getCollectionIndexDocIfExists: (
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
-    } | null,
+    } | null = null,
 ): Promise<{spaceId: SpaceId; createdTime: HybridLogicalTime}> {
     switch (context.actor.type) {
         case "System": {
@@ -3994,34 +4013,40 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     let taskItem: TaskEssentialAttributesItem | null = null;
     let taskCommentsSummaryItem: TaskCommentsSummaryItem | null = null;
 
-    for await (const item of TaskTable.query(context, {
-        partitionKey: {
-            partitionType: "Task",
-            taskId,
-        },
-        startSortKey: {
-            sortRangeType: "EssentialAttributes",
-        },
-        endSortKey: {
-            sortRangeType: "CommentsSummary",
-        },
-        limit: "All",
-        consistency,
-    })) {
-        if (item.sortRangeType === "EssentialAttributes") {
-            taskItem = item;
-        } else if (item.sortRangeType === "CommentsSummary") {
-            taskCommentsSummaryItem = item;
+    const taskItemPromise = (async () => {
+        for await (const item of TaskTable.query(context, {
+            partitionKey: {
+                partitionType: "Task",
+                taskId,
+            },
+            startSortKey: {
+                sortRangeType: "EssentialAttributes",
+            },
+            endSortKey: {
+                sortRangeType: "CommentsSummary",
+            },
+            limit: "All",
+            consistency,
+        })) {
+            if (item.sortRangeType === "EssentialAttributes") {
+                taskItem = item;
+            } else if (item.sortRangeType === "CommentsSummary") {
+                taskCommentsSummaryItem = item;
+            }
         }
-    }
 
-    if (!taskItem) {
-        throw new NotFoundError("Task not found");
-    }
+        if (!taskItem) {
+            throw new NotFoundError("Task not found");
+        }
+
+        return taskItem;
+    })();
 
     // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
     // the same `TaskId` later.
-    TaskItemAuthorizationCache.set(context, taskId, taskItem);
+    TaskItemAuthorizationCache.set(context, taskId, taskItemPromise);
+
+    taskItem = await taskItemPromise;
 
     switch (context.actor.type) {
         case "System": {
@@ -4087,36 +4112,42 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
     let commentsSummaryItem: TaskCommentsSummaryItem | null = null;
     let notesItem: TaskNotesItem | null = null;
 
-    for await (const currentItem of TaskTable.query(context, {
-        partitionKey: {
-            partitionType: "Task",
-            taskId,
-        },
-        startSortKey: {
-            sortRangeType: "EssentialAttributes",
-        },
-        endSortKey: {
-            sortRangeType: "Notes",
-        },
-        limit: "All",
-        consistency,
-    })) {
-        if (currentItem.sortRangeType === "EssentialAttributes") {
-            item = currentItem;
-        } else if (currentItem.sortRangeType === "CommentsSummary") {
-            commentsSummaryItem = currentItem;
-        } else if (currentItem.sortRangeType === "Notes") {
-            notesItem = currentItem;
+    const itemPromise = (async () => {
+        for await (const currentItem of TaskTable.query(context, {
+            partitionKey: {
+                partitionType: "Task",
+                taskId,
+            },
+            startSortKey: {
+                sortRangeType: "EssentialAttributes",
+            },
+            endSortKey: {
+                sortRangeType: "Notes",
+            },
+            limit: "All",
+            consistency,
+        })) {
+            if (currentItem.sortRangeType === "EssentialAttributes") {
+                item = currentItem;
+            } else if (currentItem.sortRangeType === "CommentsSummary") {
+                commentsSummaryItem = currentItem;
+            } else if (currentItem.sortRangeType === "Notes") {
+                notesItem = currentItem;
+            }
         }
-    }
 
-    if (!item) {
-        throw new NotFoundError("Task not found");
-    }
+        if (!item) {
+            throw new NotFoundError("Task not found");
+        }
+
+        return item;
+    })();
 
     // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
     // the same `TaskId` later.
-    TaskItemAuthorizationCache.set(context, taskId, item);
+    TaskItemAuthorizationCache.set(context, taskId, itemPromise);
+
+    item = await itemPromise;
 
     switch (context.actor.type) {
         case "System": {
@@ -4222,11 +4253,11 @@ async function authorizeTaskItemAccess(
 }
 
 export async function getTaskComment(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
     const [{spaceId}, commentsSummaryItem] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment", null),
+        authorizeTaskAccess(context, taskId, "Comment"),
         TaskTable.getItem(context, {
             partitionType: "Task",
             sortRangeType: "Comments",
@@ -4255,7 +4286,7 @@ export async function getTaskCommentPayload(
     payload: MessagePayload;
 }> {
     const [, item] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment", null),
+        authorizeTaskAccess(context, taskId, "Comment"),
         TaskTable.getItem(
             context,
             {
@@ -4276,13 +4307,22 @@ export async function getTaskCommentPayload(
 }
 
 async function createTaskCommentModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: TaskCommentItem,
 ): Promise<TaskCommentModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
-        createMessagePayloadModel(context, spaceId, item.payload),
+        createMessagePayloadModel(
+            context,
+            spaceId,
+            FileTaskAuthorizer.bind({
+                type: "TaskComment",
+                taskId: item.taskId,
+                commentIndex: item.commentIndex,
+            }),
+            item.payload,
+        ),
     ]);
 
     return new TaskCommentModel({
@@ -4301,7 +4341,7 @@ export async function getTaskOwner(
     context: ServerActionContext,
     taskId: TaskId,
 ): Promise<AccountModel> {
-    await authorizeTaskAccess(context, taskId, "View", null);
+    await authorizeTaskAccess(context, taskId, "View");
 
     const taskItem = await getTaskItemForAuthorization(context, taskId, null);
 
@@ -4688,7 +4728,7 @@ export async function createTaskComment(
 }
 
 export async function getTaskCommentsFromStart(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         limit,
@@ -4742,7 +4782,7 @@ export async function getTaskCommentsFromStart(
 }
 
 async function getTaskCommentsFromStartAssumingAuthorizedTask(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         getSpaceId,
@@ -4864,7 +4904,7 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
  * Efficiently load a task's notes and initial comments at the same time.
  */
 export async function getTaskNotesContentAndInitialComments(
-    context: ServerSessionActionContext,
+    context: ServerContentActionContext,
     {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
 ): Promise<{
     notes: {
@@ -4897,6 +4937,7 @@ export async function getTaskNotesContentAndInitialComments(
                                 references: await getContentReferencesForNode(
                                     context,
                                     spaceId,
+                                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                                     notesItem?.content ?? emptyTaskNotesContent,
                                 ),
                             },
@@ -4943,7 +4984,7 @@ export async function getTaskNotesContentAndInitialComments(
 }
 
 export async function getTaskCommentsFromEnd(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         limit,
@@ -4997,7 +5038,7 @@ export async function getTaskCommentsFromEnd(
 }
 
 async function getTaskCommentsFromEndAssumingAuthorizedTask(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         getSpaceId,
@@ -5124,7 +5165,7 @@ export type TaskCommentChangesResult =
       };
 
 export async function backfillTaskComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         clientCommentCount,
@@ -5218,7 +5259,7 @@ export async function backfillTaskComments(
 }
 
 async function queryTaskCommentChangeLogAssumingAuthorizedTask(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         commentsSummaryItem,
         spaceId,
@@ -5296,6 +5337,11 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
                             references: await getContentReferencesForNode(
                                 context,
                                 spaceId,
+                                FileTaskAuthorizer.bind({
+                                    type: "TaskComment",
+                                    taskId: item.taskId,
+                                    commentIndex: item.commentIndex,
+                                }),
                                 item.change.content,
                             ),
                         },
@@ -5737,7 +5783,7 @@ export function getTaskNotesContentWithoutReferences(
  * Get the current notes content for some task.
  */
 export function getTaskNotesContent(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;
@@ -5756,6 +5802,7 @@ export function getTaskNotesContent(
                 references: await getContentReferencesForNode(
                     context,
                     spaceId,
+                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                     notesItem?.content ?? emptyTaskNotesContent,
                 ),
             },

@@ -1,15 +1,15 @@
 import {useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
-    flushNavigationBarScrollEvent,
+    flushNavigationBarScrollEventEmitter,
     getNavigationBarHeightRemWithoutListening,
-} from "~/client/design/navigation_bar.js";
+} from "~/client/design/navigation_bar_helpers.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
 export const textInputVisibilityMaintainerMarginYRem = parseRemLengthNumber(spacing["5"]);
@@ -192,11 +192,11 @@ export function useTextInputVisibilityMaintainer() {
                     // `requestAnimationFrame()` appears to work.
                     if (!isMobileWebKit) {
                         scrollableElement.scrollTop = scrollTop;
-                        flushNavigationBarScrollEvent(scrollableElement);
+                        flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                     } else {
                         requestAnimationFrame(() => {
                             scrollableElement!.scrollTop = scrollTop;
-                            flushNavigationBarScrollEvent(scrollableElement!);
+                            flushNavigationBarScrollEventEmitter.emit(scrollableElement!);
                         });
                     }
                 }
@@ -214,11 +214,11 @@ export function useTextInputVisibilityMaintainer() {
                     // `requestAnimationFrame()` appears to work.
                     if (!isMobileWebKit) {
                         scrollableElement.scrollTop = scrollTop;
-                        flushNavigationBarScrollEvent(scrollableElement);
+                        flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                     } else {
                         requestAnimationFrame(() => {
                             scrollableElement!.scrollTop = scrollTop;
-                            flushNavigationBarScrollEvent(scrollableElement!);
+                            flushNavigationBarScrollEventEmitter.emit(scrollableElement!);
                         });
                     }
                 }

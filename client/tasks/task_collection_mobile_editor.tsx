@@ -3,14 +3,14 @@ import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 

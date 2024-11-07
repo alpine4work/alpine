@@ -9,6 +9,7 @@ import {
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
@@ -21,6 +22,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -294,7 +296,64 @@ function createCollection(
 
 const noopAffinityManager: TaskClientStoreSearchAffinityManager = {
     markLowIntentUpdateInteraction: () => {},
+    addGlobalLoadingIndicator: () => {},
 };
+
+async function resolveLastRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+    output: Output,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.resolveLastExecution(definition, output);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
+
+async function resolveRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+    n: number,
+    output: Output,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.resolveExecution(definition, n, output);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
+
+async function rejectRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+    n: number,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.rejectExecution(definition, n);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
+
+async function rejectLastRpcExecution<Input, Output>(
+    definition: RpcDefinition<Input, Output>,
+): Promise<void> {
+    // `TaskClientStore` might not schedule RPCs from `commitActionTransaction()`
+    // until after a microtask. So wait for that to happen.
+    await waitMacrotask();
+
+    TestRpcContextModule.rejectLastExecution(definition);
+
+    // Wait a macrotask for promise resolution to update data in `TaskClientStore`.
+    await waitMacrotask();
+}
 
 test("backfills an authorized task", () => {
     const store = createAutoRetainStore();
@@ -1445,7 +1504,7 @@ test("applies commit action calls optimistically", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1499,7 +1558,7 @@ test("can create tasks optimistically", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1598,7 +1657,7 @@ test("can create then update tasks optimistically", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1627,7 +1686,7 @@ test("can create then update tasks optimistically", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1726,7 +1785,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1751,7 +1810,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1881,7 +1940,7 @@ test("can create then update tasks optimistically after an action from the serve
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -1912,7 +1971,7 @@ test("can create then update tasks optimistically after an action from the serve
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2006,7 +2065,7 @@ test("can create then update tasks optimistically our of order", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2031,7 +2090,7 @@ test("can create then update tasks optimistically our of order", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2154,7 +2213,7 @@ test("can create then update tasks optimistically out of order after an action f
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2181,7 +2240,7 @@ test("can create then update tasks optimistically out of order after an action f
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2311,7 +2370,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2341,7 +2400,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2368,7 +2427,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2469,7 +2528,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2506,7 +2565,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2604,7 +2663,7 @@ test("regular task actions are added to optimistic state", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2744,7 +2803,7 @@ test("regular task actions are added to optimistic state with multiple actions",
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2767,7 +2826,7 @@ test("regular task actions are added to optimistic state with multiple actions",
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2908,7 +2967,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -2932,7 +2991,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3019,7 +3078,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3135,7 +3194,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3153,7 +3212,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3269,7 +3328,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3290,7 +3349,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3422,7 +3481,7 @@ test("regular actions are added to optimistic state when task is created optimis
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3448,7 +3507,7 @@ test("regular actions are added to optimistic state when task is created optimis
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3624,7 +3683,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3652,7 +3711,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3678,7 +3737,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3855,7 +3914,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3883,7 +3942,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -3910,7 +3969,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4027,7 +4086,7 @@ test("three optimistic actions when task is not backfilled", async () => {
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4048,7 +4107,7 @@ test("three optimistic actions when task is not backfilled", async () => {
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4066,7 +4125,7 @@ test("three optimistic actions when task is not backfilled", async () => {
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4178,7 +4237,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4280,7 +4339,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4442,7 +4501,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4466,7 +4525,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -4534,7 +4593,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -4588,7 +4647,7 @@ test("can create tasks optimistically (rejected)", async () => {
         }),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -4683,7 +4742,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -4701,7 +4760,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -4796,7 +4855,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4818,7 +4877,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -4944,7 +5003,7 @@ test("can create then update tasks optimistically after an action from the serve
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -4962,7 +5021,7 @@ test("can create then update tasks optimistically after an action from the serve
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -5050,7 +5109,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -5072,7 +5131,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -5191,7 +5250,7 @@ test("can create then update tasks optimistically out of order after an action f
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -5213,7 +5272,7 @@ test("can create then update tasks optimistically out of order after an action f
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -5337,7 +5396,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -5362,7 +5421,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -5384,7 +5443,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -5479,7 +5538,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -5516,7 +5575,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
@@ -5614,7 +5673,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -5752,7 +5811,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -5769,7 +5828,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -5907,7 +5966,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -5927,7 +5986,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -6011,7 +6070,7 @@ test("regular actions are added to optimistic state when task is not backfilled 
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6127,7 +6186,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6142,7 +6201,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6258,7 +6317,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6276,7 +6335,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6408,7 +6467,7 @@ test("regular actions are added to optimistic state when task is created optimis
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6429,7 +6488,7 @@ test("regular actions are added to optimistic state when task is created optimis
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6603,7 +6662,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6625,7 +6684,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6643,7 +6702,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6817,7 +6876,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6839,7 +6898,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6860,7 +6919,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6974,7 +7033,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6992,7 +7051,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -7007,7 +7066,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -7119,7 +7178,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -7219,7 +7278,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -7379,7 +7438,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7399,7 +7458,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7524,7 +7583,7 @@ test("create task applied after optimistic updates", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -7544,7 +7603,7 @@ test("create task applied after optimistic updates", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -7669,7 +7728,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -7692,7 +7751,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -7817,7 +7876,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -7832,7 +7891,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task,
@@ -7955,7 +8014,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -7973,7 +8032,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task,
@@ -8069,7 +8128,7 @@ test("can create then update collections optimistically", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8098,7 +8157,7 @@ test("can create then update collections optimistically", async () => {
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8201,7 +8260,7 @@ test("can create then update collections optimistically and resolve commits out 
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8226,7 +8285,7 @@ test("can create then update collections optimistically and resolve commits out 
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8360,7 +8419,7 @@ test("can create then update collections optimistically after an action from the
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8391,7 +8450,7 @@ test("can create then update collections optimistically after an action from the
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8489,7 +8548,7 @@ test("can create then update collections optimistically our of order", async () 
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8514,7 +8573,7 @@ test("can create then update collections optimistically our of order", async () 
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8641,7 +8700,7 @@ test("can create then update collections optimistically out of order after an ac
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8668,7 +8727,7 @@ test("can create then update collections optimistically out of order after an ac
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8802,7 +8861,7 @@ test("can create then update collections optimistically out of order with more n
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8832,7 +8891,7 @@ test("can create then update collections optimistically out of order with more n
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8859,7 +8918,7 @@ test("can create then update collections optimistically out of order with more n
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -8964,7 +9023,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9001,7 +9060,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9097,7 +9156,7 @@ test("regular collection actions are added to optimistic state", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9230,7 +9289,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9248,7 +9307,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9381,7 +9440,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9402,7 +9461,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9486,7 +9545,7 @@ test("regular actions are added to optimistic state when collection is not backf
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9602,7 +9661,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9620,7 +9679,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9736,7 +9795,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9757,7 +9816,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9891,7 +9950,7 @@ test("regular actions are added to optimistic state when collection is created o
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -9915,7 +9974,7 @@ test("regular actions are added to optimistic state when collection is created o
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10088,7 +10147,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10113,7 +10172,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10134,7 +10193,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10307,7 +10366,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10332,7 +10391,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10356,7 +10415,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10470,7 +10529,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10491,7 +10550,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10509,7 +10568,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
         authorizationState: null,
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+    await resolveRpcExecution(commitTaskActionTransaction, 2, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10619,7 +10678,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10717,7 +10776,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+    await resolveLastRpcExecution(commitTaskActionTransaction, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10874,7 +10933,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10895,7 +10954,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -10960,7 +11019,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -11018,7 +11077,7 @@ test("can create collections optimistically (rejected)", async () => {
         }),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -11117,7 +11176,7 @@ test("can create then update collections optimistically (rejected)", async () =>
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -11135,7 +11194,7 @@ test("can create then update collections optimistically (rejected)", async () =>
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -11234,7 +11293,7 @@ test("can create then update collections optimistically and resolve commits out 
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11256,7 +11315,7 @@ test("can create then update collections optimistically and resolve commits out 
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -11386,7 +11445,7 @@ test("can create then update collections optimistically after an action from the
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11404,7 +11463,7 @@ test("can create then update collections optimistically after an action from the
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11496,7 +11555,7 @@ test("can create then update collections optimistically our of order (rejected)"
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11518,7 +11577,7 @@ test("can create then update collections optimistically our of order (rejected)"
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -11641,7 +11700,7 @@ test("can create then update collections optimistically out of order after an ac
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11663,7 +11722,7 @@ test("can create then update collections optimistically out of order after an ac
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11791,7 +11850,7 @@ test("can create then update collections optimistically out of order with more n
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11816,7 +11875,7 @@ test("can create then update collections optimistically out of order with more n
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11838,7 +11897,7 @@ test("can create then update collections optimistically out of order with more n
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11937,7 +11996,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
         }),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -11974,7 +12033,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
@@ -12070,7 +12129,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -12203,7 +12262,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3).applyAction(action4),
@@ -12218,7 +12277,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -12351,7 +12410,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3),
@@ -12369,7 +12428,7 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -12453,7 +12512,7 @@ test("regular actions are added to optimistic state when collection is not backf
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12569,7 +12628,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12584,7 +12643,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12700,7 +12759,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12718,7 +12777,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12852,7 +12911,7 @@ test("regular actions are added to optimistic state when collection is created o
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12873,7 +12932,7 @@ test("regular actions are added to optimistic state when collection is created o
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13046,7 +13105,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13068,7 +13127,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13086,7 +13145,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13259,7 +13318,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13281,7 +13340,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13302,7 +13361,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13416,7 +13475,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13434,7 +13493,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13449,7 +13508,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
         authorizationState: null,
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+    await rejectRpcExecution(commitTaskActionTransaction, 2);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13559,7 +13618,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -13657,7 +13716,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+    await rejectLastRpcExecution(commitTaskActionTransaction);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -13814,7 +13873,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
@@ -13829,7 +13888,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action4).applyAction(action3),
@@ -13954,7 +14013,7 @@ test("create collection applied after optimistic updates", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -13972,7 +14031,7 @@ test("create collection applied after optimistic updates", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -14097,7 +14156,7 @@ test("create collection applied after optimistic updates that are resolved out o
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+    await resolveRpcExecution(commitTaskActionTransaction, 1, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -14118,7 +14177,7 @@ test("create collection applied after optimistic updates that are resolved out o
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+    await resolveRpcExecution(commitTaskActionTransaction, 0, {
         extraActions: [],
         referencedAccounts: [],
     });
@@ -14243,7 +14302,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -14258,7 +14317,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection,
@@ -14383,7 +14442,7 @@ test("create collection applied after optimistic updates that are resolved out o
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+    await rejectRpcExecution(commitTaskActionTransaction, 1);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -14401,7 +14460,7 @@ test("create collection applied after optimistic updates that are resolved out o
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+    await rejectRpcExecution(commitTaskActionTransaction, 0);
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection,

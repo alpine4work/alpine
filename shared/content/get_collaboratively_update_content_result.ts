@@ -1,11 +1,12 @@
 import {Node} from "prosemirror-model";
-import {Mapping, Step} from "prosemirror-transform";
+import {AttrStep, Mapping, Step} from "prosemirror-transform";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
+import {DataLossError, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 
@@ -106,10 +107,39 @@ export function getCollaborativelyUpdateContentResult(
                 invertedSteps = [];
 
                 for (const step of clientSteps) {
-                    const stepResult = step.apply(content);
+                    // ProseMirror will happily apply an `AttrStep` to any node even if the node
+                    // doesn't support the attribute in question. So add extra validation on the
+                    // server to make sure we're applying `AttrStep` to a node which supports this
+                    // attribute.
+                    if (step instanceof AttrStep) {
+                        const node = content.nodeAt(step.pos);
+                        if (node) {
+                            const attrSpec = node.type.spec.attrs?.[step.attr];
+                            if (!attrSpec) {
+                                throw new FailedPreconditionError(
+                                    quote`Couldn't apply attr step to node ${node.type.name} because it doesn't support attr ${step.attr}`,
+                                );
+                            }
+
+                            // Make sure the step is valid.
+                            attrSpec.schema.validate?.(step.value);
+                        }
+                    }
+
+                    let stepResult;
+                    try {
+                        stepResult = step.apply(content);
+                    } catch (error) {
+                        if (error instanceof RangeError) {
+                            throw new FailedPreconditionError(
+                                `Couldn't apply step to content: ${error.message}`,
+                            );
+                        }
+                        throw error;
+                    }
                     if (!stepResult.doc) {
                         throw new FailedPreconditionError(
-                            `Could not apply step to content: ${stepResult.failed!}`,
+                            `Couldn't apply step to content: ${stepResult.failed!}`,
                         );
                     }
 
@@ -144,20 +174,60 @@ export function getCollaborativelyUpdateContentResult(
 
                     for (let i = conflictingSteps.length - 1; i >= 0; i--) {
                         const {invertedStep} = conflictingSteps[i]!;
-                        const invertedStepResult = invertedStep.apply(clientContent);
-                        if (!invertedStepResult.doc)
+                        let invertedStepResult;
+                        try {
+                            invertedStepResult = invertedStep.apply(clientContent);
+                        } catch (error) {
+                            if (error instanceof RangeError) {
+                                throw new DataLossError(
+                                    `Couldn't apply inverse of saved content step: ${error.message}`,
+                                );
+                            }
+                            throw error;
+                        }
+                        if (!invertedStepResult.doc) {
                             throw new DataLossError(
-                                `Could not apply inverse of saved content step: ${invertedStepResult.failed!}`,
+                                `Couldn't apply inverse of saved content step: ${invertedStepResult.failed!}`,
                             );
+                        }
 
                         clientContent = invertedStepResult.doc;
                     }
 
                     for (const step of clientSteps) {
-                        const stepResult = step.apply(clientContent);
+                        // ProseMirror will happily apply an `AttrStep` to any node even if the node
+                        // doesn't support the attribute in question. So add extra validation on the
+                        // server to make sure we're applying `AttrStep` to a node which supports this
+                        // attribute.
+                        if (step instanceof AttrStep) {
+                            const node = clientContent.nodeAt(step.pos);
+                            if (node) {
+                                const attrSpec = node.type.spec.attrs?.[step.attr];
+                                if (!attrSpec) {
+                                    throw new FailedPreconditionError(
+                                        quote`Couldn't apply attr step to node ${node.type.name} because it doesn't support attr ${step.attr}`,
+                                    );
+                                }
+
+                                // Make sure the step is valid.
+                                attrSpec.schema.validate?.(step.value);
+                            }
+                        }
+
+                        let stepResult;
+                        try {
+                            stepResult = step.apply(clientContent);
+                        } catch (error) {
+                            if (error instanceof RangeError) {
+                                throw new FailedPreconditionError(
+                                    `Couldn't apply step to content: ${error.message}`,
+                                );
+                            }
+                            throw error;
+                        }
                         if (!stepResult.doc) {
                             throw new FailedPreconditionError(
-                                `Could not apply step to content: ${stepResult.failed!}`,
+                                `Couldn't apply step to content: ${stepResult.failed!}`,
                             );
                         }
 
@@ -191,6 +261,34 @@ export function getCollaborativelyUpdateContentResult(
                     // implementation does:
                     // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
                     if (!rebasedStep) continue;
+
+                    // ProseMirror will happily apply an `AttrStep` to any node even if the node
+                    // doesn't support the attribute in question. So add extra validation on the
+                    // server to make sure we're applying `AttrStep` to a node which supports this
+                    // attribute.
+                    //
+                    // NOTE(calebmer): We consider this an `InternalError` (instead of
+                    // `FailedPreconditionError`) and add `AFTER REBASING` to the error message
+                    // since if `AttrStep` is updating an attribute on a node that doesn't support
+                    // the attribute then we should error above when we apply `clientSteps` to
+                    // `clientContent` not here. However, maybe a bug in ProseMirror may lead our
+                    // rebased `AttrStep` targeting a different node than what it was targeting
+                    // initially. If this happens we want to catch the issue early (instead of
+                    // writing corrupted data to the database).
+                    if (rebasedStep instanceof AttrStep) {
+                        const node = content.nodeAt(rebasedStep.pos);
+                        if (node) {
+                            const attrSpec = node.type.spec.attrs?.[rebasedStep.attr];
+                            if (!attrSpec) {
+                                throw new InternalError(
+                                    quote`Couldn't apply attr step to node ${node.type.name} because it doesn't support attr ${rebasedStep.attr} (AFTER REBASING)`,
+                                );
+                            }
+
+                            // Make sure the step is valid.
+                            attrSpec.schema.validate?.(rebasedStep.value);
+                        }
+                    }
 
                     const rebasedStepResult = rebasedStep.apply(content);
 
@@ -270,7 +368,11 @@ export function getCollaborativelyUpdateContentResult(
                         }
                         case "addMarksAfterRemoveAll": {
                             for (const range of step.ranges) {
-                                addRangeToValidate(range.from, range.to);
+                                if (range.isNode) {
+                                    addRangeToValidate(range.pos, range.pos + 1);
+                                } else {
+                                    addRangeToValidate(range.from, range.to);
+                                }
                             }
                             break;
                         }
@@ -315,6 +417,22 @@ export function getCollaborativelyUpdateContentResult(
                         ) {
                             throw new FailedPreconditionError(
                                 `Can't add "\\n" character to "codeBlockLine" node`,
+                            );
+                        }
+
+                        // Don't allow adding marks to non-leaf ProseMirror nodes. ProseMirror
+                        // technically allows this. For a node's children to have marks the node itself
+                        // must also support those marks. Since ProseMirror doesn't give us a way to
+                        // disallow marks on non-leaf nodes in the ProseMirror schema we instead block
+                        // them here.
+                        //
+                        // Some examples of what we want to avoid:
+                        //
+                        // - `comment` marks on `fileRow` instead of `file`
+                        // - `bold` marks on `paragraph` instead of a `paragraph`'s text
+                        if (!node.type.isLeaf && node.marks.length > 0) {
+                            throw new FailedPreconditionError(
+                                `Can't add marks directly to non-leaf "${node.type.name}" node`,
                             );
                         }
                     });

@@ -1,11 +1,11 @@
 import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_table.js";
+import {createPostComment} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
@@ -154,10 +154,9 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const channel = await createChannel(session.action(), {
-                spaceId: space.id,
+            const channel = await TestChannel.create(session, {
                 name: "Test Channel",
-                description: createSimpleMessageContent("Test channel description content."),
+                description: "Test channel description content.",
             });
 
             expect(
@@ -195,14 +194,12 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session2 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const channel = await createChannel(session1.action(), {
-                spaceId: space.id,
+            const channel = await TestChannel.create(session1, {
                 name: "Test Channel",
             });
 
-            const post = await createPost(session2.action(), {
-                channelId: channel.id,
-                content: createSimplePostContent("Test post content."),
+            const post = await channel.createPost(session2, {
+                content: "Test post content.",
             });
 
             expect(
@@ -241,14 +238,12 @@ const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () =>
             const session3 = await space.createSession();
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-            const channel = await createChannel(session1.action(), {
-                spaceId: space.id,
+            const channel = await TestChannel.create(session1, {
                 name: "Test Channel",
             });
 
-            const post = await createPost(session2.action(), {
-                channelId: channel.id,
-                content: createSimplePostContent("Test post content."),
+            const post = await channel.createPost(session2, {
+                content: "Test post content.",
             });
 
             const comment = await createPostComment(session3.action(), {

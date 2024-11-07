@@ -8,11 +8,10 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     getNavigationBarHeightPxWithoutListening,
     navigationBarHeight,
-} from "~/client/design/navigation_bar.js";
+} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
@@ -25,7 +24,8 @@ import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
-import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -406,6 +406,10 @@ export function TaskDateInput({
                 isBlocking={true}
                 withoutRootBlockingScope={true}
                 withoutBlockingTarget={true}
+                onBlockingCoverPointerDown={() => {
+                    if (document.activeElement instanceof HTMLElement)
+                        document.activeElement.blur();
+                }}
                 // Set a constant `overflowBottom` value instead of relying on the current
                 // keyboard height (which will be updated asynchronously after `isEditing` is
                 // true). This stops the overlay placement from jumping around while the

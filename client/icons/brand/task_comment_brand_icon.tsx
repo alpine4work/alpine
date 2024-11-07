@@ -5,7 +5,7 @@ import {
     brandIconSplashColorShade,
 } from "~/client/icons/brand/internal/brand_icon_splash_color.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 const TaskCommentBrandIconMemo = memo(TaskCommentBrandIcon);

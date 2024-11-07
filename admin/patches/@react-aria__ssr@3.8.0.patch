@@ -171,7 +171,7 @@ index adbad36402df8376a017ff3d70216d8768ed7096..24a22d000327239355d94e7d9d43f2cd
 +// `useIsInitialAppRender()`. So declare our context in `@react-aria/ssr`
 +// and copy the implementation of `useIsInitialAppRender()` into `useIsSSR()`.
 +// We setup the context provider in our code.
-+export const AppInitialRenderContext: Context<string | false | null>;
++export const AppInitialRenderContext: Context<{time: Date; id: string} | false | null>;
 +
  //# sourceMappingURL=types.d.ts.map
 diff --git a/src/SSRProvider.tsx b/src/SSRProvider.tsx

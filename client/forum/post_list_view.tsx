@@ -4,7 +4,6 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
-    RefObject,
     cloneElement,
     forwardRef,
     useCallback,
@@ -16,30 +15,25 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {
-    NavigationBarRef,
-    NavigationBarResult,
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeightRem,
-    navigationBarHeight,
-} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
-import {
-    ChannelViewHeader,
-    channelViewHeaderMinHeight,
-} from "~/client/forum/internal/channel_view_header.js";
+import {ChannelViewHeader} from "~/client/forum/internal/channel_view_header.js";
 import {
     PostCommentInput,
     PostRealtimeProcedures,
 } from "~/client/forum/internal/post_comment_input.js";
 import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
-import {PostContentView, PostContentViewEditingActions} from "~/client/forum/post_content_view.js";
+import {
+    PostContentView,
+    PostContentViewEditingActions,
+    PostContentViewInitialScroll,
+} from "~/client/forum/post_content_view.js";
 import {
     PostListChannelHeader,
     PostListInterface,
@@ -47,7 +41,9 @@ import {
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
@@ -56,26 +52,27 @@ import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
 } from "~/client/messaging/messaging_typing_indicators.js";
-import {
-    getInitialLoadMessageCount,
-    messagingViewMarginBottom,
-} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
+    channelViewHeaderMinHeight,
     desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
+    postListViewAsideFlex,
+    postListViewAsideMaxWidth,
+    postViewFlex,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
     messageViewMinHeight,
     messageViewTimestampDividerMarginTop,
+    messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
@@ -89,13 +86,14 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 import {
-    Spacing,
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
@@ -112,11 +110,6 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-
-export const postListViewAsideMaxWidth: Spacing = "96";
-
-const postViewFlex = 6;
-const postListViewAsideFlex = 4;
 
 const postCommentSectionGuidelineSpace = "6";
 
@@ -164,6 +157,7 @@ function PostListView(
     {
         channelHeader,
         posts: postsWithoutChannelHeader,
+        onMergePostContentReferences,
         onTogglePostComments,
         onUpdatePostComments,
         onLoadMorePosts,
@@ -172,7 +166,9 @@ function PostListView(
         aside,
         withMobileLayout: withMobileLayoutProp = false,
         navigationBar,
+        withStaticNavigationBar,
         withSafeAreaInsetTop = false,
+        initialScrollForFirstPost,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -184,6 +180,11 @@ function PostListView(
          * The post content to be rendered in this post list view.
          */
         posts: PostListInterface;
+
+        /**
+         * Update the content references for a post.
+         */
+        onMergePostContentReferences: Memo<(postId: PostId, references: ContentReferences) => void>;
 
         /**
          * Toggle the comments for a post open and closed.
@@ -277,28 +278,38 @@ function PostListView(
          * the result of `useNavigationBar()` here and the virtualized scroll view will
          * be properly configured.
          */
-        navigationBar?: NavigationBarResult & {navigationBarRef: RefObject<NavigationBarRef>};
+        navigationBar?: NavigationBarResult;
+
+        /**
+         * If we're rendering a static navigation bar on top of this view this is set
+         * to true. A static navigation bar is always fixed to the top of the view and
+         * doesn't show/hide dynamically when the user scrolls.
+         */
+        withStaticNavigationBar?: boolean;
 
         /**
          * Should we make room for top safe area? False by default. If you set the
          * `navigationBar` prop then it will mostly handle safe area for you.
          */
         withSafeAreaInsetTop?: boolean;
+
+        /**
+         * How to initially scroll the first `<PostContentView>` component in our list.
+         */
+        initialScrollForFirstPost?: Memo<PostContentViewInitialScroll> | null;
     },
     ref: Ref<PostListViewRef>,
 ) {
     const context = useAppContext();
     const isMobile = useIsMobile();
-    const remPx = useRemPx();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
-    const [asideRef, asideSize] = useResizeObserver();
-
-    const navigationBarHeightPx =
-        (isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) * remPx;
+    const [asideRef, asideSize] = useResizeObserver({
+        withSuppressResizeLoopErrorNotification: true,
+    });
 
     const lastScrollOffsetRef = useRef(0);
     const [scrollDirectionState, setScrollDirectionState] = useState<{
@@ -306,11 +317,11 @@ function PostListView(
         asideBufferedHeight: number;
     }>({
         scrollDirection: "Down",
-        asideBufferedHeight: navigationBarHeightPx,
+        asideBufferedHeight: 0,
     });
 
     const hasAside = !withMobileLayout && !!aside;
-    const hasNavigationBar = !!navigationBar;
+    const hasNavigationBar = !!navigationBar?.navigationBar;
     const hasChannelHeader = !!channelHeader;
 
     const shouldNotShowChannelId = channelHeader
@@ -349,11 +360,7 @@ function PostListView(
     }
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMoreData = useEvent(
         (
@@ -372,7 +379,7 @@ function PostListView(
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;
@@ -536,7 +543,7 @@ function PostListView(
             isLoadingRef.current = true;
 
             try {
-                const limit = getInitialLoadMessageCount(getClientInfoWithoutListening());
+                const limit = getInitialLoadMessageCount(getClientInfo());
 
                 // If we already have some loaded messages then we are trying to finish the
                 // initial loaded message list by starting at our last loaded message.
@@ -566,7 +573,7 @@ function PostListView(
 
                 isLoadingRef.current = false;
             } catch (error) {
-                setErrorState({hasError: true, error});
+                setErrorState(error);
             }
         },
     );
@@ -738,7 +745,7 @@ function PostListView(
                     return {
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
-                            hasNavigationBar
+                            hasNavigationBar || withStaticNavigationBar
                                 ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
                                 : "0rem",
                             !item.channelHeader.isOnlyNavigationBar
@@ -763,7 +770,9 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasNavigationBar && <Spacer space={navigationBarHeight} />}
+                                    {(hasNavigationBar || withStaticNavigationBar) && (
+                                        <Spacer space={navigationBarHeight} />
+                                    )}
                                     {!item.channelHeader.isOnlyNavigationBar && (
                                         <ChannelViewHeader
                                             channelHeader={item.channelHeader}
@@ -900,7 +909,15 @@ function PostListView(
                                         isSingleLayoutWithPinnedCommentInput={
                                             isSingleLayoutWithPinnedCommentInput
                                         }
+                                        initialScroll={
+                                            index === 0 || (hasChannelHeader && index === 1)
+                                                ? initialScrollForFirstPost ?? null
+                                                : null
+                                        }
                                         idBase={idBase}
+                                        onMergePostContentReferences={references =>
+                                            onMergePostContentReferences(item.post.id, references)
+                                        }
                                         onTogglePostComments={() =>
                                             onTogglePostComments(item.post.id)
                                         }
@@ -1460,10 +1477,11 @@ function PostListView(
                                     <div
                                         className={sprinkles({
                                             position: "relative",
+                                            height: "24",
                                             display: "flex",
                                             justifyContent: "center",
+                                            alignItems: "center",
                                             color: "grey-60",
-                                            paddingY: "10",
                                         })}
                                     >
                                         <SpinnerGap
@@ -1496,6 +1514,7 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
+            withStaticNavigationBar,
             isMobile,
             withMobileLayout,
             hasAside,
@@ -1504,7 +1523,9 @@ function PostListView(
             hasChannelHeader,
             postEditing,
             shouldNotShowChannelId,
+            initialScrollForFirstPost,
             idBase,
+            onMergePostContentReferences,
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
@@ -1582,6 +1603,9 @@ function PostListView(
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
+                        (withStaticNavigationBar
+                            ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                            : undefined) ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
                     bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
@@ -1613,9 +1637,6 @@ function PostListView(
                         const lastScrollOffset = lastScrollOffsetRef.current;
                         lastScrollOffsetRef.current = scrollOffset;
 
-                        const navigationBarVisibleHeight =
-                            navigationBar?.navigationBarRef.current?.getVisibleHeight() ?? 0;
-
                         setScrollDirectionState(scrollDirectionState => {
                             const newScrollDirection =
                                 scrollOffset > lastScrollOffset ? "Down" : "Up";
@@ -1624,7 +1645,7 @@ function PostListView(
                                 return scrollDirectionState;
 
                             const asideScrollOffset = clamp(
-                                0 - navigationBarVisibleHeight,
+                                0,
                                 scrollOffset - scrollDirectionState.asideBufferedHeight,
                                 asideHeight - viewHeight,
                             );
@@ -1641,12 +1662,10 @@ function PostListView(
                     // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
                     // some measurements. Otherwise the navigation bar among other things start to
                     // break down.
-                    extraChildrenContentHeight={
-                        asideSize ? asideSize.height + navigationBarHeightPx : 0
-                    }
+                    extraChildrenContentHeight={asideSize?.height ?? 0}
                     extraChildren={
                         <>
-                            {navigationBar && isSingleLayoutWithPinnedCommentInput
+                            {navigationBar?.navigationBar && isSingleLayoutWithPinnedCommentInput
                                 ? (() => {
                                       const navigationBarElement = navigationBar.navigationBar;
                                       if (!navigationBarElement) return null;
@@ -1710,17 +1729,13 @@ function PostListView(
                                                 ? {
                                                       top:
                                                           viewSize && asideSize
-                                                              ? viewSize.height -
-                                                                navigationBarHeightPx -
-                                                                asideSize.height
+                                                              ? viewSize.height - asideSize.height
                                                               : 0,
                                                   }
                                                 : {
                                                       bottom:
                                                           viewSize && asideSize
-                                                              ? viewSize.height -
-                                                                asideSize.height -
-                                                                navigationBarHeightPx
+                                                              ? viewSize.height - asideSize.height
                                                               : 0,
                                                   }),
                                             left: 0,
@@ -1748,12 +1763,14 @@ function PostListView(
                                         >
                                             <aside
                                                 ref={asideRef}
-                                                className={sprinkles({pointerEvents: "auto"})}
-                                                style={{
-                                                    minHeight: viewSize
-                                                        ? viewSize.height - navigationBarHeightPx
-                                                        : 0,
-                                                }}
+                                                className={sprinkles({
+                                                    pointerEvents: "auto",
+                                                    paddingTop:
+                                                        hasNavigationBar || withStaticNavigationBar
+                                                            ? navigationBarHeight
+                                                            : undefined,
+                                                })}
+                                                style={{minHeight: viewSize ? viewSize.height : 0}}
                                             >
                                                 {aside}
                                             </aside>

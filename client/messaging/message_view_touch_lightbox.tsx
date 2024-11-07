@@ -15,7 +15,7 @@ import {writeContentToClipboard} from "~/client/content/write_content_to_clipboa
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
-import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -52,7 +52,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -382,7 +382,7 @@ export function MessageViewTouchLightbox<
                 onPress: async () => {
                     assert(message.payload.type === "Content");
 
-                    await writeContentToClipboard(space.id, message.payload.content);
+                    await writeContentToClipboard(space.id, message.payload.content, null);
                 },
             });
         }

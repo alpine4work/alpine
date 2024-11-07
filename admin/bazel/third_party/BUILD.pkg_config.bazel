@@ -11,7 +11,36 @@ genrule(
         "install/share/aclocal/pkg.m4",
         "install/share/doc/pkg-config/pkg-config-guide.html",
     ],
+    # Notes:
+    #
+    # - We need `-Wno-error=int-conversion` to treat `-Wint-conversion` as a
+    #   warning instead of an error. `pkg-config` uses an old version of `glib`
+    #   that has some invalid integer pointer conversions. Prior to Clang 16
+    #   `-Wint-conversion` was a warning but it was [upgraded to an error][1].
+    #   [This issue][2] gave us a good starting point for debugging the build issue
+    #   here.
+    #
+    #   Another solution could be to not build `pkg-config` with
+    #   `--with-internal-glib` but that would require building our own copy of
+    #   `glib` which in turn needs `pkg-config`. (A cyclic dependency!) So instead
+    #   we want to make building with `--with-internal-glib` work on newer
+    #   compilers.
+    #
+    # - The default `CFLAGS` come from what [`sharp-libvips`][3] sets. Notably we
+    #   use `-O3` to optimize for speed.
+    #
+    # [1]: https://github.com/llvm/llvm-project/commit/7068aa98412ade19a34b7ed126f4669f581b2311
+    # [2]: https://github.com/bazel-contrib/rules_foreign_cc/issues/1065
+    # [3]: https://github.com/cyberworlds/sharp-libvips/blob/13d4e523ed4690a77854827e905bc620992444de/build/lin.sh#L46-L93
     cmd = """
+export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export CXX="$$(pwd)/$(location @//:zig) c++"
+export AR="$$(pwd)/$(location @//:zig) ar"
+export LD="$$(pwd)/$(location @//:zig) ld.lld"
+export CFLAGS+=" -O3 -fPIC -Wno-error=int-conversion"
+
 bazel_sandbox=$$(pwd)
 
 cd $(RULEDIR)
@@ -44,5 +73,6 @@ echo >> cmd.log
 make --jobs=6 install-strip >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 """,
     tags = ["cpu:6"],
+    tools = ["@//:zig"],
     visibility = ["//visibility:public"],
 )

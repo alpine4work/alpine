@@ -36,7 +36,6 @@ type Options = ServiceOptions<typeof options>;
 export const options = {
     port: {type: "string"},
     viteDev: {type: "boolean"},
-    viteCachePath: {type: "string"},
     bazelDevServerPort: {type: "string"},
     shouldSeedDynamo: {type: "boolean"},
     edgeServiceUrl: {type: "string"},
@@ -211,13 +210,11 @@ export async function run({
 
         const viteDevServer = await vite.createServer({
             root: rootPath,
-            cacheDir: assertExists(
-                options.viteCachePath,
-                "`viteCachePath` option is required when `viteDev` option is provided",
-            ),
+            cacheDir: joinPath(runfilesPath, "cyberworlds/app/optimize_deps"),
             configFile: joinPath(rootPath, "vite.config.mjs"),
             server: {
                 middlewareMode: true,
+
                 // Serve the Vite HMR WebSocket server off the same private port as
                 // `AppService`. We need to set `clientPort` so Vite doesn't try to access
                 // `EdgeService`'s public port which'll block WebSocket connections.
@@ -225,6 +222,7 @@ export async function run({
                 // This also gives us nice graceful shutdown behavior. `AppService` shouldn't
                 // shutdown until the browser reloads and closes its HMR WebSocket connection.
                 hmr: {server, clientPort: port},
+
                 // While building Bazel will frequently remove a file then add it back.
                 // `atomic` makes sure `chokidar` treats this as one `change` update instead of
                 // an `unlink` update then an `add` update.
@@ -235,8 +233,42 @@ export async function run({
                 // "hmr update" events after a file changes it's probably from Bazel writing to
                 // a file in chunks.
                 watch: {
-                    atomic: 500,
+                    atomic: 1000,
                     awaitWriteFinish: {stabilityThreshold: 100, pollInterval: 10},
+                    followSymlinks: false,
+                    // - Ignore dependency files in `node_modules`.
+                    // - Ignore `.runfiles` directories. They recreate the build tree. Vite
+                    //   shouldn't look at an executable's runfiles.
+                    // - Ignore `.ts` and `.tsx` source files. Vite builds finished `.js` artifacts.
+                    // - Ignore `.map` files. Only refresh on `.js` artifact changes.
+                    // - Ignore everything in `admin` directory. This code shouldn't be used in our
+                    //   app at runtime and there may be large artifacts in here.
+                    // - Ignore everything in `native` directory. This is native code and build
+                    //   artifacts and shouldn't include files bundled by Vite.
+                    ignored: [
+                        "**/node_modules/**",
+                        /(^|\/)[^/]*\.runfiles(\/|$)/,
+                        /(^|\/)[^/]*\.tsx?$/,
+                        /(^|\/)[^/]*\.map$/,
+                        "**/admin/**",
+                        "**/native/**",
+                    ],
+                },
+            },
+            optimizeDeps: {
+                // We prebuild Vite's optimized dependencies in `app/optimize_deps`. Don't
+                // build optimized dependencies at runtime with Vite, instead use the prebuild.
+                // We use Bazel to prebuild so we get all the usual advantages of Bazel builds.
+                // Including reproducibility and remote caching.
+                hasBazelPrebuild: true,
+            },
+            ssr: {
+                optimizeDeps: {
+                    // We prebuild Vite's optimized dependencies in `app/optimize_deps`. Don't
+                    // build optimized dependencies at runtime with Vite, instead use the prebuild.
+                    // We use Bazel to prebuild so we get all the usual advantages of Bazel builds.
+                    // Including reproducibility and remote caching.
+                    hasBazelPrebuild: true,
                 },
             },
             waitForBazelBuild: async () => {
@@ -244,6 +276,20 @@ export async function run({
                     await bazelBuildPromiseResolver.promise;
                 }
             },
+            // chokidar receives a `change` event for these files every time a `*.css.ts`
+            // file changes even if the contents of the files didn't update! Most changes
+            // to `*.css.ts` files only change the generated CSS and don't change these
+            // JavaScript files.
+            //
+            // If we emit a change event for these files it will cause a full page reload
+            // (since these files are imported by basically every component in our client
+            // code). So we want to skip change events for these files if the contents
+            // didn't change. That way only the CSS file will emit a change event which can
+            // be hot reloaded.
+            watchFilesForActualChanges: [
+                joinPath(rootPath, "client/styles/core/styles_core.js"),
+                joinPath(rootPath, "client/styles/other/styles_other.js"),
+            ],
         });
 
         let isShuttingDown = false;

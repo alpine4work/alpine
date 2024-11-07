@@ -1,4 +1,5 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
@@ -13,6 +14,7 @@ type AppServiceExtraContextModules = {
     opensearch: OpensearchContextModule;
     languageModel: LanguageModelContextModule;
     apns: ApnsContextModuleBase;
+    files: FilesContextModuleBase;
 };
 
 export type AppServiceProcessContextModules = ServerProcessContextModules &

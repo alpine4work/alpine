@@ -5,7 +5,7 @@ import {
     DocumentContentEditor,
     DocumentContentEditorInitialScroll,
 } from "~/client/documents/document_content_editor.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
@@ -121,7 +121,12 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
     const focusSearchParam = searchParams.get("focus");
     const [shouldInitiallyFocus] = useState(focusSearchParam === "");
 
+    const commentIndexString = searchParams.get("comment");
+    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+
     const [initialScroll] = useState((): DocumentContentEditorInitialScroll | null => {
+        if (commentIndex !== null) return {type: "CommentInOpenThread", commentIndex};
+
         const scrollString = searchParams.get("scroll");
         if (!scrollString) return null;
 
@@ -130,7 +135,7 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
         if (scrollString.startsWith("comments-")) {
             const commentThreadId = scrollString.slice(9);
             if (!isId<DocumentCommentThreadId>(commentThreadId)) {
-                throw new InvalidArgumentError("Expected comment thread ID");
+                throw new InvalidArgumentError("Expected `DocumentCommentThreadId`");
             }
             return {type: "CommentThread", commentThreadId};
         }
@@ -158,9 +163,6 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
         }
     }, [isCreating, searchParams, setSearchParams]);
 
-    const commentIndexString = searchParams.get("comment");
-    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
-
     // Don't update affinity score while creating.
     useSearchAffinityViewInteraction(!isCreating ? `Document:${documentId}` : null);
 
@@ -172,9 +174,6 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
             documentId={documentId}
             initialDocument={initialDocument}
             initialCommentThreadResult={commentThreadResult}
-            // Scrolling to an initial comment index is a little different than
-            // `initialScroll` since it depends on the comment thread being opened.
-            initialScrollToCommentIndex={commentIndex}
             initialScroll={initialScroll}
             shouldInitiallyFocus={shouldInitiallyFocus}
             onCreate={() => setIsCreating(false)}

@@ -1,0 +1,59 @@
+genrule(
+    name = "zlib",
+    srcs = glob(
+        include = ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = [".*"],
+    ),
+    outs = [
+        "install/include/zlib.h",
+        "install/include/zconf.h",
+        "install/lib/pkgconfig/zlib.pc",
+        "install/lib/libz.a",
+        "install/share/man/man3/zlib.3",
+    ],
+    cmd = """
+export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
+export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
+export CC="$$(pwd)/$(location @//:zig) cc"
+export CXX="$$(pwd)/$(location @//:zig) c++"
+export AR="$$(pwd)/$(location @//:zig) ar"
+export LD="$$(pwd)/$(location @//:zig) ld.lld"
+export CFLAGS+=" -O3 -fPIC"
+
+bazel_sandbox=$$(pwd)
+
+cd $(RULEDIR)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                 configure                                  #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+"$$bazel_sandbox/$(location configure)" \\
+    "--prefix=$$(pwd)/install" \\
+    --static \\
+    >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                    make                                    #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                make install                                #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 install >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
+sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install/lib/pkgconfig/zlib.pc
+""",
+    tags = ["cpu:6"],
+    tools = ["@//:zig"],
+    visibility = ["//visibility:public"],
+)

@@ -11,18 +11,27 @@ import {
     createTraceServerResponseHandleSpanName,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
+import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {
+    getFilePreviewImageResizeWidth,
+    isFilePreviewImageResizeWidth,
+} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type EdgeServiceEnv = {
     AppStaticBucket: R2Bucket;
+    FilesBucket: R2Bucket;
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChannelRealtimeDurableObjectNamespace: DurableObjectNamespace;
@@ -35,16 +44,19 @@ type EdgeServiceEnv = {
     JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
     FILE_UPLOAD_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
+    TOKEN_AGENT_SECRET?: string;
     FILE_UPLOAD_SERVICE_HOSTNAME?: string;
     HONEYCOMB_API_KEY?: string;
 };
 
 // Cache some shared resources across requests.
-let sharedResources: {
+let sharedResources: EdgeServiceSharedResources | null = null;
+
+type EdgeServiceSharedResources = {
     env: EdgeServiceEnv;
     tokenAgentPromise: Promise<TokenAgent>;
     taskRealtimeServiceRouterPromise: Promise<TaskRealtimeServiceEdgeRouter>;
-} | null = null;
+};
 
 async function handleFetch(
     request: Request,
@@ -84,6 +96,12 @@ async function handleFetch(
 
     // Fast path for static asset requests. We don't want to trace these requests
     // or perform any other request/response manipulation.
+    //
+    // NOTE(calebmer, 2024-09-26): A minor optimization here would be to move asset
+    // serving to its own subdomain. For example, `static.alpine.inc`. That way the
+    // browser wouldn't send session cookies to the subdomain. Some assets like
+    // `favicon.ico` need to live on our root domain but all our JavaScript bundles
+    // could go to `static.alpine.inc`.
     if (
         appStaticManifestPaths.has(url.pathname) ||
         url.pathname.startsWith("/assets/") ||
@@ -109,9 +127,7 @@ async function handleFetch(
         //
         // [1]: https://developers.cloudflare.com/r2/examples/cache-api/
         const cachedResponse = await cache.match(request);
-        if (cachedResponse !== undefined) {
-            return cachedResponse;
-        }
+        if (cachedResponse) return cachedResponse;
 
         const object = await env.AppStaticBucket.get(`files${url.pathname}`);
         if (object === null) {
@@ -181,12 +197,29 @@ async function handleFetch(
         | {type: "MyAccountService"; accountId: string; pathname: string}
         | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
         | {type: "TaskRealtimeService"; spaceId: SpaceId}
-        | {type: "UploadFile"; spaceId: SpaceId} = "AppService";
+        | {type: "UploadFile"; spaceId: SpaceId}
+        | {type: "File"; spaceId: SpaceId; fileId: FileId}
+        | {type: "FileCorsProxy"; url: string} = "AppService";
 
-    if (!url.pathname.startsWith("/api/")) {
+    if (url.pathname.startsWith("/files/")) {
+        const pathSegments = url.pathname.slice(7).split("/");
+
+        if (pathSegments.length === 2 && pathSegments[0] === "cors-proxy") {
+            const url = decodeURIComponent(pathSegments[1]!);
+            routeString = "/files/cors-proxy/:url";
+            route = {type: "FileCorsProxy", url};
+        } else if (
+            pathSegments.length === 2 &&
+            isId<SpaceId>(pathSegments[0]!) &&
+            isId<FileId>(pathSegments[1]!)
+        ) {
+            routeString = "/files/:spaceId/:fileId";
+            route = {type: "File", spaceId: pathSegments[0], fileId: pathSegments[1]};
+        }
+    } else if (!url.pathname.startsWith("/api/")) {
         // Route to `AppService`...
     } else if (url.pathname.startsWith("/api/durable-objects/")) {
-        const pathSegments = url.pathname.slice("/api/durable-objects/".length).split("/");
+        const pathSegments = url.pathname.slice(21).split("/");
 
         switch (pathSegments[0]) {
             case "documents": {
@@ -270,11 +303,7 @@ async function handleFetch(
                 route = {type: "TaskRealtimeService", spaceId};
             }
         }
-    } else if (
-        // TODO(calebmer, #files): Deploy `FileUploadService` to production.
-        process.env.NODE_ENV === "development" &&
-        url.pathname.startsWith("/api/files/")
-    ) {
+    } else if (url.pathname.startsWith("/api/files/")) {
         const pathSegments = url.pathname.slice("/api/files/".length).split("/");
         if (
             pathSegments.length === 2 &&
@@ -287,303 +316,747 @@ async function handleFetch(
     }
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
-        if (route !== "AppService") {
-            // An env object that is referentially equal will be passed in as long as
-            // environment variables remain the same.
-            // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
-            if (sharedResources === null || sharedResources.env !== env) {
-                const appServicePublicKey = env.APP_SERVICE_PUBLIC_KEY;
-                if (!appServicePublicKey)
-                    throw new InternalError("Missing `APP_SERVICE_PUBLIC_KEY` env variable");
+        try {
+            if (route !== "AppService") {
+                // An env object that is referentially equal will be passed in as long as
+                // environment variables remain the same.
+                // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
+                if (sharedResources === null || sharedResources.env !== env) {
+                    const appServicePublicKey = env.APP_SERVICE_PUBLIC_KEY;
+                    if (!appServicePublicKey)
+                        throw new InternalError("Missing `APP_SERVICE_PUBLIC_KEY` env variable");
 
-                const edgeServiceFamilyPublicKey = env.EDGE_SERVICE_FAMILY_PUBLIC_KEY;
-                if (!edgeServiceFamilyPublicKey)
-                    throw new InternalError(
-                        "Missing `EDGE_SERVICE_FAMILY_PUBLIC_KEY` env variable",
-                    );
-
-                const taskRealtimeServicePublicKey = env.TASK_REALTIME_SERVICE_PUBLIC_KEY;
-                if (!taskRealtimeServicePublicKey)
-                    throw new InternalError(
-                        "Missing `TASK_REALTIME_SERVICE_PUBLIC_KEY` env variable",
-                    );
-
-                const jobQueueServicePublicKey = env.JOB_QUEUE_SERVICE_PUBLIC_KEY;
-                if (!jobQueueServicePublicKey)
-                    throw new InternalError("Missing `JOB_QUEUE_SERVICE_PUBLIC_KEY` env variable");
-
-                const fileUploadServicePublicKey = env.FILE_UPLOAD_SERVICE_PUBLIC_KEY;
-                if (!fileUploadServicePublicKey)
-                    throw new InternalError(
-                        "Missing `FILE_UPLOAD_SERVICE_PUBLIC_KEY` env variable",
-                    );
-
-                const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
-                if (!edgeServiceFamilyPrivateKey)
-                    throw new InternalError(
-                        "Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable",
-                    );
-
-                const tokenAgentPromise = runAllPromises([
-                    TokenAgentPublicSide.new({
-                        serviceName: "EdgeService",
-                        appServicePublicKey,
-                        edgeServiceFamilyPublicKey,
-                        taskRealtimeServicePublicKey,
-                        jobQueueServicePublicKey,
-                        fileUploadServicePublicKey,
-                    }),
-                    TokenAgentPrivateSide.new({
-                        serviceName: "EdgeService",
-                        servicePrivateKey: edgeServiceFamilyPrivateKey,
-                    }),
-                ]).then(([publicSide, privateSide]) => ({publicSide, privateSide}));
-
-                const ourSharedResources: typeof sharedResources = {
-                    env,
-                    tokenAgentPromise,
-                    taskRealtimeServiceRouterPromise: tokenAgentPromise.then(
-                        tokenAgent =>
-                            new TaskRealtimeServiceEdgeRouter({
-                                protocol: url.protocol,
-                                host: url.host,
-                                tokenAgent,
-                            }),
-                    ),
-                };
-
-                sharedResources = ourSharedResources;
-            }
-
-            const tokenAgent = await sharedResources.tokenAgentPromise;
-
-            switch (route.type) {
-                case "DocumentCollaborationService": {
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
-                        serviceName: "DocumentCollaborationService",
-                        tokenAgent,
-                        request,
-                        pathname: route.pathname,
-                        idName: route.documentId,
-                        span,
-                    });
-                }
-                case "PostRealtimeService": {
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
-                        serviceName: "PostRealtimeService",
-                        tokenAgent,
-                        request,
-                        pathname: route.pathname,
-                        idName: route.postId,
-                        span,
-                    });
-                }
-                case "ChannelRealtimeService": {
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.ChannelRealtimeDurableObjectNamespace,
-                        serviceName: "ChannelRealtimeService",
-                        tokenAgent,
-                        request,
-                        pathname: route.pathname,
-                        idName: route.channelId,
-                        span,
-                    });
-                }
-                case "ChatRealtimeService": {
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
-                        serviceName: "ChatRealtimeService",
-                        tokenAgent,
-                        request,
-                        pathname: route.pathname,
-                        idName: route.chatId,
-                        span,
-                    });
-                }
-                case "MyAccountService": {
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.MyAccountDurableObjectNamespace,
-                        serviceName: "MyAccountService",
-                        tokenAgent,
-                        request,
-                        pathname: route.pathname,
-                        idName: route.accountId,
-                        span,
-                    });
-                }
-                case "TaskNotesCollaborationService": {
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.TaskNotesCollaborationDurableObjectNamespace,
-                        serviceName: "TaskNotesCollaborationService",
-                        tokenAgent,
-                        request,
-                        pathname: route.pathname,
-                        idName: route.taskId,
-                        span,
-                    });
-                }
-                case "TaskRealtimeService": {
-                    const {spaceId} = route;
-                    const taskRealtimeServiceRouter =
-                        await sharedResources.taskRealtimeServiceRouterPromise;
-
-                    const headers = new Headers(request.headers);
-                    addTracerPropagationContextHeader(headers, span);
-
-                    // We authenticate with an `Authorization` not a `Cookie` header.
-                    headers.delete("cookie");
-
-                    // When connecting to `TaskRealtimeService` via the edge, you must authenticate
-                    // with a session cookie. `Authorization` headers are ignored.
-                    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
-                    if (!sessionCookieToken) throw unauthenticatedSessionError();
-
-                    const requestToken =
-                        await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                            "TaskRealtimeService",
-                            sessionCookieToken,
+                    const edgeServiceFamilyPublicKey = env.EDGE_SERVICE_FAMILY_PUBLIC_KEY;
+                    if (!edgeServiceFamilyPublicKey)
+                        throw new InternalError(
+                            "Missing `EDGE_SERVICE_FAMILY_PUBLIC_KEY` env variable",
                         );
-                    headers.set("authorization", `bearer ${requestToken}`);
 
-                    const taskRealtimeServiceHost =
-                        await taskRealtimeServiceRouter.getStickySessionHost(
-                            Context.new({
-                                process: new ProcessContextModule({
-                                    waitUntil: promise => executionContext.waitUntil(promise),
+                    const taskRealtimeServicePublicKey = env.TASK_REALTIME_SERVICE_PUBLIC_KEY;
+                    if (!taskRealtimeServicePublicKey)
+                        throw new InternalError(
+                            "Missing `TASK_REALTIME_SERVICE_PUBLIC_KEY` env variable",
+                        );
+
+                    const jobQueueServicePublicKey = env.JOB_QUEUE_SERVICE_PUBLIC_KEY;
+                    if (!jobQueueServicePublicKey)
+                        throw new InternalError(
+                            "Missing `JOB_QUEUE_SERVICE_PUBLIC_KEY` env variable",
+                        );
+
+                    const fileUploadServicePublicKey = env.FILE_UPLOAD_SERVICE_PUBLIC_KEY;
+                    if (!fileUploadServicePublicKey)
+                        throw new InternalError(
+                            "Missing `FILE_UPLOAD_SERVICE_PUBLIC_KEY` env variable",
+                        );
+
+                    const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
+                    if (!edgeServiceFamilyPrivateKey)
+                        throw new InternalError(
+                            "Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable",
+                        );
+
+                    const tokenAgentSecret = env.TOKEN_AGENT_SECRET;
+                    if (!tokenAgentSecret)
+                        throw new InternalError("Missing `TOKEN_AGENT_SECRET` env variable");
+
+                    const tokenAgentPromise = runAllPromises([
+                        TokenAgentPublicSide.new({
+                            serviceName: "EdgeService",
+                            appServicePublicKey,
+                            edgeServiceFamilyPublicKey,
+                            taskRealtimeServicePublicKey,
+                            jobQueueServicePublicKey,
+                            fileUploadServicePublicKey,
+                            secret: tokenAgentSecret,
+                        }),
+                        TokenAgentPrivateSide.new({
+                            serviceName: "EdgeService",
+                            servicePrivateKey: edgeServiceFamilyPrivateKey,
+                            secret: tokenAgentSecret,
+                        }),
+                    ]).then(([publicSide, privateSide]) => ({publicSide, privateSide}));
+
+                    const ourSharedResources: typeof sharedResources = {
+                        env,
+                        tokenAgentPromise,
+                        taskRealtimeServiceRouterPromise: tokenAgentPromise.then(
+                            tokenAgent =>
+                                new TaskRealtimeServiceEdgeRouter({
+                                    protocol: url.protocol,
+                                    host: url.host,
+                                    tokenAgent,
                                 }),
-                                tracer: new TracerContextModule(span),
-                            }),
-                            spaceId,
-                            sessionCookieToken.sessionId,
-                        );
+                        ),
+                    };
 
-                    if (process.env.NODE_ENV !== "production") {
-                        // eslint-disable-next-line no-global-fetch
-                        return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
+                    sharedResources = ourSharedResources;
+                }
+
+                const tokenAgent = await sharedResources.tokenAgentPromise;
+
+                switch (route.type) {
+                    case "DocumentCollaborationService": {
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
+                            serviceName: "DocumentCollaborationService",
+                            tokenAgent,
+                            request,
+                            pathname: route.pathname,
+                            idName: route.documentId,
+                            span,
+                        });
                     }
 
-                    const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
-                        taskRealtimeServiceHost.split(":");
+                    case "PostRealtimeService": {
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
+                            serviceName: "PostRealtimeService",
+                            tokenAgent,
+                            request,
+                            pathname: route.pathname,
+                            idName: route.postId,
+                            span,
+                        });
+                    }
 
-                    // Proxy a WebSocket connection through Cloudflare. Notice we're using `http`
-                    // instead of `https`! Cloudflare is responsible for encrypting.
-                    //
-                    // Frustratingly, in production Cloudflare ignores non-default ports. So we run
-                    // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
-                    // the right port.
-                    //
-                    // eslint-disable-next-line no-global-fetch
-                    return fetch(
-                        `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
-                        {headers},
-                    );
-                }
-                case "UploadFile": {
-                    // Can't forward a request to upgrade to a WebSocket connection to
-                    // `FileUploadService`. All WebSocket connection routes are enumerated above.
-                    if (request.headers.has("upgrade")) {
-                        return new Response(
-                            "400 Bad Request: Can't upgrade to WebSocket connection",
+                    case "ChannelRealtimeService": {
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.ChannelRealtimeDurableObjectNamespace,
+                            serviceName: "ChannelRealtimeService",
+                            tokenAgent,
+                            request,
+                            pathname: route.pathname,
+                            idName: route.channelId,
+                            span,
+                        });
+                    }
+
+                    case "ChatRealtimeService": {
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
+                            serviceName: "ChatRealtimeService",
+                            tokenAgent,
+                            request,
+                            pathname: route.pathname,
+                            idName: route.chatId,
+                            span,
+                        });
+                    }
+
+                    case "MyAccountService": {
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace: env.MyAccountDurableObjectNamespace,
+                            serviceName: "MyAccountService",
+                            tokenAgent,
+                            request,
+                            pathname: route.pathname,
+                            idName: route.accountId,
+                            span,
+                        });
+                    }
+
+                    case "TaskNotesCollaborationService": {
+                        return fetchFromDurableObjectStub({
+                            durableObjectNamespace:
+                                env.TaskNotesCollaborationDurableObjectNamespace,
+                            serviceName: "TaskNotesCollaborationService",
+                            tokenAgent,
+                            request,
+                            pathname: route.pathname,
+                            idName: route.taskId,
+                            span,
+                        });
+                    }
+
+                    case "TaskRealtimeService": {
+                        const {spaceId} = route;
+                        const taskRealtimeServiceRouter =
+                            await sharedResources.taskRealtimeServiceRouterPromise;
+
+                        const headers = new Headers(request.headers);
+                        addTracerPropagationContextHeader(headers, span);
+
+                        // We authenticate with an `Authorization` not a `Cookie` header.
+                        headers.delete("cookie");
+
+                        // When connecting to `TaskRealtimeService` via the edge, you must authenticate
+                        // with a session cookie. `Authorization` headers are ignored.
+                        const sessionCookieToken = await getSessionCookieIfExists(
+                            tokenAgent,
+                            request,
+                        );
+                        if (!sessionCookieToken) throw unauthenticatedSessionError();
+
+                        const requestToken =
+                            await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                                "TaskRealtimeService",
+                                sessionCookieToken,
+                            );
+                        headers.set("authorization", `bearer ${requestToken}`);
+
+                        const taskRealtimeServiceHost =
+                            await taskRealtimeServiceRouter.getStickySessionHost(
+                                Context.new({
+                                    process: new ProcessContextModule({
+                                        waitUntil: promise => executionContext.waitUntil(promise),
+                                    }),
+                                    tracer: new TracerContextModule(span),
+                                }),
+                                spaceId,
+                                sessionCookieToken.sessionId,
+                            );
+
+                        if (process.env.NODE_ENV !== "production") {
+                            // eslint-disable-next-line no-global-fetch
+                            return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
+                        }
+
+                        const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
+                            taskRealtimeServiceHost.split(":");
+
+                        // Proxy a WebSocket connection through Cloudflare. Notice we're using `http`
+                        // instead of `https`! Cloudflare is responsible for encrypting.
+                        //
+                        // Frustratingly, in production Cloudflare ignores non-default ports. So we run
+                        // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
+                        // the right port.
+                        //
+                        // eslint-disable-next-line no-global-fetch
+                        return fetch(
+                            `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
+                            {headers},
+                        );
+                    }
+
+                    case "UploadFile": {
+                        // Can't forward a request to upgrade to a WebSocket connection to
+                        // `FileUploadService`. All WebSocket connection routes are enumerated above.
+                        if (request.headers.has("upgrade"))
+                            throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+
+                        const fileUploadServiceHostname = env.FILE_UPLOAD_SERVICE_HOSTNAME;
+                        if (!fileUploadServiceHostname)
+                            throw new InternalError(
+                                "Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable",
+                            );
+
+                        const headers = new Headers(request.headers);
+                        addTracerPropagationContextHeader(headers, span);
+
+                        // We authenticate with an `Authorization` not a `Cookie` header.
+                        headers.delete("cookie");
+
+                        // When connecting to `FileUploadService` via the edge, you must authenticate
+                        // with a session cookie. `Authorization` headers are ignored.
+                        const sessionCookieToken = await getSessionCookieIfExists(
+                            tokenAgent,
+                            request,
+                        );
+                        if (!sessionCookieToken) throw unauthenticatedSessionError();
+
+                        const requestToken =
+                            await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                                "FileUploadService",
+                                sessionCookieToken,
+                            );
+                        headers.set("authorization", `bearer ${requestToken}`);
+
+                        // eslint-disable-next-line no-global-fetch
+                        return fetch(
+                            `http://${fileUploadServiceHostname}/${route.spaceId}/upload${url.search}`,
                             {
-                                status: 400,
-                                headers: {"content-type": "text/plain"},
+                                method: request.method,
+                                headers,
+                                body: request.body,
                             },
                         );
                     }
 
-                    const fileUploadServiceHostname = env.FILE_UPLOAD_SERVICE_HOSTNAME;
-                    if (!fileUploadServiceHostname)
-                        throw new InternalError(
-                            "Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable",
+                    // NOTE(calebmer, 2024-09-26): A minor optimization here would be to move file
+                    // serving to its own subdomain. For example, `static.alpine.inc`. That way the
+                    // browser wouldn't send session cookies to the subdomain. We use signed URLs
+                    // to authorize file requests, we don't need cookies.
+                    case "File": {
+                        // Can't forward a request to upgrade to a WebSocket connection to
+                        // `FileUploadService`. All WebSocket connection routes are enumerated above.
+                        if (request.headers.has("upgrade"))
+                            throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+
+                        return handleFileFetch(
+                            executionContext,
+                            sharedResources,
+                            request,
+                            url,
+                            span,
+                            route,
                         );
+                    }
 
-                    const headers = new Headers(request.headers);
-                    addTracerPropagationContextHeader(headers, span);
+                    // NOTE(calebmer, 2024-10-03): The `/files/cors-proxy/:url` route is used when
+                    // pasting files in content where we find that the file's source is some URL
+                    // outside our space (e.g. an `<img>` with a `src` tag pointing to some domain
+                    // that's not ours like https://unsplash.com). For these files we load the URL
+                    // on the client then send it to `FileUploadService` to save in our databases.
+                    //
+                    // However, CORS is an issue here. The browser won't let us make HTTP requests
+                    // to domains from JavaScript that haven't explicitly allowed our domain in an
+                    // `Access-Control-Allow-Origin` header. This route is our dubious workaround.
+                    // We use `EdgeService` to proxy requests to arbitrary URLs so we can load them
+                    // on the client.
+                    //
+                    // A better solution might be to fetch the file in `FileUploadService` and
+                    // save it to our database from there. However, I'm currently scared about the
+                    // security impact of making network requests to arbitrary domains from our EC2
+                    // instances given they're in public AWS VPC subnets. So the recipient of a
+                    // network request from `FileUploadService` can figure out the IP address of our
+                    // server and perhaps start to devise attacks with that information.
+                    //
+                    // Instead we have this arbitrary `GET` request proxy in `EdgeService`. It
+                    // also seems dubious to me that we'd expose this proxy capability almost
+                    // completely unprotected. Could bad actors make use of a free internet proxy?
+                    // I'm not sure.
+                    //
+                    // Anyway, CORS is annoying. This approach may be a little dubious but it
+                    // works. We'll improve it later.
+                    case "FileCorsProxy": {
+                        if (request.headers.has("upgrade")) {
+                            throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+                        }
 
-                    // We authenticate with an `Authorization` not a `Cookie` header.
-                    headers.delete("cookie");
+                        if (request.method !== "GET") {
+                            throw new InvalidArgumentError(
+                                'Only "GET" HTTP requests are supported',
+                            );
+                        }
 
-                    // When connecting to `FileUploadService` via the edge, you must authenticate
-                    // with a session cookie. `Authorization` headers are ignored.
-                    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
-                    if (!sessionCookieToken) throw unauthenticatedSessionError();
+                        let proxyUrl: URL;
+                        try {
+                            proxyUrl = new URL(route.url);
+                        } catch {
+                            throw new InvalidArgumentError("Invalid proxied URL format");
+                        }
 
-                    const requestToken =
-                        await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                            "FileUploadService",
-                            sessionCookieToken,
+                        if (proxyUrl.protocol !== "http:" && proxyUrl.protocol !== "https:") {
+                            throw new InvalidArgumentError("Unsupported proxied URL protocol");
+                        }
+
+                        // Let's make sure the request has a valid session cookie at least. Notably, we
+                        // don't check to see whether the session is still valid. So a bad actor could
+                        // be using a session cookie we've revoked and still access this endpoint.
+                        //
+                        // At least this makes this endpoint a little annoying for a bad actor to use
+                        // even if it doesn't really provide any meaningful protection.
+                        const sessionCookieToken = await getSessionCookieIfExists(
+                            tokenAgent,
+                            request,
                         );
-                    headers.set("authorization", `bearer ${requestToken}`);
+                        if (!sessionCookieToken) throw unauthenticatedSessionError();
 
-                    // eslint-disable-next-line no-global-fetch
-                    return fetch(`http://${fileUploadServiceHostname}/${route.spaceId}/upload`, {
-                        method: request.method,
-                        headers,
-                        body: request.body,
-                    });
+                        const proxyHeaders = new Headers();
+
+                        for (const headerName of ["accept", "accept-encoding", "accept-language"]) {
+                            const headerValue = request.headers.get(headerName);
+                            if (headerValue !== null) {
+                                proxyHeaders.set(headerName, headerValue);
+                            }
+                        }
+
+                        // eslint-disable-next-line no-global-fetch
+                        return fetch(proxyUrl, {
+                            method: "GET",
+                            headers: proxyHeaders,
+                        });
+                    }
+                    default:
+                        throw exhaustive(route);
                 }
-                default:
-                    throw exhaustive(route);
+            }
+
+            // Can't forward a request to upgrade to a WebSocket connection to
+            // `AppService`. All WebSocket connection routes are enumerated above.
+            if (request.headers.has("upgrade")) {
+                return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
+                    status: 400,
+                    headers: {"content-type": "text/plain"},
+                });
+            }
+
+            const startTimeString = new Date(startTime).toISOString();
+
+            const headers = new Headers(request.headers);
+            addTracerPropagationContextHeader(headers, span);
+
+            // This forwards the request from `EdgeService` to `AppService` completely
+            // untouched. To `AppService` it will look like the request is coming from a
+            // web browser.
+            //
+            // eslint-disable-next-line no-global-fetch
+            const response = await fetch(request, {headers});
+
+            // Replace the `/*` route string with the route parsed by `AppService`. Given
+            // the edge service span is usually the root span in our trace, having a more
+            // specific span name is nice for our instrumentation tools.
+            const actualRoute = response.headers.get("cyberworlds-route");
+            if (actualRoute?.startsWith("/")) {
+                span.addData({
+                    http: {route: actualRoute},
+                });
+
+                span.recklesslyOverrideName(
+                    `Handle: ${createTraceServerResponseHandleSpanName(
+                        tracer,
+                        request,
+                        actualRoute,
+                    )}`,
+                );
+            }
+
+            // For HTML requests, include edge server timing information. We use this on
+            // the client to synchronize our client time with the server time. See
+            // `synchronized_system_clock.ts`.
+            if (response.headers.get("content-type")?.includes("text/html")) {
+                // `fetch()` responses are immutable so we need to clone to add a new header...
+                const newResponse = new Response(response.body, response);
+
+                const endTime = Date.now();
+                const durationMs = endTime - startTime;
+
+                newResponse.headers.append(
+                    "server-timing",
+                    `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
+                );
+
+                return newResponse;
+            }
+
+            return response;
+        } catch (error) {
+            span.addException(error);
+
+            const status = isSystemError(error) ? 500 : 400;
+            const statusMessage = isSystemError(error) ? "Internal Server Error" : "Bad Request";
+
+            return new Response(
+                `${status} ${statusMessage}${
+                    process.env.NODE_ENV === "development"
+                        ? `\n\n${
+                              error instanceof Error ? error.stack ?? error.message : String(error)
+                          }`
+                        : ""
+                }`,
+                {
+                    status,
+                    headers: {"content-type": "text/plain"},
+                },
+            );
+        }
+    });
+}
+
+async function handleFileFetch(
+    executionContext: ExecutionContext,
+    sharedResources: EdgeServiceSharedResources,
+    request: Request,
+    url: URL,
+    span: TracerSpan,
+    route: {spaceId: SpaceId; fileId: FileId},
+) {
+    try {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+            throw new InvalidArgumentError('Only "GET" and "HEAD" HTTP requests are supported');
+        }
+
+        const fileUploadServiceHostname = sharedResources.env.FILE_UPLOAD_SERVICE_HOSTNAME;
+        if (!fileUploadServiceHostname)
+            throw new InternalError("Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable");
+
+        const tokenAgent = await sharedResources.tokenAgentPromise;
+
+        const signedUrl = new URL(url);
+
+        // Don't include the `width` and `variant` search parameters in the signed URL
+        // verification. Clients are allowed to vary this argument.
+        const widthString = signedUrl.searchParams.get("width");
+        const variant = signedUrl.searchParams.get("variant");
+        signedUrl.searchParams.delete("width");
+        signedUrl.searchParams.delete("variant");
+
+        const width = widthString !== null ? parseInt(widthString, 10) : null;
+        if (width !== null && !isFilePreviewImageResizeWidth(width)) {
+            throw new InvalidArgumentError(
+                `Search param "width" is not a valid resize width, the nearest valid resize width is ${getFilePreviewImageResizeWidth(
+                    width,
+                )}`,
+            );
+        }
+
+        if (variant !== null && variant !== "preview" && variant !== "alternative") {
+            throw new InvalidArgumentError(`Search param "variant" is not a valid file variant`);
+        }
+
+        // Make sure the user is allowed to access this file by verifying the signed
+        // URL. If the user tampered with the URL then we'll throw an error.
+        try {
+            await tokenAgent.publicSide.verifyUrl(signedUrl);
+        } catch (error) {
+            if (error instanceof PermissionDeniedError) {
+                return new Response("401 Unauthorized", {
+                    status: 401,
+                    headers: {"content-type": "text/plain"},
+                });
             }
         }
-
-        // Can't forward a request to upgrade to a WebSocket connection to
-        // `AppService`. All WebSocket connection routes are enumerated above.
-        if (request.headers.has("upgrade")) {
-            return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
-                status: 400,
-                headers: {"content-type": "text/plain"},
-            });
-        }
-
-        const startTimeString = new Date(startTime).toISOString();
 
         const headers = new Headers(request.headers);
         addTracerPropagationContextHeader(headers, span);
 
-        // This forwards the request from `EdgeService` to `AppService` completely
-        // untouched. To `AppService` it will look like the request is coming from a
-        // web browser.
+        // We authenticate with an `Authorization` not a `Cookie` header.
+        headers.delete("cookie");
+
+        // Use a system actor for our resize action. We've already verified the user
+        // has access to this URL after calling `verifyUrl()`.
+        const token = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            "FileUploadService",
+            {type: "System", spaceId: route.spaceId},
+        );
+        headers.set("authorization", `bearer ${token}`);
+
+        const subrequestUrl = new URL(
+            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${route.fileId}`,
+        );
+
+        if (variant !== null) subrequestUrl.searchParams.set("variant", variant);
+        if (width !== null) subrequestUrl.searchParams.set("width", String(width));
+
+        const subrequest = new Request(subrequestUrl, {
+            method: request.method,
+            headers,
+        });
+
+        // We set `max-age` to a time just after our URL expires. This lets the browser
+        // know it's free to discard the file from its cache after that.
+        const expirationTime = getContentReferencesFileSignedUrlSearchExpirationTime(
+            signedUrl.search,
+        );
+        const cacheControlMaxAge = Math.ceil((expirationTime - Date.now()) / 1000) + 60;
+
+        // Use a cache specifically for files since we'll be saving private files to
+        // this cache. We don't want to accidentally serve these files from another
+        // request that hasn't verified the URL signature.
+        const filesCache = await caches.open("files");
+
+        try {
+            const cachedResponse = await filesCache.match(subrequest);
+            if (cachedResponse) {
+                const cachedResponseHeaders = new Headers(cachedResponse.headers);
+
+                // 1. Make sure to switch the `public` `cache-control` directive back to
+                //    `private` before returning.
+                // 2. Change `max-age` to match the expiration time from our URL.
+                const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
+                if (cacheControlResponseHeader) {
+                    cachedResponseHeaders.set(
+                        "cache-control",
+                        cacheControlResponseHeader
+                            .replace(/((?:^|,) *)public( *(?:,|$))/, "$1private$2")
+                            .replace(
+                                /((?:^|,) *)max-age=\d+( *(?:,|$))/,
+                                `$1max-age=${cacheControlMaxAge}$2`,
+                            ),
+                    );
+                }
+
+                // If we're making a `HEAD` request then make sure we don't return a body.
+                return new Response(request.method !== "HEAD" ? cachedResponse.body : null, {
+                    ...cachedResponse,
+                    headers: cachedResponseHeaders,
+                });
+            }
+        } catch (error) {
+            if (
+                process.env.NODE_ENV !== "production" &&
+                error instanceof Error &&
+                // Detect this error from Miniflare:
+                // https://github.com/cloudflare/miniflare/blob/12f6f915e08fbf3c7c5298e5131153c5e6e11d57/packages/cache/src/cache.ts#L273-L279
+                //
+                // Miniflare error name format:
+                // https://github.com/cloudflare/miniflare/blob/12f6f915e08fbf3c7c5298e5131153c5e6e11d57/packages/shared/src/error.ts#L9
+                error.name === "CacheError [ERR_DESERIALIZATION]"
+            ) {
+                // There's a race condition in Miniflare in development where if
+                // `filesCache.put()` hasn't finished running then Miniflare will have started
+                // writing to the cache but won't have written cache metadata. This causes
+                // Miniflare to crash. This race condition reproduces reliably when playing a
+                // video file that's not in the cache.
+                //
+                // If we detect this race condition then we ignore the error and treat this as
+                // an uncached request.
+            } else {
+                throw error;
+            }
+        }
+
+        let response: Response;
+
+        // If a `width` search param wasn't provided then we return the file as-is
+        // without resizing. So if `width` is non null then execute our resize
+        // request against file upload service. Otherwise directly read the file
+        // from R2.
         //
-        // eslint-disable-next-line no-global-fetch
-        const response = await fetch(request, {headers});
+        // We use the resize request as a cache key regardless of whether we actually
+        // need to execute the resize.
+        if (width !== null) {
+            // eslint-disable-next-line no-global-fetch
+            response = await fetch(subrequest);
+        } else {
+            const object =
+                request.method === "HEAD"
+                    ? await sharedResources.env.FilesBucket.head(
+                          `${route.spaceId}/${route.fileId}${
+                              variant !== null ? `-${variant}` : ""
+                          }`,
+                      )
+                    : await sharedResources.env.FilesBucket.get(
+                          `${route.spaceId}/${route.fileId}${
+                              variant !== null ? `-${variant}` : ""
+                          }`,
+                          {range: request.headers},
+                      );
 
-        // Replace the `/*` route string with the route parsed by `AppService`. Given
-        // the edge service span is usually the root span in our trace, having a more
-        // specific span name is nice for our instrumentation tools.
-        const actualRoute = response.headers.get("cyberworlds-route");
-        if (actualRoute?.startsWith("/")) {
-            span.addData({
-                http: {route: actualRoute},
-            });
+            if (!object) {
+                response = new Response(request.method !== "HEAD" ? "404 Not Found" : null, {
+                    status: 404,
+                    headers: {"content-type": "text/plain"},
+                });
+            } else {
+                // This is a ranged request if our object has a range and the range isn't the
+                // entire file.
+                const isRangedRequest =
+                    object.range &&
+                    ("offset" in object.range || "length" in object.range) &&
+                    !(
+                        (object.range.offset ?? 0) <= 0 &&
+                        (object.range.length ?? object.size) >= object.size
+                    );
 
-            span.recklesslyOverrideName(
-                `Handle: ${createTraceServerResponseHandleSpanName(tracer, request, actualRoute)}`,
+                response = new Response(
+                    request.method !== "HEAD" ? (object as R2ObjectBody).body : null,
+                    {
+                        status: isRangedRequest ? 206 : 200,
+                        // We need to return the same headers between here and `resizeFile()` in
+                        // `server/files/upload`. If you add a header here you should also add a
+                        // header there.
+                        headers: {
+                            "content-type": assertExists(object.httpMetadata?.contentType),
+                            "content-length": String(
+                                isRangedRequest ? object.range.length : object.size,
+                            ),
+                            ...(isRangedRequest
+                                ? {
+                                      "content-range": isRangedRequest
+                                          ? `bytes ${object.range.offset ?? 0}-${
+                                                (object.range.offset ?? 0) +
+                                                (object.range.length ?? object.size) -
+                                                1
+                                            }/${object.size}`
+                                          : undefined,
+                                  }
+                                : {}),
+                            // Advertise that our server supports range requests. We only support range
+                            // requests when there's no `width` parameter.
+                            "accept-ranges": "bytes",
+                            // After resizing, the result should be cached.
+                            //
+                            // - `private`: A user can only see files they have access to. Don't store
+                            //   files in a shared cache since an attacker may be able to see a file they
+                            //   don't have access to.
+                            //
+                            // - `immutable`: Files are immutable after they've been uploaded. While
+                            //   hitting this route will resize the file on demand causing the bytes to not
+                            //   be strictly the same over time, the perceived result to the end user will
+                            //   never change so it's safe to cache this response as an immutable value.
+                            //
+                            // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
+                            //   the file after that and request again if needed.
+                            "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
+                        },
+                    },
+                );
+            }
+        }
+
+        // Cloudflare doesn't support caching partial responses. So make sure we
+        // have a non-206 status code before writing to the cache.
+        if (response.status !== 206) {
+            // Replace the `private` `cache-control` directive with `public`. It's safe to
+            // cache files in `filesCache` since in order to access `filesCache` you must
+            // have a valid signed URL when accessing this endpoint. We'll only generate
+            // signed URLs when the user actually has access to a file.
+            const cachedResponse = response.clone();
+
+            executionContext.waitUntil(
+                (async () => {
+                    const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
+                    if (cacheControlResponseHeader) {
+                        cachedResponse.headers.set(
+                            "cache-control",
+                            cacheControlResponseHeader.replace(
+                                /((?:^|,) *)private( *(?:,|$))/,
+                                "$1public$2",
+                            ),
+                        );
+                    }
+
+                    await filesCache.put(subrequest, cachedResponse);
+                })(),
             );
         }
 
-        // For HTML requests, include edge server timing information. We use this on
-        // the client to synchronize our client time with the server time. See
-        // `synchronized_system_clock.ts`.
-        if (response.headers.get("content-type")?.includes("text/html")) {
-            // `fetch()` responses are immutable so we need to clone to add a new header...
-            const newResponse = new Response(response.body, response);
+        const responseHeaders = new Headers(response.headers);
 
-            const endTime = Date.now();
-            const durationMs = endTime - startTime;
-
-            newResponse.headers.append(
-                "server-timing",
-                `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
+        // Change `max-age` to match the expiration time from our URL.
+        const cacheControlResponseHeader = responseHeaders.get("cache-control");
+        if (cacheControlResponseHeader) {
+            responseHeaders.set(
+                "cache-control",
+                cacheControlResponseHeader.replace(
+                    /((?:^|,) *)max-age=\d+( *(?:,|$))/,
+                    `$1max-age=${cacheControlMaxAge}$2`,
+                ),
             );
-
-            return newResponse;
         }
 
-        return response;
-    });
+        return new Response(response.body, {
+            ...response,
+            headers: responseHeaders,
+        });
+    } catch (error) {
+        span.addException(error);
+
+        let statusCode;
+        let statusMessage;
+
+        if (!isSystemError(error)) {
+            statusCode = 400;
+            statusMessage = "Bad Request";
+        } else {
+            statusCode = 500;
+            statusMessage = "Internal Server Error";
+        }
+
+        return new Response(
+            `${statusCode} ${statusMessage}${
+                process.env.NODE_ENV === "development"
+                    ? `\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}`
+                    : ""
+            }`,
+            {
+                status: statusCode,
+                headers: {"content-type": "text/plain"},
+            },
+        );
+    }
 }
 
 // eslint-disable-next-line import/no-default-export

@@ -4,22 +4,22 @@ import {Memo, useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {messagingViewMarginBottom} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewBubbleBorderRadius,
     messageViewMarginY,
     messageViewMaxWidth,
+    messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
-import {easeInOutSin} from "~/shared/design/easing.js";
+import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {
     Spacing,
     addRemLengths,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";

@@ -16,13 +16,7 @@ import {
     DynamoClientInternal,
 } from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {
-    CancelledError,
-    DeadlineExceededError,
-    InternalError,
-    InvalidArgumentError,
-} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {
@@ -400,13 +394,14 @@ export class DynamoClient {
                 try {
                     await runAllPromises(promises);
                 } catch (entryError) {
+                    const entryErrorPriority = getAggregateErrorPriority(entryError);
+
                     if (!hasError) {
                         hasError = true;
+                        errorPriority = entryErrorPriority;
                         error = entryError;
-                    } else if (
-                        (isSystemError(entryError) && !isSystemError(error)) ||
-                        (entryError instanceof CancelledError && !(error instanceof CancelledError))
-                    ) {
+                    } else if (entryErrorPriority > errorPriority) {
+                        errorPriority = entryErrorPriority;
                         error = entryError;
                     }
                 }
@@ -487,10 +482,14 @@ export class DynamoClient {
                 try {
                     await runAllPromises(promises);
                 } catch (entryError) {
+                    const entryErrorPriority = getAggregateErrorPriority(entryError);
+
                     if (!hasError) {
                         hasError = true;
+                        errorPriority = entryErrorPriority;
                         error = entryError;
-                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                    } else if (entryErrorPriority > errorPriority) {
+                        errorPriority = entryErrorPriority;
                         error = entryError;
                     }
                 }

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {useLoaderData} from "@remix-run/react";
 import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
@@ -143,7 +145,7 @@ export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSe
     if (client) loadTaskDataIntoClient(client, data);
 }
 
-export function useTaskStoreLoaderDataWithoutRetainingButOnlyStore() {
+function useTaskStoreLoaderDataWithoutRetainingButOnlyStore() {
     const store = useContext(TaskClientStoreContext);
 
     if (!store) {

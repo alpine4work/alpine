@@ -1,7 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {flushSync} from "react-dom";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {mobileMaxScreenWidth} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
@@ -58,6 +60,26 @@ export function useCanPrimaryInputHover(): boolean {
  */
 export function getIsMobileWithoutListening(): boolean {
     return !!NativeMobileBridge || window.innerWidth <= mobileMaxScreenWidth;
+}
+
+/**
+ * Subscribe to changes that might update `isMobile`. To know for sure whether
+ * `isMobile` changed you must call `getIsMobileWithoutListening()`. Generally
+ * you should prefer using `useIsMobile()` since it adds one window size
+ * listener for the entire React component tree. But this function can be
+ * useful if you can't use React for some reason.
+ */
+export function subscribeToIsMobileChange(listener: () => void): () => void {
+    const mediaQuery = window.matchMedia(`screen and (max-width: ${mobileMaxScreenWidth}px)`);
+
+    const update = () => {
+        flushSync(listener);
+    };
+
+    mediaQuery.addEventListener("change", update);
+    return () => {
+        mediaQuery.removeEventListener("change", update);
+    };
 }
 
 /**

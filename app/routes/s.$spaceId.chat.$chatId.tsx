@@ -2,8 +2,8 @@ import {useSearchParams} from "@remix-run/react";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
 import {ChatView} from "~/client/chat/chat_view.js";
 import {Box} from "~/client/design/box.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -134,20 +134,12 @@ export default function ChatRoute({
         </Box>
     );
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                maxWidth={messageViewMaxWidth}
-                withMobileLayout={withMobileLayout}
-                // Since chats have a permanent top bar, use `grey-5` border to create the
-                // illusion that the banner is of the same physical material.
-                borderBottom="grey-5"
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            maxWidth: messageViewMaxWidth,
+            withMobileLayout: withMobileLayout,
+        },
+        node,
+    );
 }

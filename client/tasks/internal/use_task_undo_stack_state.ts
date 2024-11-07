@@ -55,8 +55,7 @@ export type TaskUndoStackEntry =
  */
 export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     const [undoState] = useStateWithDependencies(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        stateKey => ({
+        () => ({
             undoStackRef: cast<
                 MutableRefObject<Array<TaskUndoStackEntry & {readonly fromRedo: boolean}>>
             >({current: []}),
@@ -70,6 +69,7 @@ export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     useEffect(() => {
         return () => {
             for (const entry of undoState.undoStackRef.current) entry.release();
+            // eslint-disable-next-line react-compiler/react-compiler
             undoState.undoStackRef.current = [];
 
             for (const entry of undoState.redoStackRef.current) entry.release();

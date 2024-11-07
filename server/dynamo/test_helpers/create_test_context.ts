@@ -17,6 +17,10 @@ import {
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
+    FilesContextModuleBase,
+    TestFilesContextModule,
+} from "~/server/context/files_context_module.js";
+import {
     ServerSessionActionContextModules,
     ServerSystemActionContextModules,
     ServerUnknownActionContextModules,
@@ -73,6 +77,7 @@ type TestContextExtraModules = {
     email: EmailContextModuleBase;
     opensearch: OpensearchContextModule;
     edge: EdgeServiceContextModuleBase;
+    files: FilesContextModuleBase;
 };
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
@@ -372,6 +377,7 @@ export function createTestContext({
         opensearch: opensearchContextModule,
         jobs: jobsContextModule,
         edge: new TestLocalEdgeServiceContextModule(),
+        files: new TestFilesContextModule(),
     });
 
     const helpers: TestContextHelpers<any> = {

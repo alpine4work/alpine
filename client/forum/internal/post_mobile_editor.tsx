@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
@@ -7,17 +7,17 @@ import {trimContentEnd} from "~/client/content/trim_content_end.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
-    useNavigationBar,
-} from "~/client/design/navigation_bar.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+} from "~/client/design/navigation_bar_helpers.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
@@ -27,8 +27,9 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -194,6 +195,10 @@ export function PostMobileEditor({
                             // editing modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas…"
+                            fileAttachmentTarget={useMemo(
+                                (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
+                                [post.id],
+                            )}
                             containerClassName={sprinkles({
                                 flexGrow: "1",
                             })}

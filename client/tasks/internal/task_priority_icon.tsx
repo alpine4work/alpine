@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {colorSchemeVars, pingAnimationClassName, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 

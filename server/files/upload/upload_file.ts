@@ -2,7 +2,6 @@ import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
     FileUploader,
     startUploadingAndProcessingFile,
@@ -25,6 +24,7 @@ import {createFileWebSafeVideoProcessor} from "~/server/files/upload/processors/
 import {createFileWebUnsafeAudioProcessor} from "~/server/files/upload/processors/file_web_unsafe_audio_processor.js";
 import {createFileWebUnsafeImageProcessor} from "~/server/files/upload/processors/file_web_unsafe_image_processor.js";
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/upload/processors/file_web_unsafe_video_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
@@ -35,26 +35,22 @@ import {
     InvalidArgumentError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {getErrorCodes} from "~/shared/error/error_code.js";
-import {ErrorDisplayMessageSchema, ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
-    FileContentTypeSchema,
     FileMp4AudioContentType,
     FileMp4VideoContentType,
     canonicalizeFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {UploadFileEvent, UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // Make sure we're using our custom `sharp` `libvips` build built from
@@ -66,76 +62,6 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 assert((sharp.versions as any).de265 === "1.0.15");
 assert((sharp.versions as any).graphicsmagick === "1.3.45");
 assert((sharp.versions as any).pdfium === "chromium/6679");
-
-type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;
-
-export const UploadFileEventSchema = Schema.union({
-    Start: Schema.object({
-        type: Schema.value("Start"),
-        fileId: Schema.id<FileId>(),
-        hasAlternative: Schema.boolean,
-        hasPreview: Schema.union({
-            Image: Schema.object({
-                type: Schema.value("Image"),
-                hasContent: Schema.boolean,
-                hasVideoDuration: Schema.boolean,
-            }),
-            Audio: Schema.object({
-                type: Schema.value("Audio"),
-            }),
-            Code: Schema.object({
-                type: Schema.value("Code"),
-            }),
-        }).nullable(),
-    }),
-    Finish: Schema.object({
-        type: Schema.value("Finish"),
-    }),
-    Alternative: Schema.object({
-        type: Schema.value("Alternative"),
-        contentType: FileContentTypeSchema,
-        contentLength: Schema.integer,
-        isImagePreviewContent: Schema.boolean,
-    }),
-    ImagePreviewSize: Schema.object({
-        type: Schema.value("ImagePreviewSize"),
-        width: Schema.integer,
-        height: Schema.integer,
-        scale: Schema.float,
-    }),
-    ImagePreviewPlaceholder: Schema.object({
-        type: Schema.value("ImagePreviewPlaceholder"),
-        placeholder: FileImagePreviewPlaceholder.schema,
-    }),
-    ImagePreviewContent: Schema.object({
-        type: Schema.value("ImagePreviewContent"),
-        contentType: FileContentTypeSchema,
-        contentLength: Schema.integer,
-    }),
-    ImagePreviewVideoDuration: Schema.object({
-        type: Schema.value("ImagePreviewVideoDuration"),
-        videoDuration: Schema.integer,
-    }),
-    AudioPreviewDuration: Schema.object({
-        type: Schema.value("AudioPreviewDuration"),
-        duration: Schema.integer,
-    }),
-    CodePreviewContent: Schema.object({
-        type: Schema.value("CodePreviewContent"),
-        content: FileCodePreviewContent.schema,
-    }),
-    PreviewError: Schema.object({
-        type: Schema.value("PreviewError"),
-        error: Schema.object({
-            code: Schema.enum(getErrorCodes()),
-            displayMessage: ErrorDisplayMessageSchema,
-        }),
-    }),
-    Error: Schema.object({
-        type: Schema.value("Error"),
-        error: ErrorSchema,
-    }),
-});
 
 export async function uploadFile(
     context: FileUploadServiceActionContext,
@@ -208,6 +134,7 @@ async function actuallyUploadFile(
     req: IncomingMessage,
     sendEvent: (event: UploadFileEvent) => void,
     {
+        url,
         spaceId,
         headers,
         temporaryDirectoryPath,
@@ -222,6 +149,11 @@ async function actuallyUploadFile(
     // don't support uploading directly from other services like `JobQueueService`.
     if (originalContext.actor.serviceName !== "EdgeService")
         throw new PermissionDeniedError("Only `EdgeService` can upload a file");
+
+    const providedFileId = url.searchParams.get("id");
+    if (providedFileId !== null && !isId<FileId>(providedFileId)) {
+        throw new InvalidArgumentError('Invalid "id" URL search param');
+    }
 
     const context = originalContext.actor.authorizeSession();
 
@@ -328,6 +260,7 @@ async function actuallyUploadFile(
     try {
         const fileUploader = await startUploadingAndProcessingFile(context, {
             spaceId,
+            fileId: providedFileId,
             contentType,
             contentLength,
             hasAlternative: !!fileProcessor.hasAlternative,
@@ -386,11 +319,20 @@ async function uploadAndProcessFile(
         createAbortCatcher: (message: string) => (error: unknown) => never;
     },
 ) {
+    // The client won't be able to use the preview URL until the preview has
+    // finished processing. But given the URL expires in 10 minutes processing
+    // should finish before the URL expires.
+    const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+        spaceId,
+        fileUploader.fileId,
+    );
+
     sendEvent({
         type: "Start",
         fileId: fileUploader.fileId,
         hasAlternative: !!fileProcessor.hasAlternative,
         hasPreview: fileProcessor.hasPreview,
+        signedUrlSearch: signedUrl.search,
     });
 
     // Make sure the stream hasn't started outputting data yet. See:
@@ -420,7 +362,7 @@ async function uploadAndProcessFile(
                 ContentType: contentType,
                 Body: stream,
             },
-            {signal: signal},
+            {signal},
         );
 
         if (signal.aborted) throw signal.reason;
@@ -430,441 +372,460 @@ async function uploadAndProcessFile(
 
     const actualCreateAbortCatcher = createAbortCatcher;
 
-    const processPromise = fileProcessor.hasPreview
-        ? context.tracer.withSpan("Process file", async (context, span) => {
-              span.addData({
-                  file: {
-                      contentType,
-                      contentLength,
-                      processorType: fileProcessor.type,
-                  },
-              });
+    let processPromise: Promise<void> | null;
 
-              const {
-                  extraPromise,
-                  alternativePromise,
-                  imagePreviewSizePromise,
-                  imagePreviewPlaceholderPromise,
-                  imagePreviewContentPromise,
-                  imagePreviewVideoDurationPromise,
-                  audioPreviewDurationPromise,
-                  codePreviewContentPromise,
-              } = fileProcessor.process(stream, signal, {
-                  span,
-                  fileId: fileUploader.fileId,
-                  contentLength,
-                  temporaryDirectoryPath,
-              });
+    if (!fileProcessor.hasPreview) {
+        processPromise = null;
+    } else {
+        processPromise = context.tracer.withSpan("Process file", async (context, span) => {
+            span.addData({
+                file: {
+                    contentType,
+                    contentLength,
+                    processorType: fileProcessor.type,
+                },
+            });
 
-              let hasAcceptedPreviewError = false;
+            const {
+                extraPromise,
+                alternativePromise,
+                imagePreviewSizePromise,
+                imagePreviewPlaceholderPromise,
+                imagePreviewContentPromise,
+                imagePreviewVideoDurationPromise,
+                audioPreviewDurationPromise,
+                audioPreviewMetadataPromise,
+                codePreviewContentPromise,
+            } = fileProcessor.process(stream, signal, {
+                span,
+                fileId: fileUploader.fileId,
+                contentLength,
+                temporaryDirectoryPath,
+            });
 
-              const createAbortCatcherWithoutAcceptError = actualCreateAbortCatcher;
+            let hasAcceptedPreviewError = false;
 
-              const createAbortCatcher = (message: string) => {
-                  const abortCatcher = createAbortCatcherWithoutAcceptError(message);
+            const createAbortCatcherWithoutAcceptError = actualCreateAbortCatcher;
 
-                  return async (error: unknown) => {
-                      if (hasAcceptedPreviewError) throw error;
+            const createAbortCatcher = (message: string) => {
+                const abortCatcher = createAbortCatcherWithoutAcceptError(message);
 
-                      if (!signal.aborted && error instanceof ErrorBase && error.displayMessage) {
-                          const acceptError = fileProcessor.acceptError?.(
-                              error,
-                              error.displayMessage,
-                          );
+                return async (error: unknown) => {
+                    if (hasAcceptedPreviewError) throw error;
 
-                          if (acceptError) {
-                              hasAcceptedPreviewError = true;
-
-                              // NOTE(calebmer, 2024-09-10): Currently `acceptError` only works with image
-                              // previews. There's no reason we couldn't support other types of previews.
-                              // We're waiting on examples of other types of previews with acceptable errors.
-                              await fileUploader.finishProcessingImagePreviewAfterAcceptableError(
-                                  context,
-                                  {
-                                      code: error.code,
-                                      displayMessage: error.displayMessage,
-                                  },
-                              );
-
-                              sendEvent({
-                                  type: "PreviewError",
-                                  error: {
-                                      code: error.code,
-                                      displayMessage: error.displayMessage,
-                                  },
-                              });
-                              throw error;
-                          }
-                      }
-
-                      return abortCatcher(error);
-                  };
-              };
-
-              // We wait for the extra promise to finish before we consider processing to be
-              // complete. But the extra promise doesn't return any data. Useful if you've
-              // resolved all other promises with streams but want a promise that'll wait for
-              // the stream to complete.
-              const actualExtraPromise = extraPromise?.catch(createAbortCatcherWithoutAcceptError);
-
-              const actualAlternativePromise = alternativePromise
-                  ? (async () => {
-                        const alternative = await alternativePromise;
-                        if (signal.aborted) throw signal.reason;
-
-                        let dataContentLength: number = 0;
-                        if (alternative.data instanceof Buffer) {
-                            dataContentLength = alternative.data.length;
-                        } else {
-                            alternative.data.on("data", (chunk: Buffer) => {
-                                dataContentLength += chunk.length;
-                            });
-                        }
-
-                        // NOTE: We don't `Promise.race()` `PutObject()` with
-                        // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
-                        // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
-                        // successfully cleanup the object.
-                        await context.r2.PutObject(
-                            {
-                                Bucket: filesBucketName,
-                                Key: `${spaceId}/${fileUploader.fileId}-alternative`,
-                                ContentType: alternative.contentType,
-                                Body: alternative.data,
-                            },
-                            {signal},
+                    if (!signal.aborted && error instanceof ErrorBase && error.displayMessage) {
+                        const acceptError = fileProcessor.acceptError?.(
+                            error,
+                            error.displayMessage,
                         );
 
-                        await fileUploader.finishProcessingAlternative(context, {
-                            contentType: alternative.contentType,
-                            contentLength: dataContentLength,
-                        });
+                        if (acceptError) {
+                            hasAcceptedPreviewError = true;
 
-                        sendEvent({
-                            type: "Alternative",
-                            contentType: alternative.contentType,
-                            contentLength: dataContentLength,
-                            isImagePreviewContent: false,
-                        });
-
-                        return {
-                            file: {
-                                alternative: {
-                                    contentType: alternative.contentType,
-                                    contentLength: dataContentLength,
-                                    contentLengthRatio: dataContentLength / contentLength,
-                                },
-                            },
-                        };
-                    })().catch(
-                        // We don't currently allow errors from alternative file generation to be
-                        // accepted. If a file has an alternative then the alternative must be
-                        // generated. Also, accepted errors are stored in `preview`. This would leave
-                        // `alternative` in a processing state forever.
-                        createAbortCatcherWithoutAcceptError("File alternative processing failed"),
-                    )
-                  : null;
-
-              const actualImagePreviewSizePromise = imagePreviewSizePromise
-                  ? (async () => {
-                        const size = await imagePreviewSizePromise;
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
-
-                        await fileUploader.finishProcessingImagePreviewSize(
-                            context,
-                            {
-                                width: size.width,
-                                height: size.height,
-                                scale: size.scale,
-                            },
-                            size.videoDuration !== undefined
-                                ? {alsoPreviewVideoDuration: size.videoDuration}
-                                : undefined,
-                        );
-
-                        sendEvent({
-                            type: "ImagePreviewSize",
-                            width: size.width,
-                            height: size.height,
-                            scale: size.scale,
-                        });
-
-                        if (size.videoDuration !== undefined) {
-                            sendEvent({
-                                type: "ImagePreviewVideoDuration",
-                                videoDuration: size.videoDuration,
-                            });
-                        }
-
-                        return {
-                            file: {
-                                preview: {
-                                    imageWidth: size.width,
-                                    imageHeight: size.height,
-                                    imageScale: size.scale,
-                                    imageVideoDurationMs: size.videoDuration,
-                                },
-                            },
-                        };
-                    })().catch(createAbortCatcher("File image preview size processing failed"))
-                  : null;
-
-              const actualImagePreviewPlaceholderPromise = imagePreviewPlaceholderPromise
-                  ? (async () => {
-                        const placeholder = await imagePreviewPlaceholderPromise;
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
-
-                        await fileUploader.finishProcessingImagePreviewPlaceholder(
-                            context,
-                            placeholder,
-                        );
-
-                        sendEvent({
-                            type: "ImagePreviewPlaceholder",
-                            placeholder,
-                        });
-                    })().catch(
-                        createAbortCatcher("File image preview placeholder processing failed"),
-                    )
-                  : null;
-
-              const actualImagePreviewContentPromise = imagePreviewContentPromise
-                  ? (async () => {
-                        const content = await imagePreviewContentPromise;
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
-
-                        let dataContentLength: number = 0;
-                        if (content.data instanceof Buffer) {
-                            dataContentLength = content.data.length;
-                        } else {
-                            content.data.on("data", (chunk: Buffer) => {
-                                dataContentLength += chunk.length;
-                            });
-                        }
-
-                        // NOTE: We don't `Promise.race()` `PutObject()` with
-                        // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
-                        // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
-                        // successfully cleanup the object.
-                        await context.r2.PutObject(
-                            {
-                                Bucket: filesBucketName,
-                                Key: `${spaceId}/${fileUploader.fileId}-preview`,
-                                ContentType: content.contentType,
-                                Body: content.data,
-                            },
-                            {signal},
-                        );
-
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
-
-                        await fileUploader.finishProcessingImagePreviewContent(context, {
-                            contentType: content.contentType,
-                            contentLength: dataContentLength,
-                            isAlternative: fileProcessor.hasAlternative === "ImagePreviewContent",
-                        });
-
-                        sendEvent({
-                            type: "ImagePreviewContent",
-                            contentType: content.contentType,
-                            contentLength: dataContentLength,
-                        });
-
-                        if (fileProcessor.hasAlternative === "ImagePreviewContent") {
-                            sendEvent({
-                                type: "Alternative",
-                                contentType: content.contentType,
-                                contentLength: dataContentLength,
-                                isImagePreviewContent: true,
-                            });
-                        }
-
-                        return {
-                            file: {
-                                preview: {
-                                    contentType: content.contentType,
-                                    contentLength: dataContentLength,
-                                    contentLengthRatio: dataContentLength / contentLength,
-                                },
-                                alternative:
-                                    fileProcessor.hasAlternative === "ImagePreviewContent"
-                                        ? {
-                                              contentType: content.contentType,
-                                              contentLength: dataContentLength,
-                                              contentLengthRatio: dataContentLength / contentLength,
-                                          }
-                                        : undefined,
-                            },
-                        };
-                    })().catch(createAbortCatcher("File image preview content processing failed"))
-                  : null;
-
-              const actualImagePreviewVideoDurationPromise = imagePreviewVideoDurationPromise
-                  ? (async () => {
-                        const videoDuration = await imagePreviewVideoDurationPromise;
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
-
-                        const {wasUpdated} =
-                            await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
+                            // NOTE(calebmer, 2024-09-10): Currently `acceptError` only works with image
+                            // previews. There's no reason we couldn't support other types of previews.
+                            // We're waiting on examples of other types of previews with acceptable errors.
+                            await fileUploader.finishProcessingImagePreviewAfterAcceptableError(
                                 context,
-                                videoDuration,
+                                {
+                                    code: error.code,
+                                    displayMessage: error.displayMessage,
+                                },
                             );
 
-                        if (wasUpdated) {
                             sendEvent({
-                                type: "ImagePreviewVideoDuration",
-                                videoDuration,
+                                type: "PreviewError",
+                                error: {
+                                    code: error.code,
+                                    displayMessage: error.displayMessage,
+                                },
                             });
+                            throw error;
                         }
+                    }
 
-                        return {
-                            file: {preview: {imageVideoDurationMs: videoDuration}},
-                            // Record if there was no update (since `imagePreviewSizePromise` saved the video
-                            // duration). The `child` key will only be added to `childSpan` and not our
-                            // parent processor span.
-                            child: {common: {didNothing: !wasUpdated}},
-                        };
-                    })().catch(
-                        createAbortCatcher("File image preview video duration processing failed"),
-                    )
-                  : null;
+                    return abortCatcher(error);
+                };
+            };
 
-              const actualAudioPreviewDurationPromise = audioPreviewDurationPromise
-                  ? (async () => {
-                        const duration = await audioPreviewDurationPromise;
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
+            // We wait for the extra promise to finish before we consider processing to be
+            // complete. But the extra promise doesn't return any data. Useful if you've
+            // resolved all other promises with streams but want a promise that'll wait for
+            // the stream to complete.
+            const actualExtraPromise = extraPromise?.catch(createAbortCatcherWithoutAcceptError);
 
-                        await fileUploader.finishProcessingAudioPreviewDuration(context, duration);
+            const actualAlternativePromise = alternativePromise
+                ? (async () => {
+                      const alternative = await alternativePromise;
+                      if (signal.aborted) throw signal.reason;
 
-                        sendEvent({
-                            type: "AudioPreviewDuration",
-                            duration,
-                        });
+                      let dataContentLength: number = 0;
+                      if (alternative.data instanceof Buffer) {
+                          dataContentLength = alternative.data.length;
+                      } else {
+                          alternative.data.on("data", (chunk: Buffer) => {
+                              dataContentLength += chunk.length;
+                          });
+                      }
 
-                        return {
-                            file: {preview: {audioDurationMs: duration}},
-                        };
-                    })().catch(createAbortCatcher("File audio preview duration processing failed"))
-                  : null;
+                      // NOTE: We don't `Promise.race()` `PutObject()` with
+                      // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
+                      // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
+                      // successfully cleanup the object.
+                      await context.r2.PutObject(
+                          {
+                              Bucket: filesBucketName,
+                              Key: `${spaceId}/${fileUploader.fileId}-alternative`,
+                              ContentType: alternative.contentType,
+                              Body: alternative.data,
+                          },
+                          {signal},
+                      );
 
-              const actualCodePreviewContentPromise = codePreviewContentPromise
-                  ? (async () => {
-                        const content = await codePreviewContentPromise;
-                        if (signal.aborted) throw signal.reason;
-                        if (hasAcceptedPreviewError) return;
+                      await fileUploader.finishProcessingAlternative(context, {
+                          contentType: alternative.contentType,
+                          contentLength: dataContentLength,
+                      });
 
-                        await fileUploader.finishProcessingCodePreviewContent(context, content);
+                      sendEvent({
+                          type: "Alternative",
+                          contentType: alternative.contentType,
+                          contentLength: dataContentLength,
+                          isImagePreviewContent: false,
+                      });
 
-                        sendEvent({
-                            type: "CodePreviewContent",
-                            content,
-                        });
+                      return {
+                          file: {
+                              alternative: {
+                                  contentType: alternative.contentType,
+                                  contentLength: dataContentLength,
+                                  contentLengthRatio: dataContentLength / contentLength,
+                              },
+                          },
+                      };
+                  })().catch(
+                      // We don't currently allow errors from alternative file generation to be
+                      // accepted. If a file has an alternative then the alternative must be
+                      // generated. Also, accepted errors are stored in `preview`. This would leave
+                      // `alternative` in a processing state forever.
+                      createAbortCatcherWithoutAcceptError("File alternative processing failed"),
+                  )
+                : null;
 
-                        return {
-                            file: {preview: {codeContentLength: content.serialize().length}},
-                        };
-                    })().catch(createAbortCatcher("File code preview content processing failed"))
-                  : null;
+            const actualImagePreviewSizePromise = imagePreviewSizePromise
+                ? (async () => {
+                      const {videoDuration, ...size} = await imagePreviewSizePromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
 
-              const sharedChildSpanData = {
-                  file: {
-                      contentType,
-                      contentLength,
-                      processorType: fileProcessor.type,
-                  },
-              };
+                      await fileUploader.finishProcessingImagePreviewSize(
+                          context,
+                          size,
+                          videoDuration !== undefined
+                              ? {alsoPreviewVideoDuration: videoDuration}
+                              : undefined,
+                      );
 
-              // Specific file processors often have dependencies on one another, e.g.
-              // "Process file preview size" depends on "Process file alternative" for Microsoft Word
-              // documents. However, we intentionally measure spans from the start of file processing
-              // so that when we look at the duration we get the user duration perceived by the user
-              // (since as each of these resolves we `sendEvent()` to the user).
-              await runAllPromises([
-                  actualExtraPromise,
-                  actualAlternativePromise
-                      ? span.withSpan("Process file alternative", async childSpan => {
-                            childSpan.addData(sharedChildSpanData);
-                            const spanData = await actualAlternativePromise;
-                            childSpan.addData(spanData);
-                            span.addData(spanData);
-                        })
-                      : null,
-                  actualImagePreviewSizePromise
-                      ? span.withSpan("Process file image preview size", async childSpan => {
-                            childSpan.addData(sharedChildSpanData);
-                            const spanData = await actualImagePreviewSizePromise;
-                            if (spanData) {
-                                childSpan.addData(spanData);
-                                span.addData(spanData);
-                            }
-                        })
-                      : null,
-                  actualImagePreviewPlaceholderPromise
-                      ? span.withSpan("Process file image preview placeholder", async childSpan => {
-                            childSpan.addData(sharedChildSpanData);
-                            await actualImagePreviewPlaceholderPromise;
-                        })
-                      : null,
-                  actualImagePreviewContentPromise
-                      ? span.withSpan("Process file image preview image", async childSpan => {
-                            childSpan.addData(sharedChildSpanData);
-                            const spanData = await actualImagePreviewContentPromise;
-                            if (spanData) {
-                                childSpan.addData(spanData);
-                                span.addData(spanData);
-                            }
-                        })
-                      : null,
-                  actualImagePreviewVideoDurationPromise
-                      ? span.withSpan(
-                            "Process file image preview video duration",
-                            async childSpan => {
-                                childSpan.addData(sharedChildSpanData);
-                                const spanData = await actualImagePreviewVideoDurationPromise;
-                                if (spanData) {
-                                    const {child: childSpanData, ...sharedSpanData} = spanData;
-                                    childSpan.addData(childSpanData);
-                                    childSpan.addData(sharedSpanData);
-                                    span.addData(sharedSpanData);
-                                }
-                            },
-                        )
-                      : null,
-                  actualAudioPreviewDurationPromise
-                      ? span.withSpan("Process file audio preview duration", async childSpan => {
-                            childSpan.addData(sharedChildSpanData);
-                            const spanData = await actualAudioPreviewDurationPromise;
-                            if (spanData) {
-                                childSpan.addData(spanData);
-                                span.addData(spanData);
-                            }
-                        })
-                      : null,
-                  actualCodePreviewContentPromise
-                      ? span.withSpan("Process file code preview content", async childSpan => {
-                            childSpan.addData(sharedChildSpanData);
-                            const spanData = await actualCodePreviewContentPromise;
-                            if (spanData) {
-                                childSpan.addData(spanData);
-                                span.addData(spanData);
-                            }
-                        })
-                      : null,
-              ]).catch(error => {
-                  // If we caught the processing error, then don't fail our entire upload job. We
-                  // finished processing but stored an error in the database.
-                  if (hasAcceptedPreviewError) return;
+                      sendEvent({
+                          type: "ImagePreviewSize",
+                          size,
+                      });
 
-                  throw error;
-              });
-          })
-        : null;
+                      if (videoDuration !== undefined) {
+                          sendEvent({
+                              type: "ImagePreviewVideoDuration",
+                              videoDuration,
+                          });
+                      }
+
+                      return {
+                          file: {
+                              preview: {
+                                  imageWidth: size.width,
+                                  imageHeight: size.height,
+                                  imageScale: size.scale,
+                                  imageHasAlpha: size.hasAlpha,
+                                  imageVideoDurationMs: videoDuration,
+                              },
+                          },
+                      };
+                  })().catch(createAbortCatcher("File image preview size processing failed"))
+                : null;
+
+            const actualImagePreviewPlaceholderPromise = imagePreviewPlaceholderPromise
+                ? (async () => {
+                      const placeholder = await imagePreviewPlaceholderPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingImagePreviewPlaceholder(
+                          context,
+                          placeholder,
+                      );
+
+                      sendEvent({
+                          type: "ImagePreviewPlaceholder",
+                          placeholder,
+                      });
+                  })().catch(createAbortCatcher("File image preview placeholder processing failed"))
+                : null;
+
+            const actualImagePreviewContentPromise = imagePreviewContentPromise
+                ? (async () => {
+                      const content = await imagePreviewContentPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      let dataContentLength: number = 0;
+                      if (content.data instanceof Buffer) {
+                          dataContentLength = content.data.length;
+                      } else {
+                          content.data.on("data", (chunk: Buffer) => {
+                              dataContentLength += chunk.length;
+                          });
+                      }
+
+                      // NOTE: We don't `Promise.race()` `PutObject()` with
+                      // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
+                      // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
+                      // successfully cleanup the object.
+                      await context.r2.PutObject(
+                          {
+                              Bucket: filesBucketName,
+                              Key: `${spaceId}/${fileUploader.fileId}-preview`,
+                              ContentType: content.contentType,
+                              Body: content.data,
+                          },
+                          {signal},
+                      );
+
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingImagePreviewContent(context, {
+                          contentType: content.contentType,
+                          contentLength: dataContentLength,
+                          isAlternative: fileProcessor.hasAlternative === "ImagePreviewContent",
+                      });
+
+                      sendEvent({
+                          type: "ImagePreviewContent",
+                          contentType: content.contentType,
+                          contentLength: dataContentLength,
+                      });
+
+                      if (fileProcessor.hasAlternative === "ImagePreviewContent") {
+                          sendEvent({
+                              type: "Alternative",
+                              contentType: content.contentType,
+                              contentLength: dataContentLength,
+                              isImagePreviewContent: true,
+                          });
+                      }
+
+                      return {
+                          file: {
+                              preview: {
+                                  contentType: content.contentType,
+                                  contentLength: dataContentLength,
+                                  contentLengthRatio: dataContentLength / contentLength,
+                              },
+                              alternative:
+                                  fileProcessor.hasAlternative === "ImagePreviewContent"
+                                      ? {
+                                            contentType: content.contentType,
+                                            contentLength: dataContentLength,
+                                            contentLengthRatio: dataContentLength / contentLength,
+                                        }
+                                      : undefined,
+                          },
+                      };
+                  })().catch(createAbortCatcher("File image preview content processing failed"))
+                : null;
+
+            const actualImagePreviewVideoDurationPromise = imagePreviewVideoDurationPromise
+                ? (async () => {
+                      const videoDuration = await imagePreviewVideoDurationPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      const {wasUpdated} =
+                          await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
+                              context,
+                              videoDuration,
+                          );
+
+                      if (wasUpdated) {
+                          sendEvent({
+                              type: "ImagePreviewVideoDuration",
+                              videoDuration,
+                          });
+                      }
+
+                      return {
+                          file: {preview: {imageVideoDurationMs: videoDuration}},
+                          // Record if there was no update (since `imagePreviewSizePromise` saved the video
+                          // duration). The `child` key will only be added to `childSpan` and not our
+                          // parent processor span.
+                          child: {common: {didNothing: !wasUpdated}},
+                      };
+                  })().catch(
+                      createAbortCatcher("File image preview video duration processing failed"),
+                  )
+                : null;
+
+            const actualAudioPreviewDurationPromise = audioPreviewDurationPromise
+                ? (async () => {
+                      const duration = await audioPreviewDurationPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingAudioPreviewDuration(context, duration);
+
+                      sendEvent({
+                          type: "AudioPreviewDuration",
+                          duration,
+                      });
+
+                      return {
+                          file: {preview: {audioDurationMs: duration}},
+                      };
+                  })().catch(createAbortCatcher("File audio preview duration processing failed"))
+                : null;
+
+            const actualAudioPreviewMetadataPromise = audioPreviewMetadataPromise
+                ? (async () => {
+                      const metadata = await audioPreviewMetadataPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingAudioPreviewMetadata(context, metadata);
+
+                      sendEvent({
+                          type: "AudioPreviewMetadata",
+                          metadata,
+                      });
+                  })().catch(createAbortCatcher("File audio preview metadata processing failed"))
+                : null;
+
+            const actualCodePreviewContentPromise = codePreviewContentPromise
+                ? (async () => {
+                      const content = await codePreviewContentPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingCodePreviewContent(context, content);
+
+                      sendEvent({
+                          type: "CodePreviewContent",
+                          content,
+                      });
+
+                      return {
+                          file: {preview: {codeContentLength: content.serialize().length}},
+                      };
+                  })().catch(createAbortCatcher("File code preview content processing failed"))
+                : null;
+
+            const sharedChildSpanData = {
+                file: {
+                    contentType,
+                    contentLength,
+                    processorType: fileProcessor.type,
+                },
+            };
+
+            // Specific file processors often have dependencies on one another, e.g.
+            // "Process file preview size" depends on "Process file alternative" for Microsoft Word
+            // documents. However, we intentionally measure spans from the start of file processing
+            // so that when we look at the duration we get the user duration perceived by the user
+            // (since as each of these resolves we `sendEvent()` to the user).
+            await runAllPromises([
+                actualExtraPromise,
+                actualAlternativePromise
+                    ? span.withSpan("Process file alternative", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          const spanData = await actualAlternativePromise;
+                          childSpan.addData(spanData);
+                          span.addData(spanData);
+                      })
+                    : null,
+                actualImagePreviewSizePromise
+                    ? span.withSpan("Process file image preview size", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          const spanData = await actualImagePreviewSizePromise;
+                          if (spanData) {
+                              childSpan.addData(spanData);
+                              span.addData(spanData);
+                          }
+                      })
+                    : null,
+                actualImagePreviewPlaceholderPromise
+                    ? span.withSpan("Process file image preview placeholder", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          await actualImagePreviewPlaceholderPromise;
+                      })
+                    : null,
+                actualImagePreviewContentPromise
+                    ? span.withSpan("Process file image preview image", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          const spanData = await actualImagePreviewContentPromise;
+                          if (spanData) {
+                              childSpan.addData(spanData);
+                              span.addData(spanData);
+                          }
+                      })
+                    : null,
+                actualImagePreviewVideoDurationPromise
+                    ? span.withSpan(
+                          "Process file image preview video duration",
+                          async childSpan => {
+                              childSpan.addData(sharedChildSpanData);
+                              const spanData = await actualImagePreviewVideoDurationPromise;
+                              if (spanData) {
+                                  const {child: childSpanData, ...sharedSpanData} = spanData;
+                                  childSpan.addData(childSpanData);
+                                  childSpan.addData(sharedSpanData);
+                                  span.addData(sharedSpanData);
+                              }
+                          },
+                      )
+                    : null,
+                actualAudioPreviewDurationPromise
+                    ? span.withSpan("Process file audio preview duration", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          const spanData = await actualAudioPreviewDurationPromise;
+                          if (spanData) {
+                              childSpan.addData(spanData);
+                              span.addData(spanData);
+                          }
+                      })
+                    : null,
+                actualAudioPreviewMetadataPromise
+                    ? span.withSpan("Process file audio preview metadata", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          await actualAudioPreviewMetadataPromise;
+                      })
+                    : null,
+                actualCodePreviewContentPromise
+                    ? span.withSpan("Process file code preview content", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          const spanData = await actualCodePreviewContentPromise;
+                          if (spanData) {
+                              childSpan.addData(spanData);
+                              span.addData(spanData);
+                          }
+                      })
+                    : null,
+            ]).catch(error => {
+                // If we caught the processing error, then don't fail our entire upload job. We
+                // finished processing but stored an error in the database.
+                if (hasAcceptedPreviewError) return;
+
+                throw error;
+            });
+        });
+    }
 
     await runAllPromises([uploadPromise, processPromise]).catch(async error => {
         await fileUploader.cleanupAfterUnacceptableError(context);
@@ -1015,9 +976,23 @@ function selectFileMp4VideoOrAudioProcessor(
         );
 
         const codecNames = codecNamesString.trim().split("\n");
+        let webSafeCodecCount = 0;
+
+        for (const codecName of codecNames) {
+            if (ffmpegWebSafeMp4CodecNames.has(codecName)) {
+                webSafeCodecCount++;
+            }
+        }
+
+        // If there are at least 2 web safe codecs in the file (for video) then we
+        // consider the MP4 to be web safe.
+        const expectedWebSafeCodecCount = contentType === "audio/mp4" ? 1 : 2;
 
         let processor: FileProcessor;
-        if (codecNames.every(codecName => ffmpegWebSafeMp4CodecNames.has(codecName))) {
+        if (
+            Math.min(webSafeCodecCount, expectedWebSafeCodecCount) ===
+            Math.min(codecNames.length, expectedWebSafeCodecCount)
+        ) {
             processor =
                 contentType === "audio/mp4"
                     ? fileWebSafeMp4AudioProcessor

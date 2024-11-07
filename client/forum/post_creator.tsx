@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
@@ -7,26 +7,27 @@ import {trimContentEnd} from "~/client/content/trim_content_end.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
-    useNavigationBar,
-} from "~/client/design/navigation_bar.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+} from "~/client/design/navigation_bar_helpers.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {optimisticCreatePostEventEmitter} from "~/client/forum/internal/optimistic_create_post_event_emitter.js";
 import {PostContentViewHeaderBase} from "~/client/forum/internal/post_content_view_header.js";
 import {
     PostCreatorChannelSelectorInput,
     PostCreatorChannelSelectorInputRef,
 } from "~/client/forum/internal/post_creator_channel_selector_input.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -36,70 +37,29 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {
-    PostContentWithReferences,
-    PostContentWithReferencesSchema,
-    emptyPostContentWithReferences,
-} from "~/shared/forum/post_content_schema.js";
-import {PostModel} from "~/shared/forum/post_model.js";
+import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Id} from "~/shared/id/id.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
-import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
-
-const optimisticCreatePostEventEmitter = new EventEmitter<{
-    channelId: ChannelId;
-    readTime: Date;
-    eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-}>();
-
-export function subscribeToOptimisticCreatePostEvent(
-    listener: (event: {
-        channelId: ChannelId;
-        readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
-    }) => void,
-): () => void {
-    return optimisticCreatePostEventEmitter.subscribe(listener);
-}
-
-const StateSchema = Schema.object({
-    content: PostContentWithReferencesSchema,
-    hasContentChanged: Schema.boolean,
-}).transform<{
-    state: ContentEditorState<PostContentWithReferences>;
-    hasContentChanged: boolean;
-}>({
-    serialize: ({state, hasContentChanged}) => ({
-        content: state.getContent(),
-        hasContentChanged,
-    }),
-    deserialize: ({content, hasContentChanged}) => ({
-        state: ContentEditorState.create(content),
-        hasContentChanged,
-    }),
-});
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function PostCreator({
     withMobileLayout: withMobileLayoutProp,
     draftId,
     displayCreatedTime,
-    channel,
-    onChannelChange,
+    initialChannel,
+    initialContent,
     shouldReturnBack,
     initiallyFocus,
 }: {
     withMobileLayout: boolean;
-    draftId: Id;
+    draftId: PostDraftId;
     displayCreatedTime: Date;
-    channel: ChannelPreviewModel | null;
-    onChannelChange: (channel: ChannelPreviewModel | null) => void;
+    initialChannel: ChannelPreviewModel | null;
+    initialContent: PostContentWithReferences;
     shouldReturnBack: boolean;
     initiallyFocus: "ContentEditor" | "ChannelSelector" | null;
 }) {
@@ -116,19 +76,66 @@ export function PostCreator({
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
-    const sessionStorageKey = `cyberworlds/draftPost/${draftId}`;
+    const [state, setState] = useState(() => ContentEditorState.create(initialContent));
 
-    const [{state, hasContentChanged}, setState] = useSessionStorage(
-        sessionStorageKey,
-        // State schema is lossy. When serializing/deserializing we lose selection
-        // state and other editor state bits. We only deserialize when loading on
-        // initial mount or if another tab tells us there was an update.
-        StateSchema,
-        () => ({
-            state: ContentEditorState.create(emptyPostContentWithReferences),
-            hasContentChanged: false,
-        }),
-    );
+    const [channel, setChannel] = useState(initialChannel);
+
+    const doc = state.getDoc();
+    const channelId = channel?.id ?? null;
+
+    const lastDocRef = useRef(doc);
+    const lastChannelIdRef = useRef(channelId);
+    const clearSaveDebounceTimeoutRef = useRef<(() => void) | null>(null);
+
+    // Save the draft on a debounced 5s timer. If the draft hasn't updated for 5
+    // seconds then we save it on the server. If the user closes the page (which
+    // emits a `visibilitychange` event) then we also make sure to save the draft
+    // so it's available the next time the user loads the page.
+    useEffect(() => {
+        if (lastDocRef.current === doc && lastChannelIdRef.current === channelId) {
+            return;
+        }
+
+        clearSaveDebounceTimeoutRef.current?.();
+        clearSaveDebounceTimeoutRef.current = null;
+
+        lastDocRef.current = doc;
+        lastChannelIdRef.current = channelId;
+
+        const run = () => {
+            // In case this runs when the user closes the page (`visibilitychange` event)
+            // we want to use `navigator.sendBeacon()` so the request isn't cancelled.
+            sendRpcNavigatorBeacon(createOrReplacePostDraft, {
+                spaceId: space.id,
+                draftId,
+                channelId,
+                content: doc,
+            });
+        };
+
+        const timeout = createTimeout(() => {
+            clearSaveDebounceTimeoutRef.current?.();
+            clearSaveDebounceTimeoutRef.current = null;
+
+            run();
+        }, 5000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                clearSaveDebounceTimeoutRef.current?.();
+                clearSaveDebounceTimeoutRef.current = null;
+
+                run();
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        clearSaveDebounceTimeoutRef.current = () => {
+            timeout.clear();
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [channelId, context, doc, draftId, space.id]);
 
     const hasInitiallyFocusedRef = useRef(false);
 
@@ -161,13 +168,14 @@ export function PostCreator({
             ref={createButtonRef}
             variant="neutral"
             withoutMinWidth={isMobile}
-            isDisabled={!hasContentChanged || isContentEmpty(state.getDoc()) || !channel}
+            isDisabled={isContentEmpty(state.getDoc()) || !channel}
             pressErrorTitle="Couldn’t create post"
             onPress={async () => {
                 if (!channel) return;
 
                 const {post, readTime, eventTransaction} = await createPost(context, {
                     channelId: channel.id,
+                    draftId,
                     content: trimContentEnd(state.getDoc()),
                 });
 
@@ -192,10 +200,6 @@ export function PostCreator({
                         state: NativeMobileBridge ? {withPushAnimation: true} : undefined,
                     });
                 }
-
-                // Quietly cleanup draft from session storage without re-rendering our
-                // component which is about to be unmounted.
-                sessionStorage.removeItem(sessionStorageKey);
             }}
         >
             Post
@@ -298,7 +302,7 @@ export function PostCreator({
                                         <PostCreatorChannelSelectorInput
                                             ref={channelSelectorRef}
                                             channel={channel}
-                                            onChannelChange={onChannelChange}
+                                            onChannelChange={setChannel}
                                         />
                                     )
                                 }
@@ -308,7 +312,7 @@ export function PostCreator({
                                     <PostCreatorChannelSelectorInput
                                         ref={channelSelectorRef}
                                         channel={channel}
-                                        onChannelChange={onChannelChange}
+                                        onChannelChange={setChannel}
                                         width="full"
                                     />
                                 </Box>
@@ -319,16 +323,26 @@ export function PostCreator({
                             aria-label="New post"
                             withMobileLayout={withMobileLayout}
                             state={state}
-                            onChange={(state, transaction) => {
-                                setState({
-                                    state,
-                                    hasContentChanged: hasContentChanged || transaction.docChanged,
-                                });
-                            }}
+                            onChange={state => setState(state)}
                             // On mobile, don't allow interactions when unfocused. We're already in an
                             // editing modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas…"
+                            fileAttachmentTarget={useMemo(
+                                () => ({type: "PostDraft", accountId: currentAccount.id, draftId}),
+                                [currentAccount.id, draftId],
+                            )}
+                            onEnsureFileAttachmentTarget={async () => {
+                                clearSaveDebounceTimeoutRef.current?.();
+                                clearSaveDebounceTimeoutRef.current = null;
+
+                                await createOrReplacePostDraft(context, {
+                                    spaceId: space.id,
+                                    draftId,
+                                    channelId,
+                                    content: doc,
+                                });
+                            }}
                             containerClassName={sprinkles({
                                 flexGrow: "1",
                             })}

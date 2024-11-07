@@ -12,9 +12,9 @@ import {
     useState,
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {NavigationBarResult} from "~/client/design/navigation_bar.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
 import {DocumentCommentThreadHeader} from "~/client/documents/internal/document_comment_thread_header.js";
@@ -22,17 +22,15 @@ import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
-import {
-    messagingViewMarginBottom,
-    messagingViewMarginBottomCalcExpression,
-    renderMessageListItem,
-} from "~/client/messaging/messaging_view.js";
+import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -41,7 +39,11 @@ import {
     documentCommentThreadHeaderPaddingY,
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
-import {messageInputMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {
+    messageInputMinHeight,
+    messagingViewMarginBottom,
+    messagingViewMarginBottomCalcExpression,
+} from "~/client/styles/messaging_shared_styles.js";
 import {
     documentCommentThreadsStyles,
     inputPlaceholderStyles,
@@ -57,9 +59,11 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
+    parseRemLengthNumber,
     screenPaddingX,
     spacing,
-} from "~/shared/design/spacing.js";
+} from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
@@ -237,6 +241,7 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
+        previewFileLayoutScreenWidth: originalPreviewFileLayoutScreenWidth,
     }: {
         withMobileLayout: boolean;
         documentId: DocumentId;
@@ -338,13 +343,39 @@ function DocumentCommentThreadListView(
          * fullscreen size but when collapsed we have offscreen slop.
          */
         backgroundSlopBottomIfPinnedCommentInput?: RemLength;
+
+        /**
+         * Optionally override the screen width provided to `layoutContentFileRow()` in
+         * the `<ContentView>` for comment thread previews. Overriding this can lead to
+         * more scale appropriate file layouts in the preview window. Defaults to
+         * `clientInfo.screenWidth`. We subtract the `paddingX` prop from this value.
+         */
+        previewFileLayoutScreenWidth?: RemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const isMobile = useIsMobile();
+    const remPx = useRemPx();
+    const clientInfo = useClientInfo();
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+
+    const previewFileLayoutScreenWidthRem = useMemo(
+        () =>
+            (originalPreviewFileLayoutScreenWidth
+                ? parseRemLengthNumber(originalPreviewFileLayoutScreenWidth)
+                : clientInfo.screenWidth / remPx) -
+            parseRemLengthNumber(
+                spacing[
+                    typeof paddingX === "string"
+                        ? paddingX
+                        : paddingX[isMobile ? "mobile" : "desktop"]
+                ],
+            ) *
+                2,
+        [clientInfo.screenWidth, isMobile, originalPreviewFileLayoutScreenWidth, paddingX, remPx],
+    );
 
     const [tree, setTree] = useState(() => {
         let tree = createEmptyDocumentCommentThreadTree();
@@ -434,11 +465,7 @@ function DocumentCommentThreadListView(
     const hasNavigationBar = !!navigationBar?.navigationBar;
 
     const isLoadingRef = useRef(false);
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    if (errorState.hasError) throw errorState.error;
+    const setErrorState = useErrorState();
 
     const tryLoadingMoreData = useEvent(
         (
@@ -457,7 +484,7 @@ function DocumentCommentThreadListView(
                 },
                 error => {
                     isLoadingRef.current = false;
-                    setErrorState({hasError: true, error});
+                    setErrorState(error);
                 },
             );
             return result;
@@ -876,6 +903,9 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
+                                        previewFileLayoutScreenWidthRem={
+                                            previewFileLayoutScreenWidthRem
+                                        }
                                     />
                                 </div>
                             </div>
@@ -1158,6 +1188,7 @@ function DocumentCommentThreadListView(
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
+            previewFileLayoutScreenWidthRem,
             procedures,
             isMobile,
             messageEditing,

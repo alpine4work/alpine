@@ -1,3 +1,4 @@
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 
@@ -138,7 +139,8 @@ export function unsafelyGenerateStableId<Value extends RandomId>(
  * Encodes 128 bits (16 bytes) into an `Id`.
  */
 export function encodeId<Value extends Id>(bytes: Uint8Array, byteOffset: number = 0): Value {
-    assert(bytes.length - byteOffset >= idByteLength);
+    if (bytes.length - byteOffset < idByteLength)
+        throw new InvalidArgumentError("Not enough bytes");
 
     let bits = 0;
     let value = 0;

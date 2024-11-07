@@ -95,6 +95,7 @@ export const getTaskNotesContentReferences = defineRpc({
     name: "getTaskNotesContentReferences",
     input: {
         spaceId: Schema.id<SpaceId>(),
+        taskId: Schema.id<TaskId>(),
         referenceIds: ContentReferencedIdsSchema,
     },
     output: {

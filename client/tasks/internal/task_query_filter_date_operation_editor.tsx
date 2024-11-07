@@ -482,6 +482,7 @@ function TaskQueryFilterDateOperationEditorDurationCount({
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!state.isFocused || !state.shouldSelectRef.current) return;
+        // eslint-disable-next-line react-compiler/react-compiler
         state.shouldSelectRef.current = false;
 
         assertExists(inputRef.current).select();

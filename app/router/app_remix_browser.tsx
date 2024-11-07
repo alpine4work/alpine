@@ -288,6 +288,7 @@ export function AppRemixBrowser({
     // Critical CSS can become stale after code changes, e.g. styles might be
     // removed from a component, but the styles will still be present in the
     // server HTML. This allows our HMR logic to clear the critical CSS state.
+    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const [criticalCss, setCriticalCss] = useState(
         process.env.NODE_ENV === "development" ? window.__remixContext.criticalCss : undefined,
@@ -296,6 +297,7 @@ export function AppRemixBrowser({
         window.__remixClearCriticalCss = () => setCriticalCss(undefined);
     }
 
+    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useLayoutEffectWithoutServerSideWarning(() => {
         // If we had to run clientLoaders on hydration, we delay initialization until

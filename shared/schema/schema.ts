@@ -2082,20 +2082,25 @@ export class IntegerSchema extends Schema<number> {
     public static override integer = new IntegerSchema({
         getDescription: () => ({type: "Integer"}),
         serialize: value => {
-            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
+            if (!Number.isSafeInteger(value)) {
+                throw new InvalidArgumentError("Expected integer");
+            }
 
             return value;
         },
         deserialize: value => {
             if (typeof value !== "number") throw new SchemaDeserializationError("Expected number");
 
-            if (!Number.isSafeInteger(value))
+            if (!Number.isSafeInteger(value)) {
                 throw new SchemaDeserializationError("Expected integer");
+            }
 
             return value;
         },
         validate: value => {
-            if (!Number.isSafeInteger(value)) throw new InvalidArgumentError("Expected integer");
+            if (!Number.isSafeInteger(value)) {
+                throw new InvalidArgumentError("Expected integer");
+            }
         },
     });
 

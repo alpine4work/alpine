@@ -24,7 +24,7 @@ import {
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
-import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -34,7 +34,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
@@ -76,7 +76,6 @@ export function SpaceLayoutSideBarInboxOverlay({
                 data-testid="SpaceLayoutSideBarInboxOverlay"
                 flexShrink="0"
                 height={spaceLayoutSideBarInboxOverlayHeaderHeight}
-                borderBottom="grey-10"
                 display="flex"
                 alignItems="center"
                 paddingX="1.5"
@@ -429,29 +428,21 @@ function SpaceLayoutTopBarInboxOverlayEntry({
             withBackgroundIfPressed={true}
             withMarginTop={isFirstItem}
             withMarginBottom={isLastItem}
+            withBorderTop={isFirstItem}
             onPress={() => {
                 if (isPending) return;
                 setIsPending(true);
 
-                const url = new URL(getInboxEntryPath(entry.model), window.location.href);
-                url.searchParams.set("inbox", "show");
-
-                peekStackContext
-                    .push({
-                        pathname: url.pathname,
-                        search: url.search,
-                        hash: url.hash,
-                    })
-                    .then(
-                        () => {
-                            setIsPending(false);
-                            onClose();
-                        },
-                        error => {
-                            setIsPending(false);
-                            reporter.displayError("Couldn’t open notification", error);
-                        },
-                    );
+                peekStackContext.push(getInboxEntryPath(entry.model)).then(
+                    () => {
+                        setIsPending(false);
+                        onClose();
+                    },
+                    error => {
+                        setIsPending(false);
+                        reporter.displayError("Couldn’t open notification", error);
+                    },
+                );
             }}
             onArchive={({withAnimation}) => {
                 archiveInboxEntry({

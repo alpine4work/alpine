@@ -1,5 +1,5 @@
 import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 /**

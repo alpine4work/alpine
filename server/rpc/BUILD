@@ -75,5 +75,11 @@ genrule(
 
 js_library(
     name = "all_rpc_implementations",
-    srcs = [":all_rpc_implementations_file"],
+    srcs = [
+        ":all_rpc_implementations_file",
+    ],
+    deps = [
+        "//shared/error",
+        "//shared/helpers",
+    ],
 )

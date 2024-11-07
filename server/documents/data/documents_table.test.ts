@@ -1,6 +1,8 @@
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {
     AddMarkStep,
+    AddNodeMarkStep,
+    AttrStep,
     RemoveMarkStep,
     ReplaceAroundStep,
     ReplaceStep,
@@ -8,6 +10,8 @@ import {
 } from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
+    FileDocumentAuthorizer,
+    authorizeDocumentAccess,
     backfillDocumentComments,
     batchGetDocumentCommentThreadReferencesIfExists,
     createDocument,
@@ -24,6 +28,7 @@ import {
     getDocumentCommentsFromStart,
     getDocumentContent,
     getDocumentContentSteps,
+    getDocumentPreview,
     getDocumentPreviewIfExists,
     getDocumentTitle,
     getDocumentsTableForTest,
@@ -36,11 +41,18 @@ import {
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {
+    attachFileAsUploader,
+    startUploadingAndProcessingFile,
+} from "~/server/files/data/files_table.js";
+import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     emptyDocumentContent,
@@ -2854,6 +2866,245 @@ test("can not add a newline character with a new `codeBlockLine` node in a docum
     });
 });
 
+test("can't add comment mark to `fileRow` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    const fileUploader1 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader1.finishUploading(context.action(session1));
+
+    const fileUploader2 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader2.finishUploading(context.action(session1));
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader1.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader2.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {fileId: fileUploader1.fileId}),
+                            schema.node("file", {fileId: fileUploader2.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 1,
+            steps: [new AddNodeMarkStep(2, schema.marks.comment.create({commentThreadId}))],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node doc: <title, comment(fileRow(file, file))>",
+        ),
+    );
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: fileUploader1.fileId}),
+                    schema.node("file", {fileId: fileUploader2.fileId}),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can add comment mark to `file` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    const fileUploader1 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader1.finishUploading(context.action(session1));
+
+    const fileUploader2 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader2.finishUploading(context.action(session1));
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader1.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader2.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {fileId: fileUploader1.fileId}),
+                            schema.node("file", {fileId: fileUploader2.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 1,
+        steps: [new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId}))],
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment"),
+            },
+        ],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [
+                    schema.node(
+                        "file",
+                        {fileId: fileUploader1.fileId},
+                        [],
+                        [schema.mark("comment", {commentThreadId})],
+                    ),
+                    schema.node("file", {fileId: fileUploader2.fileId}),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can't add bold mark to `paragraph` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [new AddNodeMarkStep(1, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: No node at mark step's position",
+        ),
+    );
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [new AddNodeMarkStep(2, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: Invalid content for node doc: <title, bold(paragraph)>",
+        ),
+    );
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [new AddNodeMarkStep(3, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: No node at mark step's position",
+        ),
+    );
+});
+
 test("can not update a document such that it would have invalid content even when there is a concurrent update", async () => {
     const {id} = await createDocument(context.action(session1), {
         spaceId: space.id,
@@ -3171,6 +3422,697 @@ test("counts step count contributions for each account with alternating cache", 
             [session3.account.id, 2],
         ]),
     );
+});
+
+test("authorizing document access as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+        ]);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+    }
+});
+
+test("authorizing document access as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+        ]);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+    }
+});
+
+test("authorizing document access after getting document as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    const commentThread = await document.createCommentThread(
+        session1,
+        {from: 1, to: 3},
+        "Test Document Comment",
+    );
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentPreview(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocument(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentContent(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentThreadNotificationSubscribers(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            isFirstComment: false,
+        });
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromStart(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromEnd(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+});
+
+test("authorizing document access after getting document as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    const commentThread = await document.createCommentThread(
+        session1,
+        {from: 1, to: 3},
+        "Test Document Comment",
+    );
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentPreview(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocument(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentContent(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentThreadNotificationSubscribers(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            isFirstComment: false,
+        });
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromStart(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromEnd(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+});
+
+test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session);
+    const file = await TestFile.create(session);
+
+    await attachFileAsUploader(
+        session.action(),
+        space.id,
+        file.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+    );
+
+    {
+        const {newInvertedSteps} = await document.update(session, [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}),
+                    schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                ])
+                .toJSON(),
+        });
+
+        expect(newInvertedSteps.map(step => step.toJSON())).toEqual(
+            [
+                new ReplaceStep(
+                    2,
+                    5,
+                    new Slice(Fragment.from(schema.node("paragraph", {}, [])), 0, 0),
+                ),
+            ].map(step => step.toJSON()),
+        );
+    }
+
+    {
+        const {newInvertedSteps} = await document.update(session, [
+            new ReplaceStep(
+                2,
+                5,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileFloat", {direction: "right"}, [
+                            schema.node("file", {fileId: file.id}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}),
+                    schema.node("fileFloat", {direction: "right"}, [
+                        schema.node("file", {fileId: file.id}),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(newInvertedSteps.map(step => step.toJSON())).toEqual(
+            [
+                new ReplaceStep(
+                    2,
+                    5,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ].map(step => step.toJSON()),
+        );
+    }
+
+    await expect(document.update(session, [new AttrStep(3, "direction", "left")])).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "file" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 1}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "file" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(2, "direction", "left")], {versionOverride: 1}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "fileRow" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 0}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: No node at attribute step's position",
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(2, "direction", "left")], {versionOverride: 0}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "paragraph" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    {
+        const {newInvertedSteps} = await document.update(session, [
+            new AttrStep(2, "direction", "left"),
+        ]);
+
+        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}),
+                    schema.node("fileFloat", {direction: "left"}, [
+                        schema.node("file", {fileId: file.id}),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(newInvertedSteps.map(step => step.toJSON())).toEqual(
+            [new AttrStep(2, "direction", "right")].map(step => step.toJSON()),
+        );
+    }
 });
 
 describe("Comments", () => {
@@ -7951,7 +8893,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
         }
 
@@ -7992,7 +8934,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
         }
     });
@@ -8400,7 +9342,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -8497,7 +9439,7 @@ describe("Comments", () => {
 
         expect(resolvedCommentThreadRanges).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
 
         {
@@ -8747,7 +9689,11 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 10,
-                ranges: [range1, range2, range3],
+                ranges: [
+                    {...range1, isNode: false},
+                    {...range2, isNode: false},
+                    {...range3, isNode: false},
+                ],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -8887,7 +9833,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             expect((await getDocument(session.action(), document.id)).version).toEqual(4);
@@ -8975,7 +9921,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9074,7 +10020,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9282,15 +10228,15 @@ describe("Comments", () => {
                 steps: [
                     new AddMarksAfterRemoveAllStep(
                         schema.marks.comment.create({commentThreadId: commentThread1.id}),
-                        [range1],
+                        [{...range1, isNode: false}],
                     ),
                     new AddMarksAfterRemoveAllStep(
                         schema.marks.comment.create({commentThreadId: commentThread3.id}),
-                        [range3],
+                        [{...range3, isNode: false}],
                     ),
                     new AddMarksAfterRemoveAllStep(
                         schema.marks.comment.create({commentThreadId: commentThread2.id}),
-                        [range2],
+                        [{...range2, isNode: false}],
                     ),
                 ],
                 unresolveCommentThreadIds: [
@@ -9452,7 +10398,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9524,7 +10470,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 6,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9686,7 +10632,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 8,
-                ranges: [{from: 19, to: 24}],
+                ranges: [{isNode: false, from: 19, to: 24}],
             });
 
             const {newVersion, updatedCommentThreads} = await updateDocumentContent(
@@ -9736,6 +10682,442 @@ describe("Comments", () => {
                     ]),
                 ])
                 .toJSON(),
+        );
+    });
+
+    test("can create, resolve, and unresolve comment thread on file", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+        const file = await TestFile.create(session);
+
+        await attachFileAsUploader(
+            context.action(session),
+            space.id,
+            file.id,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        await document.update(session, [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test1",
+        );
+
+        expect(await commentThread.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const {updatedCommentThreads} = await document.update(
+                session,
+                [
+                    new RemoveAllMarksStep(
+                        schema.marks.comment.create({commentThreadId: commentThread.id}),
+                    ),
+                ],
+                {resolveCommentThreadIds: [commentThread.id]},
+            );
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        {
+            const resolvedCommentThreadRanges = await getResolvedDocumentCommentThreadRanges(
+                session.action(),
+                {
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
+            );
+
+            expect(resolvedCommentThreadRanges).toEqual({
+                version: 3,
+                ranges: [{isNode: true, pos: 3}],
+            });
+
+            const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
+                id: document.id,
+                version: resolvedCommentThreadRanges.version,
+                steps: [
+                    new AddMarksAfterRemoveAllStep(
+                        schema.marks.comment.create({commentThreadId: commentThread.id}),
+                        resolvedCommentThreadRanges.ranges,
+                    ),
+                ],
+                unresolveCommentThreadIds: [commentThread.id],
+                clientId: generateId(),
+            });
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+    });
+
+    test("can create, resolve, and unresolve multiple comment threads on the same file", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+        const file = await TestFile.create(session);
+
+        await attachFileAsUploader(
+            context.action(session),
+            space.id,
+            file.id,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        await document.update(session, [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        const commentThread1 = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test1",
+        );
+
+        const commentThread2 = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test2",
+        );
+
+        const commentThread3 = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test3",
+        );
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const {updatedCommentThreads} = await document.update(
+                session,
+                [
+                    new RemoveAllMarksStep(
+                        schema.marks.comment.create({commentThreadId: commentThread2.id}),
+                    ),
+                ],
+                {resolveCommentThreadIds: [commentThread2.id]},
+            );
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread2.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const {updatedCommentThreads} = await document.update(
+                session,
+                [
+                    new RemoveAllMarksStep(
+                        schema.marks.comment.create({commentThreadId: commentThread1.id}),
+                    ),
+                ],
+                {resolveCommentThreadIds: [commentThread1.id]},
+            );
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread1.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread1.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const resolvedCommentThreadRanges = await getResolvedDocumentCommentThreadRanges(
+                session.action(),
+                {
+                    documentId: document.id,
+                    commentThreadId: commentThread2.id,
+                },
+            );
+
+            expect(resolvedCommentThreadRanges).toEqual({
+                version: 5,
+                ranges: [{isNode: true, pos: 3}],
+            });
+
+            const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
+                id: document.id,
+                version: resolvedCommentThreadRanges.version,
+                steps: [
+                    new AddMarksAfterRemoveAllStep(
+                        schema.marks.comment.create({commentThreadId: commentThread2.id}),
+                        resolvedCommentThreadRanges.ranges,
+                    ),
+                ],
+                unresolveCommentThreadIds: [commentThread2.id],
+                clientId: generateId(),
+            });
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread2.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 2,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
         );
     });
 
@@ -9836,7 +11218,7 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
     });
 
@@ -9867,7 +11249,7 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
 
         await commentThread.unresolve(session);
@@ -9902,7 +11284,7 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
 
         await expect(
@@ -9997,7 +11379,11 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 10,
-            ranges: [range1, range2, range3],
+            ranges: [
+                {...range1, isNode: false},
+                {...range2, isNode: false},
+                {...range3, isNode: false},
+            ],
         });
     });
 

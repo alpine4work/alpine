@@ -21,11 +21,12 @@ const testCases: {
                 width: 240,
                 height: 134,
                 scale: 1,
+                hasAlpha: true,
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWFlVWlxWX11XYFxbX1dXYFxbX1xYY2FndW1sgGxufnJvdnFsdHNue3VnhIpzg4Jjm4xisWVnuaebm72BfrVmfq9ce7doh8B+l8Ful79ZwlljSY1yHpBncJZllK9jfbZbcrRUgK1ch7RYykRVo05VmEZNp0dXqlVnf2ljgJdfd6RIcqc+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -39,11 +40,12 @@ const testCases: {
                 width: 240,
                 height: 134,
                 scale: 1,
+                hasAlpha: true,
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWFlVWlxWX11XYFxbX1dXYFxbX1xYY2FndW1sgGxufnJvdnFsdHNue3VnhIpzg4Jjm4xisWVnuaebm72BfrVmfq9ce7doh8B+l8Ful79ZwlljSY1yHpBncJZllK9jfbZbcrRUgK1ch7RYykRVo05VmEZNp0dXqlVnf2ljgJdfd6RIcqc+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -57,15 +59,35 @@ const testCases: {
                 width: 240,
                 height: 134,
                 scale: 1,
+                hasAlpha: true,
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWFlVWlxWX11XYFxbX1dXYFxbX1xYY2FndW1sgGxufnJvdnFsdHNue3VnhIpzg4Jjm4xisWVnuaebm72BfrVmfq9ce7doh8B+l8Ful79ZwlljSY1yHpBncJZllK9jfbZbcrRUgK1ch7RYykRVo05VmEZNp0dXqlVnf2ljgJdfd6RIcqc+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "blender_big_buck_bunny.webm",
+            imagePreviewVideoDuration: 15030,
+            imagePreviewSize: {
+                width: 100,
+                height: 56,
+                scale: 1,
+                hasAlpha: true,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "/9zd/93d/dze/ujd/+nh6eLY0eTMjamKhp9v/9zU/9vS/9vU/+HX/+3fm6OaeZ9yfZFleIhW7tDS3s3V08raytDJhKR2RGZnVWJeX3ZMW2tJlL5Ql8JNoMNdhLBpVXxDSGlDRlw7TGYzPFIqoa0LkakAmawAmKcNlKoAhqIAhp4OfJQHb4oA",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "blender_big_buck_bunny.avif",
             },
         },
     ],
@@ -85,8 +107,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WFxXWFlVWlxWYF1YYFxZXlhYYFxcYFtYY2BndW1sgGxufXJudXFtdHRufHVohIpzgoJjm4xjsGVnuaebnb2AfrVlf7BbfLZoh7+Alr9ul79XwlljSYxyHZJmcZZllK9hfbZbc7JTgK1bhrRZykVUo1BVmEZMp0dXqlVngGljgZdfd6VHcag/",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -107,8 +129,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                4,
-                "8/Pz9fX1+/v78/Pz8vLy9fX1/Pz8+/v78fHx9fX1/Pz8+vr69vb2+Pj4+/v7+vr69PT19/f4+/v6+vr6",
+                5,
+                "9vb29fX1+vr6/Pz86+vr8PDw7u7u/Pz8+vr6+/v78vLy8vLy/Pz8+/v7+fn58vLy9PT0/Pz8+vr6+vr68/Pz8/Pz+vr6+vr6+vr69vb39PP2/Pz8+/v7+/v79PT09PT1+/v6+fn5+vr6",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -131,8 +153,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WFxXWFlVWlxWYF1YYFxZXlhYYFxcYFtYY2BndW1sgGxufXJudXFtdHRufHVohIpzgoJjm4xjsGVnuaebnb2AfrVlf7BbfLZoh7+Alr9ul79XwlljSYxyHZJmcZZllK9hfbZbc7JTgK1bhrRZykVUo1BVmEZMp0dXqlVngGljgZdfd6VHcag/",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -158,8 +180,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWVlVW1xVX11XYFxZX1dXYFxcYFtaY2FndW1sgGxufXJvdnJsdHNte3RnhIp1g4JkmoxgsGVmu6ednLyCf7Rlfq9bfbZoh8B/lsBvl75YwlljSY1xHpBmcJZllK9ifbZcc7JUgK1bhrRYykNVo05Wl0ZMp0dWqlVngGligJdgd6RIc6c+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -180,12 +202,34 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWVlVW1xVX11XYFxZX1dXYFxcYFtaY2FndW1sgGxufXJvdnJsdHNte3RnhIp1g4JkmoxgsGVmu6ednLyCf7Rlfq9bfbZoh8B/lsBvl75YwlljSY1xHpBmcJZllK9ifbZcc7JUgK1bhrRYykNVo05Wl0ZMp0dWqlVngGligJdgd6RIc6c+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "blender_big_buck_bunny.mkv",
+            alternative: {
+                contentType: "video/webm",
+                similarPath: "blender_big_buck_bunny.webm",
+            },
+            imagePreviewVideoDuration: 15000,
+            imagePreviewSize: {
+                width: 100,
+                height: 56,
+                scale: 1,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "/9zd/93d/dze/ujd/+nh6eLY0eTMjamKhp9v/9zU/9vS/9vU/+HX/+3fm6OaeZ9yfZFleIhW7tDS3s3V08raytDJhKR2RGZnVWJeX3ZMW2tJlL5Ql8JNoMNdhLBpVXxDSGlDRlw7TGYzPFIqoa0LkakAmawAmKcNlKoAhqIAhp4OfJQHb4oA",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "blender_big_buck_bunny.avif",
             },
         },
     ],
@@ -200,8 +244,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WFxXWVlWXFxWYl1YYF1bX1dWYFxcYFtaY2FodW1tgGxufXJvdXJtdnNue3VnhIp1g4Jkm4xisGVouambm71/frVlfq9bfbZoh8B+l8Ful79awlljSYxyHZJncZZnlK9ifrZbc7JUgK1chrRYyUVUo1BVmEdNqUhXq1RogGljgJdgd6RJc6c/",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -218,8 +262,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WFxXWVlWW1xXYF1YYF1bYFdXYlxcYFxbZWFndW5tgGxufnJxdXJtdnNue3VohIp1hIJkmoxisWVouaedm72CfrVmf69ce7dph8B/lsBvmb9awlljSYxxHZJocJZolLBjfrZcc7RVgK1chrNXykNVo05UmEZNp0dXqlVlf2pkgJdgd6RIcqg/",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -242,8 +286,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWVlVW1xVX11XYFxZX1dXYFxcYFtaY2FndW1sgGxufXJvdnJsdHNte3RnhIp1g4JkmoxgsGVmu6ednLyCf7Rlfq9bfbZoh8B/lsBvl75YwlljSY1xHpBmcJZllK9ifbZcc7JUgK1bhrRYykNVo05Wl0ZMp0dWqlVngGligJdgd6RIc6c+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -264,8 +308,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxWWVlVW1xVX11XYFxZX1dXYFxcYFtaY2FndW1sgGxufXJvdnJsdHNte3RnhIp1g4JkmoxgsGVmu6ednLyCf7Rlfq9bfbZoh8B/lsBvl75YwlljSY1xHpBmcJZllK9ifbZcc7JUgK1bhrRYykNVo05Wl0ZMp0dWqlVngGligJdgd6RIc6c+",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -288,8 +332,8 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxXWFlVWlxWYFxYYF1ZX1dWYFxcYFtaY2FodW1sgGxtfXJudnJsdnNue3VnhIp1g4JjmoxjsWVnuaebm72BfrVlfa9ZfLZoh8B/lsFul79ZwlljSYxxHpBncZVnk69ifbZbcrJUgKxbh7RYykRVo05Vl0ZNp0dXqVZngGllgJdgdqRIc6dB",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -306,12 +350,30 @@ const testCases: {
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+                9,
+                "WVxXWFlVWlxWYFxYYF1ZX1dWYFxcYFtaY2FodW1sgGxtfXJudnJsdnNue3VnhIp1g4JjmoxjsWVnuaebm72BfrVlfa9ZfLZoh8B/lsFul79ZwlljSYxxHpBncZVnk69ifbZbcrJUgKxbh7RYykRVo05Vl0ZNp0dXqVZngGllgJdgdqRIc6dB",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "blender_big_buck_bunny.mp4",
+            imagePreviewVideoDuration: 15000,
+            imagePreviewSize: {
+                width: 100,
+                height: 56,
+                scale: 1,
+            },
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                false,
+                9,
+                "/9zd/93d/dze/ujd/+nh6eLY0eTMjamKhp9v/9zU/9vS/9vU/+HX/+3fm6OaeZ9yfZFleIhW7tDS3s3V08raytDJhKR2RGZnVWJeX3ZMW2tJlL5Ql8JNoMNdhLBpVXxDSGlDRlw7TGYzPFIqoa0LkakAmawAmKcNlKoAhqIAhp4OfJQHb4oA",
+            ]),
+            imagePreviewContent: {
+                contentType: "image/avif",
+                similarPath: "blender_big_buck_bunny.avif",
             },
         },
     ],
@@ -319,18 +381,21 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme.mp3",
             audioPreviewDuration: 5538,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],
     "audio/wav": [
         {
             path: "pokemon_regirock_un_un_un_meme.wav",
             audioPreviewDuration: 5510,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],
     "audio/webm": [
         {
             path: "pokemon_regirock_un_un_un_meme.weba",
-            audioPreviewDuration: 5519,
+            audioPreviewDuration: 5528,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
         {
             path: "pokemon_regirock_un_un_un_meme_without_metadata.weba",
@@ -357,11 +422,13 @@ const testCases: {
         {
             path: "pokemon_regirock_un_un_un_meme_with_aac_audio_codec.m4a",
             audioPreviewDuration: 5512,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
         {
             path: "pokemon_regirock_un_un_un_meme_with_alac_audio_codec.m4a",
             alternative: {contentType: "audio/webm"},
             audioPreviewDuration: 5510,
+            audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],
 };

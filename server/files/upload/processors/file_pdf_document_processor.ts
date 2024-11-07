@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
+import {waitForReadableStreamBuffer} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {
     pdfPasswordRequiredErrorDisplayMessage,
     processFileImagePreviewPlaceholder,
@@ -60,7 +60,7 @@ export function processPdfDocumentFile(
     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
     // more efficient to await `dataPromise` than to use `stream`. See our comment
     // on `FileProcessor`.
-    const dataPromise = waitForReadableStreamData(stream, signal);
+    const dataPromise = waitForReadableStreamBuffer(stream, signal);
 
     const previewSizeWithoutExtractPromise = (async () => {
         const data = await dataPromise;
@@ -92,6 +92,7 @@ export function processPdfDocumentFile(
             width: metadata.width * scale,
             height: metadata.height * scale,
             scale,
+            hasAlpha: metadata.hasAlpha ?? false,
         };
     })();
 
@@ -156,10 +157,11 @@ export function processPdfDocumentFile(
     })();
 
     const previewSizePromise = extractPreview
-        ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
+        ? previewSizeWithoutExtractPromise.then(({width, height, scale, hasAlpha}) => ({
               width: clamp(0, width, extractPreview.width * scale),
               height: clamp(0, height, extractPreview.height * scale),
               scale,
+              hasAlpha,
           }))
         : previewSizeWithoutExtractPromise;
 

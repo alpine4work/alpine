@@ -32,7 +32,7 @@ import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -200,7 +200,7 @@ function TaskRowDueDateCell(
     };
 
     return (
-        <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
+        <FocusRing isVisibleFromAnyFocus={!isActuallyReadOnly} offset="0" insetBottom="border">
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 data-testid={

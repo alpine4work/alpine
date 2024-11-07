@@ -3,13 +3,16 @@ import {highlightCode} from "@lezer/highlight";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
-import {getFileContentTypeContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {
     FileCodePreviewContent,
     maxFileCodePreviewLineCodePointCount,
     maxFileCodePreviewLineCount,
 } from "~/shared/files/file_code_preview_content.js";
-import {FileCodeContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileCodeContentType,
+    getFileContentTypeContentCodeBlockLanguageId,
+} from "~/shared/files/file_content_type.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 const fileCodePreviewWaitForLineCount = 128;
 
@@ -23,11 +26,11 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
         hasPreview: {type: "Code"},
         process: (stream, signal) => {
             const codePreviewContentPromise = (async () => {
-                const parser = await language.getParser()?.promise;
+                const parserPromise = language.getParser()?.promise;
 
                 // Receive data from stream until we've received a certain number of lines.
                 // Then stop waiting for data. Next we'll parse the data we've received...
-                const string = await new Promise<string>((resolve, reject) => {
+                const stringPromise = new Promise<string>((resolve, reject) => {
                     if (stream.readableEnded) {
                         resolve("");
                         return;
@@ -91,6 +94,8 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
                     stream.on("error", handleError);
                     signal.addEventListener("abort", handleAbort);
                 });
+
+                const [parser, string] = await runAllPromises([parserPromise, stringPromise]);
 
                 const content: Array<
                     {type: "Newline"} | {type: "String"; classes: string; string: string}

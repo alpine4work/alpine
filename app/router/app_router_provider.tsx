@@ -100,6 +100,7 @@ export function AppRouterProvider({
             );
         }
         // Only log this once on initial mount
+        // eslint-disable-next-line react-compiler/react-compiler
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -196,7 +197,7 @@ export function AppRouterProvider({
                 NativeMobileBridge?.navigation.prepareReplaceWithPushAnimation();
             }
         }
-    }, [state.historyAction, state.location.key]);
+    }, [router, state.historyAction, state.location]);
 
     // 2. Run navigation animation after we paint our new screen
     useLayoutEffectWithoutServerSideWarning(() => {

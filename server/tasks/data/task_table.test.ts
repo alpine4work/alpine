@@ -5,6 +5,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountNameBeforeExecuteTestCheckpoint} from "~/server/accounts/accounts_table.js";
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
@@ -35,6 +36,7 @@ import {
     getTaskNotesContent,
     getTaskNotesContentAndInitialComments,
     getTaskNotesContentWithoutReferences,
+    getTaskNotificationSubscribers,
     getTaskOwner,
     updateTaskCommentContent,
     updateTaskNotesContent,
@@ -42,6 +44,7 @@ import {
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -15586,7 +15589,7 @@ test("can update task notes", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -15602,7 +15605,7 @@ test("can update task notes", async () => {
         spaceId: space.id,
         version: 3,
         content: {
-            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("abc")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("abc")])]),
             references: emptyContentReferences,
         },
     });
@@ -15611,7 +15614,7 @@ test("can update task notes", async () => {
         expect.objectContaining({
             spaceId: space.id,
             version: 3,
-            content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("abc")])),
+            content: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("abc")])]),
         }),
     );
 });
@@ -15697,7 +15700,7 @@ test("can update task notes in a public collection", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -15766,7 +15769,7 @@ test("can't update task notes with the wrong version", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -15784,7 +15787,7 @@ test("can't update task notes with the wrong version", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", null, schema.node("paragraph", null, [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -17041,7 +17044,7 @@ test("account can remove access from itself", async () => {
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(TestTask.action(session1), space.id, [
         {
@@ -17055,7 +17058,7 @@ test("account can remove access from itself", async () => {
         },
     ]);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17074,7 +17077,7 @@ test("account can remove access from itself", async () => {
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -17093,7 +17096,7 @@ test("account can remove access from itself then grant it back with lease", asyn
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -17128,7 +17131,7 @@ test("account can remove access from itself then grant it back with lease", asyn
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17147,7 +17150,7 @@ test("account can remove access from itself then grant it back with lease", asyn
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17169,7 +17172,7 @@ test("account can remove access from itself then grant it back with lease", asyn
         {leaseId},
     );
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 });
 
 test("account can remove access from itself but can't grant it back with an invalid lease", async () => {
@@ -17186,7 +17189,7 @@ test("account can remove access from itself but can't grant it back with an inva
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -17221,7 +17224,7 @@ test("account can remove access from itself but can't grant it back with an inva
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17240,7 +17243,7 @@ test("account can remove access from itself but can't grant it back with an inva
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17264,7 +17267,7 @@ test("account can remove access from itself but can't grant it back with an inva
         ),
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -17284,7 +17287,7 @@ test("account can remove access from itself but can't use another account's leas
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -17319,7 +17322,7 @@ test("account can remove access from itself but can't use another account's leas
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17338,7 +17341,7 @@ test("account can remove access from itself but can't use another account's leas
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17362,7 +17365,7 @@ test("account can remove access from itself but can't use another account's leas
         ),
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -17382,7 +17385,7 @@ test("account can remove access from itself but can't grant itself access back w
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -17417,7 +17420,7 @@ test("account can remove access from itself but can't grant itself access back w
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17436,7 +17439,7 @@ test("account can remove access from itself but can't grant itself access back w
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17487,7 +17490,7 @@ test("account can remove access from itself but can't grant itself access back w
         ),
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -17506,7 +17509,7 @@ test("account can remove access from itself but can't grant itself access back w
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -17541,7 +17544,7 @@ test("account can remove access from itself but can't grant itself access back w
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17560,7 +17563,7 @@ test("account can remove access from itself but can't grant itself access back w
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17589,9 +17592,9 @@ test("account can remove access from itself but can't grant itself access back w
             new PermissionDeniedError('Actor does not have "Edit" access level to task'),
         );
 
-        await expect(
-            authorizeTaskAccess(session1.action(), task1.id, "Edit", null),
-        ).rejects.toThrow(PermissionDeniedError);
+        await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
+            PermissionDeniedError,
+        );
     } finally {
         Date.now = originalDateNow;
     }
@@ -17611,7 +17614,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -17646,7 +17649,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
         },
     );
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(TestTask.action(session1), space.id, [
         {
@@ -17660,7 +17663,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
         },
     ]);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17679,7 +17682,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17703,7 +17706,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
         ),
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -17723,7 +17726,7 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await expect(
         commitTaskActionTransaction(TestTask.action(session1), space.id, [
@@ -17780,7 +17783,7 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
         ),
     );
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 });
 
 test("account can't remove access from itself then grant it back with lease that has actions in different order", async () => {
@@ -17797,7 +17800,7 @@ test("account can't remove access from itself then grant it back with lease that
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     const initialOrderTime = testClock.nowLogical();
 
@@ -17857,7 +17860,7 @@ test("account can't remove access from itself then grant it back with lease that
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17904,7 +17907,7 @@ test("account can't remove access from itself then grant it back with lease that
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -17996,7 +17999,7 @@ test("account can't remove access from itself then grant it back with lease that
         ),
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18031,7 +18034,7 @@ test("account can't remove access from itself then grant it back with lease that
         {leaseId},
     );
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 });
 
 test("account can remove access from itself but can't grant it back if another user has updated the task", async () => {
@@ -18048,7 +18051,7 @@ test("account can remove access from itself but can't grant it back if another u
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -18083,7 +18086,7 @@ test("account can remove access from itself but can't grant it back if another u
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18102,7 +18105,7 @@ test("account can remove access from itself but can't grant it back if another u
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18128,7 +18131,7 @@ test("account can remove access from itself but can't grant it back if another u
         ),
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -18147,7 +18150,7 @@ test("account can remove access from itself but can't grant it back if another u
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -18182,7 +18185,7 @@ test("account can remove access from itself but can't grant it back if another u
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18201,7 +18204,7 @@ test("account can remove access from itself but can't grant it back if another u
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18227,7 +18230,7 @@ test("account can remove access from itself but can't grant it back if another u
         ),
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -18246,7 +18249,7 @@ test("account can remove access from itself but can't grant it back if another u
 
     await task1.addCollection(session2, collection1);
 
-    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit");
 
     await commitTaskActionTransaction(
         TestTask.action(session1),
@@ -18281,7 +18284,7 @@ test("account can remove access from itself but can't grant it back if another u
         },
     );
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18300,7 +18303,7 @@ test("account can remove access from itself but can't grant it back if another u
         ]),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 
@@ -18331,7 +18334,7 @@ test("account can remove access from itself but can't grant it back if another u
         ),
     ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
-    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -19542,4 +19545,380 @@ test("throws error for users without proper access trying to get the Task Owner"
     await expect(getTaskOwner(otherSpace.systemAction(), task.id)).rejects.toThrow(
         PermissionDeniedError,
     );
+});
+
+test("authorizing task access as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPublic(session1);
+    await task.addCollection(session1, collection);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeTaskAccess(actionContext, task.id, "Edit");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "Edit"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeTaskAccess(actionContext, task.id, "View"),
+            authorizeTaskAccess(actionContext, task.id, "View"),
+            authorizeTaskAccess(actionContext, task.id, "View"),
+        ]);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(3);
+    }
+});
+
+test("authorizing task access as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPublic(session1);
+    await task.addCollection(session1, collection);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeTaskAccess(actionContext, task.id, "Edit");
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "Edit"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeTaskAccess(actionContext, task.id, "View"),
+            authorizeTaskAccess(actionContext, task.id, "View"),
+            authorizeTaskAccess(actionContext, task.id, "View"),
+        ]);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(1);
+    }
+});
+
+test("authorizing task access after getting task as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPublic(session1);
+    await task.addCollection(session1, collection);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskNotesContentAndInitialComments(actionContext, {
+            taskId: task.id,
+            commentsLimit: 100,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskCommentsFromStart(actionContext, {
+            taskId: task.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskCommentsFromEnd(actionContext, {
+            taskId: task.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+});
+
+test("authorizing task access after getting task as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPublic(session1);
+    await task.addCollection(session1, collection);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskNotificationSubscribers(actionContext, task.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskNotesContentAndInitialComments(actionContext, {
+            taskId: task.id,
+            commentsLimit: 100,
+        });
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskCommentsFromStart(actionContext, {
+            taskId: task.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getTaskCommentsFromEnd(actionContext, {
+            taskId: task.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeTaskAccess(actionContext, task.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+                authorizeTaskAccess(actionContext, task.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
 });

@@ -4,7 +4,10 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {writeTextToClipboardFallback} from "~/client/helpers/write_text_to_clipboard.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -13,6 +16,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 export async function writeContentToClipboard(
     spaceId: SpaceId,
     content: ContentWithReferences,
+    fileAttachmentTarget: FileAttachmentTarget | null,
     slice: Slice = content.doc.slice(0),
 ) {
     const state = ContentEditorState.create(content)._getInternalState();
@@ -25,6 +29,7 @@ export async function writeContentToClipboard(
             schema,
             () => spaceId,
             () => content.references,
+            () => assertExists(fileAttachmentTarget),
         ),
         clipboardTextSerializer: slice =>
             contentEditorTextClipboardSerializer(
@@ -36,10 +41,16 @@ export async function writeContentToClipboard(
 
     const {dom, text} = serializeForClipboard(view, slice);
 
-    await navigator.clipboard.write([
-        new ClipboardItem({
-            "text/html": new Blob([dom.innerHTML], {type: "text/html"}),
-            "text/plain": new Blob([text], {type: "text/plain"}),
-        }),
-    ]);
+    // If there is no `navigator.clipboard` (e.g. in Safari) then write text only
+    // with our fallback.
+    if (!navigator.clipboard) {
+        writeTextToClipboardFallback(text);
+    } else {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/html": new Blob([dom.innerHTML], {type: "text/html"}),
+                "text/plain": new Blob([text], {type: "text/plain"}),
+            }),
+        ]);
+    }
 }

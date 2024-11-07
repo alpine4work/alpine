@@ -1,6 +1,6 @@
-import {useMemo} from "react";
+import {useCallback, useMemo} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {useIdlyPreloadSwr, useSwr} from "~/client/rpc/use_swr.js";
+import {useForceRevalidateSwr, useIdlyPreloadSwr, useSwr} from "~/client/rpc/use_swr.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
@@ -47,6 +47,8 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     input: Input | null,
     {
         keepPreviousData,
+        withoutAutomaticRevalidation,
+        initialOutput,
     }: {
         /**
          * When the input changes, continue returning the previous data until we've
@@ -61,6 +63,21 @@ export function useLazyLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
+
+        /**
+         * Disable revalidating the entry on browser activation (e.g. when the browser
+         * window becomes visible after being hidden). Useful for immutable data you
+         * know won't change over time.
+         */
+        withoutAutomaticRevalidation?: boolean;
+
+        /**
+         * Initial data to return from this hook. If provided then on initial mount we
+         * won't call `fetcher` and will instead use the data from this object. The
+         * data from this object will be placed in the cache so may be seen by other
+         * `useSwr()` hooks observing the same key.
+         */
+        initialOutput?: Output | null;
     } = {},
 ): {
     isLoading: boolean;
@@ -85,7 +102,14 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     const {isLoading, isValidating, data} = useSwr(
         inputString !== null ? `${rpc.name}:${inputString}` : null,
         fetcher,
-        {keepPreviousData: keepPreviousData && input !== null},
+        {
+            keepPreviousData: keepPreviousData && input !== null,
+            withoutAutomaticRevalidation,
+            initialData: useMemo(
+                () => (initialOutput ? {...initialOutput, input} : null),
+                [initialOutput, input],
+            ),
+        },
     );
 
     return {
@@ -113,4 +137,28 @@ export function useIdlyPreloadRpc<Input, Output extends {}>(
     );
 
     useIdlyPreloadSwr(`${rpc.name}:${inputString}`, fetcher);
+}
+
+/**
+ * Returns a function you can use to revalidate any lazy loaded RPC output.
+ * When you call the revalidation function we'll always send a network request
+ * for the input if the input is being used by some other `useRpc()` hook. If
+ * the input is not in use this function will noop.
+ */
+export function useForceRevalidateRpc() {
+    const context = useAppContext();
+    const forceRevalidateSwr = useForceRevalidateSwr();
+
+    return useCallback(
+        <Input, Output extends {}>(
+            rpc: RpcDefinition<Input, Output>,
+            input: Input,
+        ): Promise<Output> => {
+            const fetcher = createFetcher(context, rpc);
+            const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
+
+            return forceRevalidateSwr(`${rpc.name}:${inputString}`, fetcher) as Promise<Output>;
+        },
+        [context, forceRevalidateSwr],
+    );
 }

@@ -1,4 +1,5 @@
-import {Memo, useCallback, useEffect, useMemo, useReducer} from "react";
+import {Memo, useCallback, useEffect, useMemo, useReducer, useRef} from "react";
+import {useSearchParams} from "react-router-dom";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -84,6 +85,7 @@ export const mobileSearchWordTypingDebounceMs = (() => {
 type SearchState = {
     readonly queryText: string;
     readonly trimmedQueryText: string;
+    readonly updatingSearchParams: URLSearchParams | null;
     readonly queryWords: ReadonlyArray<string>;
     readonly wordTypingTimeoutTime: number | null;
     readonly executionStack: SearchStateExecutionStack;
@@ -96,10 +98,14 @@ function getInitialSearchState(initialQueryText: string): SearchState {
     return {
         queryText: initialQueryText,
         trimmedQueryText: initialTrimmedQueryText,
+        updatingSearchParams: null,
         queryWords: initialQueryWords,
         wordTypingTimeoutTime: null,
         executionStack: createSearchStateExecutionStack([
-            createSearchStateExecution(initialTrimmedQueryText),
+            createSearchStateExecution({
+                queryText: initialTrimmedQueryText,
+                queryTime: new Date(),
+            }),
         ]),
     };
 }
@@ -107,12 +113,14 @@ function getInitialSearchState(initialQueryText: string): SearchState {
 type SearchAction =
     | {
           readonly type: "ChangeQueryText";
-          readonly time: number;
+          readonly time: Date;
           readonly queryText: string;
+          readonly updatingSearchParams: URLSearchParams | null;
           readonly wordTypingDebounceMs: number;
       }
     | {
           readonly type: "FireWordTypingTimeout";
+          readonly time: Date;
       };
 
 function reduceSearchState(state: SearchState, action: SearchAction): SearchState {
@@ -137,7 +145,10 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
             // which should resolve synchronously.
             if (newTrimmedQueryText.length === 0) {
                 newExecutionStack = state.executionStack.push(
-                    createSearchStateExecution(newTrimmedQueryText),
+                    createSearchStateExecution({
+                        queryText: newTrimmedQueryText,
+                        queryTime: action.time,
+                    }),
                 );
                 newWordTypingTimeoutTime = null;
             }
@@ -157,21 +168,25 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 oldTrimmedQueryText !== state.executionStack.latestExecution.queryText
             ) {
                 newExecutionStack = state.executionStack.push(
-                    createSearchStateExecution(oldTrimmedQueryText),
+                    createSearchStateExecution({
+                        queryText: oldTrimmedQueryText,
+                        queryTime: action.time,
+                    }),
                 );
-                newWordTypingTimeoutTime = action.time + action.wordTypingDebounceMs;
+                newWordTypingTimeoutTime = action.time.getTime() + action.wordTypingDebounceMs;
             }
             // For other edits, wait for a debounce timeout so we know the user is done
             // typing before sending a request to the server.
             else {
                 newExecutionStack = state.executionStack;
-                newWordTypingTimeoutTime = action.time + action.wordTypingDebounceMs;
+                newWordTypingTimeoutTime = action.time.getTime() + action.wordTypingDebounceMs;
             }
 
             return {
                 ...state,
                 queryText: newQueryText,
                 trimmedQueryText: newTrimmedQueryText,
+                updatingSearchParams: action.updatingSearchParams,
                 queryWords: newQueryWords,
                 wordTypingTimeoutTime: newWordTypingTimeoutTime,
                 executionStack: newExecutionStack,
@@ -184,7 +199,10 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 executionStack:
                     state.executionStack.latestExecution.queryText !== state.trimmedQueryText
                         ? state.executionStack.push(
-                              createSearchStateExecution(state.trimmedQueryText),
+                              createSearchStateExecution({
+                                  queryText: state.trimmedQueryText,
+                                  queryTime: action.time,
+                              }),
                           )
                         : state.executionStack,
             };
@@ -217,15 +235,15 @@ export function usePreloadSearchByAffinity() {
  * - Maintains the old search result while waiting on new results
  */
 export function useSearchState({
-    initialQueryText,
+    isSearchParamControlled,
     debugOptions,
     affinityResults: affinityResultsFromProps,
 }: {
-    initialQueryText: string;
+    isSearchParamControlled: boolean;
     debugOptions: SearchOptions | null;
     affinityResults?: ReadonlyArray<SearchResult>;
 }): {
-    output: ExecuteSearchOutput & {readonly key: string};
+    output: ExecuteSearchOutput & {readonly key: string; readonly queryTime: Date};
     queryText: string;
     onQueryTextChange: Memo<(queryText: string) => void>;
 } {
@@ -233,6 +251,14 @@ export function useSearchState({
     const {space} = useSpaceContext();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
+
+    const [searchParams, setSearchParams] = useSearchParams();
+    const searchParamsRef = useRef(searchParams);
+    const queryTextFromSearchParams = searchParams.get("search") ?? "";
+
+    useEffect(() => {
+        searchParamsRef.current = searchParams;
+    }, [searchParams]);
 
     const options = debugOptions ?? standardSearchOptions;
 
@@ -275,9 +301,29 @@ export function useSearchState({
 
     const [searchState, dispatch] = useReducer(
         reduceSearchState,
-        initialQueryText,
+        queryTextFromSearchParams,
         getInitialSearchState,
     );
+
+    // When the search param changes we need to update our search state.
+    if (
+        isSearchParamControlled &&
+        searchState.queryText !== queryTextFromSearchParams &&
+        // Remix updates `searchParams` asynchronously. So we don't want to reset
+        // `searchState.queryText` after `searchState.queryText` has been updated but
+        // before `queryTextFromSearchParams` has been updated.
+        searchState.updatingSearchParams !== searchParams
+    ) {
+        dispatch({
+            type: "ChangeQueryText",
+            time: new Date(),
+            queryText: queryTextFromSearchParams,
+            updatingSearchParams: null,
+            wordTypingDebounceMs: isMobile
+                ? mobileSearchWordTypingDebounceMs
+                : desktopSearchWordTypingDebounceMs,
+        });
+    }
 
     useEffect(() => {
         searchState.executionStack.latestExecution.execute(context, {
@@ -297,7 +343,7 @@ export function useSearchState({
         if (searchState.wordTypingTimeoutTime === null) return;
 
         const timeout = createTimeout(() => {
-            dispatch({type: "FireWordTypingTimeout"});
+            dispatch({type: "FireWordTypingTimeout", time: new Date()});
         }, searchState.wordTypingTimeoutTime - Date.now());
 
         return () => timeout.clear();
@@ -317,6 +363,7 @@ export function useSearchState({
                 return {
                     key: "searchByAffinity",
                     queryText: queryOutput.queryText,
+                    queryTime: queryOutput.queryTime,
                     isPending: true,
                     isError: false,
                     results: null,
@@ -325,6 +372,7 @@ export function useSearchState({
                 return {
                     key: "searchByAffinity",
                     queryText: queryOutput.queryText,
+                    queryTime: queryOutput.queryTime,
                     isPending:
                         affinityOutput.isLoading ||
                         affinityOutput.isValidating ||
@@ -439,16 +487,38 @@ export function useSearchState({
         output,
         queryText: searchState.queryText,
         onQueryTextChange: useCallback(
-            (queryText: string) =>
+            (queryText: string) => {
                 dispatch({
                     type: "ChangeQueryText",
-                    time: Date.now(),
+                    time: new Date(),
                     queryText,
+                    updatingSearchParams: isSearchParamControlled ? searchParamsRef.current : null,
                     wordTypingDebounceMs: isMobile
                         ? mobileSearchWordTypingDebounceMs
                         : desktopSearchWordTypingDebounceMs,
-                }),
-            [isMobile],
+                });
+
+                if (isSearchParamControlled) {
+                    setSearchParams(
+                        oldSearchParams => {
+                            if (oldSearchParams.get("search") === queryText) return oldSearchParams;
+
+                            const newSearchParams = new URLSearchParams(oldSearchParams);
+                            newSearchParams.set("search", queryText);
+                            return newSearchParams;
+                        },
+                        {
+                            replace: true,
+                            // Don't revalidate when updating search params from here. We can't use the
+                            // stable `shouldRevalidate` route function because we want ALL rendered routes
+                            // to skip revalidation. And updating all rendered routes `shouldRevalidate`
+                            // function to ignore `search` is too much of a burden.
+                            unstable_shouldRevalidate: false,
+                        },
+                    );
+                }
+            },
+            [isMobile, isSearchParamControlled, setSearchParams],
         ),
     };
 }
@@ -464,6 +534,7 @@ export function useSearchState({
  */
 type SearchStateExecution = Store<SearchStateExecutionOutput> & {
     readonly queryText: string;
+    readonly queryTime: Date;
     execute(
         context: AppContext,
         options: {
@@ -477,9 +548,16 @@ type SearchStateExecution = Store<SearchStateExecutionOutput> & {
 type SearchStateExecutionOutput = ExecuteSearchOutput & {
     readonly key: string;
     readonly queryText: string;
+    readonly queryTime: Date;
 };
 
-function createSearchStateExecution(queryText: string): SearchStateExecution {
+function createSearchStateExecution({
+    queryText,
+    queryTime,
+}: {
+    queryText: string;
+    queryTime: Date;
+}): SearchStateExecution {
     const key = generateId();
 
     // If the query text is empty, we don't have to wait for lazy execution to know
@@ -490,9 +568,11 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
                 ...emptyExecuteSearchOutput,
                 key,
                 queryText,
+                queryTime,
             }),
             {
                 queryText,
+                queryTime,
                 execute: () => {},
                 pauseExecute: () => {},
             },
@@ -570,9 +650,11 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
             ...result,
             key,
             queryText,
+            queryTime,
         })),
         {
             queryText,
+            queryTime,
             execute,
         },
     );

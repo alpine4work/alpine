@@ -1,4 +1,4 @@
-import {themeColors} from "~/shared/design/theme_colors.js";
+import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";

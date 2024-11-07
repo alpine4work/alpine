@@ -2,13 +2,14 @@ import {useParams, useSearchParams} from "@remix-run/react";
 import {useCallback, useEffect} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {NavigationBarContent} from "~/client/design/navigation_bar.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
@@ -84,7 +85,9 @@ export async function loader({context: unauthenticatedContext, params, request}:
     );
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [{title: taskTitle}]);
+export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [
+    {title: `Comments ${metaTitleSeparator} ${taskTitle}`},
+]);
 
 export default function TaskCommentsRoute({
     withMobileLayout: withMobileLayoutProp = false,
@@ -112,6 +115,8 @@ export default function TaskCommentsRoute({
 
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+
+    const isFromTaskDetailView = searchParams.get("from") === "task";
 
     useEffect(() => {
         if (withMobileLayout) return;
@@ -151,20 +156,15 @@ export default function TaskCommentsRoute({
 
     const node = (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box
-                flexShrink="0"
-                width="full"
-                paddingTop="safe-area-inset"
-                display="flex"
-                borderBottom="grey-10"
-            >
+            <Box flexShrink="0" width="full" paddingTop="safe-area-inset" display="flex">
                 <NavigationBarContent
                     withMobileLayout={withMobileLayout}
                     title={
-                        <TaskCommentsViewHeaderTitle
+                        <TaskCommentsViewNavigationBarTitle
                             spaceId={spaceId}
                             taskId={taskId}
                             title={taskTitle}
+                            isFromTaskDetailView={isFromTaskDetailView}
                         />
                     }
                     subtitle="Comments"
@@ -205,37 +205,38 @@ export default function TaskCommentsRoute({
         </Box>
     );
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                withMobileLayout={withMobileLayout}
-                maxWidth={contentStyles.contentMaxWidth}
-                borderBottom="grey-5"
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            withMobileLayout: withMobileLayout,
+            maxWidth: contentStyles.contentMaxWidth,
+        },
+        node,
+    );
 }
 
-function TaskCommentsViewHeaderTitle({
+function TaskCommentsViewNavigationBarTitle({
     title,
     spaceId,
     taskId,
+    isFromTaskDetailView,
 }: {
     title: string;
     spaceId: SpaceId;
     taskId: TaskId;
+    isFromTaskDetailView: boolean;
 }) {
     const navigate = useNavigate();
+
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(`/s/${spaceId}/tasks/${taskId}`, {
-                stopPropagation: true,
-            });
+            if (isFromTaskDetailView) {
+                navigate(-1);
+            } else {
+                navigate(`/s/${spaceId}/tasks/${taskId}`, {
+                    stopPropagation: true,
+                });
+            }
         },
     });
 

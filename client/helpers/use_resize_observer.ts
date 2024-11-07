@@ -1,7 +1,9 @@
 import {RefCallback, useCallback, useState} from "react";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
@@ -15,39 +17,83 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * reference of the `ref` object passed in. We will only observe a new element
  * when this object changes.
  *
+ * You may choose the method for measuring the element. Different methods have
+ * different pros/cons.
+ *
+ * - `getBoundingClientRect`: Uses `element.getBoundingClientRect()` and
+ *   returns dimensions with sub-pixel accuracy. Any CSS transformations will
+ *   be applied to this rect.
+ *
+ * - `clientWidthAndHeight`: Uses `element.clientWidth` and
+ *   `element.clientHeight`. Dimensions will be rounded to the nearest integer.
+ *   CSS transformations will not be applied to this rect.
+ *
+ * The default is `getBoundingClientRect` since it returns accurate sub-pixel
+ * measurements. However, if your element is part of an animation that changes
+ * its scale you may want `clientWidthAndHeight` instead which'll ignore any
+ * CSS transformations.
+ *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
  */
-export function useResizeObserver(): [
+export function useResizeObserver({
+    method = "getBoundingClientRect",
+    withSuppressResizeLoopErrorNotification = false,
+}: {
+    method?: "getBoundingClientRect" | "clientWidthAndHeight";
+    withSuppressResizeLoopErrorNotification?: boolean;
+} = emptyObject): [
     RefCallback<HTMLElement>,
     {readonly height: number; readonly width: number} | null,
 ] {
     const [contentRect, setContentRect] = useState<{height: number; width: number} | null>(null);
 
     const ref = useLifecycleRef<HTMLElement>(
-        useCallback(element => {
-            const listener = () => {
-                // We must use `getBoundingClientRect()` so we get sub-pixel sizes.
-                // `offsetHeight` is rounded to an integer.
-                const {height, width} = element.getBoundingClientRect();
+        useCallback(
+            element => {
+                const listener = () => {
+                    let width: number;
+                    let height: number;
 
-                const newContentRect = {height, width};
-                setContentRect(contentRect => {
-                    return newContentRect.height !== contentRect?.height ||
-                        newContentRect.width !== contentRect.width
-                        ? newContentRect
-                        : contentRect;
-                });
-            };
+                    switch (method) {
+                        case "getBoundingClientRect": {
+                            ({height, width} = element.getBoundingClientRect());
+                            break;
+                        }
+                        case "clientWidthAndHeight": {
+                            width = element.clientWidth;
+                            height = element.clientHeight;
+                            break;
+                        }
+                        default:
+                            throw exhaustive(method);
+                    }
 
-            // Immediately populate the content rect with our element's dimensions
-            // on mount.
-            listener();
+                    const newContentRect = {height, width};
 
-            addResizeListenerForElement(element, listener);
-            return () => {
-                removeResizeListenerForElement(element, listener);
-            };
-        }, []),
+                    setContentRect(contentRect => {
+                        return newContentRect.width !== contentRect?.width ||
+                            newContentRect.height !== contentRect.height
+                            ? newContentRect
+                            : contentRect;
+                    });
+                };
+
+                // Immediately populate the content rect with our element's dimensions
+                // on mount.
+                listener();
+
+                if (withSuppressResizeLoopErrorNotification)
+                    addSuppressResizeLoopErrorNotificationForElement(element);
+                addResizeListenerForElement(element, listener);
+
+                return () => {
+                    removeResizeListenerForElement(element, listener);
+                    if (withSuppressResizeLoopErrorNotification)
+                        removeSuppressResizeLoopErrorNotificationForElement(element);
+                };
+            },
+            [method, withSuppressResizeLoopErrorNotification],
+        ),
     );
 
     return [ref, contentRect];

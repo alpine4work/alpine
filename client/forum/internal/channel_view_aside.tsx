@@ -1,40 +1,70 @@
 import {Check, X} from "phosphor-react";
-import {useId, useRef, useState} from "react";
+import {useId, useMemo, useRef, useState} from "react";
+import {usePress} from "react-aria";
+import {ChannelViewFilePreview} from "~/client/content/channel_view_file_preview.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentView} from "~/client/content/content_view.js";
+import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
+import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {channelViewAsidePaddingY} from "~/client/styles/forum_shared_styles.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    channelViewAsideFileGap,
+    channelViewAsideFileHeight,
+    channelViewAsidePostFileColumnCount,
+    channelViewAsidePostFileCount,
+    channelViewAsidePostFileRowCount,
+    channelViewMetadataSectionGap,
+    channelViewMetadataSectionTitleColor,
+    channelViewMetadataSectionTitleFontSize,
+    channelViewMetadataSectionTitleMarginBottom,
+    desktopLayoutChannelViewMetadataMarginTop,
+    postListViewAsideMaxWidth,
+} from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
     subtractRemLengths,
-} from "~/shared/design/spacing.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
+} from "~/shared/design/core/spacing.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {
+    ChannelContributorsModel,
+    ChannelModel,
+    ChannelOrMetadataModel,
+    ChannelPostFilesModel,
+} from "~/shared/forum/channel_model.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
+    assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-
-const channelViewAsideSectionTitleFontSize = "75";
 
 const channelViewAsideEditingDescriptionOffsetTop = `${
     parseRemLengthNumber(
         subtractRemLengths(
             addRemLengths(
-                fontSizes[channelViewAsideSectionTitleFontSize].lineHeight,
-                spacing[channelViewAsidePaddingY],
+                fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
+                spacing[desktopLayoutChannelViewMetadataMarginTop],
             ),
             // Size of a `md` `<IconButton>`
             spacing["6"],
@@ -44,51 +74,173 @@ const channelViewAsideEditingDescriptionOffsetTop = `${
 
 export function ChannelViewAside({
     channel,
+    channelAndMetadataQuery,
     isEditingDescription,
     onCancelEditingDescription,
     onSaveDescription,
 }: {
     channel: ChannelModel;
+    channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel>;
     isEditingDescription: boolean;
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
+    const remPx = useRemPx();
+
+    const fileSizePx = convertRemLengthToPx(channelViewAsideFileHeight, remPx);
+
+    let contributors: ChannelContributorsModel | null = null;
+    const fileReferences: Array<{postId: PostId; signedUrlSearch: string; file: FileModel}> = [];
+
+    outer: for (let i = 0; i < channelAndMetadataQuery.getItemCount(); i++) {
+        const item = channelAndMetadataQuery.getItem(i);
+
+        if (item.type === "Loaded" && item.item.model instanceof ChannelContributorsModel) {
+            contributors = item.item.model;
+        }
+
+        if (item.type !== "Loaded" || !(item.item.model instanceof ChannelPostFilesModel)) {
+            continue;
+        }
+
+        for (const file of item.item.model.files) {
+            fileReferences.push({
+                postId: item.item.model.postId,
+                file: file.file,
+                signedUrlSearch: file.signedUrlSearch,
+            });
+
+            if (fileReferences.length > channelViewAsidePostFileCount) break outer;
+        }
+    }
+
     return (
         // Put overlays (e.g. the `<FocusRing>`) in the aside so they move smoothly
         // inside this `position: sticky` element.
         <OverlayScopeContextProvider>
             <Box
                 position="relative"
-                paddingY={channelViewAsidePaddingY}
-                paddingLeft="1"
-                paddingRight={screenPaddingX}
+                maxWidth={postListViewAsideMaxWidth}
+                paddingTop={desktopLayoutChannelViewMetadataMarginTop}
+                paddingX={screenPaddingX}
+                paddingBottom={screenPaddingX}
+                display="flex"
+                flexDirection="column"
+                gap={channelViewMetadataSectionGap}
             >
-                <h3
-                    className={sprinkles({
-                        color: "grey-50",
-                        fontSize: channelViewAsideSectionTitleFontSize,
-                    })}
-                >
-                    About
-                </h3>
-                {isEditingDescription ? (
-                    <ChannelViewAsideDescriptionEditor
-                        initialDescription={channel.description}
-                        onCancel={onCancelEditingDescription}
-                        onSave={onSaveDescription}
-                    />
-                ) : (
-                    <Box paddingY="1">
-                        <ContentView
-                            isCompact={true}
-                            // Only rendered on desktop layouts.
-                            withMobileLayout={false}
-                            content={channel.description}
-                        />
+                {(isEditingDescription || !isContentEmpty(channel.description.doc)) && (
+                    <Box
+                        // Negative margin bottom to optically align our description. Visually, the
+                        // bottom of the text in our `<ContentView>` should be the bottom of our
+                        // element.
+                        marginBottom="-1.5"
+                    >
+                        <h3
+                            className={sprinkles({
+                                color: channelViewMetadataSectionTitleColor,
+                                fontSize: channelViewMetadataSectionTitleFontSize,
+                            })}
+                        >
+                            About
+                        </h3>
+                        {isEditingDescription ? (
+                            <ChannelViewAsideDescriptionEditor
+                                initialDescription={channel.description}
+                                onCancel={onCancelEditingDescription}
+                                onSave={onSaveDescription}
+                            />
+                        ) : (
+                            <ChannelViewAsideDescription description={channel.description} />
+                        )}
                     </Box>
                 )}
+                <ChannelViewContributorsSection channel={channel} contributors={contributors} />
+                <Box>
+                    <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        marginBottom={channelViewMetadataSectionTitleMarginBottom}
+                        style={{
+                            height: fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
+                        }}
+                    >
+                        <h3
+                            className={sprinkles({
+                                color: channelViewMetadataSectionTitleColor,
+                                fontSize: channelViewMetadataSectionTitleFontSize,
+                            })}
+                        >
+                            Files
+                        </h3>
+                        {(fileReferences.length > channelViewAsidePostFileCount ||
+                            channelAndMetadataQuery.hasLoadingIndicatorAtEnd()) && (
+                            <ChannelViewAsideSeeAllFilesButton channel={channel} />
+                        )}
+                    </Box>
+                    <Box
+                        gap={channelViewAsideFileGap}
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,
+                            gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
+                        }}
+                    >
+                        {createArrayWithLength(channelViewAsidePostFileCount, index => {
+                            const fileReference = fileReferences[index];
+
+                            if (!fileReference) {
+                                return (
+                                    <Box key={`null-${index}`} border="grey-5" borderRadius="1" />
+                                );
+                            }
+
+                            return (
+                                <ChannelViewFilePreview
+                                    key={`${fileReference.postId}-${fileReference.file.id}`}
+                                    postId={fileReference.postId}
+                                    file={fileReference.file}
+                                    signedUrlSearch={fileReference.signedUrlSearch}
+                                    size={fileSizePx}
+                                />
+                            );
+                        })}
+                    </Box>
+                </Box>
             </Box>
         </OverlayScopeContextProvider>
+    );
+}
+
+function ChannelViewAsideDescription({description}: {description: MessageContentWithReferences}) {
+    const descriptionSnippet = useMemo(() => {
+        return {
+            doc: assertMessageContent(
+                getContentSnippet(
+                    description.doc.resolve(0),
+                    {linesAbove: 0, linesBelow: 7},
+                    {
+                        // 1.125x the number of "x"s we can fit in a single line in the channel aside
+                        // (45). We want to be slightly more aggressive than the default grapheme count
+                        // (which counts the "l" character which is narrower) since we render the entire
+                        // snippet.
+                        maxLineGraphemeCount: 51,
+                    },
+                ),
+            ),
+            references: description.references,
+        };
+    }, [description.doc, description.references]);
+
+    return (
+        <Box paddingTop="1">
+            <ContentViewWithSeeMoreToggle
+                isCompact={true}
+                // Only rendered on desktop layouts.
+                withMobileLayout={false}
+                content={description}
+                contentSnippet={descriptionSnippet}
+            />
+        </Box>
     );
 }
 
@@ -106,6 +258,7 @@ function ChannelViewAsideDescriptionEditor({
     onSave: (description: MessageContent) => Promise<void>;
 }) {
     const reporter = useReporter();
+    const {isAppleDevice} = useClientInfo();
 
     const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
@@ -142,10 +295,6 @@ function ChannelViewAsideDescriptionEditor({
     return (
         <>
             <Box
-                // Mark our buttons as being owned by the editor (according to
-                // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
-                // press on these buttons without asking the user to confirm the save.
-                data-ownedby={editorId}
                 position="absolute"
                 right={screenPaddingX}
                 display="flex"
@@ -155,7 +304,7 @@ function ChannelViewAsideDescriptionEditor({
                 <IconButton
                     description="Save"
                     tooltipPlacement="bottom-end"
-                    keyboardShortcutHint="Enter"
+                    keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
                     size="md"
                     pressErrorTitle="Couldn’t save description"
                     onPress={save}
@@ -178,7 +327,10 @@ function ChannelViewAsideDescriptionEditor({
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
                     id={editorId}
+                    paddingX="1.5"
                     paddingY="1"
+                    marginX="-1.5"
+                    marginBottom="-1"
                     borderRadius="1.5"
                     style={{
                         // Use box shadow to draw the border so it doesn't add 1px to layout like
@@ -243,5 +395,37 @@ function ChannelViewAsideDescriptionEditor({
                 />
             )}
         </>
+    );
+}
+
+function ChannelViewAsideSeeAllFilesButton({channel}: {channel: ChannelModel}) {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            navigate(`/s/${space.id}/channels/${channel.id}/files?from=channel`, {
+                // Don't open in a peek when in desktop layout. Instead perform a full page
+                // navigation.
+                stopPropagation: true,
+            });
+        },
+    });
+
+    return (
+        <FocusRing>
+            <button
+                {...pressProps}
+                className={sprinkles({
+                    fontStyle: "semi-bold",
+                    fontSize: channelViewMetadataSectionTitleFontSize,
+                    cursor: "pointer",
+                    color: "grey-90",
+                    opacity: isPressed ? "60" : "100",
+                })}
+            >
+                See all
+            </button>
+        </FocusRing>
     );
 }

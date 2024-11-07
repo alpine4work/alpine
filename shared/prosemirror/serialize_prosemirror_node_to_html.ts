@@ -21,13 +21,14 @@ export type RecursiveReadonlyArray<Value> = ReadonlyArray<Value | RecursiveReado
  * [1]: https://prosemirror.net/docs/ref/#view.EditorProps
  */
 export type ProsemirrorHtmlSerializationOptions = {
+    readonly withPosAttribute?: boolean;
     readonly nodeRenderers?: {
         [nodeName: string]:
             | ((
                   node: Node,
                   pos: number,
               ) => {
-                  html: HtmlGenerator;
+                  html: HtmlElementGenerator;
                   contentHtml?: HtmlElementGenerator;
               })
             | undefined;
@@ -45,13 +46,14 @@ export type ProsemirrorHtmlSerializationOptions = {
 };
 
 type ProsemirrorHtmlSerializationContext = {
+    readonly withPosAttribute: boolean;
     readonly nodeRenderers: {
         [nodeName: string]:
             | ((
                   node: Node,
                   pos: number,
               ) => {
-                  html: HtmlGenerator;
+                  html: HtmlElementGenerator;
                   contentHtml?: HtmlElementGenerator;
               })
             | undefined;
@@ -158,6 +160,7 @@ export function serializeProsemirrorNodeToHtml(
     inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
 
     const context: ProsemirrorHtmlSerializationContext = {
+        withPosAttribute: options.withPosAttribute ?? false,
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
@@ -178,6 +181,13 @@ export function serializeProsemirrorFragmentToHtml(
     fragment: Fragment,
     options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
 ): string {
+    return serializeProsemirrorFragmentToHtmlGenerator(fragment, options).generateHtml();
+}
+
+export function serializeProsemirrorFragmentToHtmlGenerator(
+    fragment: Fragment,
+    options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
+): HtmlFragmentGenerator {
     const widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration> = [];
     const inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
 
@@ -210,22 +220,24 @@ export function serializeProsemirrorFragmentToHtml(
     inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
 
     const context: ProsemirrorHtmlSerializationContext = {
+        withPosAttribute: options.withPosAttribute ?? false,
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
         inlineDecorationQueue,
     };
 
-    return serializeProsemirrorFragment(
-        options.startPos ?? 0,
-        fragment,
-        new HtmlFragmentGenerator(),
-        context,
-    ).generateHtml();
+    const fragmentHtml = new HtmlFragmentGenerator();
+
+    serializeProsemirrorFragment(options.startPos ?? 0, fragment, fragmentHtml, context);
+
+    return fragmentHtml;
 }
 
 type DOMOutputSpecArray = _DOMOutputSpecArray<DOMOutputSpec>;
-type _DOMOutputSpecArray<Spec extends DOMOutputSpec> = Spec extends Array<any> ? Spec : never;
+type _DOMOutputSpecArray<Spec extends DOMOutputSpec> = Spec extends ReadonlyArray<any>
+    ? Spec
+    : never;
 
 function isDomNode(structure: object): structure is globalThis.Node {
     return (structure as any).contentType != null;
@@ -293,6 +305,17 @@ function serializeProsemirrorNode(
             const toDOM = node.type.spec.toDOM;
             assert(toDOM, `Could not find renderer for node type "${node.type.name}"`);
             ({html, contentHtml} = renderProsemirrorDomOutputSpec(toDOM(node)));
+        }
+
+        assert(html instanceof HtmlElementGenerator);
+
+        if (context.withPosAttribute && pos > 0) {
+            // Mark the position of every node in the document. We use this so we can map
+            // the DOM selection back to our ProseMirror document. Only nodes get the
+            // `data-pos` attribute. So if we see `data-pos` we can be confident we have a
+            // node element not a mark element.
+            html.setAttribute("data-pos", pos - 1);
+            if (node.isInline) html.setAttribute("data-inline", "");
         }
 
         if (contentHtml !== undefined) {
@@ -632,8 +655,6 @@ function serializeProsemirrorFragment(
         const decoration = context.widgetDecorationQueue.pop()!;
         targetContainer.appendChild(decoration.html);
     }
-
-    return targetContainer;
 }
 
 /**
@@ -649,7 +670,7 @@ export function renderProsemirrorDomOutputSpec(structure: DOMOutputSpec): {
 } {
     if (typeof structure === "string") return {html: new HtmlTextGenerator(structure)};
 
-    assert(Array.isArray(structure), "Can not server-side render node that returns a DOM node");
+    assert(isReadonlyArray(structure), "Can not server-side render node that returns a DOM node");
 
     return renderProsemirrorDomOutputSpecArray(structure);
 }

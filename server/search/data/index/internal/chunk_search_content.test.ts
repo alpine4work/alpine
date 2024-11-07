@@ -20,8 +20,10 @@ import {
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
@@ -58,7 +60,7 @@ async function testGetFullSearchContentChunk(
         // Content we get after parsing should equal the content we printed with some
         // acceptable lossiness.
         expect(content2.toJSON()).toEqual(
-            (await dropUnpreservedNodeStyles(content, options)).toJSON(),
+            (await dropIgnoredSearchContent(content, options))?.toJSON(),
         );
         expect(text2).toEqual(text);
 
@@ -79,14 +81,16 @@ async function testGetFullSearchContentChunk(
 /**
  * Drop styles that aren't preserved by chunking.
  */
-async function dropUnpreservedNodeStyles(
+async function dropIgnoredSearchContent(
     node: Node,
     options: {
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
     },
-): Promise<Node> {
+): Promise<Node | null> {
+    if (node.type.name === "fileRow" || node.type.name === "fileFloat") return null;
+
     if (node.type.name === "mention") {
         const mention: ContentMention = node.attrs.mention;
         const account = await options.getAccountIfExists(mention.accountId);
@@ -112,20 +116,24 @@ async function dropUnpreservedNodeStyles(
 
     if (node.type.name === "text") return node;
 
-    const content = await runAllPromises(
-        createArrayWithLength(node.content.childCount, index =>
-            dropUnpreservedNodeStyles(node.content.child(index), options),
-        ),
-    );
+    const content = (
+        await runAllPromises(
+            createArrayWithLength(node.content.childCount, index =>
+                dropIgnoredSearchContent(node.content.child(index), options),
+            ),
+        )
+    ).filter(isNonNullable);
 
     if (node.type.name === "checkListItem") {
-        return assertExists(node.type.schema.nodes.unorderedListItem).create(
-            {indent: node.attrs.indent},
-            content,
+        return assertExists(
+            assertExists(node.type.schema.nodes.unorderedListItem).createAndFill(
+                {indent: node.attrs.indent},
+                content,
+            ),
         );
     }
 
-    return node.type.create(node.attrs, content);
+    return assertExists(node.type.createAndFill(node.attrs, content));
 }
 
 test("discovers paragraph and sentence structure", async () => {
@@ -4724,5 +4732,297 @@ test("properly escapes content in inline code", async () => {
         ],
         lineMarginTop: 2,
         lineMarginBottom: 2,
+    });
+});
+
+test("ignores files in file rows", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("The quick brown")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("fox jumps")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("over the")]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: null})]),
+                schema.node("paragraph", {}, [schema.text("lazy dog")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: null}),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+The quick brown
+
+fox jumps
+
+over the
+
+lazy dog`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 9,
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "The quick brown", tokenCount: 3}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "fox jumps", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "over the", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "lazy dog", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("ignores files in file floats", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("The quick brown")]),
+                schema.node("fileFloat", {direction: "right"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("fox jumps")]),
+                schema.node("fileFloat", {direction: "left"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileFloat", {direction: "left"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("over the")]),
+                schema.node("fileFloat", {direction: "right"}, [
+                    schema.node("file", {fileId: null}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("lazy dog")]),
+                schema.node("fileFloat", {direction: "right"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+The quick brown
+
+fox jumps
+
+over the
+
+lazy dog`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 9,
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "The quick brown", tokenCount: 3}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "fox jumps", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "over the", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "lazy dog", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("chunks doc that is only files", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [schema.node("paragraph", {}, [])]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: "",
+        isGroup: false,
+        tokenCount: 0,
+        context: {sectionHeading: null},
+        sentenceChunks: [],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
+    });
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: "",
+        isGroup: false,
+        tokenCount: 0,
+        context: {sectionHeading: null},
+        sentenceChunks: [],
+        lineMarginTop: 0,
+        lineMarginBottom: 0,
+    });
+});
+
+test("ignores files in file rows when file row is in quote block or list item", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("The quick brown fox jumps")]),
+                // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in quote
+                // blocks in our content schema, but we still want to exercise the code for
+                // this case since we may support this format someday.
+                schema.nodes.quoteBlock.create({}, [
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("over the")]),
+                // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in list
+                // items in our content schema, but we still want to exercise the code for
+                // this case since we may support this format someday.
+                schema.nodes.orderedListItem.create({}, [
+                    schema.node("paragraph", {}, [schema.text("hi")]),
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("lazy dog")]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+The quick brown fox jumps
+
+>
+
+over the
+
+1. hi
+
+lazy dog`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 13,
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 5,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "The quick brown fox jumps", tokenCount: 5}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: ">", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "over the", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "1. hi", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "lazy dog", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
     });
 });

@@ -1,5 +1,5 @@
 import {Ref, forwardRef, useCallback, useRef} from "react";
-import {chatMessagingViewHeader} from "~/client/chat/chat_view.js";
+import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
@@ -63,7 +63,7 @@ function NewChatMessagingView(
                           lastMessageChangeTime: null,
                       }
             }
-            header={chatMessagingViewHeader}
+            header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}
             getMessagesFromStart={useEvent(input => {

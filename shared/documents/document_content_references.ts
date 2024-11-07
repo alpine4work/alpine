@@ -3,6 +3,7 @@ import {
     ContentReferencesSchema,
     emptyContentReferences,
     isEmptyContentReferences,
+    mergeContentReferences,
 } from "~/shared/content/content_references.js";
 import {
     DocumentContentSchema,
@@ -68,6 +69,8 @@ export function mergeDocumentContentReferences(
     if (isEmptyDocumentContentReferences(references1)) return references2;
     if (isEmptyDocumentContentReferences(references2)) return references1;
 
+    const referencesBase = mergeContentReferences(references1, references2);
+
     const commentThreadById = new Map<
         DocumentCommentThreadId,
         {
@@ -93,7 +96,7 @@ export function mergeDocumentContentReferences(
     }
 
     return {
-        accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
+        ...referencesBase,
         commentThreadById,
     };
 }

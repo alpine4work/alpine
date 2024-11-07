@@ -71,10 +71,11 @@ class ComputationStore<NewValue> extends Store<NewValue> {
 
     public override isFinal(): boolean {
         // This function should be fast. Recursively checking if all our stores are
-        // final defeats the point of this optimization. So assume the store is not
-        // final.
+        // final defeats the point of this optimization. So pessimistically assume the
+        // store is not final.
         //
-        // If `get()` was never called then this store is final.
+        // If the `get()` function passed to `compute()` was never called then this
+        // store is final.
         return this._newValueResult !== null && this._oldValueResultByStore.size === 0;
     }
 

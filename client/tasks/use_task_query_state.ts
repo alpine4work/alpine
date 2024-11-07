@@ -1,12 +1,14 @@
 import {startTransition, useEffect, useMemo, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {getTaskRealtimeClientIfExistsForClient} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -103,6 +105,7 @@ export function useTaskQueryState({
     onActiveQueryChange?: (query: TaskClientQuery | null) => void;
 }): TaskQueryState {
     const {space, currentAccount} = useSpaceContext();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     // Custom views must start with a filter we know the user has access to. We
     // don't yet support querying any set of tasks and dynamically filtering out
@@ -207,7 +210,7 @@ export function useTaskQueryState({
             const newPendingQuery = store.createAndRetainQuery({
                 filters: expectedQuery.query.filters,
                 sorts: expectedQuery.query.sorts,
-                limit: getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                limit: getTaskGridViewLoadQueryLimit(getClientInfo()),
             });
 
             // This needs to be called in `batchStoreUpdates()` since it delays our
@@ -241,12 +244,15 @@ export function useTaskQueryState({
 
         const pendingQueryPromise = pendingQuery.waitForLoaded();
 
-        let isCancelled = false;
+        const cancelledPromiseResolver = createPromiseResolver();
 
-        // TODO(calebmer, #global-loading-indicator): Add a loading spinner while we
-        // wait for the pending query to load.
+        addGlobalLoadingIndicator(
+            Promise.race([cancelledPromiseResolver.promise, pendingQueryPromise]),
+            {type: "Loading"},
+        );
+
         void pendingQueryPromise.finally(() => {
-            if (isCancelled) return;
+            if (cancelledPromiseResolver.isSettled()) return;
 
             // Don't animate when changing the query.
             indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
@@ -275,9 +281,9 @@ export function useTaskQueryState({
         });
 
         return () => {
-            isCancelled = true;
+            cancelledPromiseResolver.resolve();
         };
-    }, [queryState, setQueryState, space.id]);
+    }, [addGlobalLoadingIndicator, queryState, setQueryState, space.id]);
 
     return queryState;
 }

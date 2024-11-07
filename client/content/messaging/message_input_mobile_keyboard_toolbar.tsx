@@ -15,11 +15,9 @@ import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useId, useMemo, useRef} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
-import {
-    ContentEditorMobileLinkModalState,
-    getContentEditorMobileLinkModalSelectionSliceText,
-} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_input_rules_plugin.js";
+import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {getContentEditorMobileLinkModalSelectionSliceText} from "~/client/content/internal/get_content_editor_mobile_link_modal_selection_slice_text.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
@@ -36,7 +34,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
@@ -352,7 +350,7 @@ function MessageInputMobileKeyboardToolbarButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        (isPressed: boolean) => isPressed && isActive,
+        isPressed => isPressed && isActive,
         [isPressed],
     );
 

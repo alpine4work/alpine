@@ -4,35 +4,44 @@ import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
+import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
 import {
     buildContentEditorInputRulesPlugin,
     openMentionFloaterMetaKey,
-} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
+} from "~/client/content/internal/content_editor_input_rules_plugin.js";
 import {
     buildContentEditorKeymapPlugin,
     openCommentInputFloaterMetaKey,
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
-} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
-import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
+} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
     ContentReferences,
     ContentWithReferences,
     mergeContentReferences,
+    mergeContentReferencesFileSignedUrlSearches,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
-import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    FileId,
+} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
@@ -68,8 +77,9 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorQuickUndoPlugin(),
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
-        sharedContentEditorTrackSelectionWithinPlugin(),
+        contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
+        sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 }
 
@@ -697,10 +707,14 @@ function contentEditorReferencesPlugin<References extends ContentReferences>(
         state: {
             init: (config, state) => ({doc: state.doc, references: initialReferences}),
             apply: (transaction, oldPluginState, oldState, newState) => {
-                const action: ContentEditorReferencesAction<References> | undefined =
-                    transaction.getMeta(contentEditorReferencesPluginKey);
+                const action:
+                    | ContentEditorReferencesAction<References>
+                    | Array<ContentEditorReferencesAction<References>>
+                    | undefined = transaction.getMeta(contentEditorReferencesPluginKey);
 
-                const newReferences = action
+                const newReferences = Array.isArray(action)
+                    ? action.reduce(reduceReferences, oldPluginState.references)
+                    : action
                     ? reduceReferences(oldPluginState.references, action)
                     : oldPluginState.references;
 
@@ -725,24 +739,59 @@ export function getContentEditorReferences(state: EditorState): ContentWithRefer
 
 export function updateContentEditorReferences<References extends ContentReferences>(
     transaction: Transaction,
-    action: ContentEditorReferencesAction<References>,
+    action:
+        | ContentEditorReferencesAction<References>
+        | Array<ContentEditorReferencesAction<References>>,
 ): Transaction {
-    return transaction.setMeta(contentEditorReferencesPluginKey, action);
+    if (Array.isArray(action) && action.length === 0) return transaction;
+
+    const previousActions = transaction.getMeta(contentEditorReferencesPluginKey);
+    if (!previousActions) {
+        return transaction.setMeta(contentEditorReferencesPluginKey, action);
+    } else {
+        return transaction.setMeta(contentEditorReferencesPluginKey, [
+            ...(Array.isArray(previousActions) ? previousActions : [previousActions]),
+            ...(Array.isArray(action) ? action : [action]),
+        ]);
+    }
+}
+
+export function hasContentEditorReferencesUpdate(transaction: Transaction): boolean {
+    return !!transaction.getMeta(contentEditorReferencesPluginKey);
 }
 
 export type ContentEditorReferencesAction<References extends ContentReferences> =
     | ContentEditorReferencesMergeAction<References>
-    | ContentEditorReferencesAddAccountAction
+    | ContentEditorReferencesSetAccountAction
+    | ContentEditorReferencesSetFileAction
+    | ContentEditorReferencesSetFileSignedUrlSearchAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
+
+export type ContentEditorReferencesSharedAction =
+    | ContentEditorReferencesSetAccountAction
+    | ContentEditorReferencesSetFileAction
+    | ContentEditorReferencesSetFileSignedUrlSearchAction;
 
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
     readonly type: "Merge";
     readonly references: References;
 };
 
-export type ContentEditorReferencesAddAccountAction = {
-    readonly type: "AddAccount";
+export type ContentEditorReferencesSetAccountAction = {
+    readonly type: "SetAccount";
     readonly account: AccountModel;
+};
+
+export type ContentEditorReferencesSetFileAction = {
+    readonly type: "SetFile";
+    readonly signedUrlSearch: string;
+    readonly file: FileModel;
+};
+
+export type ContentEditorReferencesSetFileSignedUrlSearchAction = {
+    readonly type: "SetFileSignedUrlSearch";
+    readonly fileId: FileId;
+    readonly signedUrlSearch: string;
 };
 
 /**
@@ -765,18 +814,79 @@ export function reduceContentReferences(
     switch (action.type) {
         case "Merge":
             return mergeContentReferences(references, action.references);
-        case "AddAccount": {
-            return {
-                ...references,
-                accountById: new Map([
-                    ...references.accountById,
-                    [action.account.id, action.account],
-                ]),
-            };
-        }
         // These actions are only used with `DocumentContentReferences`.
         case "UpdateDocumentCommentThread":
             return references;
+        default:
+            return reduceContentReferencesShared(references, action);
+    }
+}
+
+export function reduceContentReferencesShared<References extends ContentReferences>(
+    references: References,
+    action: ContentEditorReferencesSharedAction,
+): Replace<References, ContentReferences> {
+    switch (action.type) {
+        case "SetAccount": {
+            const oldAccount = references.accountById.get(action.account.id);
+            const newAccount = oldAccount ? oldAccount.merge(action.account) : action.account;
+            if (oldAccount === newAccount) return references;
+
+            const newAccountById = new Map(references.accountById);
+            newAccountById.set(newAccount.id, newAccount);
+            return {...references, accountById: newAccountById};
+        }
+        case "SetFile": {
+            const oldFileReference = references.fileById.get(action.file.id);
+
+            // Prefer `oldFile` in `FileModel.minLoadingCount()` to avoid unnecessary
+            // re-renders.
+            const newFile = oldFileReference
+                ? FileModel.minLoadingCount(oldFileReference.file, action.file)
+                : action.file;
+
+            // Pick the `signedUrlSearch` that expires later.
+            const newSignedUrlSearch = oldFileReference
+                ? mergeContentReferencesFileSignedUrlSearches(
+                      oldFileReference.signedUrlSearch,
+                      action.signedUrlSearch,
+                  )
+                : action.signedUrlSearch;
+
+            if (
+                oldFileReference?.file === newFile &&
+                oldFileReference.signedUrlSearch === newSignedUrlSearch
+            ) {
+                return references;
+            }
+
+            const newFileById = new Map(references.fileById);
+            newFileById.set(newFile.id, {signedUrlSearch: newSignedUrlSearch, file: newFile});
+            return {...references, fileById: newFileById};
+        }
+        case "SetFileSignedUrlSearch": {
+            const oldFileReference = references.fileById.get(action.fileId);
+            if (!oldFileReference) return references;
+
+            // Pick the `signedUrlSearch` that expires later.
+            const newSignedUrlSearch = oldFileReference
+                ? mergeContentReferencesFileSignedUrlSearches(
+                      oldFileReference.signedUrlSearch,
+                      action.signedUrlSearch,
+                  )
+                : action.signedUrlSearch;
+
+            if (oldFileReference.signedUrlSearch === newSignedUrlSearch) {
+                return references;
+            }
+
+            const newFileById = new Map(references.fileById);
+            newFileById.set(action.fileId, {
+                ...oldFileReference,
+                signedUrlSearch: newSignedUrlSearch,
+            });
+            return {...references, fileById: newFileById};
+        }
         default:
             throw exhaustive(action);
     }
@@ -973,6 +1083,211 @@ function contentEditorIsContinuouslyTypingPlugin() {
 
 export function isContinuouslyTypingInContentEditor(state: EditorState): boolean {
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
+}
+
+// Use an `ImmutableMap` since we'll need to `set()` every selection in the map
+// very often and we'll need to `get()` results from the map very rarely.
+type ContentEditorRememberPosWhileLoadingPluginState = ImmutableMap<
+    number,
+    | {
+          readonly type: "Pos";
+          readonly promise: Promise<unknown>;
+          readonly pos: number;
+      }
+    | {
+          readonly type: "Selection";
+          readonly promise: Promise<unknown>;
+          readonly selection: Selection;
+      }
+>;
+
+const contentEditorRememberPosWhileLoadingPluginKey =
+    new PluginKey<ContentEditorRememberPosWhileLoadingPluginState>(
+        "contentEditorRememberPosWhileLoading",
+    );
+
+/**
+ * Sometimes the user triggers an action, we need to asynchronously process
+ * some data, then we can perform the action. For example, pasting some content
+ * that contains mentions (we need to fetch mention data) or dropping a file
+ * (we need to upload the file). In these cases frequently we want to perform
+ * the action on the user's selection when they triggered the action. So if the
+ * user triggers an action, then moves their selection, we apply the action
+ * result to their original selection.
+ *
+ * This plugin gives us this capability. It allows us to register a promise we
+ * want to keep track of. Whenever the document changes we map the selection
+ * keeping it relative to the current document node. When the promise resolves
+ * or rejects we remove the promise from our state. At any point between
+ * registering the promise and the promise resolving you may get the mapped
+ * selection for the promise representing the original position of the user's
+ * action.
+ */
+function contentEditorRememberPosWhileLoadingPlugin() {
+    return new Plugin<ContentEditorRememberPosWhileLoadingPluginState>({
+        key: contentEditorRememberPosWhileLoadingPluginKey,
+        state: {
+            init: () => ImmutableMap.empty(),
+            apply: (transaction, pluginState) => {
+                const action = transaction.getMeta(contentEditorRememberPosWhileLoadingPluginKey);
+                if (action) {
+                    if (action.type === "add") {
+                        pluginState = pluginState.set(action.key, action.value);
+                    } else if (action.type === "delete") {
+                        pluginState = pluginState.delete(action.key);
+                    } else {
+                        throw new InternalError(quote`Unrecognized action type ${action.type}`);
+                    }
+                }
+
+                if (!transaction.docChanged) return pluginState;
+
+                return pluginState.updateEvery(entry => {
+                    switch (entry.type) {
+                        case "Pos": {
+                            const newPos = transaction.mapping.map(entry.pos);
+                            if (newPos === entry.pos) return entry;
+                            return {
+                                type: "Pos",
+                                promise: entry.promise,
+                                pos: newPos,
+                            };
+                        }
+                        case "Selection": {
+                            const newSelection = entry.selection.map(
+                                transaction.doc,
+                                transaction.mapping,
+                            );
+                            if (newSelection === entry.selection) {
+                                return entry;
+                            }
+                            return {
+                                type: "Selection",
+                                promise: entry.promise,
+                                selection: newSelection,
+                            };
+                        }
+                        default:
+                            throw exhaustive(entry);
+                    }
+                });
+            },
+        },
+    });
+}
+
+let nextContentEditorRememberPosWhileLoadingPluginStateKey = 1;
+
+export function rememberContentEditorPosWhileLoading(
+    view: EditorView,
+    pos: number,
+    promise: PromiseLike<unknown>,
+): {getPos: () => number | null} {
+    const key = nextContentEditorRememberPosWhileLoadingPluginStateKey;
+    nextContentEditorRememberPosWhileLoadingPluginStateKey++;
+
+    let initialTransaction: Transaction | null = view.state.tr.setMeta(
+        contentEditorRememberPosWhileLoadingPluginKey,
+        {
+            type: "add",
+            key,
+            value: {
+                type: "Pos",
+                promise,
+                pos,
+            },
+        },
+    );
+
+    const handleFinally = () => {
+        // In case we're dealing with a `PromiseImmediate` that's already resolved.
+        if (initialTransaction !== null) {
+            initialTransaction = null;
+            return;
+        }
+
+        view.dispatch(
+            view.state.tr.setMeta(contentEditorRememberPosWhileLoadingPluginKey, {
+                type: "delete",
+                key,
+            }),
+        );
+    };
+
+    promise.then(handleFinally, handleFinally);
+
+    if (initialTransaction !== null) {
+        view.dispatch(initialTransaction);
+        initialTransaction = null;
+    }
+
+    return {
+        getPos: () => {
+            const entry = contentEditorRememberPosWhileLoadingPluginKey
+                .getState(view.state)
+                ?.get(key);
+            if (!entry) return null;
+            assert(entry.type === "Pos");
+            return entry.pos;
+        },
+    };
+}
+
+export function rememberContentEditorSelectionWhileLoading(
+    view: EditorView,
+    selection: Selection,
+    promise: PromiseLike<unknown>,
+): {getSelection: () => Selection | null} {
+    assert(selection.$anchor.doc === view.state.doc);
+
+    const key = nextContentEditorRememberPosWhileLoadingPluginStateKey;
+    nextContentEditorRememberPosWhileLoadingPluginStateKey++;
+
+    let initialTransaction: Transaction | null = view.state.tr.setMeta(
+        contentEditorRememberPosWhileLoadingPluginKey,
+        {
+            type: "add",
+            key,
+            value: {
+                type: "Selection",
+                promise,
+                selection,
+            },
+        },
+    );
+
+    const handleFinally = () => {
+        // In case we're dealing with a `PromiseImmediate` that's already resolved.
+        if (initialTransaction !== null) {
+            initialTransaction = null;
+            return;
+        }
+
+        view.dispatch(
+            view.state.tr.setMeta(contentEditorRememberPosWhileLoadingPluginKey, {
+                type: "delete",
+                key,
+            }),
+        );
+    };
+
+    promise.then(handleFinally, handleFinally);
+
+    if (initialTransaction !== null) {
+        view.dispatch(initialTransaction);
+        initialTransaction = null;
+    }
+
+    return {
+        getSelection: () => {
+            const entry = contentEditorRememberPosWhileLoadingPluginKey
+                .getState(view.state)
+                ?.get(key);
+            if (!entry) return null;
+            assert(entry.type === "Selection");
+            return entry.selection;
+        },
+    };
 }
 
 type ContentEditorCodeBlockStateValue = {

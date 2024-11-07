@@ -2,10 +2,7 @@ import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_c
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc, TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -46,7 +43,7 @@ export async function assembleTaskAndReferences(
     // data at the moment.
     const taskModel = prepareTaskForClient(null, task);
 
-    let promises: Array<Promise<void>> = [];
+    const promiseWaiter = new PromiseWaiter();
     const loadingTaskIds = new Set<TaskId>();
     const loadingCollectionIds = new Set<TaskCollectionId>();
 
@@ -58,7 +55,7 @@ export async function assembleTaskAndReferences(
         const parentTaskId = task.parent.taskId.value;
         if (parentTaskId && parentTaskId !== rootTaskId && !loadingTaskIds.has(parentTaskId)) {
             loadingTaskIds.add(parentTaskId);
-            promises.push(
+            promiseWaiter.waitUntil(
                 getTaskIndexDoc(parentTaskId).then(parentTask => {
                     referencedTaskModels.push(
                         // NOTE(calebmer): Passing in null will wipe all private data from the task.
@@ -76,7 +73,7 @@ export async function assembleTaskAndReferences(
             if (loadingCollectionIds.has(collectionId)) continue;
 
             loadingCollectionIds.add(collectionId);
-            promises.push(
+            promiseWaiter.waitUntil(
                 getCollectionIndexDoc(collectionId).then(collection => {
                     referencedCollectionModels.push(prepareTaskCollectionForClient(collection));
                 }),
@@ -86,41 +83,7 @@ export async function assembleTaskAndReferences(
 
     trackTaskDependencies(task);
 
-    // Wait for all the promises in the `promises` array. We may add new `promises`
-    // while waiting so we need to loop until `promises` is empty.
-    {
-        let hasError = false;
-        let errorPriority = 0;
-        let error: unknown;
-
-        // Wait for all discovered promises to resolve before returning.
-        //
-        // Even if there's an error. Only throw our error at the very end.
-        while (promises.length > 0) {
-            const currentPromises = promises;
-            promises = [];
-
-            try {
-                await runAllPromises(currentPromises);
-            } catch (newError) {
-                const newErrorPriority = getAggregateErrorPriority(newError);
-
-                if (!hasError) {
-                    hasError = true;
-                    errorPriority = newErrorPriority;
-                    error = newError;
-                }
-                // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                // just the first one. Probably by using an `AggregateError`.
-                else if (newErrorPriority > errorPriority) {
-                    errorPriority = newErrorPriority;
-                    error = newError;
-                }
-            }
-        }
-
-        if (hasError) throw error;
-    }
+    await promiseWaiter.wait();
 
     return {
         task: taskModel,

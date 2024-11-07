@@ -12,7 +12,7 @@ import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderPaddingY,
 } from "~/client/styles/document_shared_styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -27,6 +27,7 @@ export function DocumentCommentThreadHeader({
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
+    previewFileLayoutScreenWidthRem,
 }: {
     withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
@@ -37,6 +38,7 @@ export function DocumentCommentThreadHeader({
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
+    previewFileLayoutScreenWidthRem: number;
 }) {
     const reporter = useReporter();
 
@@ -120,6 +122,7 @@ export function DocumentCommentThreadHeader({
                         contentReferences={contentReferences}
                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                         isResolveButtonPending={isPending}
+                        fileLayoutScreenWidthRem={previewFileLayoutScreenWidthRem}
                     />
                 </>
             )}

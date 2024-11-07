@@ -10,8 +10,8 @@ import {
     overlayFadeInOutTimingFunction,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
-import {parseCubicBezier} from "~/shared/design/easing.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {parseCubicBezier} from "~/shared/design/core/easing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";

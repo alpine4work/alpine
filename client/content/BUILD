@@ -2,18 +2,26 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
-    test_deps = ["//:node_modules/@testing-library/react"],
+    test_deps = [
+        "//:node_modules/@testing-library/react",
+        "//shared/tracer/dev",
+    ],
     visibility = [
         "//admin/eslint:__pkg__",
         "//app:__subpackages__",
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@lume/kiwi",
         "//:node_modules/@react-aria/interactions",
+        "//:node_modules/@types/hammerjs",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
+        "//:node_modules/color",
         "//:node_modules/fuse.js",
+        "//:node_modules/hammerjs",
         "//:node_modules/phosphor-react",
+        "//:node_modules/pretty-bytes",
         "//:node_modules/prosemirror-collab",
         "//:node_modules/prosemirror-commands",
         "//:node_modules/prosemirror-history",
@@ -33,6 +41,7 @@ ts_project(
         "//client/helpers",
         "//client/spaces",
         "//client/styles",
+        "//client/tracer",
         "//shared/content",
         "//shared/content/code",
         "//shared/design",

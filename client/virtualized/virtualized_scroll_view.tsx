@@ -21,7 +21,7 @@ import {
     unstable_scheduleCallback,
 } from "scheduler";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     ScrollbarInset,
     ScrollbarInsetDynamic,
@@ -30,9 +30,9 @@ import {
     useScrollbar,
 } from "~/client/design/scrollbar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {
@@ -48,7 +48,7 @@ import {
     VirtualizedScrollViewStateRenderItemProps,
     getVirtualizationWindowHeight,
 } from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -61,7 +61,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {ClientInfo} from "~/shared/remix/client_info.js";
 
 // NOTE(calebmer, 2023-02-17): An observation I've had after working on
 // scrolling for a while is it is better to have a scroll animation that drops
@@ -87,25 +86,6 @@ import {ClientInfo} from "~/shared/remix/client_info.js";
 //
 // [1]: https://engineering.monday.com/our-journey-to-understand-scrolling-across-different-browsers/
 // [2]: https://engineering.salesforce.com/native-scrolling-in-salesforce-mobile-app-4f334b6ad96e/
-
-/**
- * How many items will the virtualized scroll view initially render assuming
- * every item has the same minimum height?
- */
-export function getInitialVirtualizedScrollViewRenderedItemCount(
-    clientInfo: ClientInfo,
-    minItemHeight: number | RemLength,
-) {
-    const maxRenderedHeight = getVirtualizationWindowHeight(clientInfo.screenHeight);
-
-    const remPx = getRemPxFromWindowWidth(clientInfo.screenWidth);
-    const minItemHeightPx =
-        typeof minItemHeight === "string"
-            ? convertRemLengthToPx(minItemHeight, remPx)
-            : minItemHeight;
-
-    return Math.ceil(maxRenderedHeight / minItemHeightPx);
-}
 
 type VirtualizedScrollViewItemBase = {
     /**

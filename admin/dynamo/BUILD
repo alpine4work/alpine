@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/fast-glob",
         "//admin/helpers",
         "//server/dynamo/core",
+        "//server/dynamo/core/general_realtime",
         "//server/helpers/node",
         "//shared/helpers",
         "//shared/schema",

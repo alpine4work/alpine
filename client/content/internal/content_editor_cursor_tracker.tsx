@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
@@ -22,7 +24,7 @@ function ContentEditorCursorTracker(
     }: {
         state: EditorState;
         viewRef: RefObject<EditorView | null>;
-        pos: number;
+        pos: number | {from: number; to: number};
         onUpdatePosition?: () => void;
     },
     foreignRef: Ref<HTMLDivElement>,
@@ -43,6 +45,7 @@ function ContentEditorCursorTracker(
         <Box
             ref={useMergedRefs(localRef, foreignRef)}
             width="0"
+            height="0"
             position="absolute"
             pointerEvents="none"
         />
@@ -59,7 +62,7 @@ export function useContentEditorTracker({
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
-    pos: number;
+    pos: number | {from: number; to: number};
     /** See the documentation for `coordsAtPos()` for what this does. */
     side?: number;
     onUpdatePosition?: Memo<() => void>;
@@ -85,9 +88,45 @@ export function useContentEditorTracker({
             if (import.meta.jest && !localRef.current.offsetParent) return;
             assert(localRef.current.offsetParent);
 
+            let coords: {top: number; bottom: number; left: number; right: number} | undefined;
+
+            // If this is a non-text node like `file` then get the DOM element for the node
+            // and use the dimensions of that element instead of the result of
+            // `coordsAtPos()` which will have a height of 0.
+            if (typeof pos === "number") {
+                const $pos = state.doc.resolve(pos);
+                if (
+                    !$pos.parent.isTextblock &&
+                    $pos.nodeAfter &&
+                    !$pos.nodeAfter.type.inlineContent &&
+                    !$pos.nodeAfter.type.isText
+                ) {
+                    const nodeDom = viewRef.current.nodeDOM(pos);
+                    if (nodeDom instanceof Element) {
+                        coords = nodeDom.getBoundingClientRect();
+                    }
+                }
+            }
+
+            if (!coords) {
+                const coordsFrom = viewRef.current.coordsAtPos(
+                    typeof pos === "number" ? pos : pos.from,
+                    side,
+                );
+                const coordsTo =
+                    typeof pos !== "number" ? viewRef.current.coordsAtPos(pos.to, side) : null;
+                coords = coordsTo
+                    ? {
+                          top: Math.min(coordsFrom.top, coordsTo.top),
+                          bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
+                          left: Math.min(coordsFrom.left, coordsTo.left),
+                          right: Math.max(coordsFrom.right, coordsTo.right),
+                      }
+                    : coordsFrom;
+            }
+
             // `coords` are relative to the viewport, so get our offset parent's viewport
             // rect so we can correctly position our selection target in the offset parent.
-            const coords = viewRef.current.coordsAtPos(pos, side);
             const offsetParentRect = localRef.current.offsetParent.getBoundingClientRect();
             let scrollOffset = 0;
 
@@ -103,7 +142,7 @@ export function useContentEditorTracker({
             // Calculate the line height of the parent element if we want to use the line
             // height as the height of our tracker instead of the content height.
             let lineHeightIfShouldBeUsed = null;
-            if (shouldUseLineHeight) {
+            if (shouldUseLineHeight && typeof pos === "number") {
                 const {node} = viewRef.current.domAtPos(pos, side);
                 const parentElement = node instanceof Element ? node : node.parentElement;
                 const lineHeightString = parentElement
@@ -123,8 +162,9 @@ export function useContentEditorTracker({
             localRef.current.style.top = `${
                 coords.top - offsetParentRect.top + scrollOffset - (finalHeight - contentHeight) / 2
             }px`;
-            localRef.current.style.height = `${finalHeight}px`;
             localRef.current.style.left = `${coords.left - offsetParentRect.left}px`;
+            localRef.current.style.height = `${finalHeight}px`;
+            localRef.current.style.width = `${coords.right - coords.left}px`;
 
             onUpdatePosition?.();
         };

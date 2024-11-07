@@ -17,17 +17,29 @@ import {
 } from "phosphor-react";
 import {Mark, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
-import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
+import {
+    Dispatch,
+    Memo,
+    ReactNode,
+    RefObject,
+    SetStateAction,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     ContentEditorFloaterState,
     ContentEditorPointerToolbarFloaterState,
 } from "~/client/content/internal/content_editor_floater_state.js";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
@@ -36,10 +48,10 @@ import {createToggleListItemsCommand} from "~/client/content/internal/helpers/cr
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box} from "~/client/design/box.js";
+import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
@@ -55,7 +67,10 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {linkClassName} from "~/shared/content/content_styles.js";
+import {spacing} from "~/shared/design/core/spacing.js";
+import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -66,6 +81,7 @@ export function ContentEditorPointerToolbar({
     viewRef,
     previousState,
     isFocused,
+    setDecorationCallbacks,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -74,6 +90,11 @@ export function ContentEditorPointerToolbar({
         ContentEditorPointerToolbarFloaterState
     > | null;
     isFocused: boolean;
+    setDecorationCallbacks: Dispatch<
+        SetStateAction<
+            ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
+        >
+    >;
 }) {
     // We keep track of our own `localInteractionModality` separate from
     // `react-aria`'s `interactionModality`. A user is still considered to have a
@@ -88,7 +109,7 @@ export function ContentEditorPointerToolbar({
     const [localInteractionModality, setLocalInteractionModality] =
         useState<Modality>(getInteractionModality);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
         const viewElement = view.dom;
 
@@ -166,9 +187,13 @@ export function ContentEditorPointerToolbar({
         return () => timeout.clear();
     }, [isWaitingForTripleClickAfterDoubleClick]);
 
+    const isContextMenuOpen = useIsContextMenuOpen();
+
     const shouldShowIgnoringInteractionModality = useMemo(
         () =>
             isFocused &&
+            // Don't show while the context menu is open.
+            !isContextMenuOpen &&
             // Make sure some characters are selected before showing the selection toolbar.
             state.selection.from !== state.selection.to &&
             // Only show the pointer toolbar for a text selection. This includes the
@@ -201,6 +226,7 @@ export function ContentEditorPointerToolbar({
             !isWaitingForTripleClickAfterDoubleClick,
         [
             hasPointerMovedWhileDown,
+            isContextMenuOpen,
             isFocused,
             isWaitingForTripleClickAfterDoubleClick,
             state.doc,
@@ -214,7 +240,7 @@ export function ContentEditorPointerToolbar({
         // shortcuts to accomplish everything in the toolbar.
         localInteractionModality === "pointer";
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         let isPointerDown = false;
 
         let lastMouseDownTime1: number | null = null;
@@ -265,15 +291,22 @@ export function ContentEditorPointerToolbar({
             setHasPointerMovedWhileDown(false);
         };
 
+        const handleDragStart = () => {
+            isPointerDown = false;
+            setHasPointerMovedWhileDown(false);
+        };
+
         document.addEventListener("pointerdown", handlePointerDown, true);
         document.addEventListener("pointermove", handlePointerMove, true);
         document.addEventListener("pointerup", handlePointerUp, true);
         document.addEventListener("pointercancel", handlePointerCancel, true);
+        document.addEventListener("dragstart", handleDragStart, true);
         return () => {
             document.removeEventListener("pointerdown", handlePointerDown, true);
             document.removeEventListener("pointermove", handlePointerMove, true);
             document.removeEventListener("pointerup", handlePointerUp, true);
             document.removeEventListener("pointercancel", handlePointerCancel, true);
+            document.removeEventListener("dragstart", handleDragStart, true);
         };
     }, []);
 
@@ -326,7 +359,7 @@ export function ContentEditorPointerToolbar({
               animation: "FadingIn" | "FadingOut" | null;
               extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
-        | {isShowing: false; animation?: undefined}
+        | {isShowing: false; animation?: undefined; extraOverlay?: undefined}
     >({isShowing: false});
 
     let showState = _showState;
@@ -438,6 +471,36 @@ export function ContentEditorPointerToolbar({
         }
     }, [showState.isShowing, showState.animation]);
 
+    // When the content editor is unfocused and there's a link input overlay open in
+    // the pointer toolbar then give the editor's selection some style so the user
+    // knows what the floater is editing.
+    useLayoutEffect(() => {
+        if (!showState.isShowing || showState.extraOverlay !== "LinkInput") return;
+
+        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            return decorationSet.add(state.doc, [
+                Decoration.inline(state.selection.from, state.selection.to, {
+                    class: linkClassName,
+                }),
+            ]);
+        };
+
+        setDecorationCallbacks(decorationCallbacks => {
+            const newDecorationCallbacks = new Set(decorationCallbacks);
+            newDecorationCallbacks.add(decorationCallback);
+            return newDecorationCallbacks;
+        });
+
+        return () => {
+            setDecorationCallbacks(decorationCallbacks => {
+                if (!decorationCallbacks.has(decorationCallback)) return decorationCallbacks;
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(decorationCallback);
+                return newDecorationCallbacks;
+            });
+        };
+    }, [setDecorationCallbacks, showState.extraOverlay, showState.isShowing]);
+
     if (!showState.isShowing) return null;
 
     return (
@@ -515,12 +578,11 @@ function ContentEditorPointerToolbarOverlay({
             ref={overlayRef}
             isVisible={true}
             placement="top-start"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             offset="3"
             offsetAlong="-4"
             overlay={
@@ -937,7 +999,7 @@ function ContentEditorPointerToolbarButton({
     // Change this state only when `isPressed` changes. If it becomes active while
     // pressed we don't want to change the color.
     const [isPressedAndActive] = useStateWithDependencies(
-        (isPressed: boolean) => isPressed && isActive,
+        isPressed => isPressed && isActive,
         [isPressed],
     );
 
@@ -947,7 +1009,7 @@ function ContentEditorPointerToolbarButton({
             isDisabledWithoutAnimation={isTooltipDisabledWithoutAnimation}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
-            fallbackPlacements={[]}
+            fallbackPlacements={emptyArray}
             content={
                 <Box paddingY="0.5">
                     {description}

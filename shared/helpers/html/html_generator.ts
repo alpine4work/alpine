@@ -4,8 +4,36 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 export interface HtmlGenerator {
+    /**
+     * Generate an HTML string. Can be provided to a web browser for parsing and
+     * rendering. Useful for rendering ProseMirror content outside of React in a
+     * server context.
+     */
     generateHtml(): string;
+
+    /**
+     * Generate a DOM node in the browser which is identical to if the browser
+     * parsed the result of `generateHtml()`.
+     */
     generateNode(): Node;
+
+    /**
+     * Patch a DOM node (ideally from `generateNode()`) to be the same as our HTML
+     * generator. Leaving in place as much of the tree as we can. This function is
+     * not as smart as React's diff/patch algorithm. For instance, it doesn't
+     * understand when you reorder children. But it's useful for implementing
+     * interactive content in `<ContentEditor>` that uses `HtmlGenerator` so it can
+     * also be rendered by `<ContentView>`.
+     *
+     * Returns false if we can't patch the provided node. For example HTML elements
+     * can only patch other HTML elements with the same tag name.
+     *
+     * If you have the previous `HtmlGenerator` instance used to generate `node`
+     * then you should pass that into `previous`. It'll be used for more
+     * intelligent patching of the DOM. For example, preserving class names that
+     * were manually added to the DOM and aren't included in `HtmlGenerator`.
+     */
+    patchNode(previous: HtmlGenerator | null, node: Node): boolean;
 }
 
 export class HtmlTextGenerator implements HtmlGenerator {
@@ -21,6 +49,16 @@ export class HtmlTextGenerator implements HtmlGenerator {
 
     public generateNode() {
         return document.createTextNode(this._text);
+    }
+
+    public patchNode(previous: HtmlGenerator | null, node: Node) {
+        if (!(node instanceof Text)) return false;
+
+        if (node.data !== this._text) {
+            node.data = this._text;
+        }
+
+        return true;
     }
 }
 
@@ -79,8 +117,60 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
         }
     }
 
+    protected _patchChildNodes(previous: HtmlGenerator | null, parentNode: Node) {
+        const endChildNodeIndex = this._actuallyPatchChildNodes(previous, parentNode, 0);
+
+        while (parentNode.childNodes.length > endChildNodeIndex) {
+            parentNode.lastChild!.remove();
+        }
+    }
+
+    private _actuallyPatchChildNodes(
+        previous: HtmlGenerator | null,
+        parentNode: Node,
+        startChildNodeIndex: number,
+    ): number {
+        const previousContainer = previous instanceof HtmlContainerGenerator ? previous : null;
+        let childNodeIndex = startChildNodeIndex;
+
+        for (let childIndex = 0; childIndex < this._children.length; childIndex++) {
+            const child = this._children[childIndex]!;
+            const previousChild = previousContainer?._children[childIndex] ?? null;
+
+            // When a `DocumentFragment` (created by `HtmlFragmentGenerator`) is appended
+            // to an `HTMLElement` its child contents are inlined directly in the
+            // `HTMLElement`. So when patching a `HtmlFragmentGenerator` we need to unwrap
+            // its children.
+            if (child instanceof HtmlFragmentGenerator) {
+                childNodeIndex = child._actuallyPatchChildNodes(
+                    previousChild,
+                    parentNode,
+                    childNodeIndex,
+                );
+                continue;
+            }
+
+            if (childNodeIndex < parentNode.childNodes.length) {
+                const childNode = parentNode.childNodes[childNodeIndex]!;
+
+                // If we can't patch the child node, then replace it.
+                if (!child.patchNode(previousChild, childNode)) {
+                    const newChildNode = child.generateNode();
+                    parentNode.replaceChild(newChildNode, childNode);
+                }
+            } else {
+                parentNode.appendChild(child.generateNode());
+            }
+
+            childNodeIndex++;
+        }
+
+        return childNodeIndex;
+    }
+
     public abstract generateHtml(): string;
     public abstract generateNode(): Node;
+    public abstract patchNode(previous: HtmlGenerator | null, node: Node): boolean;
 }
 
 export class HtmlElementGenerator extends HtmlContainerGenerator {
@@ -96,6 +186,10 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         );
 
         this.tagName = tagName;
+    }
+
+    public getAttribute(attributeName: string): string | null {
+        return this._attributes.get(attributeName) ?? null;
     }
 
     public setAttribute(attributeName: string, attributeValue: unknown) {
@@ -138,6 +232,86 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
 
         return element;
     }
+
+    public patchNode(previous: HtmlGenerator | null, node: Node) {
+        if (!(node instanceof HTMLElement)) return false;
+        if (node.tagName.toLowerCase() !== this.tagName) return false;
+
+        // If we have the previous `HtmlElementGenerator` then when updating the
+        // element's attributes only remove attributes that were in our previous
+        // `HtmlElementGenerator`.
+        //
+        // React does this as well. Our implementation may not be as smart as React's.
+        // We may leave around some incorrect attributes if child nodes are re-ordered.
+        for (const attributeName of previous instanceof HtmlElementGenerator
+            ? previous._attributes.keys()
+            : node.getAttributeNames()) {
+            // If we have the previous `HtmlElementGenerator` then when updating the
+            // `class` attribute only remove classes that were in our previous
+            // `HtmlElementGenerator`. This way if a class was manually added to the
+            // element (e.g. ProseMirror manually adds the `ProseMirror-selectednode` class
+            // when a node is selected) we don't remove the class from the node.
+            //
+            // React does this as well. Our implementation may not be as smart as React's.
+            // We may leave around some incorrect classes if child nodes are re-ordered.
+            //
+            // Test case for checking this logic in the product: Upload a file to a
+            // document. The file should be immediately selected and get the
+            // `ProseMirror-selectednode` class. Eventually the file will finish updating
+            // causing the file node to re-render and `patchNode()` to be called. At this
+            // point, `ProseMirror-selectednode` should not be removed from the element.
+            if (attributeName === "class" && previous instanceof HtmlElementGenerator) {
+                const previousClassName = previous.getAttribute("class");
+                const newClassName = this._attributes.get(attributeName);
+
+                const previousClassList = previousClassName?.split(/\s+/);
+                const newClassList =
+                    newClassName !== undefined ? new Set(newClassName.split(/\s+/)) : undefined;
+
+                if (previousClassList !== undefined) {
+                    for (const previousClassItem of previousClassList) {
+                        if (newClassList?.has(previousClassItem) !== true) {
+                            node.classList.remove(previousClassItem);
+                        }
+                    }
+                }
+
+                if (newClassList !== undefined) {
+                    for (const newClassItem of newClassList) {
+                        node.classList.add(newClassItem);
+                    }
+                }
+
+                if (node.classList.length === 0) {
+                    node.removeAttribute("class");
+                }
+                continue;
+            }
+
+            const oldAttributeValue = node.getAttribute(attributeName)!;
+            const newAttributeValue = this._attributes.get(attributeName);
+
+            if (newAttributeValue === undefined) {
+                node.removeAttribute(attributeName);
+            } else if (oldAttributeValue !== newAttributeValue) {
+                node.setAttribute(attributeName, newAttributeValue);
+            }
+        }
+
+        for (const [attributeName, attributeValue] of this._attributes) {
+            if (
+                previous instanceof HtmlElementGenerator
+                    ? !previous._attributes.has(attributeName)
+                    : !node.hasAttribute(attributeName)
+            ) {
+                node.setAttribute(attributeName, attributeValue);
+            }
+        }
+
+        this._patchChildNodes(previous, node);
+
+        return true;
+    }
 }
 
 export class HtmlFragmentGenerator extends HtmlContainerGenerator {
@@ -151,5 +325,13 @@ export class HtmlFragmentGenerator extends HtmlContainerGenerator {
         this._appendChildNodes(fragment);
 
         return fragment;
+    }
+
+    public patchNode(previous: HtmlGenerator | null, node: Node) {
+        if (!(node instanceof DocumentFragment) && !(node instanceof Element)) return false;
+
+        this._patchChildNodes(previous, node);
+
+        return true;
     }
 }

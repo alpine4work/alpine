@@ -1,6 +1,6 @@
 import decodeIco from "decode-ico";
 import sharp from "sharp";
-import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
+import {waitForReadableStreamBuffer} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {
     processFileImagePreviewPlaceholder,
     rethrowClassifiedSharpError,
@@ -30,7 +30,7 @@ export function createFileIcoImageProcessor(
             hasVideoDuration: false,
         },
         process: (stream, signal) => {
-            const dataPromise = waitForReadableStreamData(stream, signal);
+            const dataPromise = waitForReadableStreamBuffer(stream, signal);
 
             const promise = (async () => {
                 const data = await dataPromise;
@@ -48,6 +48,7 @@ export function createFileIcoImageProcessor(
                     width: bestImage.width,
                     height: bestImage.height,
                     scale: 1,
+                    hasAlpha: true,
                 });
 
                 let previewPlaceholderPromise: Promise<FileImagePreviewPlaceholder>;

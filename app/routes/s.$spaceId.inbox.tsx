@@ -1,17 +1,21 @@
-import {UNSAFE_RemixContext as RemixContext, ShouldRevalidateFunction} from "@remix-run/react";
+import {
+    UNSAFE_RemixContext as RemixContext,
+    ShouldRevalidateFunction,
+    useSearchParams,
+} from "@remix-run/react";
 import {HydrationState, createPath} from "@remix-run/router";
 import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
 import {resolvePath} from "react-router";
 import {Box} from "~/client/design/box.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {InboxMobileView} from "~/client/inbox/inbox_mobile_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {getInboxEntries} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {loadInitialPeekDataForServer} from "~/server/remix/load_initial_peek_data_for_server.js";
@@ -88,6 +92,10 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                 `/s/${spaceId}/${textDecoder.decode(decodeBase64(selectedParam, "Rfc4648Url"))}`,
             );
 
+            const searchParams = new URLSearchParams(selectedSpacePath.search);
+            searchParams.set("inbox", "show");
+            selectedSpacePath.search = searchParams.toString();
+
             return loadInitialPeekDataForServer(context, request, peekRoutes, selectedSpacePath);
         })(),
     ]);
@@ -144,6 +152,7 @@ function InboxRoute() {
     assert(remixContext, "Expected Remix context");
     const isInitialAppRender = useIsInitialAppRender();
     const {filter, entriesResult, peekData} = useLoaderDataWithSchema(LoaderSchema);
+    const [, setSearchParams] = useSearchParams();
 
     return (
         <Box
@@ -162,26 +171,34 @@ function InboxRoute() {
                 initialEntriesResult={entriesResult}
                 initialPeekData={peekData}
                 onPeekChange={peek => {
-                    const url = new URL(window.location.href);
-                    if (!peek) {
-                        url.searchParams.delete("selected");
-                    } else {
-                        // base64 encode the initial path to hide the fact that it's a URL.
-                        const textEncoder = new TextEncoder();
+                    setSearchParams(
+                        oldSearchParams => {
+                            const newSearchParams = new URLSearchParams(oldSearchParams);
 
-                        const selectedSearchParam = encodeBase64(
-                            textEncoder.encode(
-                                peek.initialSpacePath.replace(/^(\/s\/[^/]+\/)/, ""),
-                            ),
-                            "Rfc4648Url",
-                        );
+                            if (!peek) {
+                                newSearchParams.delete("selected");
+                            } else {
+                                // base64 encode the initial path to hide the fact that it's a URL.
+                                const textEncoder = new TextEncoder();
 
-                        url.searchParams.set("selected", selectedSearchParam);
-                    }
+                                const selectedSearchParam = encodeBase64(
+                                    textEncoder.encode(
+                                        peek.initialSpacePath
+                                            .replace(/^(\/s\/[^/]+\/)/, "")
+                                            .replace(/[?&]inbox=show/, ""),
+                                    ),
+                                    "Rfc4648Url",
+                                );
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(window.history.state, "", url);
+                                newSearchParams.set("selected", selectedSearchParam);
+                            }
+
+                            return newSearchParams;
+                        },
+                        {
+                            replace: true,
+                        },
+                    );
                 }}
             />
             {isInitialAppRender && peekData && (

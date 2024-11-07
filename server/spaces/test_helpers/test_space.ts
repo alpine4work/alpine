@@ -8,6 +8,7 @@ import {
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {SystemTokenPayload} from "~/server/tokens/token_payload.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -64,8 +65,8 @@ export class TestSpace {
         return new TestSpace(context, id);
     }
 
-    public getTokenPayload() {
-        return {type: "System" as const, spaceId: this.id};
+    public getTokenPayload(): SystemTokenPayload {
+        return {type: "System", spaceId: this.id};
     }
 
     /**

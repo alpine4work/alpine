@@ -9,15 +9,14 @@ import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
+import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeholder.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-
-export const newChannelNamePlaceholder = "New channel";
 
 export function ChannelViewNameEditor({
     isCreatingChannel,
@@ -122,8 +121,6 @@ export function ChannelViewNameEditor({
                                         runPromiseWithoutAwaiting(async () => {
                                             setIsSaving(true);
                                             try {
-                                                // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                                                // save has finished.
                                                 await onSave(name);
                                             } catch (error) {
                                                 reporter.displayError("Couldn’t save name", error);

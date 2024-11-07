@@ -9,7 +9,11 @@ import {
     createProsemirrorSchemaSpec,
     toDebugStringWithIndent,
 } from "~/shared/content/content_schema.js";
-import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
+import {
+    contentStructuralProsemirrorNodeSpecs,
+    createContentFileFloatProsemirrorNodeSpecs,
+    createContentFileProsemirrorNodeSpecs,
+} from "~/shared/content/content_schema_extra.js";
 import {
     checkListItemCheckedClassName,
     commentClassName,
@@ -18,7 +22,7 @@ import {
     listItemIndentationVar,
     titleClassName,
 } from "~/shared/content/content_styles.js";
-import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color.js";
+import {HighlightColor, isHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -29,6 +33,9 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
     nodes: {
         ...contentBaseProsemirrorSchemaSpec.nodes,
         ...contentStructuralProsemirrorNodeSpecs,
+        // Allow comments on files.
+        ...createContentFileProsemirrorNodeSpecs({fileMarks: "comment"}),
+        ...createContentFileFloatProsemirrorNodeSpecs({fileMarks: "comment"}),
 
         /**
          * List some things in either a complete or incomplete state. Modern
@@ -42,6 +49,11 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         checkListItem: {
             group: "block listItem",
             content: "paragraph+",
+            defining: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             attrs: {
                 indent: {
                     schema: ContentSchemaListItemIndentSchema,
@@ -52,7 +64,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                     default: false,
                 },
             },
-            defining: true,
             // TODO(calebmer): Test that copying a check list from a document and pasting
             // it into a post styles the list as an unordered list.
             toDOM: node => {
@@ -271,16 +282,6 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "text*",
             marks: "",
             toDOM: () => ["h1", {class: titleClassName}, 0],
-            // Try to parse as a `heading`. If we can't (because it's the first position in
-            // a document) then parse as a title.
-            parseDOM: [
-                {tag: "h1", priority: 40},
-                {tag: "h2", priority: 40},
-                {tag: "h3", priority: 40},
-                {tag: "h4", priority: 40},
-                {tag: "h5", priority: 40},
-                {tag: "h6", priority: 40},
-            ],
         },
     },
     marks: {

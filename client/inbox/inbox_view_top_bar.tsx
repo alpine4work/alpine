@@ -1,246 +1,40 @@
-import {ArrowRight, CaretDown, CaretUp, Check} from "phosphor-react";
-import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
-import {Button} from "~/client/design/button.js";
-import {IconButton} from "~/client/design/icon_button.js";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
-import {
-    useArchiveInboxEntry,
-    useUnarchiveInboxEntry,
-} from "~/client/inbox/use_archive_inbox_entry.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {desktopLayoutInboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 
-export function InboxViewTopBar({
-    filter,
-    activeEntry,
-    nextEntry,
-    previousEntry,
-    selectEntry,
-}: {
-    filter: "New" | "Archive";
-    activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-}) {
+export function InboxViewTopBar({filter}: {filter: "New" | "Archive"}) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
     return (
         <Box
             flexShrink="0"
-            height="12"
+            width="full"
+            height={desktopLayoutInboxBannerHeight}
             backgroundColor="grey-0"
-            borderBottom="grey-10"
             position="relative"
             zIndex="10"
             display="flex"
+            alignItems="center"
         >
-            <Box
-                flexShrink="0"
-                height="full"
-                width={inboxEntryWidth}
-                display="flex"
-                alignItems="center"
-            >
-                <Box flexGrow="1" paddingLeft="4" fontSize="200" fontStyle="semi-bold">
-                    Inbox
-                </Box>
-                <Box flexShrink="0" paddingRight="3">
-                    <InboxViewTopBarModeToggleButton
-                        filter={filter}
-                        onNewPress={async () => {
-                            if (filter === "New") return;
-                            await navigate(`/s/${space.id}/inbox`);
-                        }}
-                        onArchivePress={async () => {
-                            if (filter === "Archive") return;
-                            await navigate(`/s/${space.id}/inbox?tab=old`);
-                        }}
-                    />
-                </Box>
-                <Box flexShrink="0" height="full" paddingY="3">
-                    <Box height="full" borderRight="grey-5" />
-                </Box>
+            <Box flexGrow="1" paddingLeft="4" fontSize="200" fontStyle="semi-bold">
+                Inbox
             </Box>
-            <Box
-                flexGrow="1"
-                height="full"
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-            >
-                <Box>
-                    <Box flexShrink="0" paddingX="3" display="flex">
-                        <IconButton
-                            size="xs"
-                            description="Previous notification"
-                            keyboardShortcutHint="↑"
-                            isDisabled={!previousEntry}
-                            pressErrorTitle="Can’t go to previous notification"
-                            onPress={async () => {
-                                if (!previousEntry) return;
-                                await selectEntry(previousEntry);
-                            }}
-                        >
-                            <CaretUp />
-                        </IconButton>
-                        <IconButton
-                            size="xs"
-                            description="Next notification"
-                            keyboardShortcutHint="↓"
-                            isDisabled={!nextEntry}
-                            pressErrorTitle="Can’t go to next notification"
-                            onPress={async () => {
-                                if (!nextEntry) return;
-                                await selectEntry(nextEntry);
-                            }}
-                        >
-                            <CaretDown />
-                        </IconButton>
-                    </Box>
-                </Box>
-                <Box paddingX="3">
-                    {filter === "New" ? (
-                        <InboxViewTopBarArchiveButton
-                            activeEntry={activeEntry}
-                            nextEntry={nextEntry}
-                            previousEntry={previousEntry}
-                            selectEntry={selectEntry}
-                        />
-                    ) : (
-                        <InboxViewTopBarUnarchiveButton
-                            activeEntry={activeEntry}
-                            nextEntry={nextEntry}
-                            previousEntry={previousEntry}
-                            selectEntry={selectEntry}
-                        />
-                    )}
-                </Box>
+            <Box flexShrink="0" paddingRight="3">
+                <InboxViewTopBarModeToggleButton
+                    filter={filter}
+                    onNewPress={async () => {
+                        if (filter === "New") return;
+                        await navigate(`/s/${space.id}/inbox`);
+                    }}
+                    onArchivePress={async () => {
+                        if (filter === "Archive") return;
+                        await navigate(`/s/${space.id}/inbox?tab=old`);
+                    }}
+                />
             </Box>
         </Box>
-    );
-}
-
-function InboxViewTopBarArchiveButton({
-    activeEntry,
-    nextEntry,
-    previousEntry,
-    selectEntry,
-}: {
-    activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-}) {
-    const {isAppleDevice} = useClientInfo();
-    const archiveInboxEntry = useArchiveInboxEntry();
-
-    const buttonRef = useRef<HTMLButtonElement & {press(): void}>(null);
-
-    return (
-        <GlobalKeyDownEvent
-            onGlobalKeyDown={event => {
-                if (event.key === "d" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    // If the button is disabled, navigate when the keyboard shortcut is hit.
-                    if (!activeEntry) {
-                        if (nextEntry) {
-                            void selectEntry(nextEntry);
-                        } else if (previousEntry) {
-                            void selectEntry(previousEntry);
-                        }
-                    } else {
-                        // Programmatically click the button to correctly handle loading and
-                        // error states.
-                        assertExists(buttonRef.current).press();
-                    }
-                }
-            }}
-        >
-            <Button
-                ref={buttonRef}
-                variant="neutral"
-                height="6"
-                paddingX="2"
-                icon={<Check />}
-                keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
-                isDisabled={!activeEntry}
-                pressErrorTitle="Can’t go to next notification"
-                onPress={async () => {
-                    if (!activeEntry) return;
-
-                    archiveInboxEntry({
-                        entry: activeEntry,
-                        // No animation since we are directly dismissing the item.
-                        withAnimation: false,
-                    });
-
-                    if (nextEntry) {
-                        await selectEntry(nextEntry);
-                    } else if (previousEntry) {
-                        await selectEntry(previousEntry);
-                    } else {
-                        await selectEntry(null);
-                    }
-                }}
-            >
-                Done
-            </Button>
-        </GlobalKeyDownEvent>
-    );
-}
-
-function InboxViewTopBarUnarchiveButton({
-    activeEntry,
-    nextEntry,
-    previousEntry,
-    selectEntry,
-}: {
-    activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-}) {
-    const unarchiveInboxEntry = useUnarchiveInboxEntry();
-
-    return (
-        <Button
-            variant="quiet"
-            height="6"
-            paddingX="2"
-            icon={<ArrowRight />}
-            iconPlacement="end"
-            isDisabled={!activeEntry}
-            pressErrorTitle="Can’t go to next notification"
-            onPress={async () => {
-                if (!activeEntry) return;
-
-                unarchiveInboxEntry({
-                    entry: activeEntry,
-                    // No animation since we are directly dismissing the item.
-                    withAnimation: false,
-                });
-
-                if (nextEntry) {
-                    await selectEntry(nextEntry);
-                } else if (previousEntry) {
-                    await selectEntry(previousEntry);
-                } else {
-                    await selectEntry(null);
-                }
-            }}
-        >
-            Move to new
-        </Button>
     );
 }
