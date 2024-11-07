@@ -1,6 +1,6 @@
 import {expect, test} from "@playwright/test";
-import fs from "fs/promises";
 import {join as joinPath} from "path";
+import sharp from "sharp";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -38,12 +38,16 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document.id}`);
 
-    const file1Contents = await fs.readFile(
+    const file1Contents = await sharp(
         joinPath(
             runfilesPath,
             "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
-    );
+    )
+        // When we wrote the tests we weren't rendering files at half their size. So
+        // scale the file back up so everything keeps working.
+        .resize(1000, 750)
+        .toBuffer();
 
     const file1DataTransfer = await page.evaluateHandle(hexContents => {
         const contents = new Uint8Array(Math.ceil(hexContents.length / 2));
@@ -166,12 +170,16 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
 
-    const file2Contents = await fs.readFile(
+    const file2Contents = await sharp(
         joinPath(
             runfilesPath,
             "cyberworlds/server/files/upload/test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         ),
-    );
+    )
+        // When we wrote the tests we weren't rendering files at half their size. So
+        // scale the file back up so everything keeps working.
+        .resize(480, 268)
+        .toBuffer();
 
     const file2DataTransfer = await page.evaluateHandle(hexContents => {
         const contents = new Uint8Array(Math.ceil(hexContents.length / 2));
@@ -203,7 +211,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByLabel("Document").dispatchEvent("dragover", {
-            clientX: 875,
+            clientX: 855,
             clientY: 641,
             dataTransfer: file2DataTransfer,
         });
@@ -251,7 +259,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByLabel("Document").dispatchEvent("dragover", {
-            clientX: 409,
+            clientX: 399,
             clientY: 602,
             dataTransfer: file2DataTransfer,
         });
@@ -367,12 +375,14 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     await expect(page.getByLabel("Document").locator("> *").nth(6)).toHaveRole("paragraph");
     await expect(page.getByLabel("Document").locator("> *").nth(7)).toBeHidden();
 
-    const file3Contents = await fs.readFile(
+    const file3Contents = await sharp(
         joinPath(
             runfilesPath,
             "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.png",
         ),
-    );
+    )
+        .resize(672, 504)
+        .toBuffer();
 
     const file3DataTransfer = await page.evaluateHandle(hexContents => {
         const contents = new Uint8Array(Math.ceil(hexContents.length / 2));
@@ -516,7 +526,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
 
     await expect(async () => {
         await page.getByLabel("Document").dispatchEvent("dragover", {
-            clientX: 645,
+            clientX: 622,
             clientY: 396,
             dataTransfer: file3DataTransfer,
         });
