@@ -159,7 +159,6 @@ export default function ChannelPostsRouteWrapper({
                     postsResult.initialCommentsByPostId.get(post.model.id)
                         ?.otherReferencedComments ?? emptyArray
                 }
-                initialScrollToCommentIndex={null}
                 initialScroll={null}
                 withMobileLayout={withMobileLayout}
             />
