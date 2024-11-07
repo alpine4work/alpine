@@ -12,6 +12,9 @@ const metadataByRouteId: {
     "routes/s.$spaceId.channels.$channelId._index": {
         errorTitle: "Couldn’t open channel",
     },
+    "routes/s.$spaceId.channels.$channelId.files": {
+        errorTitle: "Couldn’t open files",
+    },
     "routes/s.$spaceId.chat.$chatId": {
         errorTitle: "Couldn’t open chat",
     },
