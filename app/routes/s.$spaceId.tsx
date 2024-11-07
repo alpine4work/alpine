@@ -905,7 +905,6 @@ function SpaceLayoutRouteOutlet({
         return nodes;
     }, [
         context.tracer,
-        dataRouterStateContext.matches,
         error,
         globalLoadingIndicatorForMobile,
         initialInbox,
