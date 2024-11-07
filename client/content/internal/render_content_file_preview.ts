@@ -8,7 +8,7 @@ import {
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
-import {handoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
+import {handoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
@@ -1547,7 +1547,10 @@ export function addContentFilePreviewBehavior(
         if (!reference) return;
         const {file} = reference;
 
-        handoffContentFileReference(reference);
+        handoffContentFilePreviewState({
+            ownedByElement: element,
+            reference,
+        });
 
         rootNavigate(location => {
             const searchParams = new URLSearchParams(location.search);

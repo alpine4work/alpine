@@ -61,6 +61,7 @@ export function ContentFileViewerModalMobile({
     file,
     signedUrlSearch,
     attachmentTarget,
+    ownedByElement,
     expirationTimers,
     loaderDataPromise,
     onClose,
@@ -68,6 +69,7 @@ export function ContentFileViewerModalMobile({
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    ownedByElement: Element | null;
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -164,7 +166,7 @@ export function ContentFileViewerModalMobile({
         !(file.preview?.type === "Code" && file.preview.isProcessing);
 
     return (
-        <MobileFullScreenModal onClose={onClose}>
+        <MobileFullScreenModal ownedByElement={ownedByElement} onClose={onClose}>
             {({onCloseWithAnimation}) => (
                 <Box
                     ref={modalRef}

@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {X} from "phosphor-react";
-import {ReactNode, useEffect, useState} from "react";
+import {ReactNode, useEffect, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
@@ -8,10 +8,15 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
+    isElementOwnedBy,
+    setElementOwnedBy,
+} from "~/client/helpers/elements/is_element_owned_by.js";
+import {
     GlobalKeyDownEvent,
     GlobalKeyDownEventModal,
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Sprinkles, greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -31,6 +36,8 @@ export function Modal({
     children,
     onClose: onCloseWithoutAnimationFromProps,
     "aria-describedby": ariaDescribedBy,
+    "data-ownedby": dataOwnedBy,
+    ownedByElement,
     maxWidth = defaultModalMaxWidth,
     height = "auto",
     maxHeight = "full",
@@ -69,6 +76,22 @@ export function Modal({
      * [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-describedby
      */
     "aria-describedby"?: string;
+
+    /**
+     * Allows you to set an element that owns this modal. Then
+     * `isElementOwnedBy()` will start reporting the modal as owned by the provided
+     * element which is useful for utilities like `useOutsideInteraction()` to
+     * understand whether an interaction is inside or outside some focused element.
+     */
+    "data-ownedby"?: string;
+
+    /**
+     * Allows you to set an element that owns this modal. Then
+     * `isElementOwnedBy()` will start reporting the modal as owned by the provided
+     * element which is useful for utilities like `useOutsideInteraction()` to
+     * understand whether an interaction is inside or outside some focused element.
+     */
+    ownedByElement?: Element | null;
 
     /**
      * The maximum width for this modal. Defaults to `128`.
@@ -165,6 +188,9 @@ export function Modal({
           "aria-label"?: undefined;
       }
 )) {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const modalAlertRef = useRef<HTMLDivElement>(null);
+
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can not render modal before portal element is available",
@@ -204,8 +230,37 @@ export function Modal({
         }
     };
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const modalElement = assertExists(modalRef.current);
+
+        if (!ownedByElement) return;
+
+        setElementOwnedBy(modalElement, ownedByElement);
+        return () => {
+            setElementOwnedBy(modalElement, null);
+        };
+    }, [ownedByElement]);
+
+    // Immediately focus the modal on mount unless some component in the modal has
+    // already been focused. (e.g. We focus the primary save button in
+    // `<ModalDialog>` on mount.)
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const modalAlertElement = assertExists(modalAlertRef.current);
+        if (
+            !document.activeElement ||
+            !isElementOwnedBy(modalAlertElement, document.activeElement)
+        ) {
+            modalAlertElement.focus();
+        }
+    }, []);
+
     return createPortal(
         <Box
+            ref={modalRef}
             position="fixed"
             // Render over other overlays.
             zIndex="80"
@@ -216,6 +271,7 @@ export function Modal({
             padding={margin}
             style={{animation: isFadingOut ? modalStyles.modalFadeOutAnimation : undefined}}
             overflow="hidden"
+            data-ownedby={dataOwnedBy}
         >
             <Box
                 position="absolute"
@@ -245,6 +301,7 @@ export function Modal({
                         }}
                     >
                         <section
+                            ref={modalAlertRef}
                             role="alertdialog"
                             // It's important the modal is focusable for `<FocusScope contain>`. That way
                             // when you click out of a focusable element in the modal, focus goes to this

@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileViewerModalDesktop} from "~/client/content/internal/content_file_viewer_modal_desktop.js";
 import {ContentFileViewerModalMobile} from "~/client/content/internal/content_file_viewer_modal_mobile.js";
-import {useHandoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
+import {useHandoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
 import {
     ContentFileViewerLoaderData,
     loadContentFileViewerData,
@@ -37,7 +37,7 @@ export function ContentFileViewerModal({
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
-    const handoffFileReference = useHandoffContentFileReference(fileId);
+    const handoffFilePreviewState = useHandoffContentFilePreviewState(fileId);
 
     const fileFromAttachmentInput = useMemo(
         () => ({
@@ -52,7 +52,10 @@ export function ContentFileViewerModal({
         getFileFromAttachment,
         fileFromAttachmentInput,
         {
-            initialOutput: handoffFileReference?.file.id === fileId ? handoffFileReference : null,
+            initialOutput:
+                handoffFilePreviewState?.reference?.file.id === fileId
+                    ? handoffFilePreviewState.reference
+                    : null,
             // File data is immutable after it finishes loading. Don't automatically
             // revalidate whenever the browser becomes visible after being hidden.
             withoutAutomaticRevalidation: true,
@@ -230,6 +233,7 @@ export function ContentFileViewerModal({
                     file={fileFromAttachmentOutput.output.file}
                     signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                     attachmentTarget={attachmentTarget}
+                    ownedByElement={handoffFilePreviewState?.ownedByElement ?? null}
                     expirationTimers={expirationTimers}
                     loaderDataPromise={loaderDataPromiseResolver.promise}
                     onClose={onClose}
@@ -239,6 +243,7 @@ export function ContentFileViewerModal({
                     file={fileFromAttachmentOutput.output.file}
                     signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                     attachmentTarget={attachmentTarget}
+                    ownedByElement={handoffFilePreviewState?.ownedByElement ?? null}
                     expirationTimers={expirationTimers}
                     loaderDataPromise={loaderDataPromiseResolver.promise}
                     onClose={onClose}

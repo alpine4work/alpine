@@ -34,6 +34,7 @@ function ModalWithButtons(
         shouldHideCancelButton,
         onClose,
         "aria-describedby": ariaDescribedBy,
+        "data-ownedby": dataOwnedBy,
         maxWidth,
         withoutCloseAnimation,
         withoutCloseButton,
@@ -55,6 +56,7 @@ function ModalWithButtons(
         shouldHideCancelButton?: boolean;
         onClose: () => void;
         "aria-describedby"?: string;
+        "data-ownedby"?: string;
         maxWidth?: Spacing | RemLength;
         withoutCloseAnimation?: boolean;
         withoutCloseButton?: boolean;
@@ -83,6 +85,7 @@ function ModalWithButtons(
         <Modal
             aria-labelledby={ariaLabelledBy}
             aria-describedby={ariaDescribedBy}
+            data-ownedby={dataOwnedBy}
             onClose={onClose}
             maxWidth={maxWidth}
             withoutCloseAnimation={withoutCloseAnimation}

@@ -13,6 +13,7 @@ export type ModalDialogProps = {
     readonly description:
         | string
         | {readonly type: "Error"; readonly error: unknown; readonly reportingContext?: AppContext};
+    readonly "data-ownedby"?: string;
     readonly primaryButtonLabel: string;
     readonly isPrimaryButtonDisabled?: boolean;
     readonly primaryButtonPressErrorTitle?: string;

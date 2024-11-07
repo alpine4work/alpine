@@ -10,7 +10,7 @@ import {
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {Command, EditorState, NodeSelection, Selection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
+import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
@@ -152,6 +152,7 @@ function ContentEditorFileToolbar({
     const isMobile = useIsMobile();
 
     const toolbarRef = useRef<HTMLDivElement>(null);
+    const toolbarId = useId();
 
     const selectionRef = useRef<NodeSelection | null>(null);
 
@@ -203,6 +204,7 @@ function ContentEditorFileToolbar({
                 overlay={
                     <Box
                         ref={toolbarRef}
+                        id={toolbarId}
                         display="flex"
                         paddingLeft="1"
                         paddingRight="0.5"
@@ -465,6 +467,7 @@ function ContentEditorFileToolbar({
             />
             {showDeleteConfirmationDialog && (
                 <ModalDialog
+                    data-ownedby={toolbarId}
                     title={`Delete ${getFileContentTypeNoun(file?.contentType)}?`}
                     description="You can undo this change at any time."
                     onClose={() => setShowDeleteConfirmationDialog(false)}
