@@ -10,10 +10,8 @@ ts_project(
     ],
     deps = [
         ":cohere_embed_english_v3_data",
-        "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
-        "//:node_modules/fs-extra",
         "//server/language_models/core",
         "//shared/error",
         "//shared/helpers",
