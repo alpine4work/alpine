@@ -36,7 +36,6 @@ export CXX="$$(pwd)/$(location @//:zig) c++"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"
 export CFLAGS+=" -O3 -fPIC"
-export LDFLAGS+=" -Wl,-dead_strip"
 
 bazel_sandbox=$$(pwd)
 
