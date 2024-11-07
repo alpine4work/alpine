@@ -19,19 +19,21 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    channelViewAsideFileGap,
+    channelViewAsideFileHeight,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
     channelViewMetadataSectionGap,
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
+    channelViewMetadataSectionTitleMarginBottom,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
-    RemLength,
     convertRemLengthToPx,
     parseRemLengthNumber,
     screenPaddingX,
@@ -64,16 +66,6 @@ const channelViewAsideEditingDescriptionOffsetTop = `${
     ) / 2
 }rem`;
 
-const channelViewAsideFileGap = "2";
-
-const channelViewAsideFileHeight: RemLength = `${
-    (parseRemLengthNumber(spacing[postListViewAsideMaxWidth]) -
-        parseRemLengthNumber(spacing[channelViewAsideFileGap]) *
-            (channelViewAsidePostFileColumnCount - 1) -
-        parseRemLengthNumber(spacing[screenPaddingX.desktop]) * 2) /
-    channelViewAsidePostFileColumnCount
-}rem`;
-
 export function ChannelViewAside({
     channel,
     channelAndMetadataQuery,
@@ -87,9 +79,6 @@ export function ChannelViewAside({
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
-    // NOCOMMIT: Post editor not working well with files.
-    // NOCOMMIT: Update channel shimmer to account for contributors. Add channel
-    // files shimmer
     // NOCOMMIT: Edit channel description buttons
 
     const remPx = useRemPx();
@@ -162,7 +151,14 @@ export function ChannelViewAside({
                 )}
                 <ChannelViewContributorsSection channel={channel} contributors={contributors} />
                 <Box>
-                    <Box display="flex" justifyContent="space-between">
+                    <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        marginBottom={channelViewMetadataSectionTitleMarginBottom}
+                        style={{
+                            height: fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
+                        }}
+                    >
                         <h3
                             className={sprinkles({
                                 color: channelViewMetadataSectionTitleColor,
@@ -178,7 +174,6 @@ export function ChannelViewAside({
                     </Box>
                     <Box
                         gap={channelViewAsideFileGap}
-                        marginTop="1.5"
                         style={{
                             display: "grid",
                             gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,

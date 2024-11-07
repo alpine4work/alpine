@@ -7,6 +7,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
+    channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/styles/forum_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
@@ -34,7 +35,7 @@ export function ChannelViewContributorsSection({
                 className={sprinkles({
                     color: channelViewMetadataSectionTitleColor,
                     fontSize: channelViewMetadataSectionTitleFontSize,
-                    marginBottom: "1.5",
+                    marginBottom: channelViewMetadataSectionTitleMarginBottom,
                 })}
             >
                 Contributors

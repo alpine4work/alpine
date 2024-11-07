@@ -64,7 +64,9 @@ import {
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
+    postListViewAsideFlex,
     postListViewAsideMaxWidth,
+    postViewFlex,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
@@ -108,9 +110,6 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-
-const postViewFlex = 6;
-const postListViewAsideFlex = 4;
 
 const postCommentSectionGuidelineSpace = "6";
 

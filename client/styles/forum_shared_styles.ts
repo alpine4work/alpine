@@ -12,10 +12,13 @@ import {
 } from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
+export const postViewFlex = 6;
+export const postListViewAsideFlex = 4;
+
 export const channelViewMetadataSectionGap = "7";
 
 export const desktopLayoutPostFauxInputCreateButtonMarginTop = "1";
-export const mobileLayoutPostFauxInputCreateButtonMarginTop = channelViewMetadataSectionGap;
+export const mobileLayoutPostFauxInputCreateButtonMarginTop = "6";
 
 export const postFauxInputCreateButtonHeight = "12";
 
@@ -166,11 +169,24 @@ export const postListViewAsideMaxWidth = "96";
 
 export const channelViewMetadataSectionTitleFontSize = "75";
 export const channelViewMetadataSectionTitleColor = "grey-50";
+export const channelViewMetadataSectionTitleMarginBottom = "1.5";
+
+export const mobileLayoutChannelViewMetadataSectionMarginTop = "2";
 
 export const channelViewAsidePostFileRowCount = 2;
 export const channelViewAsidePostFileColumnCount = 2;
 export const channelViewAsidePostFileCount =
     channelViewAsidePostFileRowCount * channelViewAsidePostFileColumnCount;
+
+export const channelViewAsideFileGap = "2";
+
+export const channelViewAsideFileHeight: RemLength = `${
+    (parseRemLengthNumber(spacing[postListViewAsideMaxWidth]) -
+        parseRemLengthNumber(spacing[channelViewAsideFileGap]) *
+            (channelViewAsidePostFileColumnCount - 1) -
+        parseRemLengthNumber(spacing[screenPaddingX.desktop]) * 2) /
+    channelViewAsidePostFileColumnCount
+}rem`;
 
 export const channelFilesViewFileMaxSize = "64";
 export const channelFilesViewFileMinSize = "20";

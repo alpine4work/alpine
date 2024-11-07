@@ -6,7 +6,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
-import {Spacer} from "~/client/design/spacer.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
 import {getInitialChannelFilesViewFileLoadCount} from "~/client/forum/get_initial_channel_files_view_load_count.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -418,7 +417,7 @@ export function ChannelFilesView({
                             ),
                         };
                     },
-                    [fileRowCount, fileRowMinHeight, fileSizePx, files, isMobile],
+                    [fileRowMinHeight, fileSizePx, files, isMobile, loadingIndicatorIndex],
                 )}
             />
         </Box>

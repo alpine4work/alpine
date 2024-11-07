@@ -16,6 +16,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {
     channelViewMetadataSectionGap,
     desktopLayoutPostFauxInputCreateButtonMarginTop,
+    mobileLayoutChannelViewMetadataSectionMarginTop,
     mobileLayoutPostFauxInputCreateButtonMarginTop,
     postContentViewOuterMarginY,
 } from "~/client/styles/forum_shared_styles.js";
@@ -41,7 +42,7 @@ export function ChannelViewHeader({
         <>
             {withMobileLayout && (
                 <Box
-                    paddingTop="2"
+                    paddingTop={mobileLayoutChannelViewMetadataSectionMarginTop}
                     paddingX={screenPaddingX}
                     display="flex"
                     flexDirection="column"

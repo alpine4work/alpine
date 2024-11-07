@@ -45,7 +45,7 @@ import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loa
 import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
+import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
 import {fontsCriticalCss} from "~/client/styles/core/fonts_critical_css.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

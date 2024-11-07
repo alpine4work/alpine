@@ -753,14 +753,6 @@ function SpaceLayoutRouteOutlet({
                                 <SpaceLayoutSideBar
                                     space={space}
                                     initialInbox={initialInbox}
-                                    isFullWidthRoute={dataRouterStateContext.matches.some(
-                                        match =>
-                                            match.route.id === "routes/s.$spaceId.inbox" ||
-                                            match.route.id === "routes/s.$spaceId.tasks._index" ||
-                                            match.route.id ===
-                                                "routes/s.$spaceId.tasks.collections.$collectionId" ||
-                                            match.route.id === "routes/s.$spaceId.tasks.view",
-                                    )}
                                     onSearchPress={() => setSearchQueryText("")}
                                 />
                             )}

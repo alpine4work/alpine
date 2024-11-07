@@ -10,6 +10,7 @@ import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/cont
 import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
@@ -18,7 +19,6 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -170,22 +170,13 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         "class",
                         contentStyles.checkListItemCheckboxClassName,
                     );
-                    checkboxHtml.appendChild({
-                        generateHtml: () =>
+                    checkboxHtml.appendChild(
+                        createSvgHtmlGenerator(
                             checkIconSvg({
                                 className: contentStyles.checkListItemCheckboxIconClassName,
                             }),
-                        generateNode: () => {
-                            throw new UnimplementedError(
-                                "DOM node generation unimplemented for icon SVG",
-                            );
-                        },
-                        patchNode: () => {
-                            throw new UnimplementedError(
-                                "DOM node generation unimplemented for icon SVG",
-                            );
-                        },
-                    });
+                        ),
+                    );
 
                     const contentHtml = new HtmlElementGenerator("div");
                     html.appendChild(contentHtml);
@@ -260,22 +251,13 @@ export function renderContentFragmentToHtmlGeneratorStore(
                                 sprinkles({color: "grey-60"}),
                             ),
                         );
-                        copyButtonHtml.appendChild({
-                            generateHtml: () =>
+                        copyButtonHtml.appendChild(
+                            createSvgHtmlGenerator(
                                 clipboardTextIconSvg({
                                     className: contentStyles.codeBlockCopyButtonIconClassName,
                                 }),
-                            generateNode: () => {
-                                throw new UnimplementedError(
-                                    "DOM node generation unimplemented for icon SVG",
-                                );
-                            },
-                            patchNode: () => {
-                                throw new UnimplementedError(
-                                    "DOM node generation unimplemented for icon SVG",
-                                );
-                            },
-                        });
+                            ),
+                        );
                     }
 
                     return {html, contentHtml};
