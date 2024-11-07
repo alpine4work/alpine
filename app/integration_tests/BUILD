@@ -60,6 +60,7 @@ ts_playwright_tests(
         "//:node_modules/fs-extra",
         "//:node_modules/get-port",
         "//:node_modules/set-cookie-parser",
+        "//:node_modules/sharp",
         "//:node_modules/ws",
         "//admin/helpers",
         "//app:app_lib",
