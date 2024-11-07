@@ -21,4 +21,5 @@ export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/fonts/commit-mono.v1.woff2",
     "/fonts/inter-italic.v1.woff2",
     "/fonts/inter.v1.woff2",
+    "/notes/file-data-transfer-readme.md",
 ]);

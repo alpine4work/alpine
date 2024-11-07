@@ -696,7 +696,7 @@ export class TaskRealtimeClient {
             unsubscribeFromState();
             unsubscribeFromEvents();
             unsubscribeFromQueriesStore();
-            this._client.disconnect();
+            void this._client.disconnect();
         };
 
         const createQuerySubscription = ({
