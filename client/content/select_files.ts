@@ -19,7 +19,10 @@ export function selectFiles(
     {
         multiple,
         acceptContentTypes = null,
-    }: {multiple: boolean; acceptContentTypes?: ReadonlyArray<FileContentType> | null},
+    }: {
+        multiple: boolean;
+        acceptContentTypes?: ReadonlyArray<FileContentType> | null;
+    },
 ): Promise<Array<File>> {
     return new Promise(resolve => {
         const temporaryInputElement = document.createElement("input");
@@ -48,6 +51,14 @@ export function selectFiles(
         });
 
         containerElement.appendChild(temporaryInputElement);
+
+        // This focus call is important. It makes sure that the `focusout` event is
+        // fired with this element as its `event.relatedTarget`. This way
+        // if we're in a post inline content editor, `useConfirmSaveAfterLosingFocus()`
+        // will see that this element is a child of our content editor and won't cancel
+        // post editing.
+        temporaryInputElement.focus();
+
         temporaryInputElement.click();
     });
 }

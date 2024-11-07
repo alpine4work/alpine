@@ -344,6 +344,7 @@ const Menu = forwardRef(function Menu(
         maxHeight,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
+        isNotFocusable,
         shouldNotCloseAfterActionPress,
         extraTop,
         extraBottom,
@@ -390,6 +391,11 @@ const Menu = forwardRef(function Menu(
          * Close the menu without animating.
          */
         onCloseWithoutAnimation: () => void;
+
+        /**
+         * Are we not allowed to focus items in the menu? Defaults to `false`.
+         */
+        isNotFocusable?: boolean;
 
         /**
          * Should the menu close after an action is pressed? By default the menu closes
@@ -575,12 +581,16 @@ const Menu = forwardRef(function Menu(
     return (
         <div
             ref={useMergedRefs(ref, menuRef, useScrollbar())}
-            role="menu"
-            // The menu container has `tabindex` set to -1 or 0 and
-            // `aria-activedescendant` set to the ID of the focused item.
-            //
-            // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-            tabIndex={-1}
+            {...(!isNotFocusable
+                ? {
+                      role: "menu",
+                      // The menu container has `tabindex` set to -1 or 0 and
+                      // `aria-activedescendant` set to the ID of the focused item.
+                      //
+                      // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                      tabIndex: -1,
+                  }
+                : {})}
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
@@ -782,6 +792,7 @@ const Menu = forwardRef(function Menu(
                                 parentPlacement={placement}
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                isNotFocusable={isNotFocusable}
                                 shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
                                 openedActionKey={openedActionKey}
                                 onActionOpen={action => setOpenedActionKey(action.key)}
@@ -980,6 +991,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     });
 
     const {isPressed, pressProps} = usePress({
+        preventFocusOnPress: isNotFocusable,
         // We want visually disabled buttons to be pressable so they can show their
         // tooltip with the reason for why they are disabled.
         isDisabled: isDisabled && !isVisuallyDisabled,
@@ -1199,6 +1211,7 @@ function MenuCustomItem({
     >({isPending: false, shouldShowPendingSpinner: false});
 
     const {isPressed, pressProps} = usePress({
+        preventFocusOnPress: isNotFocusable,
         isDisabled: pendingState.isPending,
         onPress: event => {
             const {pressErrorTitle} = action;
@@ -1434,6 +1447,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     if (!shouldOpen && hoverTriangleState) setHoverTriangleState(null);
 
     const {isPressed, pressProps} = usePress({
+        preventFocusOnPress: isNotFocusable,
         onPress: event => {
             // For `Enter` and `Space` keyboard events: When focus is on a `menuitem` that
             // has a submenu, opens the submenu and places focus on its first item.
@@ -1682,6 +1696,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                         placement={placement === "left" ? "left-start" : "right-start"}
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
+                        isNotFocusable={isNotFocusable}
                         shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
                         onFocusWithinChange={action.onFocusWithinChange}
                         onArrowLeftKeyDown={event => {

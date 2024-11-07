@@ -3981,7 +3981,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             [
                 {
                     label: "Undo",
-                    isDisabled: canUndo,
+                    isDisabled: !canUndo,
                     keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -3990,7 +3990,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Redo",
-                    isDisabled: canRedo,
+                    isDisabled: !canRedo,
                     keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
                     onPress: () => {
                         const view = assertExists(viewRef.current);

@@ -11,7 +11,7 @@ const focusableElements = [
     "embed",
     "audio[controls]",
     "video[controls]",
-    "[contenteditable]",
+    "[contenteditable]:not([contenteditable=false])",
 ];
 
 export const focusableElementSelector = `${focusableElements.join(",")},[tabindex]`;

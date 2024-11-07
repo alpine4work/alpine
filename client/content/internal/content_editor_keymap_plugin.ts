@@ -1406,9 +1406,9 @@ export function buildContentEditorKeymapPlugin(
     keys.set(
         "ArrowDown",
         chainCommands(
-            // For some elements with unique editing modalities pressing down at the end of
-            // a document should create a new empty paragraph and move the cursor there.
-            // That way the user doesn't get stuck editing the element.
+            // To escape certain nodes pressing down at the end of a document should create
+            // a new empty paragraph and move the cursor there. That way the user doesn't
+            // get stuck editing the element.
             //
             // For example, consider a `divider` element. If a `divider` is the last
             // element in the document how would you write some text beneath it? Without
@@ -1444,6 +1444,63 @@ export function buildContentEditorKeymapPlugin(
 
                     if (dispatch) {
                         const insertPosition = state.doc.content.size;
+                        const transaction = state.tr;
+                        transaction.insert(insertPosition, paragraphNode.create());
+                        transaction.setSelection(
+                            TextSelection.create(transaction.doc, insertPosition + 1),
+                        );
+                        dispatch(transaction);
+                    }
+
+                    return true;
+                }
+
+                return false;
+            },
+        ),
+    );
+
+    keys.set(
+        "ArrowUp",
+        chainCommands(
+            // To escape certain nodes pressing up at the start of a document should create
+            // a new empty paragraph and move the cursor there. That way the user doesn't
+            // get stuck editing the element.
+            //
+            // For example, consider a `fileRow` element in a post. If a `fileRow` is the
+            // first element in the post how would you write some text above it? Without
+            // this shortcut there's no keyboard accessible way to do so. With this
+            // shortcut if you hit the up arrow we create an empty paragraph where you
+            // can continue typing.
+            (state, dispatch) => {
+                const {selection, schema} = state;
+                const {$from} = selection;
+                const isSelectionAtStartOfDoc = selection.eq(Selection.atStart(state.doc));
+
+                // 1. Check if the selection is the last object in the entire doc
+                if (!isSelectionAtStartOfDoc) {
+                    return false;
+                }
+
+                const parentNode = $from.node($from.depth - 1);
+                const currentNode = $from.node();
+
+                // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a
+                //    `divider`, or a `file`
+                if (
+                    (currentNode.type.name === "codeBlockLine" &&
+                        parentNode.type.name === "codeBlock") ||
+                    (selection instanceof NodeSelection &&
+                        (selection.node.type.name === "divider" ||
+                            selection.node.type.name === "file"))
+                ) {
+                    const paragraphNode = schema.nodes.paragraph;
+                    if (!paragraphNode) {
+                        return false;
+                    }
+
+                    if (dispatch) {
+                        const insertPosition = 0;
                         const transaction = state.tr;
                         transaction.insert(insertPosition, paragraphNode.create());
                         transaction.setSelection(

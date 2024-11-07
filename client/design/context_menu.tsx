@@ -23,6 +23,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.j
 import {Menu, MenuAction, MenuItem} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {setElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
@@ -34,7 +35,6 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {generateId} from "~/shared/id/id.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
 
@@ -168,7 +168,7 @@ type ContextMenuInstanceState = {
     readonly y: number;
     readonly actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     readonly focusedMenuItemIndex: number | null;
-    readonly targetId: string;
+    readonly targetElement: Element | null;
 };
 
 type ContextMenuState =
@@ -344,18 +344,6 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
                 flushSync(() => {
-                    // If the right-clicked element doesn't have an `id` then generate an `id` and
-                    // set it on the element.
-                    let targetId: string;
-                    if (!(event.target instanceof HTMLElement)) {
-                        targetId = `ContextMenu:${generateId()}`;
-                    } else {
-                        if (!event.target.id) {
-                            event.target.id = `ContextMenu:${generateId()}`;
-                        }
-                        targetId = event.target.id;
-                    }
-
                     setContextMenuState({
                         isOpen: true,
                         instance: {
@@ -363,7 +351,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             y: event.clientY,
                             actions,
                             focusedMenuItemIndex: null,
-                            targetId,
+                            targetElement: event.target instanceof Element ? event.target : null,
                         },
                     });
                 });
@@ -382,6 +370,26 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
         ? contextMenuState.instance
         : contextMenuState.lastInstance;
 
+    // Set the target of our `<OverlayAnimated>` to be owned by the element the
+    // user right clicked on. This way we won't consider events in the context menu
+    // to be outside the target element.
+    //
+    // We need to use `setElementOwnedBy()` instead of the `data-ownedby` attribute
+    // because we can't add an `id` to arbitrary elements in the DOM. For example,
+    // an element in a ProseMirror `EditorView` will immediately remove any
+    // unexpected DOM changes.
+    const instanceTargetRef = useLifecycleRef<HTMLDivElement>(
+        useCallback(
+            element => {
+                setElementOwnedBy(element, instance?.targetElement ?? null);
+                return () => {
+                    setElementOwnedBy(element, null);
+                };
+            },
+            [instance?.targetElement],
+        ),
+    );
+
     return (
         <>
             {instance &&
@@ -397,7 +405,6 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         overlay={
                             <ContextMenu
                                 actions={instance.actions}
-                                targetId={instance.targetId}
                                 focusedMenuItemIndex={instance.focusedMenuItemIndex}
                                 onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
                                     setContextMenuState(contextMenuState => {
@@ -437,7 +444,11 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             }
                         }}
                     >
-                        <Box position="absolute" style={{left: instance.x, top: instance.y}} />
+                        <Box
+                            ref={instanceTargetRef}
+                            position="absolute"
+                            style={{left: instance.x, top: instance.y}}
+                        />
                     </OverlayAnimated>,
                     document.body,
                 )}
@@ -463,14 +474,12 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 const ContextMenu = forwardRef(function ContextMenu(
     {
         actions: nestedActions,
-        targetId,
         focusedMenuItemIndex,
         onFocusedMenuItemIndexChange,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
-        targetId: string;
         focusedMenuItemIndex: number | null;
         onFocusedMenuItemIndexChange: (focusedMenuItemIndex: number | null) => void;
         onCloseWithAnimation: () => void;
@@ -546,6 +555,11 @@ const ContextMenu = forwardRef(function ContextMenu(
     // We don't focus the context menu since that would mean we lose focus on the
     // element where the user right-clicked. Instead we attach a global keydown
     // listener and manage focus in component state.
+    //
+    // TODO(calebmer): This doesn't support `ArrowRight` keyboard events when the
+    // context menu includes a children action. Ideally I'd find a way to refactor
+    // `<Menu>` in a way where its `onKeyDown` logic works with global key down
+    // events when there's no focus.
     const handleGlobalKeyDown = useEvent((event: KeyboardEvent) => {
         switch (event.key) {
             // Don't allow using tab to move keyboard focus while the context menu is open.
@@ -752,8 +766,6 @@ const ContextMenu = forwardRef(function ContextMenu(
                     boxShadow: "elevation-20",
                 }),
             )}
-            // The context menu is "owned" by the element on which it opened on top of.
-            data-ownedby={targetId}
         >
             {flattenedActions.map((action, index) => {
                 switch (action.type) {
