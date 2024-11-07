@@ -16,6 +16,7 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -28,12 +29,14 @@ import {
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
+    desktopLayoutChannelViewMetadataMarginTop,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
+    addRemLengths,
     convertRemLengthToPx,
     parseRemLengthNumber,
     screenPaddingX,
@@ -59,7 +62,10 @@ import {
 const channelViewAsideEditingDescriptionOffsetTop = `${
     parseRemLengthNumber(
         subtractRemLengths(
-            fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
+            addRemLengths(
+                fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
+                spacing[desktopLayoutChannelViewMetadataMarginTop],
+            ),
             // Size of a `md` `<IconButton>`
             spacing["6"],
         ),
@@ -79,8 +85,6 @@ export function ChannelViewAside({
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
-    // NOCOMMIT: Edit channel description buttons
-
     const remPx = useRemPx();
 
     const fileSizePx = convertRemLengthToPx(channelViewAsideFileHeight, remPx);
@@ -117,6 +121,7 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
+                paddingTop={desktopLayoutChannelViewMetadataMarginTop}
                 paddingX={screenPaddingX}
                 paddingBottom={screenPaddingX}
                 display="flex"
@@ -253,6 +258,7 @@ function ChannelViewAsideDescriptionEditor({
     onSave: (description: MessageContent) => Promise<void>;
 }) {
     const reporter = useReporter();
+    const {isAppleDevice} = useClientInfo();
 
     const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
@@ -289,10 +295,6 @@ function ChannelViewAsideDescriptionEditor({
     return (
         <>
             <Box
-                // Mark our buttons as being owned by the editor (according to
-                // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
-                // press on these buttons without asking the user to confirm the save.
-                data-ownedby={editorId}
                 position="absolute"
                 right={screenPaddingX}
                 display="flex"
@@ -302,7 +304,7 @@ function ChannelViewAsideDescriptionEditor({
                 <IconButton
                     description="Save"
                     tooltipPlacement="bottom-end"
-                    keyboardShortcutHint="Enter"
+                    keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
                     size="md"
                     pressErrorTitle="Couldn’t save description"
                     onPress={save}

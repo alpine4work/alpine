@@ -7,6 +7,7 @@ import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_s
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
@@ -45,7 +46,7 @@ import {
     postContentViewOuterOpenCommentSectionMarginBottom,
     screenPaddingXWithoutPostContentEditorPadding,
 } from "~/client/styles/forum_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
@@ -641,60 +642,65 @@ function PostContentViewEditor({
     }, []);
 
     return (
-        <Box
-            id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-            // We picked this border radius because it looks good with a selected file's
-            // `<FocusRing>` when they line up in the bottom corners.
-            borderRadius="2.5"
-            // Use box shadow to draw the border so it doesn't add 1px to layout like
-            // `border` CSS would.
-            boxShadow="elevation-10-inset-with-grey-10-border"
-            ref={useConfirmSaveAfterLosingFocus({
-                shouldConfirmSave:
-                    postEditingForThisPost.state.contentEditorState.getDoc() !==
-                    postEditingForThisPost.state.initialContent,
-                isConfirmingSave:
-                    postEditingForThisPost.state.isEditing &&
-                    postEditingForThisPost.state.confirmationDialog === "Save",
-                onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
-                onConfirmSave: () => postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
-            })}
-        >
-            <ContentEditor
-                ref={editorRef}
-                aria-label="Post"
-                withMobileLayout={withMobileLayout}
-                state={postEditingForThisPost.state.contentEditorState}
-                onChange={(contentEditorState, transaction) => {
-                    if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
-
-                    postEditingForThisPost.dispatch({
-                        type: "ContentEditorStateChange",
-                        contentEditorState,
-                    });
+        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
+            <Box
+                id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
+                // We picked this border radius because it looks good with a selected file's
+                // `<FocusRing>` when they line up in the bottom corners.
+                borderRadius="2.5"
+                style={{
+                    // Use box shadow to draw the border so it doesn't add 1px to layout like
+                    // `border` CSS would.
+                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                 }}
-                // On mobile, don't allow interactions when unfocused. We're already in an
-                // editing modality.
-                withoutMobileDualModality={true}
-                placeholder="Share your ideas…"
-                fileAttachmentTarget={fileAttachmentTarget}
-                className={sprinkles({
-                    padding: postContentEditorPadding,
+                ref={useConfirmSaveAfterLosingFocus({
+                    shouldConfirmSave:
+                        postEditingForThisPost.state.contentEditorState.getDoc() !==
+                        postEditingForThisPost.state.initialContent,
+                    isConfirmingSave:
+                        postEditingForThisPost.state.isEditing &&
+                        postEditingForThisPost.state.confirmationDialog === "Save",
+                    onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
+                    onConfirmSave: () =>
+                        postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
                 })}
-                onModEnter={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (postEditingForThisPost.state.isSaving) return;
-                    postEditingForThisPost.dispatch({type: "SaveEditedContent"});
-                }}
-                onEscape={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (postEditingForThisPost.state.isSaving) return;
-                    postEditingForThisPost.dispatch({type: "CancelEditing"});
-                }}
-            />
-        </Box>
+            >
+                <ContentEditor
+                    ref={editorRef}
+                    aria-label="Post"
+                    withMobileLayout={withMobileLayout}
+                    state={postEditingForThisPost.state.contentEditorState}
+                    onChange={(contentEditorState, transaction) => {
+                        if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
+
+                        postEditingForThisPost.dispatch({
+                            type: "ContentEditorStateChange",
+                            contentEditorState,
+                        });
+                    }}
+                    // On mobile, don't allow interactions when unfocused. We're already in an
+                    // editing modality.
+                    withoutMobileDualModality={true}
+                    placeholder="Share your ideas…"
+                    fileAttachmentTarget={fileAttachmentTarget}
+                    className={sprinkles({
+                        padding: postContentEditorPadding,
+                    })}
+                    onModEnter={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (postEditingForThisPost.state.isSaving) return;
+                        postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                    }}
+                    onEscape={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (postEditingForThisPost.state.isSaving) return;
+                        postEditingForThisPost.dispatch({type: "CancelEditing"});
+                    }}
+                />
+            </Box>
+        </FocusRing>
     );
 }
 

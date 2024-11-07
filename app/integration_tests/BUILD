@@ -21,6 +21,8 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 # - The preview, desktop viewer, and mobile viewer of all file types
 # - Remember to screenshot as many overlays and modals as possible (e.g.
 #   delete confirmation modals, right click context menus, etc.)
+# - Inline editing states for channel name, channel description, post, task
+#   collection name, etc.
 
 ts_playwright_tests(
     name = "integration_tests",

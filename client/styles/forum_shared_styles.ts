@@ -17,7 +17,16 @@ export const postListViewAsideFlex = 4;
 
 export const channelViewMetadataSectionGap = "7";
 
-export const desktopLayoutPostFauxInputCreateButtonMarginTop = "1";
+// We've picked `desktopLayoutChannelViewMetadataMarginTop` so that when you
+// edit the channel description the save and cancel buttons aren't covered by
+// the navigation bar. If we change the design for these inline editing
+// save/cancel buttons we can set `desktopLayoutChannelViewMetadataMarginTop`
+// to 0.
+export const desktopLayoutChannelViewMetadataMarginTop = "2";
+export const mobileLayoutChannelViewMetadataMarginTop = "2";
+
+export const desktopLayoutPostFauxInputCreateButtonMarginTop =
+    desktopLayoutChannelViewMetadataMarginTop;
 export const mobileLayoutPostFauxInputCreateButtonMarginTop = "6";
 
 export const postFauxInputCreateButtonHeight = "12";
@@ -170,8 +179,6 @@ export const postListViewAsideMaxWidth = "96";
 export const channelViewMetadataSectionTitleFontSize = "75";
 export const channelViewMetadataSectionTitleColor = "grey-50";
 export const channelViewMetadataSectionTitleMarginBottom = "1.5";
-
-export const mobileLayoutChannelViewMetadataSectionMarginTop = "2";
 
 export const channelViewAsidePostFileRowCount = 2;
 export const channelViewAsidePostFileColumnCount = 2;

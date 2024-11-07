@@ -43,10 +43,11 @@ import {
     channelViewMetadataSectionGap,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
+    desktopLayoutChannelViewMetadataMarginTop,
     desktopLayoutPostFauxInputCreateButtonMarginTop,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    mobileLayoutChannelViewMetadataSectionMarginTop,
+    mobileLayoutChannelViewMetadataMarginTop,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobileLayoutPostFauxInputCreateButtonMarginTop,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -370,7 +371,7 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                     </Box>
                     {withMobileLayout && (
                         <Box
-                            paddingTop={mobileLayoutChannelViewMetadataSectionMarginTop}
+                            paddingTop={mobileLayoutChannelViewMetadataMarginTop}
                             display="flex"
                             flexDirection="column"
                             gap={channelViewMetadataSectionGap}
@@ -453,6 +454,7 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                     <Box height={navigationBarHeight} />
                     <Box
                         paddingX={screenPaddingX}
+                        paddingTop={desktopLayoutChannelViewMetadataMarginTop}
                         paddingBottom={screenPaddingX}
                         display="flex"
                         flexDirection="column"
