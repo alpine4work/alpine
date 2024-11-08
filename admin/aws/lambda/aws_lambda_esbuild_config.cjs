@@ -21,6 +21,8 @@ if (!compilationModeMatch) {
 const compilationMode = compilationModeMatch[1];
 
 module.exports = {
+    // Always log with color. Bazel will strip color when it's not supported.
+    color: true,
     platform: "node",
     target: "node18",
     format: "cjs",

@@ -4,10 +4,6 @@
 // have a `~/client/styles/styles_core.d.ts` file that re-exports this file for
 // TypeScript.
 
-// ProseMirror includes some lightweight styling that's required for the editor
-// to work correctly.
-import "prosemirror-view/style/prosemirror.css";
-
 import "~/client/styles/core/internal/global_1_reset.css.js";
 import "~/client/styles/core/internal/global_2_defaults.css.js";
 

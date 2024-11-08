@@ -33,6 +33,8 @@ async function processCss(css) {
 }
 
 module.exports = {
+    // Always log with color. Bazel will strip color when it's not supported.
+    color: true,
     platform: "neutral",
     format: "esm",
     plugins: [
