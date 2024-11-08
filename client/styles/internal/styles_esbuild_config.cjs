@@ -39,7 +39,19 @@ module.exports = {
     format: "esm",
     plugins: [
         vanillaExtractPlugin({
-            identifiers: compilationMode === "opt" ? "short" : "debug",
+            // Instead of `identifiers: "short"`, in production we need to make sure
+            // generated class names always start with an underscore. If the file hash
+            // starts with a number then `@vanilla-extract` will add an underscore to the
+            // start of the class name but if the file hash starts with a letter then
+            // `@vanilla-extract` won't add an underscore.
+            //
+            // However, `@vanilla-extract` has a bug that can be worked around by adding an
+            // underscore to the start of _every_ class name. See:
+            // https://github.com/vanilla-extract-css/vanilla-extract/issues/1501
+            identifiers:
+                compilationMode === "opt"
+                    ? ({hash}) => (hash.startsWith("_") ? `_${hash}` : hash)
+                    : "debug",
             processCss,
         }),
     ],
