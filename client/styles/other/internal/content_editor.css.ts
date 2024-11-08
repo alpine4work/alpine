@@ -5,17 +5,12 @@ import {
     mentionClassName,
     withMobileLayoutDocClassName,
 } from "~/client/styles/other/internal/content.css.js";
-import * as sharedClassNames from "~/shared/content/content_styles.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-
-const linkClassName = `.${sharedClassNames.linkClassName}`;
-const commentClassName = `.${sharedClassNames.commentClassName}`;
-const fileClassName = `.${sharedClassNames.fileClassName}`;
-
-const highlightClassNameByColor = mapObjectValues(
-    sharedClassNames.highlightClassNameByColor,
-    className => `.${className}`,
-);
+import {
+    commentClassName,
+    fileClassName,
+    highlightClassNameByColor,
+    linkClassName,
+} from "~/shared/content/content_styles.js";
 
 // The CSS for setting `min-height: 100%` here is pretty annoying. We set
 // `docClassName` to `min-height: 100%` and `containerClassName` to

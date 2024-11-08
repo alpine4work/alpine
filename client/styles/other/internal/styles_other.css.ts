@@ -4,6 +4,8 @@
 // have a `~/client/styles/styles.d.ts` file that re-exports this file for
 // TypeScript.
 
+import "~/client/styles/other/internal/helpers/register_content_styles.js";
+
 export * from "~/client/styles/other/internal/animation.css.js";
 export * as buttonStyles from "~/client/styles/other/internal/button.css.js";
 export * as contentEditorStyles from "~/client/styles/other/internal/content_editor.css.js";

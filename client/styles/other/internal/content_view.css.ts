@@ -5,9 +5,7 @@ import {
     extraCompactParagraphFontSize,
     paragraphFontSize,
 } from "~/client/styles/other/internal/content.css.js";
-import * as sharedClassNames from "~/shared/content/content_styles.js";
-
-const paragraphClassName = `.${sharedClassNames.paragraphClassName}`;
+import {paragraphClassName} from "~/shared/content/content_styles.js";
 
 export const truncatedHeight = paragraphFontSize.lineHeight;
 

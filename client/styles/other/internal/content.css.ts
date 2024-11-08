@@ -32,7 +32,36 @@ import {
     desktopNavigationBarHeight,
     mobileNavigationBarHeight,
 } from "~/client/styles/other/internal/navigation_bar.css.js";
-import * as sharedClassNames from "~/shared/content/content_styles.js";
+import {
+    boldClassName,
+    checkListItemCheckedClassName,
+    codeBlockClassName,
+    codeBlockLineClassName,
+    codeBlockLineContentClassName,
+    codeBlockWrapperClassName,
+    codeClassName,
+    commentClassName,
+    dividerClassName,
+    fileClassName,
+    fileFloatClassName,
+    fileFloatLeftClassName,
+    fileFloatRightClassName,
+    fileRowClassName,
+    headingLevel1ClassName,
+    headingLevel2ClassName,
+    headingLevel3ClassName,
+    highlightClassNameByColor,
+    italicClassName,
+    linkClassName,
+    listItemClassName,
+    listItemIndentationVar,
+    orderedListItemClassName,
+    paragraphClassName,
+    quoteBlockClassName,
+    strikeClassName,
+    titleClassName,
+    unorderedListItemClassName,
+} from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
@@ -50,39 +79,6 @@ import {lerp} from "~/shared/helpers/number/lerp.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-
-const boldClassName = `.${sharedClassNames.boldClassName}`;
-const unorderedListItemClassName = `.${sharedClassNames.unorderedListItemClassName}`;
-const checkListItemCheckedClassName = `.${sharedClassNames.checkListItemCheckedClassName}`;
-const codeBlockClassName = `.${sharedClassNames.codeBlockClassName}`;
-const codeBlockLineClassName = `.${sharedClassNames.codeBlockLineClassName}`;
-const codeBlockLineContentClassName = `.${sharedClassNames.codeBlockLineContentClassName}`;
-const codeBlockWrapperClassName = `.${sharedClassNames.codeBlockWrapperClassName}`;
-const codeClassName = `.${sharedClassNames.codeClassName}`;
-const commentClassName = `.${sharedClassNames.commentClassName}`;
-const dividerClassName = `.${sharedClassNames.dividerClassName}`;
-const headingLevel1ClassName = `.${sharedClassNames.headingLevel1ClassName}`;
-const headingLevel2ClassName = `.${sharedClassNames.headingLevel2ClassName}`;
-const headingLevel3ClassName = `.${sharedClassNames.headingLevel3ClassName}`;
-const italicClassName = `.${sharedClassNames.italicClassName}`;
-const linkClassName = `.${sharedClassNames.linkClassName}`;
-const listItemClassName = `.${sharedClassNames.listItemClassName}`;
-const listItemIndentationVar = sharedClassNames.listItemIndentationVar;
-const orderedListItemClassName = `.${sharedClassNames.orderedListItemClassName}`;
-const paragraphClassName = `.${sharedClassNames.paragraphClassName}`;
-const quoteBlockClassName = `.${sharedClassNames.quoteBlockClassName}`;
-const strikeClassName = `.${sharedClassNames.strikeClassName}`;
-const titleClassName = `.${sharedClassNames.titleClassName}`;
-const fileRowClassName = `.${sharedClassNames.fileRowClassName}`;
-const fileFloatClassName = `.${sharedClassNames.fileFloatClassName}`;
-const fileFloatLeftClassName = `.${sharedClassNames.fileFloatLeftClassName}`;
-const fileFloatRightClassName = `.${sharedClassNames.fileFloatRightClassName}`;
-const fileClassName = `.${sharedClassNames.fileClassName}`;
-
-const highlightClassNameByColor = mapObjectValues(
-    sharedClassNames.highlightClassNameByColor,
-    className => `.${className}`,
-);
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
