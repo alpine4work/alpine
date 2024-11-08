@@ -1578,282 +1578,288 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
         });
     },
     "image/gif": () => {
-        test("can resize a GIF image with transparency", async () => {
-            const space = await TestSpace.create(context);
-            const session = await space.createSession();
+        test(
+            "can resize a GIF image with transparency",
+            async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/gif",
-                },
-                body: await fs.readFile(
-                    joinPath(
-                        runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_rotating_earth.gif",
+                const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                    method: "POST",
+                    headers: {
+                        authorization: await authorization(session),
+                        "content-type": "image/gif",
+                    },
+                    body: await fs.readFile(
+                        joinPath(
+                            runfilesPath,
+                            "cyberworlds/server/files/upload/test_fixtures/wikimedia_rotating_earth.gif",
+                        ),
                     ),
-                ),
-            });
-            const uploadResponseText = await uploadResponse.text();
+                });
+                const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
+                expect(uploadResponse.status).toEqual(200);
+                expect(massageHeaders(uploadResponse.headers)).toEqual({
+                    "content-type": "application/x-ndjson",
+                });
+                const uploadEvents = parseJsonEvents(uploadResponseText);
+                expect(
+                    uploadEvents.filter(
+                        event => event.type === "Start" || event.type === "ImagePreviewSize",
+                    ),
+                ).toEqual([
+                    {
+                        type: "Start",
+                        hasAlternative: false,
+                        hasPreview: {
+                            type: "Image",
+                            hasContent: false,
+                            hasVideoDuration: false,
+                        },
+                        fileId: expect.any(String),
+                        signedUrlSearch: "",
+                    },
+                    {
+                        type: "ImagePreviewSize",
+                        size: {width: 400, height: 400, scale: 1, hasAlpha: true},
+                    },
+                ]);
+
+                const fileId = assertExists(
+                    iterableFirst(
+                        filterMapIterable(uploadEvents, event =>
+                            event.type === "Start" ? event.fileId : undefined,
+                        ),
+                    ),
+                );
+
                 {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
-                        type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
-                    },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
+                    const resizeResponse = await fetch(
+                        `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                        {
+                            method: "GET",
+                            headers: {authorization: await authorization(space)},
+                        },
+                    );
+
+                    expect(resizeResponse.status).toEqual(200);
+                    expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                    const resizeBody = await resizeResponse.arrayBuffer();
+                    // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+                    // animated AVIF file which `sharp()` doesn't like.
+                    expect(
+                        JSON.parse(
+                            await runProcess(
+                                ffprobeExecutablePath,
+                                ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                                {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                            ),
+                        ),
+                    ).toEqual(
+                        expect.objectContaining({
+                            format: expect.objectContaining({
+                                start_time: "0.000000",
+                                duration: "1.980000",
+                            }),
+                            streams: [
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 200,
+                                    height: 200,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "1/1",
+                                    pix_fmt: "gbrp",
+                                    tags: expect.objectContaining({title: "Color"}),
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 200,
+                                    height: 200,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "1/1",
+                                    pix_fmt: "gray",
+                                    tags: expect.objectContaining({title: "Alpha"}),
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 200,
+                                    height: 200,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "50/3",
+                                    pix_fmt: "gbrp",
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 200,
+                                    height: 200,
+                                    start_time: "0.000000",
+                                    duration: "1.980000",
+                                    avg_frame_rate: "50/3",
+                                    pix_fmt: "gray",
+                                }),
+                            ],
+                        }),
+                    );
+                }
+
                 {
-                    type: "ImagePreviewSize",
-                    size: {width: 400, height: 400, scale: 1, hasAlpha: true},
-                },
-            ]);
+                    const resizeResponse = await fetch(
+                        `http://localhost:${port}/${space.id}/resize/${fileId}?width=300`,
+                        {
+                            method: "GET",
+                            headers: {authorization: await authorization(space)},
+                        },
+                    );
 
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
-            );
+                    expect(resizeResponse.status).toEqual(200);
+                    expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
-            {
-                const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
-                    {
-                        method: "GET",
-                        headers: {authorization: await authorization(space)},
-                    },
-                );
-
-                expect(resizeResponse.status).toEqual(200);
-                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
-
-                const resizeBody = await resizeResponse.arrayBuffer();
-                // We need to use `ffprobe` instead of `sharp` since the GIF will become an
-                // animated AVIF file which `sharp()` doesn't like.
-                expect(
-                    JSON.parse(
-                        await runProcess(
-                            ffprobeExecutablePath,
-                            ["-print_format", "json", "-show_streams", "-show_format", "-"],
-                            {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                    const resizeBody = await resizeResponse.arrayBuffer();
+                    // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+                    // animated AVIF file which `sharp()` doesn't like.
+                    expect(
+                        JSON.parse(
+                            await runProcess(
+                                ffprobeExecutablePath,
+                                ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                                {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                            ),
                         ),
-                    ),
-                ).toEqual(
-                    expect.objectContaining({
-                        format: expect.objectContaining({
-                            start_time: "0.000000",
-                            duration: "1.980000",
-                        }),
-                        streams: [
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 200,
-                                height: 200,
-                                start_time: "0.000000",
-                                avg_frame_rate: "1/1",
-                                pix_fmt: "gbrp",
-                                tags: expect.objectContaining({title: "Color"}),
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 200,
-                                height: 200,
-                                start_time: "0.000000",
-                                avg_frame_rate: "1/1",
-                                pix_fmt: "gray",
-                                tags: expect.objectContaining({title: "Alpha"}),
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 200,
-                                height: 200,
-                                start_time: "0.000000",
-                                avg_frame_rate: "50/3",
-                                pix_fmt: "gbrp",
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 200,
-                                height: 200,
+                    ).toEqual(
+                        expect.objectContaining({
+                            format: expect.objectContaining({
                                 start_time: "0.000000",
                                 duration: "1.980000",
-                                avg_frame_rate: "50/3",
-                                pix_fmt: "gray",
                             }),
-                        ],
-                    }),
-                );
-            }
-
-            {
-                const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=300`,
-                    {
-                        method: "GET",
-                        headers: {authorization: await authorization(space)},
-                    },
-                );
-
-                expect(resizeResponse.status).toEqual(200);
-                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
-
-                const resizeBody = await resizeResponse.arrayBuffer();
-                // We need to use `ffprobe` instead of `sharp` since the GIF will become an
-                // animated AVIF file which `sharp()` doesn't like.
-                expect(
-                    JSON.parse(
-                        await runProcess(
-                            ffprobeExecutablePath,
-                            ["-print_format", "json", "-show_streams", "-show_format", "-"],
-                            {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
-                        ),
-                    ),
-                ).toEqual(
-                    expect.objectContaining({
-                        format: expect.objectContaining({
-                            start_time: "0.000000",
-                            duration: "1.980000",
+                            streams: [
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 300,
+                                    height: 300,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "1/1",
+                                    pix_fmt: "gbrp",
+                                    tags: expect.objectContaining({title: "Color"}),
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 300,
+                                    height: 300,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "1/1",
+                                    pix_fmt: "gray",
+                                    tags: expect.objectContaining({title: "Alpha"}),
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 300,
+                                    height: 300,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "50/3",
+                                    pix_fmt: "gbrp",
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 300,
+                                    height: 300,
+                                    start_time: "0.000000",
+                                    duration: "1.980000",
+                                    avg_frame_rate: "50/3",
+                                    pix_fmt: "gray",
+                                }),
+                            ],
                         }),
-                        streams: [
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 300,
-                                height: 300,
-                                start_time: "0.000000",
-                                avg_frame_rate: "1/1",
-                                pix_fmt: "gbrp",
-                                tags: expect.objectContaining({title: "Color"}),
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 300,
-                                height: 300,
-                                start_time: "0.000000",
-                                avg_frame_rate: "1/1",
-                                pix_fmt: "gray",
-                                tags: expect.objectContaining({title: "Alpha"}),
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 300,
-                                height: 300,
-                                start_time: "0.000000",
-                                avg_frame_rate: "50/3",
-                                pix_fmt: "gbrp",
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 300,
-                                height: 300,
+                    );
+                }
+
+                {
+                    const resizeResponse = await fetch(
+                        `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                        {
+                            method: "GET",
+                            headers: {authorization: await authorization(space)},
+                        },
+                    );
+
+                    expect(resizeResponse.status).toEqual(200);
+                    expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                    const resizeBody = await resizeResponse.arrayBuffer();
+                    // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+                    // animated AVIF file which `sharp()` doesn't like.
+                    expect(
+                        JSON.parse(
+                            await runProcess(
+                                ffprobeExecutablePath,
+                                ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                                {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                            ),
+                        ),
+                    ).toEqual(
+                        expect.objectContaining({
+                            format: expect.objectContaining({
                                 start_time: "0.000000",
                                 duration: "1.980000",
-                                avg_frame_rate: "50/3",
-                                pix_fmt: "gray",
                             }),
-                        ],
-                    }),
-                );
-            }
-
-            {
-                const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
-                    {
-                        method: "GET",
-                        headers: {authorization: await authorization(space)},
-                    },
-                );
-
-                expect(resizeResponse.status).toEqual(200);
-                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
-
-                const resizeBody = await resizeResponse.arrayBuffer();
-                // We need to use `ffprobe` instead of `sharp` since the GIF will become an
-                // animated AVIF file which `sharp()` doesn't like.
-                expect(
-                    JSON.parse(
-                        await runProcess(
-                            ffprobeExecutablePath,
-                            ["-print_format", "json", "-show_streams", "-show_format", "-"],
-                            {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
-                        ),
-                    ),
-                ).toEqual(
-                    expect.objectContaining({
-                        format: expect.objectContaining({
-                            start_time: "0.000000",
-                            duration: "1.980000",
+                            streams: [
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 400,
+                                    height: 400,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "1/1",
+                                    pix_fmt: "gbrp",
+                                    tags: expect.objectContaining({title: "Color"}),
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 400,
+                                    height: 400,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "1/1",
+                                    pix_fmt: "gray",
+                                    tags: expect.objectContaining({title: "Alpha"}),
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 400,
+                                    height: 400,
+                                    start_time: "0.000000",
+                                    avg_frame_rate: "50/3",
+                                    pix_fmt: "gbrp",
+                                }),
+                                expect.objectContaining({
+                                    codec_name: "av1",
+                                    codec_type: "video",
+                                    width: 400,
+                                    height: 400,
+                                    start_time: "0.000000",
+                                    duration: "1.980000",
+                                    avg_frame_rate: "50/3",
+                                    pix_fmt: "gray",
+                                }),
+                            ],
                         }),
-                        streams: [
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 400,
-                                height: 400,
-                                start_time: "0.000000",
-                                avg_frame_rate: "1/1",
-                                pix_fmt: "gbrp",
-                                tags: expect.objectContaining({title: "Color"}),
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 400,
-                                height: 400,
-                                start_time: "0.000000",
-                                avg_frame_rate: "1/1",
-                                pix_fmt: "gray",
-                                tags: expect.objectContaining({title: "Alpha"}),
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 400,
-                                height: 400,
-                                start_time: "0.000000",
-                                avg_frame_rate: "50/3",
-                                pix_fmt: "gbrp",
-                            }),
-                            expect.objectContaining({
-                                codec_name: "av1",
-                                codec_type: "video",
-                                width: 400,
-                                height: 400,
-                                start_time: "0.000000",
-                                duration: "1.980000",
-                                avg_frame_rate: "50/3",
-                                pix_fmt: "gray",
-                            }),
-                        ],
-                    }),
-                );
-            }
-        });
+                    );
+                }
+            },
+            // For some reason, this test can take a while compared to other tests in
+            // this file.
+            30 * 1000,
+        );
 
         test("can resize a GIF image without transparency", async () => {
             const space = await TestSpace.create(context);
