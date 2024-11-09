@@ -65,7 +65,11 @@ def ts_project(
         name = name,
         srcs = srcs,
         deps = deps,
-        data = data,
+        # All `ts_project()`s take `package_light.json` as a runtime dependency (which
+        # is `package.json` in the build tree). We need this runtime dependency since
+        # it has `{"type": "module"}` which is necessary for Node.js to interpret
+        # transpiled `.js` files as ES Modules.
+        data = ["//:package_light_json_file"] + data,
         tsconfig = "//:tsconfig",
         transpiler = partial.make(swc, **_SWC_KWARGS),
         declaration = True,

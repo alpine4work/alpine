@@ -22,7 +22,6 @@ def _package_light_json_impl(ctx):
 
     return DefaultInfo(
         files = depset([file]),
-        runfiles = ctx.runfiles([file]),
     )
 
 _package_light_json = rule(
