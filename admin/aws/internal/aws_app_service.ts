@@ -303,7 +303,7 @@ export class AwsAppService extends Construct {
         listener.addTargets("TargetGroup", {
             port: port,
             protocol: ApplicationProtocol.HTTP,
-            targets: [service],
+            targets: [autoScalingGroup],
             healthCheck: {
                 path: "/api/internal/healthcheck",
                 // Speed up deployment by requiring fewer healthy checks. Should only take
