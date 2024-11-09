@@ -50,7 +50,7 @@ module.exports = {
             // https://github.com/vanilla-extract-css/vanilla-extract/issues/1501
             identifiers:
                 compilationMode === "opt"
-                    ? ({hash}) => (hash.startsWith("_") ? `_${hash}` : hash)
+                    ? ({hash}) => (!hash.startsWith("_") ? `_${hash}` : hash)
                     : "debug",
             processCss,
         }),
