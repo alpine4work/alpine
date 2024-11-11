@@ -289,6 +289,9 @@ export class AwsAppService extends Construct {
             internetFacing: true,
         });
 
+        // Make sure the load balancer can make requests against our service.
+        autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
+
         const listener = loadBalancer.addListener("Listener", {
             protocol: ApplicationProtocol.HTTPS,
             port: 443,

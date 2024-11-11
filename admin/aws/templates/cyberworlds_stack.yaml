@@ -2112,6 +2112,24 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/Resource
+    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B400082995A0D:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - AppServiceLoadBalancerSecurityGroupE91F3DDD
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/from
+                CyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B:4000
     AppServiceAutoScalingGroupInstanceRoleA46BECD2:
         Type: AWS::IAM::Role
         Properties:
@@ -2760,12 +2778,6 @@ Resources:
         Properties:
             GroupDescription: Automatically created Security Group for ELB
                 CyberworldsStackAppServiceLoadBalancer3D7F075A
-            SecurityGroupEgress:
-                - CidrIp: 255.255.255.255/32
-                  Description: Disallow all traffic
-                  FromPort: 252
-                  IpProtocol: icmp
-                  ToPort: 86
             SecurityGroupIngress:
                 - CidrIp: 0.0.0.0/0
                   Description: Allow from anyone on port 443
@@ -2776,6 +2788,24 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/SecurityGroup/Resource
+    AppServiceLoadBalancerSecurityGrouptoCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF84000363F0E6C:
+        Type: AWS::EC2::SecurityGroupEgress
+        Properties:
+            Description: to CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
+            DestinationSecurityGroupId:
+                Fn::GetAtt:
+                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
+                    - GroupId
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - AppServiceLoadBalancerSecurityGroupE91F3DDD
+                    - GroupId
+            IpProtocol: tcp
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/SecurityGroup/to
+                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
     AppServiceLoadBalancerListenerE64C9A05:
         Type: AWS::ElasticLoadBalancingV2::Listener
         Properties:
@@ -3888,7 +3918,7 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/31UyW7bMBD9lt5pNnV76VFxmsBAgLpykKsxpsYKY4pUOaQDQ9C/d0StdYFexDcbZ3vUWn759l3efYIPWqnivDL6KJt9AHUWrDo0qNayea2V2Jzs624jdvFotNrHo8XQ6WaUuxjwBY4GZ/2sy4ic0hC0s5Oz2Hl9gYDzHVsb0DN+Yu0HXIekg5QFLuutQhvEHlX0OlyfvIt1SvdfxdaWHolagYpkszGROE3n9S/cQA2K43beXXSBflE3iYzKW3sKvdX9UOsXoPMDnrTVY8u3GmcDaIt+oeO4PfqLVv0IB/gIvoRujMv4VrgaLSF49Ua9o2weXMVXdrE9aoVxJXf87MppMBNmkGPgaabbDFTHAnj12pYGg7OP0apU1AQ4eMSt0FDJZueYC2lLA8pdv/3x3FoKYBXyZE7aYCvo6wGIMJDMuoNleR/VGcM9EAr6zcX+ihhTcA/Sd060EHmdFy6fQ/I4pI1djuJqoXIF83hiYwKtgBgcKTDco2wyFva9MA8HuME3Xs1Jl9FPbL117Yjkx0ZewB/BmG0FJfZNsVHmWDvSwflr6gwNUNDKOCjYmUfCV134ZWV1za2kRM9su0+2nlV/yUs/zTy1g8+IF3aup+QXNLa0EFvBVwV96hyxAssFe34Osy6ReRbbVuRILvqejz9jqGMQit+Jqw5+sPD4sw/aJOXkPb6EVtwYuiWNOA2LfzUlzyJxCDxUzEiOsq5A+U6fL+s72f2d3knrlY/M1Qpl3p9/AOIP4JO6BAAA
+            Analytics: v2:deflate64:H4sIAAAAAAAA/31UTW/bMAz9LburWpftsqObfiBAgWVO0WvByIyjRpY8UUoRGP7vo+XPpcAu1uMjKYrUk1fy24+f8vYLfNCNKk43Ru9lswugToKptwbVSjavtRLrg33drsU27o1Wu7i3GDpuRrmLAV9gb3DmZy4jckpD0M5OwWLr9RkCzntsbEDP+InZD7gMRQcrC3ysY4U2iB2q6HW4PHkX61Tuv8TGlh6JPvEPiW4FKpLN2kTi6l3QZ7iGGhSnbb076wL9oh0SGZXX/pR6zT2o1QvQ6R4P2upxEteMswG0Rb/gOG+H/qxVP9kBPoIvoZvuMr8VrkZLCF4dqQ+Uzb2reMsut0etMK7kjp9dOc1rwgxyDDzktJuBal8AK0Lb0mBw9jFalQ41AU4ecSs0VLLZOpZIurwB5a4XxbhuLAWwCnkyB22wFfT9DYgwkMy6hW15F9UJwx0QCvrDh/0dMabkHqTvXGhh8nWe+ficksehbOxqFBcLlStY3pNIE2gFxOBIgeEeZZOxseuNeTjADR75ag66jH4S8XVoJyQ/NvICfg/GbCoosW+KnTLH2pEOzl9SZ2iAglbGQcHBPBLe6swPLqtrbiUVembfXfL1qvrHXsZp1qkdYka88PN5Sn5YY0sLsxW8VdCHLhArsHxgz89h5pKYZ7NtRY7kou/1+CuGOgah+J246s0PHh5/9kHrRE7R40toxZWju6QRp2HxH6jkWSQNgYeKFclZ1hUo3+nreXUru5/WO2l94yNrtUKZ9+tfGSTT1dEEAAA=
         Metadata:
             aws:cdk:path: CyberworldsStack/CDKMetadata/Default
 Outputs:
