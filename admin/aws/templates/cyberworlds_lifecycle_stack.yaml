@@ -4214,7 +4214,7 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/21TwW7bMAz9lt0VrUt72TH1tiJAinpx12sgy7SjRpZcUUoQGPn3UZYdt91OenwiH8lnecm/3X3nN1/ECReyOiy0KnlfeCEPjKhdX52NaG1V8mdRargXCAzfkPe/A4QUDohltRnAhYFc8v6lk5F6yTOWh1IrWYTSgI/cjLY2eBh0Z37mVohWKuGVNdfkCNbGg6PMB+HhJM5jmzFaeRp934LxrAAZnPLnB2dDNzT4QGxEMHL/DG2nRRL+yFwY3vL+PshDGnZE6cgtrXSe6TFOQXTlwpRoeb+1abfpXBv0wkjIna0VUbNOQlTWigbKoHQFjvd08UOhd6oM0YfMmlo1wV1NyWzbWRO3jeKxdAtSdWOv2gmqDdIHB/+UDtlXkFORVib5oGqQZ6lhmknbhr74xjZXKydMJnnoavItylJSLhBZtrdKAiuClAAVy4UTWoNm9Kw8PNL3GRu9jz8p7bzAA+llVLk6YQHuGCU3oi0rsTZHeyD9N+JN9QiItAEJgHTgsRWGQjKvGOLxyxOiRYZy3v8a28S7K/55JB8LG5ykmbpOmSZe/4edKv44HTPGIwfXKsSoNCWkh4C3OzKFBuOreFzYFnDQY1lAb9s5pHcy4SGV/GnGMZ6C74L/VEGv6KjonaQ+xlbAX/HrcXnD4x/9ikotXDBetcC36fwLclWCEO4DAAA=
+            # Removed "Analytics" property
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/CDKMetadata/Default
 Outputs:

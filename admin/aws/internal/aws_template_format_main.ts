@@ -26,16 +26,21 @@ async function main() {
 
             // The container hash added to this string is different on MacOS compared to
             // our Linux CI GitHub runner. So replace with a placeholder tag, `latest`.
-            templateYamlString = templateYamlString.replaceAll(
-                new RegExp(
-                    `(${escapeRegExp(
-                        // eslint-disable-next-line no-template-curly-in-string
-                        "${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:",
-                    )})[0-9a-fA-F]+`,
-                    "g",
-                ),
-                "$1latest",
-            );
+            templateYamlString = templateYamlString
+                .replaceAll(
+                    new RegExp(
+                        `(${escapeRegExp(
+                            // eslint-disable-next-line no-template-curly-in-string
+                            "${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:",
+                        )})[0-9a-fA-F]+`,
+                        "g",
+                    ),
+                    "$1latest",
+                )
+                .replace(
+                    /^ {12}Analytics: v2:deflate64:.*/m,
+                    '            # Removed "Analytics" property',
+                );
 
             await fs.writeFile(
                 `${templatePath.slice(0, -extname(templatePath).length)}.yaml`,
