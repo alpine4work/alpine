@@ -9,7 +9,7 @@ import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js
  * Should behave the same as if you run it locally. Except locally to
  * authenticate you need to run `bazel run //server/edge:wrangler -- login`.
  */
-export async function deployCloudflare({
+export async function deployCloudflareWorkers({
     accountId,
     workersToken,
 }: {
