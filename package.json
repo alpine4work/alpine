@@ -238,6 +238,7 @@
         "prosemirror-model": "^1.23.0",
         "prosemirror-schema-basic": "^1.2.0",
         "prosemirror-state": "1.4.2",
+        "prosemirror-tables": "^1.6.1",
         "prosemirror-transform": "^1.10.2",
         "prosemirror-view": "1.27.2",
         "punycode": "^2.3.1",

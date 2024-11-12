@@ -178,3 +178,15 @@ export function insertContentFiles(
 
     view.insertFiles(insertPosOrSelection, files);
 }
+
+export function insertContentTable(view: EditorView) {
+    const {schema} = view.state;
+    const tableRow = schema.node("tableRow", {}, [
+        schema.node("tableCell", {}, [schema.node("paragraph", {style: "padding: 0; margin: 0;"})]),
+        schema.node("tableCell", {}, [schema.node("paragraph", {style: "padding: 0; margin: 0;"})]),
+    ]);
+
+    const table = schema.node("table", {}, [tableRow, tableRow]);
+
+    insertNode(view, table);
+}

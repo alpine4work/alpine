@@ -6,6 +6,7 @@ import {
     ListChecks,
     ListNumbers,
     Minus,
+    Table,
     TextHOne,
     TextHThree,
     TextHTwo,
@@ -71,6 +72,7 @@ import {
     insertContentHeading,
     insertContentOrderedListItem,
     insertContentQuoteBlock,
+    insertContentTable,
     insertContentUnorderedListItem,
 } from "~/client/content/internal/content_editor_insert.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
@@ -3973,6 +3975,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                 icon: <CodeBlockIcon />,
                 onPress: () => {
                     insertContentCodeBlock(assertExists(viewRef.current));
+                },
+            },
+            {
+                label: "Table",
+                iconSize: "4",
+                icon: <Table />,
+                onPress: () => {
+                    insertContentTable(assertExists(viewRef.current));
                 },
             },
         );

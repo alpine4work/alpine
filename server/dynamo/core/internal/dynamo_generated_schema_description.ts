@@ -965,6 +965,63 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "optional": false
                                                                                                 }
                                                                                             }
+                                                                                        },
+                                                                                        "table": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "type": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Value",
+                                                                                                        "value": "table"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "content": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "82a33473"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "tableRow": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "type": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Value",
+                                                                                                        "value": "tableRow"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "content": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "82a33473"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "tableCell": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "type": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Value",
+                                                                                                        "value": "tableCell"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "content": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "82a33473"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                }
+                                                                                            }
                                                                                         }
                                                                                     }
                                                                                 }
@@ -2197,6 +2254,66 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                 },
                                                                                                                                 "referenceId": "18121fec"
                                                                                                                             },
+                                                                                                                            "table": {
+                                                                                                                                "type": "Object",
+                                                                                                                                "propertySchemaByKey": {
+                                                                                                                                    "type": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Value",
+                                                                                                                                            "value": "table"
+                                                                                                                                        },
+                                                                                                                                        "optional": false
+                                                                                                                                    },
+                                                                                                                                    "content": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Reference",
+                                                                                                                                            "reuseReferenceId": "9c994e05"
+                                                                                                                                        },
+                                                                                                                                        "optional": true
+                                                                                                                                    }
+                                                                                                                                },
+                                                                                                                                "referenceId": "23b2aa0b"
+                                                                                                                            },
+                                                                                                                            "tableRow": {
+                                                                                                                                "type": "Object",
+                                                                                                                                "propertySchemaByKey": {
+                                                                                                                                    "type": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Value",
+                                                                                                                                            "value": "tableRow"
+                                                                                                                                        },
+                                                                                                                                        "optional": false
+                                                                                                                                    },
+                                                                                                                                    "content": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Reference",
+                                                                                                                                            "reuseReferenceId": "9c994e05"
+                                                                                                                                        },
+                                                                                                                                        "optional": true
+                                                                                                                                    }
+                                                                                                                                },
+                                                                                                                                "referenceId": "456feb94"
+                                                                                                                            },
+                                                                                                                            "tableCell": {
+                                                                                                                                "type": "Object",
+                                                                                                                                "propertySchemaByKey": {
+                                                                                                                                    "type": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Value",
+                                                                                                                                            "value": "tableCell"
+                                                                                                                                        },
+                                                                                                                                        "optional": false
+                                                                                                                                    },
+                                                                                                                                    "content": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Reference",
+                                                                                                                                            "reuseReferenceId": "9c994e05"
+                                                                                                                                        },
+                                                                                                                                        "optional": true
+                                                                                                                                    }
+                                                                                                                                },
+                                                                                                                                "referenceId": "f2e7a24b"
+                                                                                                                            },
                                                                                                                             "heading": {
                                                                                                                                 "type": "Object",
                                                                                                                                 "propertySchemaByKey": {
@@ -2467,6 +2584,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "mention": {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "18121fec"
+                                                                                                },
+                                                                                                "table": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "23b2aa0b"
+                                                                                                },
+                                                                                                "tableRow": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "456feb94"
+                                                                                                },
+                                                                                                "tableCell": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "f2e7a24b"
                                                                                                 },
                                                                                                 "heading": {
                                                                                                     "type": "Reference",
@@ -4607,6 +4736,63 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     }
                                                                                 },
                                                                                 "optional": false
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "table": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "table"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "9cb631dd"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "tableRow": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "tableRow"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "9cb631dd"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "tableCell": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "tableCell"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "9cb631dd"
+                                                                                },
+                                                                                "optional": true
                                                                             }
                                                                         }
                                                                     },
@@ -8518,6 +8704,63 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     }
                                                                                 },
                                                                                 "optional": false
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "table": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "table"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "11bc7c0a"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "tableRow": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "tableRow"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "11bc7c0a"
+                                                                                },
+                                                                                "optional": true
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "tableCell": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "tableCell"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "content": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "11bc7c0a"
+                                                                                },
+                                                                                "optional": true
                                                                             }
                                                                         }
                                                                     },

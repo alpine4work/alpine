@@ -229,16 +229,16 @@ dependencies:
     specifier: ^1.2.5
     version: 1.2.5
   '@img/sharp-libvips-darwin-arm64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-darwin-arm64
+    specifier: file:/Users/rohitt-gupta/Documents/GitHub/cyberworlds/admin/vendor/libvips/libvips-darwin-arm64
     version: file:admin/vendor/libvips/libvips-darwin-arm64
   '@img/sharp-libvips-darwin-x64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-darwin-x86_64
+    specifier: file:/Users/rohitt-gupta/Documents/GitHub/cyberworlds/admin/vendor/libvips/libvips-darwin-x86_64
     version: file:admin/vendor/libvips/libvips-darwin-x86_64
   '@img/sharp-libvips-linux-arm64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-linux-arm64
+    specifier: file:/Users/rohitt-gupta/Documents/GitHub/cyberworlds/admin/vendor/libvips/libvips-linux-arm64
     version: file:admin/vendor/libvips/libvips-linux-arm64
   '@img/sharp-libvips-linux-x64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-linux-x86_64
+    specifier: file:/Users/rohitt-gupta/Documents/GitHub/cyberworlds/admin/vendor/libvips/libvips-linux-x86_64
     version: file:admin/vendor/libvips/libvips-linux-x86_64
   '@inquirer/prompts':
     specifier: ^5.3.8
@@ -843,6 +843,9 @@ dependencies:
   prosemirror-state:
     specifier: 1.4.2
     version: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+  prosemirror-tables:
+    specifier: ^1.6.1
+    version: 1.6.1
   prosemirror-transform:
     specifier: ^1.10.2
     version: 1.10.2
@@ -15059,6 +15062,16 @@ packages:
       prosemirror-view: 1.27.2(patch_hash=gywwwqo4ruq265nv5n4tqx7rba)
     dev: false
     patched: true
+
+  /prosemirror-tables@1.6.1:
+    resolution: {integrity: sha512-p8WRJNA96jaNQjhJolmbxTzd6M4huRE5xQ8OxjvMhQUP0Nzpo4zz6TztEiwk6aoqGBhz9lxRWR1yRZLlpQN98w==}
+    dependencies:
+      prosemirror-keymap: 1.2.0
+      prosemirror-model: 1.23.0
+      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-transform: 1.10.2
+      prosemirror-view: 1.27.2(patch_hash=gywwwqo4ruq265nv5n4tqx7rba)
+    dev: false
 
   /prosemirror-transform@1.10.2:
     resolution: {integrity: sha512-2iUq0wv2iRoJO/zj5mv8uDUriOHWzXRnOTVgCzSXnktS/2iQRa3UUQwVlkBlYZFtygw6Nh1+X4mGqoYBINn5KQ==}

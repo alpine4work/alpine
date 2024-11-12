@@ -59,6 +59,9 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    tableAlignClassName,
+    tableCellClassName,
+    tableClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -2021,4 +2024,20 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     position: "absolute",
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
+});
+
+globalStyle(`${tableClassName}`, {
+    ...blockStyles,
+    borderCollapse: "collapse",
+    margin: "0 auto",
+});
+
+globalStyle(`${tableCellClassName}`, {
+    border: "1px solid #ccc",
+    padding: "8px",
+    textAlign: "left",
+});
+
+globalStyle(`${tableAlignClassName}`, {
+    textAlign: "left",
 });
