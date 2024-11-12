@@ -50,17 +50,21 @@ genrule(
     #   We need to pass the compiler program into FFmpeg's `--ld` option since it
     #   passes arguments via `-Wl`. e.g. `-Wl,-dynamic`.
     cmd = """
+platform_name="$$(uname -s | tr '[:upper:]' '[:lower:]')"
+
 export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
 export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
 export CC="$$(pwd)/$(location @//:zig) cc"
 export CXX="$$(pwd)/$(location @//:zig) c++"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"
-if [ "$$(uname)" == "Darwin" ]; then
+
+if [ "$$platform_name" == "darwin" ]; then
     export CC_LD=gcc
 else
     export CC_LD="$$(pwd)/$(location @//:zig) cc"
 fi
+
 export CFLAGS+=" -O3 -fPIC"
 
 bazel_sandbox=$$(pwd)
