@@ -134,6 +134,7 @@ export class AwsGithubRunners extends Construct {
                 service: "imagebuilder",
                 resource: "image",
                 account: "aws",
+                // Ubuntu 24.04.1 LTS (codename Noble)
                 resourceName: `ubuntu-server-24-lts-arm64/x.x.x`,
             }),
             awsImageBuilderOptions: {
@@ -310,6 +311,7 @@ export class AwsGithubRunners extends Construct {
                     service: "imagebuilder",
                     resource: "image",
                     account: "aws",
+                    // Ubuntu 24.04.1 LTS (codename Noble)
                     resourceName: `ubuntu-server-24-lts-x86/x.x.x`,
                 }),
                 awsImageBuilderOptions: {

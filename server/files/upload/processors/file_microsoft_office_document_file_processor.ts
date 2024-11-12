@@ -196,6 +196,15 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                                 {
                                     cwd: runfilesPath,
                                     signal,
+                                    env: {
+                                        // In production, the `www-data` user's `$HOME` (`/var/www`) won't be writable.
+                                        // So `dconf` logs a warning telling us the cache directory can't be created.
+                                        // Set `XDG_CACHE_HOME` to a writable directory so `dconf` can work.
+                                        XDG_CACHE_HOME: joinPath(
+                                            parentTemporaryDirectoryPath,
+                                            ".cache",
+                                        ),
+                                    },
                                 },
                             );
 

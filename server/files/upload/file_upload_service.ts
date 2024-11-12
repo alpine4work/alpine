@@ -41,9 +41,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // technical decision log entry.
 
 export type FileUploadServiceRoute =
-    | {
-          readonly type: "NotFound";
-      }
+    | {readonly type: "HealthCheck"}
+    | {readonly type: "NotFound"}
     | {
           readonly type: "Upload";
           readonly spaceId: SpaceId;
@@ -59,51 +58,55 @@ export type FileUploadServiceRoute =
           readonly key: string;
       };
 
+function parseRoute(url: URL): [string, FileUploadServiceRoute] {
+    if (url.pathname === "/healthcheck") {
+        return ["/healthcheck", {type: "HealthCheck"}];
+    }
+
+    const pathnameParts = url.pathname.slice(1).split("/");
+
+    if (
+        pathnameParts.length === 5 &&
+        pathnameParts[0] === "internal" &&
+        pathnameParts[1] === "miniflare" &&
+        pathnameParts[2] === "get-object"
+    ) {
+        const bucketName = pathnameParts[3]!;
+        const key = decodeURIComponent(pathnameParts[4]!);
+
+        return [
+            "/internal/miniflare/get-object/:bucket/:key",
+            {type: "InternalMiniflareGetObject", bucketName, key},
+        ];
+    }
+
+    if (pathnameParts[0] && isId<SpaceId>(pathnameParts[0])) {
+        const spaceId = pathnameParts[0];
+
+        if (pathnameParts.length === 2 && pathnameParts[1] === "upload") {
+            return ["/:spaceId/upload", {type: "Upload", spaceId}];
+        }
+
+        if (
+            pathnameParts.length === 3 &&
+            pathnameParts[1] === "resize" &&
+            isId<FileId>(pathnameParts[2]!)
+        ) {
+            return [
+                "/:spaceId/resize/:fileId",
+                {type: "Resize", spaceId, fileId: pathnameParts[2]},
+            ];
+        }
+    }
+
+    return ["/*", {type: "NotFound"}];
+}
+
 export function createFileUploadService(
     processContext: FileUploadServiceProcessContext,
     {tokenAgent, temporaryDirectoryPath}: {tokenAgent: TokenAgent; temporaryDirectoryPath: string},
 ) {
     const tracer = processContext.tracer.getRoot();
-
-    function parseRoute(url: URL): [string, FileUploadServiceRoute] {
-        const pathnameParts = url.pathname.slice(1).split("/");
-
-        if (
-            pathnameParts.length === 5 &&
-            pathnameParts[0] === "internal" &&
-            pathnameParts[1] === "miniflare" &&
-            pathnameParts[2] === "get-object"
-        ) {
-            const bucketName = pathnameParts[3]!;
-            const key = decodeURIComponent(pathnameParts[4]!);
-
-            return [
-                "/internal/miniflare/get-object/:bucket/:key",
-                {type: "InternalMiniflareGetObject", bucketName, key},
-            ];
-        }
-
-        if (pathnameParts[0] && isId<SpaceId>(pathnameParts[0])) {
-            const spaceId = pathnameParts[0];
-
-            if (pathnameParts.length === 2 && pathnameParts[1] === "upload") {
-                return ["/:spaceId/upload", {type: "Upload", spaceId}];
-            }
-
-            if (
-                pathnameParts.length === 3 &&
-                pathnameParts[1] === "resize" &&
-                isId<FileId>(pathnameParts[2]!)
-            ) {
-                return [
-                    "/:spaceId/resize/:fileId",
-                    {type: "Resize", spaceId, fileId: pathnameParts[2]},
-                ];
-            }
-        }
-
-        return ["/*", {type: "NotFound"}];
-    }
 
     async function handleRequest(
         span: TracerSpan,
@@ -113,18 +116,26 @@ export function createFileUploadService(
         req: IncomingMessage,
         res: ServerResponse<IncomingMessage>,
     ) {
-        if (route.type === "NotFound") {
-            res.writeHead(404, {"content-type": "text/plain"});
-            res.end("404 Not Found");
-            return;
-        } else if (route.type === "InternalMiniflareGetObject") {
-            await handleInternalMiniflareGetObject(processContext, req, res, {
-                url,
-                bucketName: route.bucketName,
-                key: route.key,
-                headers,
-            });
-            return;
+        switch (route.type) {
+            case "HealthCheck": {
+                res.writeHead(200, {"content-type": "text/plain"});
+                res.end("200 OK");
+                return;
+            }
+            case "NotFound": {
+                res.writeHead(404, {"content-type": "text/plain"});
+                res.end("404 Not Found");
+                return;
+            }
+            case "InternalMiniflareGetObject": {
+                await handleInternalMiniflareGetObject(processContext, req, res, {
+                    url,
+                    bucketName: route.bucketName,
+                    key: route.key,
+                    headers,
+                });
+                return;
+            }
         }
 
         const {spaceId} = route;

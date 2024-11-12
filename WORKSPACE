@@ -7,9 +7,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file"
 # early on.
 http_archive(
     name = "bazel_features",
-    sha256 = "0f23d75c7623d6dba1fd30513a94860447de87c8824570521fcc966eda3151c2",
-    strip_prefix = "bazel_features-1.4.1",
-    url = "https://github.com/bazel-contrib/bazel_features/releases/download/v1.4.1/bazel_features-v1.4.1.tar.gz",
+    sha256 = "c2596994cf63513bd44180411a4ac3ae95d32bf59148fcb6087a4642b3ffef11",
+    strip_prefix = "bazel_features-1.20.0",
+    url = "https://github.com/bazel-contrib/bazel_features/releases/download/v1.20.0/bazel_features-v1.20.0.tar.gz",
 )
 
 load("@bazel_features//:deps.bzl", "bazel_features_deps")
@@ -276,32 +276,41 @@ playwright_browsers_repository(
 
 http_archive(
     name = "rules_oci",
-    sha256 = "db57efd706f01eb3ce771468366baa1614b5b25f4cce99757e2b8d942155b8ec",
-    strip_prefix = "rules_oci-1.0.0",
-    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.0.0/rules_oci-v1.0.0.tar.gz",
+    sha256 = "acbf8f40e062f707f8754e914dcb0013803c6e5e3679d3e05b571a9f5c7e0b43",
+    strip_prefix = "rules_oci-2.0.1",
+    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v2.0.1/rules_oci-v2.0.1.tar.gz",
 )
 
 load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
 
 rules_oci_dependencies()
 
-load("@rules_oci//oci:repositories.bzl", "LATEST_CRANE_VERSION", "oci_register_toolchains")
+load("@rules_oci//oci:repositories.bzl", "oci_register_toolchains")
 
-oci_register_toolchains(
-    name = "oci",
-    crane_version = LATEST_CRANE_VERSION,
-)
+oci_register_toolchains(name = "oci")
 
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 
 oci_pull(
-    name = "debian",
+    name = "debian_image",
     digest = "sha256:432f545c6ba13b79e2681f4cc4858788b0ab099fc1cca799cc0fae4687c69070",
     image = "debian",
     platforms = [
         "linux/amd64",
         "linux/arm64/v8",
     ],
+)
+
+# The `Dockerfile` that builds this image lives at
+# `admin/aws/images/libreoffice/Dockerfile`.
+#
+# We may want to host this image in AWS ECR instead of @calebmer's personal
+# Docker account.
+oci_pull(
+    name = "ubuntu_libreoffice_image",
+    digest = "sha256:3abbbc6eddf5943d62d4d30220e3993c878826db6fdb7fb65f318e1aec660609",
+    image = "docker.io/calebmer/cyberworlds-libreoffice",
+    platforms = ["linux/amd64"],
 )
 
 # =========================================================================== #
