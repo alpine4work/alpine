@@ -35,7 +35,8 @@ filegroup(
         "//:cdk_files",
         "//admin/opensearch/deploy:deploy_production",
         "//app:app_image_tarball_production",
-        "//server/files/upload:upload_image_tarball_production",
+        # TODO(calebmer, #files): Re-enable `FileUploadService` deployment.
+        # "//server/files/upload:upload_image_tarball_production",
         "//server/jobs/queue:queue_image_tarball_production",
         "//server/migration:migration_image_tarball_production",
         "//server/tasks/realtime:realtime_image_tarball_production",

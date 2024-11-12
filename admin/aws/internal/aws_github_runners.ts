@@ -328,7 +328,7 @@ export class AwsGithubRunners extends Construct {
                 },
 
                 components: createImageBuilderComponents([
-                    // Required for building `libvpx` on x86_64 architectures.
+                    // Required for building `libvpx` and `libaom` on x86_64 architectures.
                     "yasm",
                 ]),
             },
