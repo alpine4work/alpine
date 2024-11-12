@@ -271,8 +271,16 @@ export class AwsGithubRunners extends Construct {
             // capacity for test runs and it's fine if a test run is interrupted. Since we
             // can re-run interrupted test runs with no consequences.
             //
+            // NOTE(calebmer, 2024-11-12): Disabling spot capacity instances for test
+            // runners for now. It's quite annoying to see a test run fail because of a
+            // terminated spot instance. Consider building retry logic for spot instances
+            // that have been terminated, re-enabling spot pricing, and monitoring how
+            // frequently spot instances are killed. If we ever move to running our tests
+            // across multiple EC2 instance shards spot instances will be more attractive
+            // since each individual EC2 instance run should be faster.
+            //
             // [1]: https://calculator.aws
-            spot: true,
+            spot: false,
 
             imageBuilder: testImageBuilder,
 
