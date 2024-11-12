@@ -29,6 +29,9 @@ genrule(
     # - The default `CFLAGS` come from what [`sharp-libvips`][3] sets. Notably we
     #   use `-O3` to optimize for speed.
     #
+    # - Add `-lpthread` because otherwise we fail to build on Linux x86_64 with an
+    #   error saying a threads implementation can't be found.
+    #
     # [1]: https://github.com/llvm/llvm-project/commit/7068aa98412ade19a34b7ed126f4669f581b2311
     # [2]: https://github.com/bazel-contrib/rules_foreign_cc/issues/1065
     # [3]: https://github.com/cyberworlds/sharp-libvips/blob/13d4e523ed4690a77854827e905bc620992444de/build/lin.sh#L46-L93
@@ -39,7 +42,7 @@ export CC="$$(pwd)/$(location @//:zig) cc"
 export CXX="$$(pwd)/$(location @//:zig) c++"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"
-export CFLAGS+=" -O3 -fPIC -Wno-error=int-conversion"
+export CFLAGS+=" -O3 -fPIC -Wno-error=int-conversion -lpthread"
 
 bazel_sandbox=$$(pwd)
 
