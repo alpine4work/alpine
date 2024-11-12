@@ -1946,7 +1946,7 @@ Resources:
                                 inputs:
                                     commands:
                                         - set -ex
-                                        - apt-get install -y zstd build-essential nodejs
+                                        - apt-get install -y zstd build-essential nodejs yasm
                 description: Component 7 Custom-AptGetInstall
         UpdateReplacePolicy: Retain
         DeletionPolicy: Retain
@@ -1959,7 +1959,7 @@ Resources:
         Properties:
             Data: '{"name":"Component 7
                 Custom-AptGetInstall","schemaVersion":"1.0","phases":[{"name":"build","steps":[{"name":"Download","action":"S3Download","inputs":[]},{"name":"Run","action":"ExecuteBash","inputs":{"commands":["set
-                -ex","apt-get install -y zstd build-essential nodejs"]}}]}]}'
+                -ex","apt-get install -y zstd build-essential nodejs yasm"]}}]}]}'
             Description: Component 7 Custom-AptGetInstall
             Name: CyberworldsLifecycleStack-GithubRunners-DeployRunnerImageBuilder-Component7Custom-AptGetInstall-6C149EE1
             Platform: Linux

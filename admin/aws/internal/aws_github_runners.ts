@@ -327,7 +327,10 @@ export class AwsGithubRunners extends Construct {
                     instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
                 },
 
-                components: createImageBuilderComponents(),
+                components: createImageBuilderComponents([
+                    // Required for building `libvpx` on x86_64 architectures.
+                    "yasm",
+                ]),
             },
         );
 
