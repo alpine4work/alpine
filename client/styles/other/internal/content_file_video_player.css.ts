@@ -49,7 +49,7 @@ export const containerClassName = style({
     selectors: {
         // Beat the specificity of `${fileClassName} > *` setting
         // `pointer-events: none`.
-        [`&&&`]: {
+        "&&&": {
             // We need this to allow pointer events on the video element when full
             // screened. Clicking on the video when fullscreen-ed should cause the video
             // to pause/play.

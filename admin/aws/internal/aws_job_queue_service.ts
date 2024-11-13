@@ -137,8 +137,8 @@ export class AwsJobQueueService extends Construct {
                 joinPath(
                     runfilesPath,
                     process.env.CDK_LITE === "true"
-                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
-                        : "cyberworlds/server/jobs/queue/queue_image_tarball/tarball.tar",
+                        ? "cyberworlds/admin/aws/empty_image_tarball_load/tarball.tar"
+                        : "cyberworlds/server/jobs/queue/queue_image_tarball_load/tarball.tar",
                 ),
             ),
             // This appears to be the available memory for our containers. Unclear how we

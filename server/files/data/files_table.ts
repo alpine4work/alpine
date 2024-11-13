@@ -428,12 +428,6 @@ function getFileAttachmentTargetItemKey(
 }
 
 /**
- * If a file upload doesn't complete within this amount of time, we abort the
- * file upload.
- */
-export const uploadFileTimeoutMs = 1000 * 60 * 10;
-
-/**
  * The total number of bytes you're allowed to store in an Alpine space on the
  * free plan (5 GB). After you exceed this amount we'll start deleting old
  * files. This is the same as Slack's file limit for their free plan.

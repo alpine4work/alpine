@@ -21,6 +21,10 @@ genrule(
     ],
     # Notes:
     #
+    # - We need `-mcrc32` in `CFLAGS` on x86_64 Linux machines. x86_64 machines
+    #   have a hardware crc32 instruction but it must be explicitly enabled with
+    #   the `-mcrc32` flag.
+    #
     # - We set `CMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER`,
     #   `CMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY`, and
     #   `CMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY` because that's how
@@ -29,6 +33,14 @@ genrule(
     #
     # [1]: https://github.com/cyberworlds/sharp-libvips/blob/13d4e523ed4690a77854827e905bc620992444de/platforms/linux-x64/Toolchain.cmake#L1-L3
     cmd = """
+arch_name="$$(uname -m)"
+if [ "$$arch_name" = "amd64" ]; then
+    arch_name="x86_64"
+fi
+if [ "$$arch_name" = "aarch64" ]; then
+    arch_name="arm64"
+fi
+
 export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
 export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
 export CC="$$(pwd)/$(location @//:zig) cc"
@@ -36,6 +48,10 @@ export CXX="$$(pwd)/$(location @//:zig) c++"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"
 export CFLAGS+=" -O3 -fPIC"
+
+if [ "$$arch_name" = "x86_64" ]; then
+    export CFLAGS+=" -mcrc32"
+fi
 
 bazel_sandbox=$$(pwd)
 

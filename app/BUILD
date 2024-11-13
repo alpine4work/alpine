@@ -1,7 +1,7 @@
 load("@aspect_bazel_lib//lib:output_files.bzl", "output_files")
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@npm//:@remix-run/dev/package_json.bzl", remix_bin = "bin")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
@@ -318,17 +318,23 @@ js_image_layer(
 
 oci_image(
     name = "app_image",
-    base = "@debian",
+    base = "@debian_image",
     tars = [":app_image_layer"],
     # For security, use the `www-data` user which exists on our Linux image. It
     # only has read access and execute access to files on our system.
     user = "www-data",
 )
 
-oci_tarball(
-    name = "app_image_tarball",
+oci_load(
+    name = "app_image_tarball_load",
     image = ":app_image",
     repo_tags = ["cyberworlds-app-service:latest"],
+)
+
+filegroup(
+    name = "app_image_tarball",
+    srcs = [":app_image_tarball_load"],
+    output_group = "tarball",
 )
 
 production_transition(

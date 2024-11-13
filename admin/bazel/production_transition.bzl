@@ -27,17 +27,47 @@ _production_transition = transition(
 
 def _production_transition_rule_impl(ctx):
     if len(ctx.attr.target) != 1:
-        fail("expect one source target")
+        fail("expected one source target")
 
-    return [DefaultInfo(
+    return DefaultInfo(
         files = ctx.attr.target[0][DefaultInfo].files,
         runfiles = ctx.attr.target[0][DefaultInfo].default_runfiles,
-    )]
+    )
 
 production_transition = rule(
     _production_transition_rule_impl,
     attrs = {
         "target": attr.label(cfg = _production_transition),
+        "_linux_x86_64": attr.label(default = "//admin/bazel:linux_x86_64"),
+        "_allowlist_function_transition": attr.label(
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+        ),
+    },
+)
+
+def _production_transition_executable_rule_impl(ctx):
+    if len(ctx.attr.target) != 1:
+        fail("expected one source target")
+
+    executable = ctx.actions.declare_file(ctx.label.name)
+
+    ctx.actions.symlink(
+        output = executable,
+        target_file = ctx.executable.target,
+        is_executable = True,
+    )
+
+    return DefaultInfo(
+        executable = executable,
+        files = ctx.attr.target[0][DefaultInfo].files,
+        runfiles = ctx.attr.target[0][DefaultInfo].default_runfiles,
+    )
+
+production_transition_executable = rule(
+    _production_transition_executable_rule_impl,
+    executable = True,
+    attrs = {
+        "target": attr.label(cfg = _production_transition, executable = True),
         "_linux_x86_64": attr.label(default = "//admin/bazel:linux_x86_64"),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",

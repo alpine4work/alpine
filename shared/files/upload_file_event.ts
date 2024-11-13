@@ -12,6 +12,12 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
+ * If a file upload doesn't complete within this amount of time, we abort the
+ * file upload.
+ */
+export const uploadFileTimeoutMs = 1000 * 60 * 5;
+
+/**
  * An event sent to the client by `FileUploadService`'s upload route.
  */
 export type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;

@@ -14,6 +14,7 @@ import {
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {FileContentType, FilePdfDocumentContentType} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -65,35 +66,73 @@ export function processPdfDocumentFile(
     const previewSizeWithoutExtractPromise = (async () => {
         const data = await dataPromise;
 
-        const metadata = await sharp(data, {pages: 1})
-            .timeout({seconds: sharpTimeoutSeconds})
-            .metadata()
-            .catch(rethrowClassifiedSharpError);
+        let retryCount = 0;
 
-        const expectedFormat = "pdf";
-        if (metadata.format !== expectedFormat) {
-            throw new InvalidArgumentError(
-                quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
-            );
+        while (true) {
+            retryCount++;
+
+            try {
+                const metadata = await sharp(data, {pages: 1})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    .metadata()
+                    .catch(rethrowClassifiedSharpError);
+
+                const expectedFormat = "pdf";
+                if (metadata.format !== expectedFormat) {
+                    throw new InvalidArgumentError(
+                        quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+                    );
+                }
+
+                if (metadata.width === undefined || metadata.height === undefined) {
+                    throw new InternalError('Couldn\'t find "width" or "height" of image file');
+                }
+
+                // We produce a JPEG preview image that's 2x bigger than the source PDF. This
+                // is so when viewing the preview image on a retina display with a scale factor
+                // of 2 it looks the same as if we directly rendered the document. Zooming in
+                // on the preview image won't look good since fundamentally we're taking a
+                // vector format (PDF) and converting it to a raster format (JPEG).
+                const scale = 2;
+
+                return {
+                    width: metadata.width * scale,
+                    height: metadata.height * scale,
+                    scale,
+                    hasAlpha: metadata.hasAlpha ?? false,
+                };
+            } catch (error) {
+                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an
+                // error message for password protected PDFs. Our
+                // `py_pdf_sample_libreoffice_write_password.pdf` test in
+                // `file_processor_content_types.test.ts` observes occasional failures where we
+                // get the truncated error message "Input buffer has corrupt header: " instead
+                // of the full "Input buffer has corrupt header: pdfload: password required or
+                // incorrect password". So when we detect a truncated error message from
+                // `sharp` let's retry the `metadata()` call up to 10 times until we get a real
+                // error message.
+                //
+                // `previewContentPromise`'s `sharp` call is also flaky in this regard. We
+                // don't add a retry there because if we throw a proper `PermissionDeniedError`
+                // here (with a display message) and `previewContentPromise` throws a flaky
+                // `InvalidArgumentError` then `getAggregateErrorPriority()` will pick the
+                // `PermissionDeniedError` as the error to throw since it has a
+                // `displayMessage`.
+                //
+                // Code in `sharp` where this error message is created:
+                // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417
+                if (
+                    retryCount <= 10 &&
+                    error instanceof Error &&
+                    /^Input buffer has corrupt header: *$/.test(error.message)
+                ) {
+                    await wait(100);
+                    continue;
+                }
+
+                throw error;
+            }
         }
-
-        if (metadata.width === undefined || metadata.height === undefined) {
-            throw new InternalError('Couldn\'t find "width" or "height" of image file');
-        }
-
-        // We produce a JPEG preview image that's 2x bigger than the source PDF. This
-        // is so when viewing the preview image on a retina display with a scale factor
-        // of 2 it looks the same as if we directly rendered the document. Zooming in
-        // on the preview image won't look good since fundamentally we're taking a
-        // vector format (PDF) and converting it to a raster format (JPEG).
-        const scale = 2;
-
-        return {
-            width: metadata.width * scale,
-            height: metadata.height * scale,
-            scale,
-            hasAlpha: metadata.hasAlpha ?? false,
-        };
     })();
 
     const previewContentPromise = (async (): Promise<{

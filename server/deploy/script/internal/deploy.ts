@@ -12,7 +12,7 @@ import {
     uploadAppStaticFilesBeforeDeploy,
 } from "~/server/deploy/script/internal/deploy_app_static_files.js";
 import {deployAws} from "~/server/deploy/script/internal/deploy_aws.js";
-import {deployCloudflare} from "~/server/deploy/script/internal/deploy_cloudflare.js";
+import {deployCloudflareWorkers} from "~/server/deploy/script/internal/deploy_cloudflare_workers.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
@@ -251,8 +251,8 @@ async function actuallyDeploy(
         // in production but Cloudflare continues to run old code.
         hasAwsDeployFinished = true;
 
-        await context.tracer.withSpan("Deploy Cloudflare", () =>
-            deployCloudflare({
+        await context.tracer.withSpan("Deploy Cloudflare Workers", () =>
+            deployCloudflareWorkers({
                 accountId: cloudflareAccountId,
                 workersToken: cloudflareWorkersToken,
             }),

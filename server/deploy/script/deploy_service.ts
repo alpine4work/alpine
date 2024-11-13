@@ -1,6 +1,8 @@
 import {createActionAuth} from "@octokit/auth-action";
-import {CloudflareR2Client} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {
+    createServiceCloudflareR2ContextModule,
+    serviceCloudflareR2Options,
+} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {deploy} from "~/server/deploy/script/internal/deploy.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
@@ -22,34 +24,31 @@ export const options = {
     workflowRunId: {type: "string"},
     workflowRunNumber: {type: "string"},
     workflowRunAttempt: {type: "string"},
-    cloudflareAccountId: {type: "string"},
-    cloudflareR2AccessKeyId: {type: "string"},
-    cloudflareR2SecretAccessKey: {type: "string"},
     cloudflareWorkersToken: {type: "string"},
     ...serverProcessContextOptions,
+    ...serviceCloudflareR2Options,
 } as const;
 
 export async function run({
     tracer,
     shutdownManager,
     honeycombClient,
-    options: {
-        commitSha,
-        workflowRunId: workflowRunIdString,
-        workflowRunNumber: workflowRunNumberString,
-        workflowRunAttempt: workflowRunAttemptString,
-        cloudflareAccountId,
-        cloudflareR2AccessKeyId,
-        cloudflareR2SecretAccessKey,
-        cloudflareWorkersToken,
-        ...options
-    },
+    options,
 }: {
     tracer: TracerRoot;
     shutdownManager: ShutdownManager;
     honeycombClient: HoneycombTracerClient | null;
     options: Options;
 }) {
+    const {
+        commitSha,
+        workflowRunId: workflowRunIdString,
+        workflowRunNumber: workflowRunNumberString,
+        workflowRunAttempt: workflowRunAttemptString,
+        cloudflareWorkersToken,
+        cloudflareAccountId,
+    } = options;
+
     if (commitSha === undefined) throw new InvalidArgumentError('"commitSha" option is required');
     if (workflowRunIdString === undefined || !/^[0-9]+$/.test(workflowRunIdString))
         throw new InvalidArgumentError('"workflowRunId" integer option is required');
@@ -59,10 +58,6 @@ export async function run({
         throw new InvalidArgumentError('"workflowRunAttempt" integer option is required');
     if (cloudflareAccountId === undefined)
         throw new InvalidArgumentError('"cloudflareAccountId" option is required');
-    if (cloudflareR2AccessKeyId === undefined)
-        throw new InvalidArgumentError('"cloudflareR2AccessKeyId" option is required');
-    if (cloudflareR2SecretAccessKey === undefined)
-        throw new InvalidArgumentError('"cloudflareR2SecretAccessKey" option is required');
     if (cloudflareWorkersToken === undefined)
         throw new InvalidArgumentError('"cloudflareWorkersToken" option is required');
 
@@ -87,13 +82,7 @@ export async function run({
             // variables.
             createActionAuth().hook,
         ),
-        r2: new CloudflareR2ContextModule(
-            new CloudflareR2Client({
-                accountId: cloudflareAccountId,
-                accessKeyId: cloudflareR2AccessKeyId,
-                secretAccessKey: cloudflareR2SecretAccessKey,
-            }),
-        ),
+        r2: createServiceCloudflareR2ContextModule(options),
     });
 
     await deploy(processContext, {

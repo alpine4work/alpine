@@ -1,3 +1,14 @@
+# TODO: Currently, building `@ffmpeg` is not 100% hermetic. List of known
+# issues we need to fix to make it fully hermetic:
+#
+# - `make` must be installed globally for building packages with `make` (this
+#   means `apt-get install build-essential` on Linux machines).
+#
+# - `apt-get install yasm` is required on Linux x86_64 machines to build
+#   `@libvpx` and `@libaom`.
+#
+# - On MacOS machines we use the system `gcc` compiler when compiling `@ffmpeg`
+#   for linking because it supports the `-dynamic` flag.
 genrule(
     name = "ffmpeg",
     srcs = [
@@ -50,17 +61,21 @@ genrule(
     #   We need to pass the compiler program into FFmpeg's `--ld` option since it
     #   passes arguments via `-Wl`. e.g. `-Wl,-dynamic`.
     cmd = """
+platform_name="$$(uname -s | tr '[:upper:]' '[:lower:]')"
+
 export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
 export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
 export CC="$$(pwd)/$(location @//:zig) cc"
 export CXX="$$(pwd)/$(location @//:zig) c++"
 export AR="$$(pwd)/$(location @//:zig) ar"
 export LD="$$(pwd)/$(location @//:zig) ld.lld"
-if [ "$$(uname)" == "Darwin" ]; then
+
+if [ "$$platform_name" == "darwin" ]; then
     export CC_LD=gcc
 else
     export CC_LD="$$(pwd)/$(location @//:zig) cc"
 fi
+
 export CFLAGS+=" -O3 -fPIC"
 
 bazel_sandbox=$$(pwd)
