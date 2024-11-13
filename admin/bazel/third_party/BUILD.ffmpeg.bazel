@@ -5,7 +5,7 @@
 #   means `apt-get install build-essential` on Linux machines).
 #
 # - `apt-get install yasm` is required on Linux x86_64 machines to build
-#   `@libaom`.
+#   `@libvpx` and `@libaom`.
 #
 # - On MacOS machines we use the system `gcc` compiler when compiling `@ffmpeg`
 #   for linking because it supports the `-dynamic` flag.

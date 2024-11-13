@@ -137,7 +137,7 @@ export class AwsFileUploadService extends Construct {
                     runfilesPath,
                     process.env.CDK_LITE === "true"
                         ? "cyberworlds/admin/aws/empty_image_tarball_load/tarball.tar"
-                        : "cyberworlds/files/upload/upload_image_tarball_load/tarball.tar",
+                        : "cyberworlds/server/files/upload/upload_image_tarball_load/tarball.tar",
                 ),
             ),
             // This appears to be the available memory for our containers. Unclear how we
