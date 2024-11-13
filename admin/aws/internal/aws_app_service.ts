@@ -284,6 +284,11 @@ export class AwsAppService extends Construct {
 
         opensearch.allowConnectionsFrom(service.connections);
 
+        const certificate = new Certificate(this, "Certificate", {
+            domainName: "cyberworlds.dev",
+            validation: CertificateValidation.fromDns(),
+        });
+
         // TODO(calebmer, #files): Delete this and document why the load balancer is
         // called `LoadBalancer2`.
         {
@@ -298,12 +303,7 @@ export class AwsAppService extends Construct {
             const listener = loadBalancer.addListener("Listener", {
                 protocol: ApplicationProtocol.HTTPS,
                 port: 443,
-                certificates: [
-                    new Certificate(this, "Certificate", {
-                        domainName: "cyberworlds.dev",
-                        validation: CertificateValidation.fromDns(),
-                    }),
-                ],
+                certificates: [certificate],
             });
 
             listener.addTargets("TargetGroup", {
@@ -343,12 +343,7 @@ export class AwsAppService extends Construct {
         const listener = loadBalancer.addListener("Listener", {
             protocol: ApplicationProtocol.HTTPS,
             port: 443,
-            certificates: [
-                new Certificate(this, "Certificate", {
-                    domainName: "cyberworlds.dev",
-                    validation: CertificateValidation.fromDns(),
-                }),
-            ],
+            certificates: [certificate],
         });
 
         listener.addTargets("TargetGroup", {
