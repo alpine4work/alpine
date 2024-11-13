@@ -172,6 +172,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: output.ContentType,
+                            contentLength: output.ContentLength,
                         },
                     },
                 },
@@ -220,6 +221,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: output.ContentType,
+                            contentLength: output.ContentLength,
                         },
                     },
                 },
@@ -256,6 +258,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                         object: {
                             key: input.Key,
                             contentType: input.ContentType,
+                            contentLength: input.ContentLength,
                         },
                     },
                 },

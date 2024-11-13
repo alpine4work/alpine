@@ -360,6 +360,7 @@ async function uploadAndProcessFile(
                 Bucket: filesBucketName,
                 Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
+                ContentLength: contentLength,
                 Body: stream,
             },
             {signal},

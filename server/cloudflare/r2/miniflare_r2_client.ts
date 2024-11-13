@@ -120,6 +120,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: object?.httpMetadata.contentType,
+                            contentLength: object?.size,
                         },
                     },
                 },
@@ -212,6 +213,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: object.httpMetadata.contentType,
+                            contentLength: object.size,
                         },
                     },
                 },
@@ -243,6 +245,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             Key: key,
             Body: untypedBody,
             ContentType: contentType,
+            ContentLength: contentLength,
             ContentLanguage: contentLanguage,
             ContentDisposition: contentDisposition,
             ContentEncoding: contentEncoding,
@@ -266,6 +269,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                         object: {
                             key,
                             contentType,
+                            contentLength,
                         },
                     },
                 },
