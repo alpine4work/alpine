@@ -1169,7 +1169,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 draggingFileRef,
             }),
-            table: node => createTableNodeView(node, 25),
+            table: node => createTableNodeView(node, 5),
         };
 
         // IMPORTANT: If you have a custom view in `markViews` here you should also

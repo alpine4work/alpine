@@ -31,6 +31,8 @@ export const contentNodeTypeNames = {
     fileFloat: true,
     file: true,
     table: true,
+    tableRow: true,
+    tableCell: true,
 };
 
 /**
@@ -88,6 +90,7 @@ export const contentBlockNodeTypeNames = {
     divider: true,
     fileRow: true,
     fileFloat: true,
+    table: true,
 };
 
 /**
