@@ -22,6 +22,7 @@ import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
+import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
 import {
@@ -121,13 +122,14 @@ import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
+    taskRowViewDragHandleWidthRem,
+    taskRowViewExpandButtonWidthRem,
     taskRowViewFirstColumnPaddingLeft,
     taskRowViewFirstColumnWidth,
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {
-    RemLength,
     Spacing,
     convertRemLengthToPx,
     parseRemLengthNumber,
@@ -1710,118 +1712,79 @@ function TaskGridRouteShimmer({
                     borderBottom={withMobileLayout ? "grey-5" : undefined}
                 />
             </Box>
-            <Box paddingX={screenPaddingX}>
-                {!withMobileLayout && (
-                    <Box
-                        borderBottom="grey-5"
-                        style={{
-                            height: `calc(${spacing[taskGridViewColumnHeaderHeight]} + ${taskGridViewColumnHeaderExtraPaddingBottomPx}px)`,
-                        }}
-                    >
+
+            {!withMobileLayout && (
+                <Box
+                    paddingRight={screenPaddingX}
+                    borderBottom="grey-5"
+                    style={{
+                        height: `calc(${spacing[taskGridViewColumnHeaderHeight]} + ${taskGridViewColumnHeaderExtraPaddingBottomPx}px)`,
+                    }}
+                >
+                    <Box height={taskGridViewColumnHeaderHeight} display="flex" alignItems="center">
                         <Box
-                            height={taskGridViewColumnHeaderHeight}
-                            display="flex"
-                            alignItems="center"
+                            flexGrow="1"
+                            style={{
+                                paddingLeft: `${
+                                    taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
+                                }rem`,
+                            }}
                         >
-                            <Box flexGrow="1">
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                style={{
-                                    width: taskRowViewFirstColumnWidth,
-                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                }}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingLeft={taskRowViewColumnPaddingX}
-                                paddingRight={taskRowViewLastColumnPaddingRight}
-                                style={{width: taskRowViewCollectionsColumnWidth}}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingX={taskRowViewColumnPaddingX}
+                            style={{
+                                width: taskRowViewFirstColumnWidth,
+                                paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                            }}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingX={taskRowViewColumnPaddingX}
+                            style={{width: taskRowViewColumnWidth}}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingX={taskRowViewColumnPaddingX}
+                            style={{width: taskRowViewColumnWidth}}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingLeft={taskRowViewColumnPaddingX}
+                            paddingRight={taskRowViewLastColumnPaddingRight}
+                            style={{width: taskRowViewCollectionsColumnWidth}}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
                         </Box>
                     </Box>
-                )}
-                <TaskRowShimmer width="128" ragRight="2" />
-                <TaskRowShimmer width="64" ragRight="6" />
-                <TaskRowShimmer width="96" ragRight="4" />
-                <TaskRowShimmer width="128" ragRight="12" />
-                <TaskRowShimmer width="64" ragRight="10" />
-                <TaskRowShimmer width="160" />
-                <TaskRowShimmer width="96" ragRight="8" />
-                {!withMobileLayout && (
-                    <>
-                        <TaskRowShimmer width="128" ragRight="2" />
-                        <TaskRowShimmer width="64" ragRight="6" />
-                        <TaskRowShimmer width="96" ragRight="4" />
-                        <TaskRowShimmer width="128" ragRight="12" />
-                        <TaskRowShimmer width="64" ragRight="10" />
-                        <TaskRowShimmer width="160" />
-                        <TaskRowShimmer width="96" ragRight="8" />
-                    </>
-                )}
-            </Box>
-        </Box>
-    );
-}
-
-function TaskRowShimmer({width, ragRight}: {width: Spacing; ragRight?: Spacing}) {
-    const isMobile = useIsMobile();
-
-    const marginLeft: RemLength = `${
-        parseRemLengthNumber(spacing[isMobile ? "2" : "5"]) +
-        parseRemLengthNumber(spacing[isMobile ? "7" : "6"])
-    }rem`;
-
-    return (
-        <Box height={taskRowViewMinHeight} display="flex" borderBottom="grey-5">
-            <Box
-                flexShrink="0"
-                style={{width: marginLeft}}
-                display="flex"
-                justifyContent="flex-end"
-                alignItems="center"
-                height={taskRowViewMinHeight}
-            >
-                <Box width={isMobile ? "7" : "6"} paddingRight="2">
-                    <Box
-                        width={isMobile ? "5" : "4"}
-                        height={isMobile ? "5" : "4"}
-                        borderRadius="full"
-                        border="grey-10"
-                    />
                 </Box>
-            </Box>
-            <Box height={taskRowViewMinHeight} flexGrow="1" display="flex" alignItems="center">
-                <Box
-                    className={pulseAnimationClassName}
-                    width="full"
-                    maxWidth={width}
-                    height="3"
-                    backgroundColor="grey-5"
-                    borderRadius="full"
-                    marginRight={ragRight}
-                />
-            </Box>
+            )}
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="128" ragRight="2" />
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="64" ragRight="6" />
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="96" ragRight="4" />
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="128" ragRight="12" />
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="64" ragRight="10" />
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="160" />
+            <TaskRowShimmer hasColumns={!withMobileLayout} width="96" ragRight="8" />
+            {!withMobileLayout && (
+                <>
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="128" ragRight="2" />
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="64" ragRight="6" />
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="96" ragRight="4" />
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="128" ragRight="12" />
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="64" ragRight="10" />
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="160" />
+                    <TaskRowShimmer hasColumns={!withMobileLayout} width="96" ragRight="8" />
+                </>
+            )}
         </Box>
     );
 }
