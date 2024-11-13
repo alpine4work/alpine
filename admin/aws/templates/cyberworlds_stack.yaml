@@ -2113,24 +2113,6 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B400082995A0D:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B:4000
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - AppServiceLoadBalancerSecurityGroupE91F3DDD
-                    - GroupId
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B:4000
     AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000527063C8:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -2759,127 +2741,17 @@ Resources:
                 - ContainerName: Container
                   ContainerPort: 4000
                   TargetGroupArn:
-                      Ref: AppServiceLoadBalancerListenerTargetGroupGroup02B0400B
-                - ContainerName: Container
-                  ContainerPort: 4000
-                  TargetGroupArn:
                       Ref: AppServiceLoadBalancer2ListenerTargetGroupGroup0937BA0F
             SchedulingStrategy: REPLICA
             TaskDefinition:
                 Ref: AppServiceTaskDefinition576A8666
         DependsOn:
-            - AppServiceLoadBalancerListenerE64C9A05
-            - AppServiceLoadBalancerListenerTargetGroupGroup02B0400B
             - AppServiceLoadBalancer2ListenerA283039F
             - AppServiceLoadBalancer2ListenerTargetGroupGroup0937BA0F
             - AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
             - AppServiceTaskDefinitionTaskRole4C9D7E3B
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Service/Service
-    AppServiceCertificate7B1FA47C:
-        Type: AWS::CertificateManager::Certificate
-        Properties:
-            DomainName: cyberworlds.dev
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/AppService/Certificate
-            ValidationMethod: DNS
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/Certificate/Resource
-    AppServiceLoadBalancerCEEFF3DD:
-        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-        Properties:
-            LoadBalancerAttributes:
-                - Key: deletion_protection.enabled
-                  Value: "false"
-            Scheme: internet-facing
-            SecurityGroups:
-                - Fn::GetAtt:
-                      - AppServiceLoadBalancerSecurityGroupE91F3DDD
-                      - GroupId
-            Subnets:
-                - Ref: VpcPublicSubnet1Subnet5C2D37C4
-                - Ref: VpcPublicSubnet2Subnet691E08A3
-            Type: application
-        DependsOn:
-            - VpcPublicSubnet1DefaultRoute3DA9E72A
-            - VpcPublicSubnet1RouteTableAssociation97140677
-            - VpcPublicSubnet2DefaultRoute97F91067
-            - VpcPublicSubnet2RouteTableAssociationDD5762D8
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/Resource
-    AppServiceLoadBalancerSecurityGroupE91F3DDD:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: Automatically created Security Group for ELB
-                CyberworldsStackAppServiceLoadBalancer3D7F075A
-            SecurityGroupIngress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/SecurityGroup/Resource
-    AppServiceLoadBalancerSecurityGrouptoCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF84000363F0E6C:
-        Type: AWS::EC2::SecurityGroupEgress
-        Properties:
-            Description: to CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
-            DestinationSecurityGroupId:
-                Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
-                    - GroupId
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - AppServiceLoadBalancerSecurityGroupE91F3DDD
-                    - GroupId
-            IpProtocol: tcp
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/SecurityGroup/to
-                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
-    AppServiceLoadBalancerListenerE64C9A05:
-        Type: AWS::ElasticLoadBalancingV2::Listener
-        Properties:
-            Certificates:
-                - CertificateArn:
-                      Ref: AppServiceCertificate7B1FA47C
-            DefaultActions:
-                - TargetGroupArn:
-                      Ref: AppServiceLoadBalancerListenerTargetGroupGroup02B0400B
-                  Type: forward
-            LoadBalancerArn:
-                Ref: AppServiceLoadBalancerCEEFF3DD
-            Port: 443
-            Protocol: HTTPS
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/Listener/Resource
-    AppServiceLoadBalancerListenerTargetGroupGroup02B0400B:
-        Type: AWS::ElasticLoadBalancingV2::TargetGroup
-        Properties:
-            HealthCheckIntervalSeconds: 5
-            HealthCheckPath: /api/internal/healthcheck
-            HealthCheckTimeoutSeconds: 3
-            HealthyThresholdCount: 3
-            Port: 4000
-            Protocol: HTTP
-            TargetGroupAttributes:
-                - Key: deregistration_delay.timeout_seconds
-                  Value: "10"
-                - Key: stickiness.enabled
-                  Value: "true"
-                - Key: stickiness.type
-                  Value: lb_cookie
-                - Key: stickiness.lb_cookie.duration_seconds
-                  Value: "86400"
-            TargetType: instance
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/Listener/TargetGroupGroup/Resource
     AppServiceLoadBalancer28D7B45BD:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
@@ -2976,6 +2848,16 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/Listener/TargetGroupGroup/Resource
+    AppServiceCertificate7B1FA47C:
+        Type: AWS::CertificateManager::Certificate
+        Properties:
+            DomainName: cyberworlds.dev
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/AppService/Certificate
+            ValidationMethod: DNS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/Certificate/Resource
     JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434:
         Type: AWS::EC2::SecurityGroup
         Properties:

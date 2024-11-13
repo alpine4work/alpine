@@ -284,53 +284,12 @@ export class AwsAppService extends Construct {
 
         opensearch.allowConnectionsFrom(service.connections);
 
-        const certificate = new Certificate(this, "Certificate", {
-            domainName: "cyberworlds.dev",
-            validation: CertificateValidation.fromDns(),
-        });
-
-        // TODO(calebmer, #files): Delete this and document why the load balancer is
-        // called `LoadBalancer2`.
-        {
-            const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
-                vpc,
-                internetFacing: true,
-            });
-
-            // Make sure the load balancer can make requests against our service.
-            autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
-
-            const listener = loadBalancer.addListener("Listener", {
-                protocol: ApplicationProtocol.HTTPS,
-                port: 443,
-                certificates: [certificate],
-            });
-
-            listener.addTargets("TargetGroup", {
-                port: port,
-                protocol: ApplicationProtocol.HTTP,
-                targets: [service],
-                healthCheck: {
-                    path: "/api/internal/healthcheck",
-                    // Speed up deployment by requiring fewer healthy checks. Should only take
-                    // ~15 seconds to consider the service healthy.
-                    // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
-                    interval: Duration.seconds(5),
-                    timeout: Duration.seconds(3),
-                    healthyThresholdCount: 3,
-                },
-                // Break connections after 10 seconds when EC2 instances are being
-                // deregistered. Any long lived connections longer than 10 seconds will be
-                // aborted.
-                // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-connection-draining.html
-                deregistrationDelay: Duration.seconds(10),
-                // Attempt to route sessions to the same EC2 instance for a day. This is an
-                // optimization that increases in-memory cache hits and not required for
-                // successful operation of the product.
-                stickinessCookieDuration: Duration.days(1),
-            });
-        }
-
+        // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
+        // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
+        // switched to an opinionated `loadBalancerName` in order to do a zero downtime
+        // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
+        // updated our DNS record, waited for all requests to move to `LoadBalancer2`
+        // then deleted `LoadBalancer`.
         const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer2", {
             vpc,
             loadBalancerName: "cyberworlds-app",
@@ -343,7 +302,12 @@ export class AwsAppService extends Construct {
         const listener = loadBalancer.addListener("Listener", {
             protocol: ApplicationProtocol.HTTPS,
             port: 443,
-            certificates: [certificate],
+            certificates: [
+                new Certificate(this, "Certificate", {
+                    domainName: "cyberworlds.dev",
+                    validation: CertificateValidation.fromDns(),
+                }),
+            ],
         });
 
         listener.addTargets("TargetGroup", {
