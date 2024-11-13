@@ -85,6 +85,7 @@ import {
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
+import {createTableNodeView} from "~/client/content/internal/content_editor_table_node_view.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
@@ -1168,6 +1169,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 draggingFileRef,
             }),
+            table: node => createTableNodeView(node, 25),
         };
 
         // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -4049,6 +4051,7 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                                   Render                                   *
     \* ========================================================================== */
 
+    console.log("unwrappedState.schema.nodes.table", unwrappedState);
     return (
         <div
             className={classNames(
@@ -4130,6 +4133,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     )}
                 </MobileFullScreenModal>
             )}
+
             {unwrappedState.schema.marks.comment && isMobileCommentInputOpen && (
                 // Needs to be rendered outside of `<ContentEditorMobileKeyboardToolbar>` so
                 // that when we go inert this is still rendered.

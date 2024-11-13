@@ -7,6 +7,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 
 function getInsertPosOrSelection(selection: Selection): number | Selection {
     const doc = selection.$anchor.doc;
+    console.log("selection", selection);
 
     // If the selection is on a file we'll insert below the file instead of
     // replacing the file. Since files take a lot of intention to add to the
@@ -34,6 +35,18 @@ function getInsertPosOrSelection(selection: Selection): number | Selection {
         : selection;
 }
 
+/**
+ * Insert a node into the editor.
+ * Core insertion logic that handles:
+ * - Inserting at specific positions
+ * - Replacing selected content
+ * - Handling empty vs non-empty selections
+ * - Scrolling to show inserted content
+ *
+ * @param view - The editor view.
+ * @param node - The node to insert.
+ * @param commandIfNotEmpty - An optional command to run if the node is not empty.
+ */
 function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
     const {state} = view;
 
@@ -181,12 +194,15 @@ export function insertContentFiles(
 
 export function insertContentTable(view: EditorView) {
     const {schema} = view.state;
-    const tableRow = schema.node("tableRow", {}, [
-        schema.node("tableCell", {}, [schema.node("paragraph", {style: "padding: 0; margin: 0;"})]),
-        schema.node("tableCell", {}, [schema.node("paragraph", {style: "padding: 0; margin: 0;"})]),
-    ]);
 
+    // Create a cell with a paragraph
+    const cell = schema.node("tableCell", {}, [schema.node("paragraph")]);
+
+    // Create a row with multiple cells
+    const tableRow = schema.node("tableRow", {}, [cell, cell]);
+
+    // Create table with multiple rows
     const table = schema.node("table", {}, [tableRow, tableRow]);
 
-    insertNode(view, table);
+    insertNode(view, table, schema.nodes.table?.spec.commands?.addColumnAfter);
 }

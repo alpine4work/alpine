@@ -81,7 +81,9 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
-        tableEditing(),
+        tableEditing({
+            allowTableNodeSelection: true,
+        }),
     ];
 }
 

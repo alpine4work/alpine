@@ -25,27 +25,41 @@ import {
     tableCellClassName,
     tableClassName,
 } from "~/shared/content/content_styles.js";
-// import {Dispatch} from "react";
 
-// import {Schema} from "~/shared/schema/schema.js";
-
+// table: {
+//     content: "tableRow+",
+//     tableRole: "table",
+//     isolating: true,
+//     group: "block",
+//     parseDOM: [{tag: "table"}],
+//     toDOM() {
+//         return ["table", 0];
+//     },
+// },
+// tableRow: {
+//     content: "tableCell+",
+//     tableRole: "row",
+//     parseDOM: [{tag: "tr"}],
+//     toDOM() {
+//         return ["tr", 0];
+//     },
+// },
+// tableCell: {
+//     content: "block+",
+//     tableRole: "cell",
+//     parseDOM: [{tag: "td"}],
+//     toDOM() {
+//         return ["td", 0];
+//     },
+// },
 export const tableNode = {
     content: "tableRow+",
     group: "block",
     isolating: true,
-
-    // Attributes
-    // attrs: {
-    //     alignment: {
-    //         schema: Schema.object({
-    //             type: Schema.string,
-    //             default: "left",
-    //         }),
-    //     },
-    // },
+    selectable: true,
+    draggable: true,
 
     // Rendering
-
     toDOM: (node: Node) => {
         return [
             "table",
@@ -68,33 +82,11 @@ export const tableNode = {
     ],
 
     commands: {
-        // insertTable:
-        //     ({rows = 3, cols = 3, withHeaderRow = true} = {}) =>
-        //     ({
-        //         tr,
-        //         dispatch,
-        //         editor,
-        //     }: {
-        //         tr: Transaction;
-        //         dispatch: Dispatch<Transaction>;
-        //         editor: Editor;
-        //     }) => {
-        //         const node = createTable(editor.schema, rows, cols, withHeaderRow);
-
-        //         if (dispatch) {
-        //             const offset = tr.selection.from + 1;
-
-        //             tr.replaceSelectionWith(node)
-        //                 .scrollIntoView()
-        //                 .setSelection(TextSelection.near(tr.doc.resolve(offset)));
-        //         }
-
-        //         return true;
-        //     },
         addColumnBefore: (): Command => (state, dispatch) => {
             return addColumnBefore(state, dispatch);
         },
         addColumnAfter: (): Command => (state, dispatch) => {
+            console.log("addColumnAfter", state);
             return addColumnAfter(state, dispatch);
         },
         deleteColumn: (): Command => (state, dispatch) => {
@@ -182,6 +174,8 @@ export const tableNode = {
 export const tableRow = {
     content: "(paragraph | tableCell)+",
     tableRole: "row",
+    selectable: true,
+    draggable: true,
     parseDOM: [{tag: "tr"}],
     toDOM() {
         return ["tr", 0] as const;
@@ -192,8 +186,9 @@ export const tableCell = {
     group: "block",
     content: "block+",
     tableRole: "cell",
-    selectable: false,
+    selectable: true,
     draggable: true,
+
     // attrs: {
     //     colspan: {default: 1, schema: Schema.integer.default(1)},
     //     rowspan: {default: 1, schema: Schema.integer.default(1)},

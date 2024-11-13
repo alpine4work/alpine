@@ -431,6 +431,7 @@ const lineBreakCountByNodeType: {
     // Set as `float: left` and `float: right`. Multiple adjacent `fileFloat`s
     // should not be counted as lines for the purpose of snippet cutting
     fileFloat: 0,
+    table: 0,
 };
 
 /**
@@ -471,4 +472,5 @@ const dontCutLeadingChildrenByNodeType: {
     mention: true,
     heading: true,
     divider: true,
+    table: true,
 };

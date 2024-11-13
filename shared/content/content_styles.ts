@@ -104,3 +104,9 @@ export const tableCellClassName =
 
 export const tableAlignClassName =
     process.env.NODE_ENV !== "production" ? "content_tableAlign" : "c_ta";
+
+export const tableWrapperClassName =
+    process.env.NODE_ENV !== "production" ? "content_tableWrapper" : "c_tw";
+
+export const tableCellToolbarClassName =
+    process.env.NODE_ENV !== "production" ? "content_tableCellToolbar" : "c_tct";

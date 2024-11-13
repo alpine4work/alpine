@@ -62,6 +62,7 @@ import {
     tableAlignClassName,
     tableCellClassName,
     tableClassName,
+    tableWrapperClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -2026,18 +2027,54 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-globalStyle(`${tableClassName}`, {
-    ...blockStyles,
-    borderCollapse: "collapse",
-    margin: "0 auto",
-});
+// globalStyle(`${tableClassName}`, {});
 
 globalStyle(`${tableCellClassName}`, {
-    border: "1px solid #ccc",
-    padding: "8px",
-    textAlign: "left",
+    border: `1px solid ${colors["grey-20"]}`,
+    // padding: "8px",
+    // textAlign: "left",
+    minWidth: "100px",
 });
 
-globalStyle(`${tableAlignClassName}`, {
+// globalStyle(`${tableAlignClassName}`, {
+
+// });
+
+globalStyle(`${tableWrapperClassName}`, {
+    ...blockStyles,
     textAlign: "left",
+    borderCollapse: "collapse",
+    margin: "0 auto",
+    width: "fit-content",
+    // Allow horizontal scrolling for wide tables
+    overflowX: "auto",
+    // Prevent margin collapse
+    display: "block",
+    // Add some spacing around the table
+    // Optional: add a subtle border or shadow
+    borderRadius: borderRadius[1],
+    // Optional: add a max width to prevent tables from stretching too wide
+    maxWidth: "100%",
+});
+
+globalStyle(`${tableWrapperClassName}.resize-cursor`, {
+    cursor: "col-resize",
+});
+
+globalStyle(`${tableWrapperClassName}::-webkit-scrollbar`, {
+    height: spacing[2],
+});
+
+globalStyle(`${tableWrapperClassName}::-webkit-scrollbar-track`, {
+    backgroundColor: colorSchemeVars["grey-10"],
+});
+
+globalStyle(`${tableWrapperClassName}::-webkit-scrollbar-thumb`, {
+    backgroundColor: colorSchemeVars["grey-20"],
+    borderRadius: borderRadius[1],
+});
+
+globalStyle(`${tableWrapperClassName} p`, {
+    padding: spacing[0],
+    margin: spacing[0],
 });
