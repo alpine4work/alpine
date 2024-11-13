@@ -89,16 +89,13 @@ async function addAwsResources(
         sqs,
     });
 
-    // TODO(calebmer, #files): Re-enable `FileUploadService` deployment.
-    if (false) {
-        new AwsFileUploadService(stack, {
-            vpc,
-            ecsCluster,
-            cloudflareAccountId,
-            dynamo,
-            sqs,
-        });
-    }
+    new AwsFileUploadService(stack, {
+        vpc,
+        ecsCluster,
+        cloudflareAccountId,
+        dynamo,
+        sqs,
+    });
 
     // Manually export resources through CloudFormation instead of using the CDK's
     // auto export capabilities. We were finding ourselves running into issues when
