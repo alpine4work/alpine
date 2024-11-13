@@ -4164,7 +4164,8 @@ Resources:
                             - - /var/www/server/files/upload/upload --port=4000
                                 --temporaryDirectoryPath=/var/www-data/files --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                                 --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
@@ -4253,6 +4254,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:FileUploadServiceSecrets:tokenAgentSecret::"
+                      - Name: HONEYCOMB_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:honeycombApiKey::"
                       - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
                         ValueFrom:
                             Fn::Join:

@@ -188,6 +188,7 @@ export class AwsFileUploadService extends Construct {
                     "fileUploadServicePrivateKey",
                 ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
+                HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
                 CLOUDFLARE_R2_ACCESS_KEY_ID: EcsSecret.fromSecretsManager(
                     secrets,
                     "cloudflareR2AccessKeyId",
@@ -214,6 +215,7 @@ export class AwsFileUploadService extends Construct {
                     // escalate permissions to a space system actor. It's dangerous to give access
                     // to this capability.
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     `--cloudflareAccountId=${cloudflareAccountId}`,
                     `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
                     `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
