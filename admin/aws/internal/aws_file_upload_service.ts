@@ -273,8 +273,8 @@ export class AwsFileUploadService extends Construct {
 
         const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
             vpc,
-            internetFacing: true,
             loadBalancerName: "cyberworlds-files",
+            internetFacing: true,
         });
 
         // Make sure the load balancer can make requests against our service.
@@ -292,6 +292,7 @@ export class AwsFileUploadService extends Construct {
         });
 
         listener.addTargets("TargetGroup", {
+            targetGroupName: "cyberworlds-files-target",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],

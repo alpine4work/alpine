@@ -4468,6 +4468,7 @@ Resources:
             HealthCheckPath: /healthcheck
             HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
+            Name: cyberworlds-files-target
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:
