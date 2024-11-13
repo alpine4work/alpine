@@ -45,7 +45,7 @@ type EdgeServiceEnv = {
     FILE_UPLOAD_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
-    FILE_UPLOAD_SERVICE_HOSTNAME?: string;
+    FILE_UPLOAD_SERVICE_URL?: string;
     HONEYCOMB_API_KEY?: string;
 };
 
@@ -535,10 +535,10 @@ async function handleFetch(
                         if (request.headers.has("upgrade"))
                             throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
 
-                        const fileUploadServiceHostname = env.FILE_UPLOAD_SERVICE_HOSTNAME;
-                        if (!fileUploadServiceHostname)
+                        const fileUploadServiceUrl = env.FILE_UPLOAD_SERVICE_URL;
+                        if (!fileUploadServiceUrl)
                             throw new InternalError(
-                                "Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable",
+                                "Missing `FILE_UPLOAD_SERVICE_URL` env variable",
                             );
 
                         const headers = new Headers(request.headers);
@@ -564,7 +564,7 @@ async function handleFetch(
 
                         // eslint-disable-next-line no-global-fetch
                         return fetch(
-                            `http://${fileUploadServiceHostname}/${route.spaceId}/upload${url.search}`,
+                            `${fileUploadServiceUrl}/${route.spaceId}/upload${url.search}`,
                             {
                                 method: request.method,
                                 headers,
@@ -767,9 +767,9 @@ async function handleFileFetch(
             throw new InvalidArgumentError('Only "GET" and "HEAD" HTTP requests are supported');
         }
 
-        const fileUploadServiceHostname = sharedResources.env.FILE_UPLOAD_SERVICE_HOSTNAME;
-        if (!fileUploadServiceHostname)
-            throw new InternalError("Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable");
+        const fileUploadServiceUrl = sharedResources.env.FILE_UPLOAD_SERVICE_URL;
+        if (!fileUploadServiceUrl)
+            throw new InternalError("Missing `FILE_UPLOAD_SERVICE_URL` env variable");
 
         const tokenAgent = await sharedResources.tokenAgentPromise;
 
@@ -823,7 +823,7 @@ async function handleFileFetch(
         headers.set("authorization", `bearer ${token}`);
 
         const subrequestUrl = new URL(
-            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${route.fileId}`,
+            `${fileUploadServiceUrl}/${route.spaceId}/resize/${route.fileId}`,
         );
 
         if (variant !== null) subrequestUrl.searchParams.set("variant", variant);

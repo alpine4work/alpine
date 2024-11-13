@@ -35,7 +35,7 @@ async function main() {
             fileUploadServicePublicKey: fileUploadServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
-            fileUploadServiceHostname,
+            fileUploadServiceUrl,
             cacheLocalDataPath,
             cloudflareR2LocalDataPath,
             honeycombApiKey,
@@ -52,7 +52,7 @@ async function main() {
             fileUploadServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
-            fileUploadServiceHostname: {type: "string"},
+            fileUploadServiceUrl: {type: "string"},
             cacheLocalDataPath: {type: "string"},
             cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
@@ -77,7 +77,7 @@ async function main() {
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
-    if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
+    if (!fileUploadServiceUrl) throw new Error("Missing `fileUploadServiceUrl` arg");
     if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
     if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
 
@@ -125,7 +125,7 @@ async function main() {
             FILE_UPLOAD_SERVICE_PUBLIC_KEY: fileUploadServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
-            FILE_UPLOAD_SERVICE_HOSTNAME: fileUploadServiceHostname,
+            FILE_UPLOAD_SERVICE_URL: fileUploadServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },
         globals: {

@@ -73,7 +73,7 @@ beforeAll(async () => {
     const r2Bucket = new R2Bucket(r2Storage);
     const r2ContextModule = new CloudflareR2ContextModule(
         new MiniflareR2Client({
-            fileUploadServiceHostname: `localhost:${port}`,
+            fileUploadServiceUrl: `http://localhost:${port}`,
             bucketByName: new Map([[filesBucketName, r2Bucket]]),
         }),
     );

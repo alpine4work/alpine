@@ -28,21 +28,21 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * tests.
  */
 export class MiniflareR2Client implements CloudflareR2ClientBase {
-    private readonly _fileUploadServiceHostname: string;
+    private readonly _fileUploadServiceUrl: string;
     private readonly _bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
 
     constructor({
-        fileUploadServiceHostname,
+        fileUploadServiceUrl,
         bucketByName,
     }: {
-        fileUploadServiceHostname: string;
+        fileUploadServiceUrl: string;
         bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
     }) {
         // Miniflare should not be used in production! It's only used to store files in
         // development.
         assert(process.env.NODE_ENV !== "production");
 
-        this._fileUploadServiceHostname = fileUploadServiceHostname;
+        this._fileUploadServiceUrl = fileUploadServiceUrl;
         this._bucketByName = bucketByName;
     }
 
@@ -410,7 +410,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             // `FileUploadService` has an internal route for mocking signed URLs in
             // development. This route is completely insecure and must not work in
             // production. In production we'll generate actual S3 compatible signed URLs.
-            return `http://${this._fileUploadServiceHostname}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
+            return `${this._fileUploadServiceUrl}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
         });
     }
 }
