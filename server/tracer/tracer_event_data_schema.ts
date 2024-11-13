@@ -355,6 +355,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             object: {
                 key: Schema.string,
                 contentType: Schema.string,
+                contentLength: Schema.integer,
             },
         },
     },
