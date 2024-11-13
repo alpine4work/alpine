@@ -274,6 +274,7 @@ export class AwsFileUploadService extends Construct {
         const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
             vpc,
             internetFacing: true,
+            loadBalancerName: "cyberworlds-files",
         });
 
         // Make sure the load balancer can make requests against our service.

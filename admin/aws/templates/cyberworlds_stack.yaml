@@ -4395,6 +4395,7 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
+            Name: cyberworlds-files
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
