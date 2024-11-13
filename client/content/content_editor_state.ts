@@ -63,19 +63,6 @@ function buildPlugins<Content extends ContentWithReferences>({
     ) => Content["references"];
     disableUndoKeyboardShortcuts: boolean;
 }) {
-    const hasTableSupport = !!(
-        schema.nodes.table &&
-        schema.nodes.table_row &&
-        schema.nodes.table_cell &&
-        schema.nodes.table_header &&
-        schema.nodes.table.spec.attrs &&
-        schema.nodes.table.spec.attrs.columns !== undefined &&
-        schema.nodes.table_cell.spec.attrs &&
-        schema.nodes.table_cell.spec.attrs.colspan !== undefined &&
-        schema.nodes.table_cell.spec.attrs.rowspan !== undefined
-    );
-
-    console.log("hasTableSupport", hasTableSupport);
     const plugins = [
         history({
             // If we're disabling undo/redo keyboard shortcuts it means our rendering
@@ -95,6 +82,18 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
+
+    const hasTableSupport = !!(
+        schema.nodes.table &&
+        schema.nodes.table_row &&
+        schema.nodes.table_cell &&
+        schema.nodes.table_header &&
+        schema.nodes.table.spec.attrs &&
+        schema.nodes.table.spec.attrs.columns !== undefined &&
+        schema.nodes.table_cell.spec.attrs &&
+        schema.nodes.table_cell.spec.attrs.colspan !== undefined &&
+        schema.nodes.table_cell.spec.attrs.rowspan !== undefined
+    );
     if (hasTableSupport) {
         try {
             plugins.push(

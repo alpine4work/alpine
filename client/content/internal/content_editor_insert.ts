@@ -1,15 +1,13 @@
-//NOCOMMIT: remove this slint disable This is a temporary fix to allow us to use the fixTables command from prosemirror-tables.
+/* eslint-disable @typescript-eslint/unbound-method */
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
-import {tableClassName} from "~/shared/content/content_styles.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 function getInsertPosOrSelection(selection: Selection): number | Selection {
     const doc = selection.$anchor.doc;
-    console.log("selection", selection);
 
     // If the selection is on a file we'll insert below the file instead of
     // replacing the file. Since files take a lot of intention to add to the
@@ -203,7 +201,7 @@ export function insertContentTable(view: EditorView) {
     insertNode(view, table);
 
     // Apply initial table commands after insertion
-    // const commands = schema.nodes.table?.spec.commands;
-    // commands?.fixTables?.(view.state, view.dispatch);
-    // commands?.setAlignment?.({alignment: "left"})(view.state, view.dispatch);
+    const commands = schema.nodes.table?.spec.commands;
+    commands?.fixTables?.(view.state, view.dispatch);
+    commands?.setAlignment?.({alignment: "center"})(view.state, view.dispatch);
 }

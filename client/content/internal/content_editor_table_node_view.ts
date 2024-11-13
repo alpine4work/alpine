@@ -1,5 +1,6 @@
 import {Node} from "prosemirror-model";
 import {NodeView} from "prosemirror-view";
+import {tableClassName} from "~/shared/content/content_styles.js";
 
 export interface CellAttrs {
     colspan: number;
@@ -18,7 +19,7 @@ export class TableView implements NodeView {
 
     constructor(public node: Node, public defaultCellMinWidth: number) {
         this.dom = document.createElement("div");
-        this.dom.className = "tableWrapper";
+        this.dom.className = tableClassName;
         this.table = this.dom.appendChild(document.createElement("table"));
         this.table.style.setProperty("--default-cell-min-width", `${defaultCellMinWidth}px`);
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));

@@ -64,7 +64,7 @@ export const table = {
     tableRole: "table",
     attrs: {
         alignment: {
-            default: "left",
+            default: "center",
             schema: Schema.string,
         },
         columns: {
@@ -83,7 +83,7 @@ export const table = {
             "table",
             {
                 class: classNames(tableClassName, {
-                    [tableAlignClassName]: node.attrs.alignment !== "left",
+                    [tableAlignClassName]: node.attrs.alignment !== "center",
                 }),
             },
             0,
@@ -94,7 +94,7 @@ export const table = {
         {
             tag: "table",
             getAttrs: (dom: Element) => ({
-                alignment: dom.getAttribute("data-alignment") || "left",
+                alignment: dom.getAttribute("data-alignment") || "center",
             }),
         },
     ],
@@ -180,6 +180,7 @@ export const table = {
                     return true;
                 }
 
+                console.log("setAlignment", attrs);
                 const $anchor = state.selection.$anchor;
                 const pos = $anchor.before($anchor.depth);
 
