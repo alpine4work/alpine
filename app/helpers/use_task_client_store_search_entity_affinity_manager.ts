@@ -2,6 +2,7 @@ import {useMemo} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
@@ -15,11 +16,14 @@ export function useTaskClientStoreSearchAffinityManager(
 ): TaskClientStoreSearchAffinityManager {
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     useSearchAffinityViewInteraction(affinityId);
 
     return useMemo(
         () => ({
+            addGlobalLoadingIndicator,
+
             markLowIntentUpdateInteraction: update => {
                 // If an entity is not currently provided, noop.
                 if (!affinityId) return;
@@ -88,6 +92,6 @@ export function useTaskClientStoreSearchAffinityManager(
                 }
             },
         }),
-        [context, currentAccount.id, affinityId, space.id],
+        [addGlobalLoadingIndicator, affinityId, currentAccount.id, context, space.id],
     );
 }

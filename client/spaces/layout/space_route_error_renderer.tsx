@@ -12,7 +12,7 @@ import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
-import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
+import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
 import {
     spaceLayoutErrorRendererPaddingX,
     spaceLayoutErrorRendererPaddingY,

@@ -55,13 +55,11 @@ export function PeekRemixEmbed({
             // we want to call `onGoBackOverflow()`.
             navigate: (to: number | To | null, options?: RouterNavigateOptions): Promise<void> => {
                 if (typeof to === "number") {
-                    const remainingEntries =
-                        originalRouter.getHistoryEntries().length -
-                        (originalRouter.getHistoryIndex() + 1);
+                    const remainingEntryCount = originalRouter.getHistoryIndex();
 
-                    if (to < 0 && -to > remainingEntries) {
-                        if (remainingEntries > 0) {
-                            const promise = originalRouter.navigate(-remainingEntries);
+                    if (to < 0 && -to > remainingEntryCount) {
+                        if (remainingEntryCount > 0) {
+                            const promise = originalRouter.navigate(-remainingEntryCount);
                             onGoBackOverflowRef.current?.();
                             return promise;
                         } else {

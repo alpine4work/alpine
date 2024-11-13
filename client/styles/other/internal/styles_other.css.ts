@@ -4,10 +4,14 @@
 // have a `~/client/styles/styles.d.ts` file that re-exports this file for
 // TypeScript.
 
+import "~/client/styles/other/internal/helpers/register_content_styles.js";
+
 export * from "~/client/styles/other/internal/animation.css.js";
 export * as buttonStyles from "~/client/styles/other/internal/button.css.js";
 export * as contentEditorStyles from "~/client/styles/other/internal/content_editor.css.js";
+export * as contentFileAudioPlayerStyles from "~/client/styles/other/internal/content_file_audio_player.css.js";
 export * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
+export * as contentFileVideoAndAudioPlayerControlsStyles from "~/client/styles/other/internal/content_file_video_and_audio_player_controls.css.js";
 export * as contentViewStyles from "~/client/styles/other/internal/content_view.css.js";
 export * as contentStyles from "~/client/styles/other/internal/content.css.js";
 export * as documentBlobsStyles from "~/client/styles/other/internal/document_blobs.css.js";

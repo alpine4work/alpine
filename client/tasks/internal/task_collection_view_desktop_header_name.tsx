@@ -24,6 +24,7 @@ import {useIsFocusRingVisible} from "~/client/design/use_is_focus_ring_visible.j
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {newTaskCollectionNamePlaceholder} from "~/client/styles/tasks_shared_styles.js";
@@ -236,6 +237,8 @@ function TaskCollectionViewDesktopHeaderNameEditor({
     onCancel: () => MaybePromise<void>;
     onSave: (name: string) => MaybePromise<void>;
 }) {
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
     const inputRef = useRef<HTMLInputElement>(null);
     const [name, setName] = useState(initialName);
     const [shouldShowConfirmSaveDialog, setShouldShowConfirmSaveDialog] = useState(false);
@@ -311,9 +314,11 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                                 case "Enter": {
                                     event.preventDefault();
                                     event.stopPropagation();
-                                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                                    // save has finished.
-                                    void onSave(name);
+
+                                    const savingPromise = onSave(name);
+
+                                    if (savingPromise)
+                                        addGlobalLoadingIndicator(savingPromise, {type: "Saving"});
                                     break;
                                 }
                                 case "Escape": {

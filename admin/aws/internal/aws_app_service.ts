@@ -145,8 +145,8 @@ export class AwsAppService extends Construct {
                 joinPath(
                     runfilesPath,
                     process.env.CDK_LITE === "true"
-                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
-                        : "cyberworlds/app/app_image_tarball/tarball.tar",
+                        ? "cyberworlds/admin/aws/empty_image_tarball_load/tarball.tar"
+                        : "cyberworlds/app/app_image_tarball_load/tarball.tar",
                 ),
             ),
             // This appears to be the available memory for our containers. Unclear how we
@@ -289,6 +289,9 @@ export class AwsAppService extends Construct {
             internetFacing: true,
         });
 
+        // Make sure the load balancer can make requests against our service.
+        autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
+
         const listener = loadBalancer.addListener("Listener", {
             protocol: ApplicationProtocol.HTTPS,
             port: 443,
@@ -303,13 +306,14 @@ export class AwsAppService extends Construct {
         listener.addTargets("TargetGroup", {
             port: port,
             protocol: ApplicationProtocol.HTTP,
-            targets: [autoScalingGroup],
+            targets: [service],
             healthCheck: {
                 path: "/api/internal/healthcheck",
                 // Speed up deployment by requiring fewer healthy checks. Should only take
                 // ~15 seconds to consider the service healthy.
                 // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
                 interval: Duration.seconds(5),
+                timeout: Duration.seconds(3),
                 healthyThresholdCount: 3,
             },
             // Break connections after 10 seconds when EC2 instances are being

@@ -11,6 +11,7 @@ import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_no
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -79,6 +80,10 @@ function testSelectionClipboardData(selection: {
     expect(result1).toEqual(result2);
 
     return result1;
+}
+
+function unimplementedForTest() {
+    throw new UnimplementedError("Unimplemented for test");
 }
 
 test("can copy when selection contains hidden content", () => {
@@ -208,6 +213,7 @@ test("can copy when selection is partially within content view and partially out
                     ),
                     references: emptyContentReferences,
                 }}
+                onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testPostFileAttachmentTarget}
             />
             <div>
@@ -225,6 +231,7 @@ test("can copy when selection is partially within content view and partially out
                     ),
                     references: emptyContentReferences,
                 }}
+                onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testPostFileAttachmentTarget}
             />
             <p className="test-p">

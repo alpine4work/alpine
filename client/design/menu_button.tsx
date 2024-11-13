@@ -30,6 +30,7 @@ function MenuButton(
         offset = defaultTooltipOffset,
         offsetAlong,
         children,
+        onClose,
         onStateChange,
         shouldNotCloseAfterActionPress,
         extraOverlayTop,
@@ -107,6 +108,12 @@ function MenuButton(
         children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
 
         /**
+         * Called before the overlay closes. Like when a click happens outside the
+         * overlay.
+         */
+        onClose?: (options: {withoutAnimation: boolean}) => void;
+
+        /**
          * Observe the menu's internal state.
          */
         onStateChange?: (state: OverlayTriggerButtonState) => void;
@@ -120,6 +127,7 @@ function MenuButton(
             placement={placement}
             offset={offset}
             offsetAlong={offsetAlong}
+            onClose={onClose}
             onStateChange={onStateChange}
             overlay={({onCloseWithAnimation, onCloseWithoutAnimation}) => (
                 <Menu

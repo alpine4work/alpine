@@ -1,5 +1,3 @@
-export const contentFileCodeViewerProcessingIndicatorColor = "grey-30";
-
 export const contentFileViewerLargeProcessingIndicatorColor = {
     light: "grey-20-const",
     dark: "grey-30-const",

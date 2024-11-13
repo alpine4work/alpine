@@ -1946,7 +1946,7 @@ Resources:
                                 inputs:
                                     commands:
                                         - set -ex
-                                        - apt-get install -y zstd build-essential nodejs
+                                        - apt-get install -y zstd build-essential nodejs yasm
                 description: Component 7 Custom-AptGetInstall
         UpdateReplacePolicy: Retain
         DeletionPolicy: Retain
@@ -1959,7 +1959,7 @@ Resources:
         Properties:
             Data: '{"name":"Component 7
                 Custom-AptGetInstall","schemaVersion":"1.0","phases":[{"name":"build","steps":[{"name":"Download","action":"S3Download","inputs":[]},{"name":"Run","action":"ExecuteBash","inputs":{"commands":["set
-                -ex","apt-get install -y zstd build-essential nodejs"]}}]}]}'
+                -ex","apt-get install -y zstd build-essential nodejs yasm"]}}]}]}'
             Description: Component 7 Custom-AptGetInstall
             Name: CyberworldsLifecycleStack-GithubRunners-DeployRunnerImageBuilder-Component7Custom-AptGetInstall-6C149EE1
             Platform: Linux
@@ -2979,7 +2979,7 @@ Resources:
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet3"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -3025,7 +3025,7 @@ Resources:
                       - Ref: VpcPublicSubnet2Subnet691E08A3
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet4"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
@@ -3071,7 +3071,7 @@ Resources:
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
@@ -3117,7 +3117,7 @@ Resources:
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet6"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
@@ -3163,7 +3163,7 @@ Resources:
                       - Ref: VpcPublicSubnet5Subnet9D29380E
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet6":{"End":true,"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
@@ -3208,13 +3208,12 @@ Resources:
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
-                      - "\",\"Ebs\":{\"DeleteOnTermination\":true,\"VolumeSize\":30}}],\"InstanceMa\
-                        rketOptions\":{\"MarketType\":\"spot\",\"SpotOptions\":{\"SpotInstanceType\
-                        \":\"one-time\"}},\"TagSpecifications\":[{\"ResourceType\":\"instance\",\"T\
-                        ags\":[{\"Key\":\"GitHubRunners:Provider\",\"Value\":\"CyberworldsLifecycle\
-                        Stack/GithubRunners/TestRunnerProvider\"}]},{\"ResourceType\":\"volume\",\"\
-                        Tags\":[{\"Key\":\"GitHubRunners:Provider\",\"Value\":\"CyberworldsLifecycl\
-                        eStack/GithubRunners/TestRunnerProvider\"}]}]}},\"aws-deploy
+                      - "\",\"Ebs\":{\"DeleteOnTermination\":true,\"VolumeSize\":30}}],\"TagSpecifi\
+                        cations\":[{\"ResourceType\":\"instance\",\"Tags\":[{\"Key\":\"GitHubRunner\
+                        s:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/TestRunner\
+                        Provider\"}]},{\"ResourceType\":\"volume\",\"Tags\":[{\"Key\":\"GitHubRunne\
+                        rs:Provider\",\"Value\":\"CyberworldsLifecycleStack/GithubRunners/TestRunne\
+                        rProvider\"}]}]}},\"aws-deploy
                         data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
                         taTemplate\":\"#!/bin/bash
                         -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
@@ -4214,7 +4213,7 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/21TwW7bMAz9lt0VrUt72TH1tiJAinpx12sgy7SjRpZcUUoQGPn3UZYdt91OenwiH8lnecm/3X3nN1/ECReyOiy0KnlfeCEPjKhdX52NaG1V8mdRargXCAzfkPe/A4QUDohltRnAhYFc8v6lk5F6yTOWh1IrWYTSgI/cjLY2eBh0Z37mVohWKuGVNdfkCNbGg6PMB+HhJM5jmzFaeRp934LxrAAZnPLnB2dDNzT4QGxEMHL/DG2nRRL+yFwY3vL+PshDGnZE6cgtrXSe6TFOQXTlwpRoeb+1abfpXBv0wkjIna0VUbNOQlTWigbKoHQFjvd08UOhd6oM0YfMmlo1wV1NyWzbWRO3jeKxdAtSdWOv2gmqDdIHB/+UDtlXkFORVib5oGqQZ6lhmknbhr74xjZXKydMJnnoavItylJSLhBZtrdKAiuClAAVy4UTWoNm9Kw8PNL3GRu9jz8p7bzAA+llVLk6YQHuGCU3oi0rsTZHeyD9N+JN9QiItAEJgHTgsRWGQjKvGOLxyxOiRYZy3v8a28S7K/55JB8LG5ykmbpOmSZe/4edKv44HTPGIwfXKsSoNCWkh4C3OzKFBuOreFzYFnDQY1lAb9s5pHcy4SGV/GnGMZ6C74L/VEGv6KjonaQ+xlbAX/HrcXnD4x/9ikotXDBetcC36fwLclWCEO4DAAA=
+            # Removed "Analytics" property
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/CDKMetadata/Default
 Outputs:

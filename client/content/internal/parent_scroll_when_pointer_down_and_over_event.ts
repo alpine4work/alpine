@@ -1,4 +1,5 @@
 import {
+    contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
     contentStyles,
     contentViewStyles,
@@ -20,8 +21,8 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
     contentStyles.codeBlockLanguagePickerClassName,
     contentStyles.codeBlockCopyButtonClassName,
     contentViewStyles.seeButtonClassName,
-    contentFileVideoPlayerStyles.playButtonClassName,
-    contentFileVideoPlayerStyles.playbackRateButtonClassName,
+    contentFileVideoAndAudioPlayerControlsStyles.playButtonClassName,
+    contentFileVideoAndAudioPlayerControlsStyles.playbackRateButtonClassName,
     contentFileVideoPlayerStyles.fullscreenButtonClassName,
 ];
 

@@ -78,6 +78,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         similarPath: string;
     };
     audioPreviewDuration?: number;
+    audioPreviewMetadata?: {title?: string; artist?: string; album?: string};
     codePreviewContentLength?: number;
     codePreviewContent?: string;
     previewError?: {
@@ -172,6 +173,7 @@ export function testFileProcessorContentTypes(
             isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
             imagePreviewContent: expectedImagePreviewContent,
             audioPreviewDuration: expectedAudioPreviewDuration,
+            audioPreviewMetadata: expectedAudioPreviewMetadata,
             codePreviewContentLength: expectedCodePreviewContentLength,
             codePreviewContent: expectedCodePreviewContent,
             previewError: expectedPreviewError,
@@ -215,6 +217,7 @@ export function testFileProcessorContentTypes(
                         "ImagePreviewContent",
                         "ImagePreviewVideoDuration",
                         "AudioPreviewDuration",
+                        "AudioPreviewMetadata",
                         "CodePreviewContent",
                         "PreviewError",
                         "Alternative",
@@ -299,6 +302,11 @@ export function testFileProcessorContentTypes(
                                       type: "Audio",
                                       isProcessing: false,
                                       duration: expectedAudioPreviewDuration,
+                                      metadata: {
+                                          title: expectedAudioPreviewMetadata?.title ?? null,
+                                          artist: expectedAudioPreviewMetadata?.artist ?? null,
+                                          album: expectedAudioPreviewMetadata?.album ?? null,
+                                      },
                                   }
                                 : expectedCodePreviewContent !== undefined
                                 ? {
@@ -380,6 +388,14 @@ export function testFileProcessorContentTypes(
                                   {
                                       type: "AudioPreviewDuration",
                                       duration: expectedAudioPreviewDuration,
+                                  },
+                                  {
+                                      type: "AudioPreviewMetadata",
+                                      metadata: {
+                                          title: expectedAudioPreviewMetadata?.title ?? null,
+                                          artist: expectedAudioPreviewMetadata?.artist ?? null,
+                                          album: expectedAudioPreviewMetadata?.album ?? null,
+                                      },
                                   },
                               ]
                             : []),

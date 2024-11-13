@@ -1,9 +1,12 @@
 import {DownloadSimple, Export, FileDotted, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useCallback, useState} from "react";
+import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_file_audio_viewer_mobile.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileVideoViewerMobile} from "~/client/content/internal/content_file_video_viewer_mobile.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -13,10 +16,7 @@ import {
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    getContentFileDownloadName,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {getContentFileDownloadName} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -61,6 +61,7 @@ export function ContentFileViewerModalMobile({
     file,
     signedUrlSearch,
     attachmentTarget,
+    ownedByElement,
     expirationTimers,
     loaderDataPromise,
     onClose,
@@ -68,6 +69,7 @@ export function ContentFileViewerModalMobile({
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    ownedByElement: Element | null;
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -164,7 +166,7 @@ export function ContentFileViewerModalMobile({
         !(file.preview?.type === "Code" && file.preview.isProcessing);
 
     return (
-        <MobileFullScreenModal onClose={onClose}>
+        <MobileFullScreenModal ownedByElement={ownedByElement} onClose={onClose}>
             {({onCloseWithAnimation}) => (
                 <Box
                     ref={modalRef}
@@ -375,7 +377,11 @@ function ContentFileViewerMobile(props: {
                             size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.mobile]}
                             weight={contentFileViewerLargeProcessingIndicatorWeight.mobile}
                         />
-                        Unknown file
+                        <Box textAlign="center">
+                            Unknown
+                            <br />
+                            {prettyBytes(props.file.contentLength)}
+                        </Box>
                     </Box>
                     <Button
                         variant="neutral"
@@ -441,16 +447,14 @@ function ContentFileViewerMobile(props: {
         case "video/quicktime":
         case "video/mpeg":
         case "video/x-matroska": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileVideoViewerMobile {...props} />;
         }
         case "audio/mpeg":
         case "audio/wav":
         case "audio/webm":
         case "audio/ogg":
         case "audio/mp4": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileAudioViewerMobile {...props} />;
         }
         case "text/plain":
         case "text/javascript":

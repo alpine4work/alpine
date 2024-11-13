@@ -1,7 +1,7 @@
 // Only import types from `@xenova/transformers`. We dynamically import it at
 // runtime to avoid bundling the module in an `aws_lambda()`.
 import type {FeatureExtractionPipeline} from "@xenova/transformers";
-import fs from "fs-extra";
+import fsSync from "fs";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -71,7 +71,7 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
     }
 
     public static async new(basePath: string = joinPath(runfilesPath, "all_mini_lm_l6_v2")) {
-        if (!(await fs.pathExists(`${basePath}_config`))) {
+        if (!fsSync.existsSync(`${basePath}_config`)) {
             throw new InternalError(
                 "Couldn't find runfiles, you must include `//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data` in `data` to use this model (avoid using this model in production)",
             );

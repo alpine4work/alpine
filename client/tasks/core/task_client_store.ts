@@ -1,4 +1,5 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {
     TaskUndoActions,
@@ -250,7 +251,23 @@ export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
  * `store.commitTaskActionTransaction()` call.
  */
 export interface TaskClientStoreSearchAffinityManager {
+    /**
+     * Whenever the user changes something within a task we want to track that as a
+     * low intent update and feed it into our task affinity system.
+     */
     markLowIntentUpdateInteraction(update: TaskClientStoreBatchUpdate): void;
+
+    /**
+     * Add a global loading indicator that lasts until the provided promise
+     * resolves.
+     */
+    // TODO(calebmer): Adding this to affinity manager since it's required that we
+    // pass an affinity manager into `commitActionTransaction()` but this method
+    // has nothing to do with affinity. We should consider renaming "affinity
+    // manager" to something else. Waiting until we have a third method to better
+    // understand what that name should be. Maybe "route manager" since affinity
+    // managers are created at a route level?
+    addGlobalLoadingIndicator(promise: Promise<unknown>, indicator: GlobalLoadingIndicator): void;
 }
 
 /**
@@ -1657,9 +1674,6 @@ export class TaskClientStoreInternal {
             });
         }
 
-        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-        // close the page if we haven't finished committing their task action. It will
-        // look committed on their machine but might not be on the server.
         const run = () =>
             commitTaskActionTransaction(context, {
                 spaceId: this.spaceId,
@@ -1677,6 +1691,11 @@ export class TaskClientStoreInternal {
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
+
+        // Will show a "Saving" indicator while we wait for the action transaction to
+        // commit. Will also add a `beforeunload` listener that warns the user that we
+        // have unsaved changes if they try to navigate away.
+        affinityManager.addGlobalLoadingIndicator(commitPromise, {type: "Saving"});
 
         const pendingActions = allPendingActions.slice(0, actions.length);
         const optimisticExtraPendingActions = allPendingActions.slice(actions.length);
@@ -1972,9 +1991,6 @@ export class TaskClientStoreInternal {
                     },
                 ];
 
-                // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                // close the page if we haven't finished committing their task action. It will
-                // look committed on their machine but might not be on the server.
                 const run = () =>
                     commitTaskActionTransaction(context, {
                         spaceId: this.spaceId,
@@ -1985,6 +2001,11 @@ export class TaskClientStoreInternal {
                 const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
                     ? run()
                     : this._commitTaskActionTransactionMutex.withLock(run);
+
+                // Will show a "Saving" indicator while we wait for the action transaction to
+                // commit. Will also add a `beforeunload` listener that warns the user that we
+                // have unsaved changes if they try to navigate away.
+                affinityManager.addGlobalLoadingIndicator(commitPromise, {type: "Saving"});
 
                 commitPromise.then(
                     () => {
@@ -2039,9 +2060,9 @@ export class TaskClientStoreInternal {
     /**
      * Deletes a task and all of its children. Does not optimistically update since
      * we may not know all of a task's children on the client. The UI should show a
-     * loading spinner for this action. You also need to handle errors from this
-     * action yourself. Unlike `commitTaskActionTransaction()` which displays
-     * errors on its own.
+     * loading spinner for this action. You also need to handle pending state and
+     * errors from this action yourself. Unlike `commitTaskActionTransaction()`
+     * which displays errors on its own.
      */
     public deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
@@ -2054,9 +2075,6 @@ export class TaskClientStoreInternal {
             time?: HybridLogicalTime;
         },
     ): Promise<void> {
-        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-        // close the page if we haven't finished committing their task action. It will
-        // look committed on their machine but might not be on the server.
         const run = () =>
             deleteTaskAndAllChildren(context, {
                 taskId,
@@ -2064,6 +2082,8 @@ export class TaskClientStoreInternal {
                 clientId: this._clientId,
             });
 
+        // We don't use `addGlobalLoadingIndicator()` with this promise
+        // because it's expected that the caller handle pending states and errors.
         const deletePromise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);

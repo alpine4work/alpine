@@ -2,12 +2,15 @@ import {ArrowLeft, Check, SpinnerGap} from "phosphor-react";
 import {ComponentType, ReactNode, memo} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
     mobileNavigationBarGap,
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
@@ -28,16 +31,33 @@ import {
     documentCommentThreadPreviewHeight,
 } from "~/client/styles/document_shared_styles.js";
 import {
-    desktopLayoutChannelViewAsidePaddingY,
+    channelFilesViewFileMaxSize,
+    channelFilesViewFileMinSize,
+    channelFilesViewFileRowFileCount,
+    channelFilesViewMaxWidth,
+    channelViewAsideFileGap,
+    channelViewAsideFileHeight,
+    channelViewAsidePostFileColumnCount,
+    channelViewAsidePostFileCount,
+    channelViewAsidePostFileRowCount,
+    channelViewMetadataSectionGap,
+    channelViewMetadataSectionTitleFontSize,
+    channelViewMetadataSectionTitleMarginBottom,
+    desktopLayoutChannelViewMetadataMarginTop,
+    desktopLayoutPostFauxInputCreateButtonMarginTop,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    mobileLayoutChannelViewAsidePaddingY,
+    mobileLayoutChannelViewMetadataMarginTop,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobileLayoutPostFauxInputCreateButtonMarginTop,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
     mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
+    postListViewAsideFlex,
+    postListViewAsideMaxWidth,
+    postViewFlex,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     desktopLayoutInboxBannerHeight,
@@ -58,6 +78,7 @@ import {
     searchMobileInputMarginTop,
 } from "~/client/styles/search_shared_styles.js";
 import {
+    Sprinkles,
     colorSchemeVars,
     contentStyles,
     fontSizes,
@@ -107,10 +128,14 @@ import {
 import {
     RemLength,
     Spacing,
+    convertRemLengthToPx,
     parseRemLengthNumber,
     screenPaddingX,
+    screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
  * Shimmer component for each space route. The test
@@ -128,7 +153,8 @@ const shimmerOptionsByRouteId: {
           }
         | false;
 } = {
-    "routes/s.$spaceId.channels.$channelId": {component: ChannelRouteShimmer},
+    "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
+    "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
     "routes/s.$spaceId.chat.$chatId": {
         inboxBannerMaxWidth: messageViewMaxWidth,
         component: ChatRouteShimmer,
@@ -325,64 +351,247 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
     const isMobile = useIsMobile();
 
     return (
-        <Box width="full" maxWidth={contentStyles.contentMaxWidth} marginX="center">
-            <Box paddingX={screenPaddingX}>
-                <Box height="safe-area-inset-top" />
-                <Box
-                    display="flex"
-                    justifyContent={isMobile ? "space-between" : undefined}
-                    alignItems="center"
-                    height={navigationBarHeight}
-                >
-                    {isMobile && <MobileBackButton />}
-                    <TextShimmer
-                        width={isMobile ? "24" : "32"}
-                        fontSize={isMobile ? "100" : "400"}
-                    />
-                    {isMobile && <MobileBackButtonSpacer />}
-                </Box>
-                <Box
-                    height={
-                        withMobileLayout
-                            ? mobileLayoutChannelViewAsidePaddingY
-                            : desktopLayoutChannelViewAsidePaddingY
-                    }
-                />
-                <Box
-                    className={pulseAnimationClassName}
-                    display="flex"
-                    justifyContent="flex-end"
-                    alignItems="center"
-                    width="full"
-                    height={postFauxInputCreateButtonHeight}
-                    padding="2.5"
-                    boxShadow="elevation-5-with-grey-10-border"
-                    borderRadius="1.5"
-                >
+        <Box width="full" display="flex" justifyContent="center">
+            <Box width="full" maxWidth={contentStyles.contentMaxWidth} style={{flex: postViewFlex}}>
+                <Box paddingX={screenPaddingX}>
+                    <Box height="safe-area-inset-top" />
                     <Box
-                        paddingX="2"
-                        height="7"
-                        minWidth="16"
-                        backgroundColor="grey-10"
-                        borderRadius="1"
                         display="flex"
-                        justifyContent="center"
+                        justifyContent={isMobile ? "space-between" : undefined}
                         alignItems="center"
-                        style={{
-                            // We include the text for layout but we don't want to render it.
-                            color: "transparent",
-                        }}
+                        height={navigationBarHeight}
                     >
-                        Post
+                        {isMobile && <MobileBackButton />}
+                        <TextShimmer
+                            width={isMobile ? "24" : "32"}
+                            fontSize={isMobile ? "100" : "400"}
+                        />
+                        {isMobile && <MobileBackButtonSpacer />}
+                    </Box>
+                    {withMobileLayout && (
+                        <Box
+                            paddingTop={mobileLayoutChannelViewMetadataMarginTop}
+                            display="flex"
+                            flexDirection="column"
+                            gap={channelViewMetadataSectionGap}
+                        >
+                            <Box>
+                                <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
+                                    <TextShimmer
+                                        width="16"
+                                        fontSize={channelViewMetadataSectionTitleFontSize}
+                                        color="grey-5"
+                                    />
+                                </Box>
+                                <Box
+                                    className={pulseAnimationClassName}
+                                    position="relative"
+                                    zIndex="0"
+                                    display="flex"
+                                >
+                                    <ChannelRouteContributorsAccountAvatarShimmer
+                                        zIndex="40"
+                                        isFirst
+                                    />
+                                    <ChannelRouteContributorsAccountAvatarShimmer zIndex="30" />
+                                    <ChannelRouteContributorsAccountAvatarShimmer zIndex="20" />
+                                    <ChannelRouteContributorsAccountAvatarShimmer zIndex="10" />
+                                </Box>
+                            </Box>
+                        </Box>
+                    )}
+                    <Box
+                        height={
+                            withMobileLayout
+                                ? mobileLayoutPostFauxInputCreateButtonMarginTop
+                                : desktopLayoutPostFauxInputCreateButtonMarginTop
+                        }
+                    />
+                    <Box
+                        className={pulseAnimationClassName}
+                        display="flex"
+                        justifyContent="flex-end"
+                        alignItems="center"
+                        width="full"
+                        height={postFauxInputCreateButtonHeight}
+                        padding="2.5"
+                        boxShadow="elevation-5-with-grey-10-border"
+                        borderRadius="1.5"
+                    >
+                        <Box
+                            paddingX="2"
+                            height="7"
+                            minWidth="16"
+                            backgroundColor="grey-10"
+                            borderRadius="1"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            style={{
+                                // We include the text for layout but we don't want to render it.
+                                color: "transparent",
+                            }}
+                        >
+                            Post
+                        </Box>
+                    </Box>
+                    <Box height={postContentViewOuterMarginY} borderBottom="grey-5" />
+                </Box>
+                <PostShimmer />
+                <PostShimmer />
+                <PostShimmer />
+                <PostShimmer />
+                <PostShimmer />
+            </Box>
+            {!withMobileLayout && (
+                <Box
+                    width="full"
+                    maxWidth={postListViewAsideMaxWidth}
+                    style={{flex: postListViewAsideFlex}}
+                >
+                    <Box height="safe-area-inset-top" />
+                    <Box height={navigationBarHeight} />
+                    <Box
+                        paddingX={screenPaddingX}
+                        paddingTop={desktopLayoutChannelViewMetadataMarginTop}
+                        paddingBottom={screenPaddingX}
+                        display="flex"
+                        flexDirection="column"
+                        gap={channelViewMetadataSectionGap}
+                    >
+                        <Box>
+                            <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
+                                <TextShimmer
+                                    width="16"
+                                    fontSize={channelViewMetadataSectionTitleFontSize}
+                                    color="grey-5"
+                                />
+                            </Box>
+                            <Box
+                                className={pulseAnimationClassName}
+                                position="relative"
+                                zIndex="0"
+                                display="flex"
+                            >
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="40" isFirst />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="30" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="20" />
+                                <ChannelRouteContributorsAccountAvatarShimmer zIndex="10" />
+                            </Box>
+                        </Box>
+                        <Box>
+                            <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
+                                <TextShimmer
+                                    width="8"
+                                    fontSize={channelViewMetadataSectionTitleFontSize}
+                                    color="grey-5"
+                                />
+                            </Box>
+                            <Box
+                                gap={channelViewAsideFileGap}
+                                style={{
+                                    display: "grid",
+                                    gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,
+                                    gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
+                                }}
+                            >
+                                {createArrayWithLength(channelViewAsidePostFileCount, index => {
+                                    return <Box key={index} border="grey-5" borderRadius="1" />;
+                                })}
+                            </Box>
+                        </Box>
                     </Box>
                 </Box>
-                <Box height={postContentViewOuterMarginY} borderBottom="grey-5" />
+            )}
+        </Box>
+    );
+}
+
+function ChannelRouteContributorsAccountAvatarShimmer({
+    zIndex,
+    isFirst,
+}: {
+    zIndex: Sprinkles["zIndex"];
+    isFirst?: boolean;
+}) {
+    return (
+        <Box
+            position="relative"
+            zIndex={zIndex}
+            backgroundColor="grey-10"
+            width="7"
+            height="7"
+            marginLeft={isFirst ? "0" : "-1"}
+            borderRadius="full"
+            style={{
+                boxShadow: `0px 0px 0px 2px ${colorSchemeVars["grey-0"]}`,
+            }}
+        />
+    );
+}
+
+function ChannelFilesRouteShimmer({}: {withMobileLayout: boolean}) {
+    const isMobile = useIsMobile();
+    const clientInfo = useClientInfo();
+    const remPx = useRemPx();
+
+    const [containerRef, containerSize] = useResizeObserver();
+
+    const maxWidth = channelFilesViewMaxWidth[isMobile ? "mobile" : "desktop"];
+
+    const fileSizePx = clamp(
+        convertRemLengthToPx(spacing[channelFilesViewFileMinSize], remPx),
+        ((containerSize?.width ?? clientInfo.screenWidth) -
+            screenPaddingXRem[isMobile ? "mobile" : "desktop"] * 2 * remPx -
+            contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1) * remPx) /
+            channelFilesViewFileRowFileCount,
+        convertRemLengthToPx(spacing[channelFilesViewFileMaxSize], remPx),
+    );
+
+    return (
+        <Box ref={containerRef} display="flex" flexDirection="column" alignItems="center">
+            <Box flexShrink="0" paddingTop="safe-area-inset" width="full" style={{maxWidth}}>
+                <Box
+                    position="relative"
+                    height={navigationBarHeight}
+                    maxWidth={contentStyles.contentMaxWidth}
+                >
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="center"
+                        alignItems={!isMobile ? "flex-start" : "center"}
+                        width="full"
+                        maxWidth={messageViewMaxWidth}
+                        height="full"
+                        paddingX={screenPaddingX}
+                    >
+                        <TextShimmer fontSize="200" width="32" />
+                        <TextShimmer fontSize="75" width="8" />
+                    </Box>
+                </Box>
             </Box>
-            <PostShimmer />
-            <PostShimmer />
-            <PostShimmer />
-            <PostShimmer />
-            <PostShimmer />
+            <Box
+                className={pulseAnimationClassName}
+                width="full"
+                paddingX={screenPaddingX}
+                gap={contentStyles.fileRowGapWidth}
+                style={{
+                    maxWidth,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${channelFilesViewFileRowFileCount}, 1fr)`,
+                    gridTemplateRows: `repeat(3, ${fileSizePx}px)`,
+                }}
+            >
+                {createArrayWithLength(channelFilesViewFileRowFileCount * 3, index => (
+                    <Box
+                        key={index}
+                        backgroundColor="grey-5"
+                        borderRadius="1"
+                        style={{width: fileSizePx, height: fileSizePx}}
+                    />
+                ))}
+            </Box>
         </Box>
     );
 }
@@ -1417,7 +1626,7 @@ export function TaskCommentsViewShimmer({
                             paddingX={screenPaddingX}
                         >
                             <TextShimmer fontSize="200" width="32" />
-                            <TextShimmer fontSize="75" width="32" />
+                            <TextShimmer fontSize="75" width="12" />
                         </Box>
                     </Box>
                 </Box>

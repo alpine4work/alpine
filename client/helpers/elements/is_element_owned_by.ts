@@ -28,17 +28,42 @@ export function isElementOwnedBy(ownerElement: Element, childElement: Element): 
         assert(!seenElements.has(currentElement), "Element ownership cycle detected");
         seenElements.add(currentElement);
 
-        const ownerElementId: string | null = currentElement.getAttribute(ownedByAttributeName);
-        const currentOwnerElement: Element | null = ownerElementId
-            ? document.getElementById(ownerElementId)
-            : null;
+        let nextElement: Element | null = null;
 
-        let currentParentElement: Node | null = currentElement.parentNode;
-        while (currentParentElement !== null && !(currentParentElement instanceof Element))
-            currentParentElement = currentParentElement.parentNode;
+        if (nextElement === null) {
+            nextElement = elementByOwnerElement?.get(currentElement) ?? null;
+        }
 
-        currentElement = currentOwnerElement ?? currentParentElement;
+        if (nextElement === null) {
+            const ownerElementId: string | null = currentElement.getAttribute(ownedByAttributeName);
+            nextElement = ownerElementId ? document.getElementById(ownerElementId) : null;
+        }
+
+        if (nextElement === null) {
+            nextElement = currentElement.parentElement;
+        }
+
+        currentElement = nextElement;
     }
 
     return false;
+}
+
+let elementByOwnerElement: WeakMap<Element, Element> | null = null;
+
+/**
+ * Set that the provided `childElement` is owned by `ownerElement`. You may use
+ * this to establish a parent/child relationship without the child being a
+ * direct child element of the owner. Normally we use the `data-ownedby`
+ * attribute to specify this relationship however sometimes you the element you
+ * want to reference doesn't have an `id` and you can't add one.
+ */
+export function setElementOwnedBy(childElement: Element, ownerElement: Element | null) {
+    elementByOwnerElement ??= new WeakMap();
+
+    if (ownerElement === null) {
+        elementByOwnerElement.delete(childElement);
+    } else {
+        elementByOwnerElement.set(childElement, ownerElement);
+    }
 }

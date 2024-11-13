@@ -56,6 +56,7 @@ export namespace DynamoTableSchemaTypes {
     export type ConfigBase = {
         readonly name: string;
         readonly partitions: ReadonlyArray<Partition.ConfigBase>;
+        readonly withoutCompatibilityErrorsForTest?: boolean;
     };
 
     /**

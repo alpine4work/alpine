@@ -10,6 +10,7 @@ import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
+import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
@@ -46,17 +47,15 @@ const spaceLayoutSidebarSpaceByContainerWidthRem =
 //
 // This `calc()` expression calculates the amount of space to allocate the
 // sidebar based on the container width.
-const spaceLayoutSidebarSpace = `clamp(${spaceLayoutMinSidebarSpaceRem}rem, ${spaceLayoutMaxSidebarSpaceRem}rem + (100% - ${spaceLayoutContainerWidthForMaxSidebarSpaceRem}rem) * ${spaceLayoutSidebarSpaceByContainerWidthRem}, ${spaceLayoutMaxSidebarSpaceRem}rem)`;
+export const spaceLayoutSidebarSpace = `clamp(${spaceLayoutMinSidebarSpaceRem}rem, ${spaceLayoutMaxSidebarSpaceRem}rem + (100% - ${spaceLayoutContainerWidthForMaxSidebarSpaceRem}rem) * ${spaceLayoutSidebarSpaceByContainerWidthRem}, ${spaceLayoutMaxSidebarSpaceRem}rem)`;
 
 export function SpaceLayoutSideBar({
     space,
     initialInbox,
-    isFullWidthRoute,
     onSearchPress,
 }: {
     space: SpaceModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
-    isFullWidthRoute: boolean;
     onSearchPress: () => void;
 }) {
     const rootNavigate = useRootNavigate();
@@ -70,14 +69,16 @@ export function SpaceLayoutSideBar({
 
     return (
         <Box
-            zIndex="10"
+            zIndex="30"
             position="relative"
             flexShrink="0"
             style={{
                 // Routes that take up the full screen width always allocate space for the
                 // space layout sidebar instead of using dynamic space that attempts to
                 // visually center content.
-                width: isFullWidthRoute ? spaceLayoutStyles.sideBarWidth : spaceLayoutSidebarSpace,
+                width: useIsFullWidthRoute()
+                    ? spaceLayoutStyles.sideBarWidth
+                    : spaceLayoutSidebarSpace,
             }}
         >
             <Box

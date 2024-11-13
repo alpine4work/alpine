@@ -41,6 +41,7 @@ export {ActualModalDialog as ModalDialog};
 function ModalDialog({
     title,
     description,
+    "data-ownedby": dataOwnedBy,
     primaryButtonLabel,
     isPrimaryButtonDisabled,
     primaryButtonPressErrorTitle,
@@ -77,6 +78,7 @@ function ModalDialog({
             ref={modalRef}
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
+            data-ownedby={dataOwnedBy}
             onClose={onClose}
             primaryButtonLabel={primaryButtonLabel}
             isPrimaryButtonDisabled={isPrimaryButtonDisabled}

@@ -10,10 +10,8 @@ ts_project(
         "//server/search/data/index:__pkg__",
     ],
     deps = [
-        "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
-        "//:node_modules/fs-extra",
         "//server/helpers",
         "//server/language_models/core",
         "//shared/error",

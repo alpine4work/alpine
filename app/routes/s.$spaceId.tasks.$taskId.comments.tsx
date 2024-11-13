@@ -9,6 +9,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
@@ -84,7 +85,9 @@ export async function loader({context: unauthenticatedContext, params, request}:
     );
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [{title: taskTitle}]);
+export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [
+    {title: `Comments ${metaTitleSeparator} ${taskTitle}`},
+]);
 
 export default function TaskCommentsRoute({
     withMobileLayout: withMobileLayoutProp = false,
@@ -112,6 +115,8 @@ export default function TaskCommentsRoute({
 
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+
+    const isFromTaskDetailView = searchParams.get("from") === "task";
 
     useEffect(() => {
         if (withMobileLayout) return;
@@ -155,10 +160,11 @@ export default function TaskCommentsRoute({
                 <NavigationBarContent
                     withMobileLayout={withMobileLayout}
                     title={
-                        <TaskCommentsViewHeaderTitle
+                        <TaskCommentsViewNavigationBarTitle
                             spaceId={spaceId}
                             taskId={taskId}
                             title={taskTitle}
+                            isFromTaskDetailView={isFromTaskDetailView}
                         />
                     }
                     subtitle="Comments"
@@ -209,21 +215,28 @@ export default function TaskCommentsRoute({
     );
 }
 
-function TaskCommentsViewHeaderTitle({
+function TaskCommentsViewNavigationBarTitle({
     title,
     spaceId,
     taskId,
+    isFromTaskDetailView,
 }: {
     title: string;
     spaceId: SpaceId;
     taskId: TaskId;
+    isFromTaskDetailView: boolean;
 }) {
     const navigate = useNavigate();
+
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(`/s/${spaceId}/tasks/${taskId}`, {
-                stopPropagation: true,
-            });
+            if (isFromTaskDetailView) {
+                navigate(-1);
+            } else {
+                navigate(`/s/${spaceId}/tasks/${taskId}`, {
+                    stopPropagation: true,
+                });
+            }
         },
     });
 

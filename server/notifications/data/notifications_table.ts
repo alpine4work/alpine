@@ -1036,12 +1036,12 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
         >();
 
-        for (const event of eventTransaction) {
+        for (const eventEntry of eventTransaction) {
             getOrSetDefaultMapValue(
                 eventTransactionBySpaceIdAndAccountId,
-                `${event.item.model.spaceId}:${event.item.model.accountId}`,
+                `${eventEntry.itemKey.spaceId}:${eventEntry.itemKey.accountId}`,
                 () => [],
-            ).push(event);
+            ).push(eventEntry.event);
         }
 
         await runAllPromises(
@@ -1142,7 +1142,7 @@ export async function runMoveInboxAttributesItemMigration(
                         sortRangeType: "InboxAttributes",
                     },
                 ),
-                InboxTable.transactionDangerouslyDeleteItemWithoutEventAndBreakFutureUpdates(
+                InboxTable.transactionDangerouslyDeleteItemWithoutGravestoneAndWithoutEvent(
                     legacyItem,
                 ),
             ]);
@@ -1296,14 +1296,15 @@ export async function getInbox(
         if (inbox) return inbox;
 
         // If the inbox item doesn't exist yet, let's create one.
-        const {getRealtimeItem} = await InboxTable.createItem(
+        const {getEvent} = await InboxTable.createItem(
             context,
             getInitialInboxItem(spaceId, context.actor.getAccountId()),
             // By default condition check errors from `createItem()` call won't retry. Make
             // sure we handle race conditions by retrying on condition check error.
             {isConditionCheckErrorRetriable: true},
         );
-        return getRealtimeItem();
+
+        return (await getEvent(context)).item;
     });
 }
 

@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {Memo, Ref, forwardRef, useId, useImperativeHandle, useRef} from "react";
+import {Memo, Ref, forwardRef, useId, useImperativeHandle, useMemo, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
@@ -15,6 +15,7 @@ import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_st
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -74,6 +75,11 @@ function TaskDetailNotesField(
 
     useWebSocketErrorDialog(notesClient, state.errorState);
 
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "TaskNotes", taskId}),
+        [taskId],
+    );
+
     return (
         <Box>
             <span
@@ -102,7 +108,13 @@ function TaskDetailNotesField(
                             aria-labelledby={labelId}
                             withMobileLayout={withMobileLayout}
                             content={state.editorState.getContent()}
+                            onMergeContentReferences={references =>
+                                notesClient.changeEditorState(
+                                    state.editorState.updateReferences({type: "Merge", references}),
+                                )
+                            }
                             placeholder="Add more details…"
+                            fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({paddingX: screenPaddingX})}
                         />
                     </Box>
@@ -115,6 +127,7 @@ function TaskDetailNotesField(
                             state={state.editorState}
                             onChange={state => notesClient.changeEditorState(state)}
                             placeholder="Add more details…"
+                            fileAttachmentTarget={fileAttachmentTarget}
                             className={classNames(
                                 tasksStyles.detailNotesContentEditorClassName,
                                 sprinkles({paddingX: screenPaddingX}),

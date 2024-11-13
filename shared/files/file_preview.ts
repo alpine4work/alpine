@@ -161,6 +161,14 @@ export const FileImagePreviewSchema = Schema.booleanUnion(
         preview.videoDuration === "Processing",
 );
 
+export type FileAudioPreviewMetadata = SchemaType<typeof FileAudioPreviewMetadataSchema>;
+
+export const FileAudioPreviewMetadataSchema = Schema.object({
+    title: Schema.string.nullable(),
+    artist: Schema.string.nullable(),
+    album: Schema.string.nullable(),
+});
+
 /**
  * Preview we display for audio files. For audio all we show is the duration of
  * the audio in the preview. That's all the relevant information there is to
@@ -175,15 +183,20 @@ export const FileAudioPreviewSchema = Schema.booleanUnion(
         type: Schema.value("Audio"),
         isProcessing: Schema.value(true),
         duration: processingSchema(Schema.integer),
+        metadata: processingSchema(FileAudioPreviewMetadataSchema).optional(),
     }),
     Schema.object({
         type: Schema.value("Audio"),
         isProcessing: Schema.value(false),
         duration: Schema.integer,
+        metadata: FileAudioPreviewMetadataSchema.optional(),
     }),
 ).validation(
     "When `isProcessing` is true some preview data must be processing",
-    preview => !preview.isProcessing || preview.duration === "Processing",
+    preview =>
+        !preview.isProcessing ||
+        preview.duration === "Processing" ||
+        preview.metadata === "Processing",
 );
 
 /**

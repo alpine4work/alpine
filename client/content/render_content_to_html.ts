@@ -6,12 +6,11 @@ import {
     layoutContentFile,
     layoutContentFileParent,
 } from "~/client/content/internal/content_file_layout.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    renderContentFilePreview,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
@@ -20,17 +19,20 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     RecursiveReadonlyArray,
     renderProsemirrorDomOutputSpec,
-    serializeProsemirrorFragmentToHtml,
+    serializeProsemirrorFragmentToHtmlGenerator,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -49,14 +51,19 @@ export function renderContentToHtmlStore(
         currentAccount: AccountModel | null;
         screenWidth: number;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<string> {
-    return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
-        return `<div class="${contentStyles.docClassName}">${fragmentHtml}</div>`;
-    });
+    return renderContentFragmentToHtmlGeneratorStore(content, options).map(
+        fragmentHtmlGenerator => {
+            return `<div class="${
+                contentStyles.docClassName
+            }">${fragmentHtmlGenerator.generateHtml()}</div>`;
+        },
+    );
 }
 
 /**
@@ -71,7 +78,7 @@ export function renderContentToHtmlStore(
  * If `isInert` is set to true then elements which were interactive, like
  * links, are made non clickable or focusable. But visually the stay the same.
  */
-export function renderContentFragmentToHtmlStore(
+export function renderContentFragmentToHtmlGeneratorStore(
     content: ContentWithReferences,
     {
         spaceId,
@@ -79,6 +86,7 @@ export function renderContentFragmentToHtmlStore(
         currentAccount,
         screenWidth,
         isMobile,
+        isInitialAppRender,
         withPosAttribute,
         isInert,
         placeholder,
@@ -91,6 +99,7 @@ export function renderContentFragmentToHtmlStore(
         currentAccount: AccountModel | null;
         screenWidth: number;
         isMobile: boolean;
+        isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         isInert?: boolean;
         placeholder?: string;
@@ -98,7 +107,7 @@ export function renderContentFragmentToHtmlStore(
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
-): Store<string> {
+): Store<HtmlFragmentGenerator> {
     return computeStore(get => {
         assert(content.doc.type.schema.topNodeType === content.doc.type);
 
@@ -107,7 +116,7 @@ export function renderContentFragmentToHtmlStore(
 
         const orderedListItemNumberByNode = new Map<Node, number>();
 
-        return serializeProsemirrorFragmentToHtml(content.doc.content, {
+        return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
             withPosAttribute,
             startPos: 1,
             decorations,
@@ -161,22 +170,13 @@ export function renderContentFragmentToHtmlStore(
                         "class",
                         contentStyles.checkListItemCheckboxClassName,
                     );
-                    checkboxHtml.appendChild({
-                        generateHtml: () =>
+                    checkboxHtml.appendChild(
+                        createSvgHtmlGenerator(
                             checkIconSvg({
                                 className: contentStyles.checkListItemCheckboxIconClassName,
                             }),
-                        generateNode: () => {
-                            throw new UnimplementedError(
-                                "DOM node generation unimplemented for icon SVG",
-                            );
-                        },
-                        patchNode: () => {
-                            throw new UnimplementedError(
-                                "DOM node generation unimplemented for icon SVG",
-                            );
-                        },
-                    });
+                        ),
+                    );
 
                     const contentHtml = new HtmlElementGenerator("div");
                     html.appendChild(contentHtml);
@@ -251,22 +251,13 @@ export function renderContentFragmentToHtmlStore(
                                 sprinkles({color: "grey-60"}),
                             ),
                         );
-                        copyButtonHtml.appendChild({
-                            generateHtml: () =>
+                        copyButtonHtml.appendChild(
+                            createSvgHtmlGenerator(
                                 clipboardTextIconSvg({
                                     className: contentStyles.codeBlockCopyButtonIconClassName,
                                 }),
-                            generateNode: () => {
-                                throw new UnimplementedError(
-                                    "DOM node generation unimplemented for icon SVG",
-                                );
-                            },
-                            patchNode: () => {
-                                throw new UnimplementedError(
-                                    "DOM node generation unimplemented for icon SVG",
-                                );
-                            },
-                        });
+                            ),
+                        );
                     }
 
                     return {html, contentHtml};
@@ -384,6 +375,7 @@ export function renderContentFragmentToHtmlStore(
                         layout,
                         screenWidth,
                         isMobile,
+                        isInitialAppRender,
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                     });
 

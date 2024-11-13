@@ -1,8 +1,8 @@
 import classNames from "classnames";
 import {useMemo, useRef} from "react";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {
     addContentFileVideoPlayerBehavior,
     renderContentFileVideoPlayer,
@@ -10,7 +10,11 @@ import {
 import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentFileVideoPlayerStyles, greyElevated2ClassName} from "~/client/styles/styles.js";
+import {
+    contentFileVideoAndAudioPlayerControlsStyles,
+    contentFileVideoPlayerStyles,
+    greyElevated2ClassName,
+} from "~/client/styles/styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -79,6 +83,9 @@ function ContentFileVideoViewerDesktopInner({
             file,
             durationMs,
             layout: null,
+            isMobile: false,
+            isInitialAppRender: false,
+            withoutInteractivity: false,
         });
 
         return containerHtml;
@@ -95,6 +102,12 @@ function ContentFileVideoViewerDesktopInner({
         if (previousContainerHtml === containerHtml) return;
 
         if (!previousContainerHtml) {
+            // This case happens during a hot reload. We need to remove the children
+            // currently in the DOM.
+            while (containerElement.hasChildNodes()) {
+                containerElement.firstChild!.remove();
+            }
+
             containerElement.appendChild(containerHtml.generateNode());
         } else {
             assert(containerHtml.patchNode(previousContainerHtml, containerElement));
@@ -106,6 +119,7 @@ function ContentFileVideoViewerDesktopInner({
 
         const {onPress, cleanup} = addContentFileVideoPlayerBehavior(containerElement, {
             durationMs,
+            isInitialAppRender: false,
             getReporter: () => reporter,
         });
 
@@ -131,6 +145,7 @@ function ContentFileVideoViewerDesktopInner({
             ref={containerRef}
             className={classNames(
                 contentFileVideoPlayerStyles.containerClassName,
+                contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
                 greyElevated2ClassName,
             )}
         />

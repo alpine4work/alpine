@@ -267,6 +267,8 @@ export class TaskClientQuery {
      * Return a promise that resolves when the query has some tasks loaded. Queries
      * start in an unloaded state with no data. This allows you to wait until the
      * query has some data you can display to the user.
+     *
+     * This promise never rejects.
      */
     public waitForLoaded(): Promise<void> {
         return new Promise(resolve => {

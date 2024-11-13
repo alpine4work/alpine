@@ -702,7 +702,7 @@ export function TaskDetailView({
               icon: <ChatCircleDots />,
               description: "Open comments",
               onPress: async () => {
-                  await navigate(`/s/${spaceId}/tasks/${taskId}/comments`);
+                  await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
               },
               pressErrorTitle: "Couldn't open comments",
           }

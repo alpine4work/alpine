@@ -1,12 +1,12 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileViewerModalDesktop} from "~/client/content/internal/content_file_viewer_modal_desktop.js";
 import {ContentFileViewerModalMobile} from "~/client/content/internal/content_file_viewer_modal_mobile.js";
-import {useHandoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
+import {useHandoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
 import {
     ContentFileViewerLoaderData,
     loadContentFileViewerData,
 } from "~/client/content/internal/load_content_file_viewer_data.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -37,7 +37,7 @@ export function ContentFileViewerModal({
     const isMobile = useIsMobile();
     const {space} = useSpaceContext();
 
-    const handoffFileReference = useHandoffContentFileReference(fileId);
+    const handoffFilePreviewState = useHandoffContentFilePreviewState(fileId);
 
     const fileFromAttachmentInput = useMemo(
         () => ({
@@ -52,7 +52,10 @@ export function ContentFileViewerModal({
         getFileFromAttachment,
         fileFromAttachmentInput,
         {
-            initialOutput: handoffFileReference?.file.id === fileId ? handoffFileReference : null,
+            initialOutput:
+                handoffFilePreviewState?.reference?.file.id === fileId
+                    ? handoffFilePreviewState.reference
+                    : null,
             // File data is immutable after it finishes loading. Don't automatically
             // revalidate whenever the browser becomes visible after being hidden.
             withoutAutomaticRevalidation: true,
@@ -61,7 +64,7 @@ export function ContentFileViewerModal({
 
     const forceRevalidateRpc = useForceRevalidateRpc();
 
-    const [expirationTimers] = useState(() => new ContentFilePreviewExpirationTimers());
+    const expirationTimers = useContentFilePreviewExpirationTimers();
 
     const isFileLoading: boolean =
         !!fileFromAttachmentOutput.output?.file && fileFromAttachmentOutput.output.file.isLoading();
@@ -182,8 +185,9 @@ export function ContentFileViewerModal({
             spaceId: space.id,
             signedUrlSearch: fileFromAttachmentOutput.output.signedUrlSearch,
             file: fileFromAttachmentOutput.output.file,
+            isMobile,
         }).then(loaderDataPromiseResolver.resolve, loaderDataPromiseResolver.reject);
-    }, [fileFromAttachmentOutput.output, loaderDataPromiseResolver, space.id]);
+    }, [fileFromAttachmentOutput.output, isMobile, loaderDataPromiseResolver, space.id]);
 
     const [delayState, setDelayState] = useState<{startTime: number} | null>(() => ({
         startTime: Date.now(),
@@ -229,6 +233,7 @@ export function ContentFileViewerModal({
                     file={fileFromAttachmentOutput.output.file}
                     signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                     attachmentTarget={attachmentTarget}
+                    ownedByElement={handoffFilePreviewState?.ownedByElement ?? null}
                     expirationTimers={expirationTimers}
                     loaderDataPromise={loaderDataPromiseResolver.promise}
                     onClose={onClose}
@@ -238,6 +243,7 @@ export function ContentFileViewerModal({
                     file={fileFromAttachmentOutput.output.file}
                     signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}
                     attachmentTarget={attachmentTarget}
+                    ownedByElement={handoffFilePreviewState?.ownedByElement ?? null}
                     expirationTimers={expirationTimers}
                     loaderDataPromise={loaderDataPromiseResolver.promise}
                     onClose={onClose}

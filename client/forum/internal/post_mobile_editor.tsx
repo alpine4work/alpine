@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
@@ -29,6 +29,7 @@ import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -194,6 +195,10 @@ export function PostMobileEditor({
                             // editing modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas…"
+                            fileAttachmentTarget={useMemo(
+                                (): FileAttachmentTarget => ({type: "Post", postId: post.id}),
+                                [post.id],
+                            )}
                             containerClassName={sprinkles({
                                 flexGrow: "1",
                             })}

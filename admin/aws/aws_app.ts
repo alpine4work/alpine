@@ -4,6 +4,7 @@ import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsFileUploadService} from "~/admin/aws/internal/aws_file_upload_service.js";
 import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
@@ -19,7 +20,7 @@ export async function createAwsApp() {
     const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    const {importDynamo, importSqs} = await addAwsResources(stack);
+    const {importDynamo, importSqs} = await addAwsResources(stack, {cloudflareAccountId});
 
     // Resources related to continuous integration and continuous deployment live in
     // this stack. The term "lifecycle" is from the industry term
@@ -36,7 +37,10 @@ export async function createAwsApp() {
     return app;
 }
 
-async function addAwsResources(stack: Stack): Promise<{
+async function addAwsResources(
+    stack: Stack,
+    {cloudflareAccountId}: {cloudflareAccountId: string},
+): Promise<{
     importVpc: (stack: Stack) => AwsVpc;
     importDynamo: (stack: Stack) => AwsDynamo;
     importOpensearch: (stack: Stack) => AwsOpensearch;
@@ -82,6 +86,14 @@ async function addAwsResources(stack: Stack): Promise<{
         ecsCluster,
         dynamo,
         opensearch,
+        sqs,
+    });
+
+    new AwsFileUploadService(stack, {
+        vpc,
+        ecsCluster,
+        cloudflareAccountId,
+        dynamo,
         sqs,
     });
 

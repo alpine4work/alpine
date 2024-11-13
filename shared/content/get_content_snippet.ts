@@ -72,7 +72,8 @@ export function getContentSnippet(
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
                         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
-                        if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                        const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
+                        for (let i = 0; i < lineBreakCount; i++) {
                             remainingBefore = {
                                 lineCount: remainingBefore.isAtLineBreak
                                     ? remainingBefore.lineCount - 1
@@ -107,7 +108,8 @@ export function getContentSnippet(
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
                         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
-                        if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                        const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
+                        for (let i = 0; i < lineBreakCount; i++) {
                             remainingAfter = {
                                 lineCount: remainingAfter.isAtLineBreak
                                     ? remainingAfter.lineCount - 1
@@ -153,7 +155,8 @@ export function getContentSnippet(
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
                     const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
-                    if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                    const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
+                    for (let i = 0; i < lineBreakCount; i++) {
                         remainingBefore = {
                             lineCount: remainingBefore.isAtLineBreak
                                 ? remainingBefore.lineCount - 1
@@ -196,7 +199,8 @@ export function getContentSnippet(
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
                     const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
-                    if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                    const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
+                    for (let i = 0; i < lineBreakCount; i++) {
                         remainingAfter = {
                             lineCount: remainingAfter.isAtLineBreak
                                 ? remainingAfter.lineCount - 1
@@ -403,30 +407,30 @@ function consumeLinesOfText(
  * Basically boils down to true if the node is styled with `display: block` and
  * false if the node is styled with `display: inline`.
  */
-const isLineBreakingByNodeType: {
-    [Key in Exclude<ContentNodeTypeName, "text">]: boolean;
+const lineBreakCountByNodeType: {
+    [Key in Exclude<ContentNodeTypeName, "text">]: number;
 } = {
     // `display: block`
-    doc: true,
-    title: true,
-    paragraph: true,
-    quoteBlock: true,
-    codeBlock: true,
-    codeBlockLine: true,
-    unorderedListItem: true,
-    orderedListItem: true,
-    checkListItem: true,
-    break: true,
-    heading: true,
-    divider: true,
-    fileRow: true,
+    doc: 1,
+    title: 1,
+    paragraph: 1,
+    quoteBlock: 1,
+    codeBlock: 1,
+    codeBlockLine: 1,
+    unorderedListItem: 1,
+    orderedListItem: 1,
+    checkListItem: 1,
+    break: 1,
+    heading: 1,
+    divider: 1,
+    fileRow: 8,
     // `display: inline`
-    mention: false,
+    mention: 0,
     // Horizontal layout in a `display: flex` or `display: grid` element
-    file: false,
+    file: 0,
     // Set as `float: left` and `float: right`. Multiple adjacent `fileFloat`s
     // should not be counted as lines for the purpose of snippet cutting
-    fileFloat: false,
+    fileFloat: 0,
 };
 
 /**

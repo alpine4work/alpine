@@ -6,6 +6,7 @@ ts_project(
         "//server/chat/data:data_testonly",
         "//server/dynamo/test_helpers",
         "//server/forum/data:data_testonly",
+        "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
     ],
     visibility = [

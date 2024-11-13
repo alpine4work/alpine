@@ -187,7 +187,7 @@ export function ChannelMobileEditor({
                                             }));
                                         }}
                                         className={sprinkles({
-                                            paddingX: "0.5",
+                                            paddingX: "2.5",
                                             paddingY: "1.5",
                                         })}
                                         // Always in editing mode. User won't be reading while in the modal.

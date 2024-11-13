@@ -9,9 +9,11 @@ import {
 } from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useState} from "react";
+import {ContentFileAudioViewerDesktop} from "~/client/content/internal/content_file_audio_viewer_desktop.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileVideoViewerDesktop} from "~/client/content/internal/content_file_video_viewer_desktop.js";
 import {
     contentFileViewerDesktopMarginBottom,
@@ -25,10 +27,7 @@ import {
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    handleDownloadContentFile,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {handleDownloadContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -69,6 +68,7 @@ export function ContentFileViewerModalDesktop({
     file,
     signedUrlSearch,
     attachmentTarget,
+    ownedByElement,
     expirationTimers,
     loaderDataPromise,
     onClose,
@@ -76,6 +76,7 @@ export function ContentFileViewerModalDesktop({
     file: FileModel;
     signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
+    ownedByElement: Element | null;
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -133,6 +134,7 @@ export function ContentFileViewerModalDesktop({
 
     return (
         <Modal
+            ownedByElement={ownedByElement}
             aria-label="File"
             maxWidth="full"
             height="full"
@@ -371,7 +373,11 @@ function ContentFileDesktopViewer(props: {
                             }
                             weight={contentFileViewerLargeProcessingIndicatorWeight.desktop}
                         />
-                        Unknown file
+                        <Box textAlign="center">
+                            Unknown
+                            <br />
+                            {prettyBytes(props.file.contentLength)}
+                        </Box>
                     </Box>
                 </Box>
             );
@@ -443,8 +449,7 @@ function ContentFileDesktopViewer(props: {
         case "audio/webm":
         case "audio/ogg":
         case "audio/mp4": {
-            // TODO(calebmer, #files): Implement
-            return null;
+            return <ContentFileAudioViewerDesktop {...props} />;
         }
         case "text/plain":
         case "text/javascript":

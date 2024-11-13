@@ -221,6 +221,7 @@ Resources:
                 - Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
                 - Ref: AppServiceAutoScalingGroupCapacityProvider7D53F9BC
                 - Ref: JobQueueServiceAutoScalingGroupCapacityProvider3105FE09
+                - Ref: FileUploadServiceAutoScalingGroupCapacityProviderE07ABB82
             Cluster:
                 Ref: EcsClusterFB9B21B5
             DefaultCapacityProviderStrategy: []
@@ -986,8 +987,21 @@ Resources:
                   AttributeType: S
                 - AttributeName: sortKey
                   AttributeType: S
+                - AttributeName: index1PartitionKey
+                  AttributeType: S
+                - AttributeName: index1SortKey
+                  AttributeType: S
             BillingMode: PAY_PER_REQUEST
             DeletionProtectionEnabled: true
+            GlobalSecondaryIndexes:
+                - IndexName: Index1
+                  KeySchema:
+                      - AttributeName: index1PartitionKey
+                        KeyType: HASH
+                      - AttributeName: index1SortKey
+                        KeyType: RANGE
+                  Projection:
+                      ProjectionType: KEYS_ONLY
             KeySchema:
                 - AttributeName: partitionKey
                   KeyType: HASH
@@ -2102,7 +2116,7 @@ Resources:
     AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B400082995A0D:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: Load balancer to target
+            Description: from CyberworldsStackAppServiceLoadBalancerSecurityGroupB7CCC71B:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -2228,8 +2242,6 @@ Resources:
                 - Key: Name
                   PropagateAtLaunch: true
                   Value: CyberworldsStack/AppService/AutoScalingGroup
-            TargetGroupARNs:
-                - Ref: AppServiceLoadBalancerListenerTargetGroupGroup02B0400B
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -2724,10 +2736,18 @@ Resources:
                 MinimumHealthyPercent: 50
             DesiredCount: 2
             EnableECSManagedTags: false
+            HealthCheckGracePeriodSeconds: 60
+            LoadBalancers:
+                - ContainerName: Container
+                  ContainerPort: 4000
+                  TargetGroupArn:
+                      Ref: AppServiceLoadBalancerListenerTargetGroupGroup02B0400B
             SchedulingStrategy: REPLICA
             TaskDefinition:
                 Ref: AppServiceTaskDefinition576A8666
         DependsOn:
+            - AppServiceLoadBalancerListenerE64C9A05
+            - AppServiceLoadBalancerListenerTargetGroupGroup02B0400B
             - AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
             - AppServiceTaskDefinitionTaskRole4C9D7E3B
         Metadata:
@@ -2772,7 +2792,7 @@ Resources:
     AppServiceLoadBalancerSecurityGrouptoCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF84000363F0E6C:
         Type: AWS::EC2::SecurityGroupEgress
         Properties:
-            Description: Load balancer to target
+            Description: to CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:4000
             DestinationSecurityGroupId:
                 Fn::GetAtt:
                     - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
@@ -2808,6 +2828,7 @@ Resources:
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /api/internal/healthcheck
+            HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
             Port: 4000
             Protocol: HTTP
@@ -3896,10 +3917,582 @@ Resources:
                 - Ref: MigrationServiceTaskDefinitionExecutionRole96CABBE6
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    FileUploadServiceAutoScalingGroupInstanceSecurityGroupCD3E83F6:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/FileUploadService/AutoScalingGroup/InstanceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/FileUploadService/AutoScalingGroup
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroup/InstanceSecurityGroup/Resource
+    FileUploadServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileUploadServiceLoadBalancerSecurityGroup3F013A7A4000F4E5D398:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackFileUploadServiceLoadBalancerSecurityGroup3F013A7A:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - FileUploadServiceAutoScalingGroupInstanceSecurityGroupCD3E83F6
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - FileUploadServiceLoadBalancerSecurityGroupE4A34DEA
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path:
+                CyberworldsStack/FileUploadService/AutoScalingGroup/InstanceSecurityGroup/from
+                CyberworldsStackFileUploadServiceLoadBalancerSecurityGroup3F013A7A:4000
+    FileUploadServiceAutoScalingGroupInstanceRole52A95899:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/AmazonSSMManagedInstanceCore
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/FileUploadService/AutoScalingGroup
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroup/InstanceRole/Resource
+    FileUploadServiceAutoScalingGroupInstanceRoleDefaultPolicy79E5587B:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecs:DeregisterContainerInstance
+                          - ecs:RegisterContainerInstance
+                          - ecs:Submit*
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - EcsClusterFB9B21B5
+                              - Arn
+                    - Action:
+                          - ecs:Poll
+                          - ecs:StartTelemetrySession
+                      Condition:
+                          ArnEquals:
+                              ecs:cluster:
+                                  Fn::GetAtt:
+                                      - EcsClusterFB9B21B5
+                                      - Arn
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - ecr:GetAuthorizationToken
+                          - ecs:DiscoverPollEndpoint
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: FileUploadServiceAutoScalingGroupInstanceRoleDefaultPolicy79E5587B
+            Roles:
+                - Ref: FileUploadServiceAutoScalingGroupInstanceRole52A95899
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
+    FileUploadServiceAutoScalingGroupInstanceProfileD350E8D5:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Roles:
+                - Ref: FileUploadServiceAutoScalingGroupInstanceRole52A95899
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroup/InstanceProfile
+    FileUploadServiceAutoScalingGroupLaunchConfigBB63ECCD:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            IamInstanceProfile:
+                Ref: FileUploadServiceAutoScalingGroupInstanceProfileD350E8D5
+            ImageId:
+                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+            InstanceType: t3.micro
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - FileUploadServiceAutoScalingGroupInstanceSecurityGroupCD3E83F6
+                      - GroupId
+            UserData:
+                Fn::Base64:
+                    Fn::Join:
+                        - ""
+                        - - |-
+                              #!/bin/bash
+                              echo ECS_CLUSTER=
+                          - Ref: EcsClusterFB9B21B5
+                          - >2-
+                             >> /etc/ecs/ecs.config
+                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
+                            169.254.169.254/32 --jump DROP
+
+                            sudo service iptables save
+
+                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+        DependsOn:
+            - FileUploadServiceAutoScalingGroupInstanceRoleDefaultPolicy79E5587B
+            - FileUploadServiceAutoScalingGroupInstanceRole52A95899
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroup/LaunchConfig
+    FileUploadServiceAutoScalingGroupASG2C3F78AE:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            LaunchConfigurationName:
+                Ref: FileUploadServiceAutoScalingGroupLaunchConfigBB63ECCD
+            MaxSize: "2"
+            MinSize: "1"
+            NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: Name
+                  PropagateAtLaunch: true
+                  Value: CyberworldsStack/FileUploadService/AutoScalingGroup
+            VPCZoneIdentifier:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+        UpdatePolicy:
+            AutoScalingScheduledAction:
+                IgnoreUnmodifiedGroupSizeProperties: true
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroup/ASG
+    FileUploadServiceAutoScalingGroupCapacityProviderE07ABB82:
+        Type: AWS::ECS::CapacityProvider
+        Properties:
+            AutoScalingGroupProvider:
+                AutoScalingGroupArn:
+                    Ref: FileUploadServiceAutoScalingGroupASG2C3F78AE
+                ManagedScaling:
+                    Status: ENABLED
+                    TargetCapacity: 100
+                ManagedTerminationProtection: ENABLED
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/AutoScalingGroupCapacityProvider/AutoScalingGroupCapacityProvider
+    FileUploadServiceTaskDefinitionTaskRoleDE0E9799:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/TaskDefinition/TaskRole/Resource
+    FileUploadServiceTaskDefinitionTaskRoleDefaultPolicyB0452704:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:GetItem
+                          - dynamodb:TransactGetItems
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AccountsTable81C15AE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpacesTable8A997355
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AccountsTable81C15AE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:Query
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                Version: 2012-10-17
+            PolicyName: FileUploadServiceTaskDefinitionTaskRoleDefaultPolicyB0452704
+            Roles:
+                - Ref: FileUploadServiceTaskDefinitionTaskRoleDE0E9799
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    FileUploadServiceTaskDefinition5B1B662A:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                - Command:
+                      - sh
+                      - -c
+                      - Fn::Join:
+                            - ""
+                            - - /var/www/server/files/upload/upload --port=4000
+                                --temporaryDirectoryPath=/var/www-data/files --jobQueueUrl=
+                              - Ref: SqsJobQueue62388F96
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=\\$FILE_UPLOAD_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
+                  Environment:
+                      - Name: NODE_ENV
+                        Value: production
+                  Essential: true
+                  HealthCheck:
+                      Command:
+                          - CMD-SHELL
+                          - /var/www/server/files/upload/upload.runfiles/node_linux_amd64/bin/nodejs/bin/node
+                            --input-type module --eval "const response = await
+                            fetch('http://localhost:4000/healthcheck'); if (!response.ok) { throw
+                            new Error('Healthcheck failed') }"
+                      Interval: 30
+                      Retries: 3
+                      Timeout: 5
+                  Image:
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group:
+                              Ref: FileUploadServiceTaskDefinitionContainerLogGroupE779AA8C
+                          awslogs-stream-prefix: CyberworldsStack
+                          awslogs-region: us-east-1
+                  Memory: 944
+                  Name: Container
+                  PortMappings:
+                      - ContainerPort: 4000
+                        HostPort: 4000
+                        Protocol: tcp
+                  Secrets:
+                      - Name: APP_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:appServicePublicKey::"
+                      - Name: EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:edgeServiceFamilyPublicKey::"
+                      - Name: TASK_REALTIME_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:taskRealtimeServicePublicKey::"
+                      - Name: JOB_QUEUE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:jobQueueServicePublicKey::"
+                      - Name: FILE_UPLOAD_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:fileUploadServicePublicKey::"
+                      - Name: FILE_UPLOAD_SERVICE_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:fileUploadServicePrivateKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:tokenAgentSecret::"
+                      - Name: HONEYCOMB_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:honeycombApiKey::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileUploadServiceSecrets:cloudflareR2SecretAccessKey::"
+                  StopTimeout: 360
+                  User: www-data
+            ExecutionRoleArn:
+                Fn::GetAtt:
+                    - FileUploadServiceTaskDefinitionExecutionRole3B7D55EE
+                    - Arn
+            Family: CyberworldsStackFileUploadServiceTaskDefinition9BF09D1C
+            NetworkMode: host
+            RequiresCompatibilities:
+                - EC2
+            TaskRoleArn:
+                Fn::GetAtt:
+                    - FileUploadServiceTaskDefinitionTaskRoleDE0E9799
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/TaskDefinition/Resource
+    FileUploadServiceTaskDefinitionContainerLogGroupE779AA8C:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 14
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/TaskDefinition/Container/LogGroup/Resource
+    FileUploadServiceTaskDefinitionExecutionRole3B7D55EE:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/TaskDefinition/ExecutionRole/Resource
+    FileUploadServiceTaskDefinitionExecutionRoleDefaultPolicy4209273A:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecr:BatchCheckLayerAvailability
+                          - ecr:BatchGetImage
+                          - ecr:GetDownloadUrlForLayer
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ecr:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :repository/
+                                - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                    - Action: ecr:GetAuthorizationToken
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - FileUploadServiceTaskDefinitionContainerLogGroupE779AA8C
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:FileUploadServiceSecrets-??????
+                Version: 2012-10-17
+            PolicyName: FileUploadServiceTaskDefinitionExecutionRoleDefaultPolicy4209273A
+            Roles:
+                - Ref: FileUploadServiceTaskDefinitionExecutionRole3B7D55EE
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    FileUploadServiceE18A3146:
+        Type: AWS::ECS::Service
+        Properties:
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: FileUploadServiceAutoScalingGroupCapacityProviderE07ABB82
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                MaximumPercent: 200
+                MinimumHealthyPercent: 50
+            DesiredCount: 1
+            EnableECSManagedTags: false
+            HealthCheckGracePeriodSeconds: 60
+            LoadBalancers:
+                - ContainerName: Container
+                  ContainerPort: 4000
+                  TargetGroupArn:
+                      Ref: FileUploadServiceLoadBalancerListenerTargetGroupGroupF590E718
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: FileUploadServiceTaskDefinition5B1B662A
+        DependsOn:
+            - FileUploadServiceLoadBalancerListener1BB1CF92
+            - FileUploadServiceLoadBalancerListenerTargetGroupGroupF590E718
+            - FileUploadServiceTaskDefinitionTaskRoleDefaultPolicyB0452704
+            - FileUploadServiceTaskDefinitionTaskRoleDE0E9799
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/Service/Service
+    FileUploadServiceLoadBalancerAEFBBA6E:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            LoadBalancerAttributes:
+                - Key: deletion_protection.enabled
+                  Value: "false"
+            Scheme: internet-facing
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - FileUploadServiceLoadBalancerSecurityGroupE4A34DEA
+                      - GroupId
+            Subnets:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+            Type: application
+        DependsOn:
+            - VpcPublicSubnet1DefaultRoute3DA9E72A
+            - VpcPublicSubnet1RouteTableAssociation97140677
+            - VpcPublicSubnet2DefaultRoute97F91067
+            - VpcPublicSubnet2RouteTableAssociationDD5762D8
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancer/Resource
+    FileUploadServiceLoadBalancerSecurityGroupE4A34DEA:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Automatically created Security Group for ELB
+                CyberworldsStackFileUploadServiceLoadBalancer0CBB38C9
+            SecurityGroupIngress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow from anyone on port 443
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancer/SecurityGroup/Resource
+    FileUploadServiceLoadBalancerSecurityGrouptoCyberworldsStackFileUploadServiceAutoScalingGroupInstanceSecurityGroupA8EC099640008975C3E7:
+        Type: AWS::EC2::SecurityGroupEgress
+        Properties:
+            Description: to CyberworldsStackFileUploadServiceAutoScalingGroupInstanceSecurityGroupA8EC0996:4000
+            DestinationSecurityGroupId:
+                Fn::GetAtt:
+                    - FileUploadServiceAutoScalingGroupInstanceSecurityGroupCD3E83F6
+                    - GroupId
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - FileUploadServiceLoadBalancerSecurityGroupE4A34DEA
+                    - GroupId
+            IpProtocol: tcp
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancer/SecurityGroup/to
+                CyberworldsStackFileUploadServiceAutoScalingGroupInstanceSecurityGroupA8EC0996:4000
+    FileUploadServiceLoadBalancerListener1BB1CF92:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            Certificates:
+                - CertificateArn:
+                      Ref: FileUploadServiceCertificateA257B11D
+            DefaultActions:
+                - TargetGroupArn:
+                      Ref: FileUploadServiceLoadBalancerListenerTargetGroupGroupF590E718
+                  Type: forward
+            LoadBalancerArn:
+                Ref: FileUploadServiceLoadBalancerAEFBBA6E
+            Port: 443
+            Protocol: HTTPS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancer/Listener/Resource
+    FileUploadServiceLoadBalancerListenerTargetGroupGroupF590E718:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckIntervalSeconds: 5
+            HealthCheckPath: /healthcheck
+            HealthCheckTimeoutSeconds: 3
+            HealthyThresholdCount: 3
+            Port: 4000
+            Protocol: HTTP
+            TargetGroupAttributes:
+                - Key: deregistration_delay.timeout_seconds
+                  Value: "300"
+                - Key: stickiness.enabled
+                  Value: "false"
+            TargetType: instance
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancer/Listener/TargetGroupGroup/Resource
+    FileUploadServiceCertificateA257B11D:
+        Type: AWS::CertificateManager::Certificate
+        Properties:
+            DomainName: files.cyberworlds.dev
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/FileUploadService/Certificate
+            ValidationMethod: DNS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileUploadService/Certificate/Resource
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/31UTW/bMAz9LburWpftsqObfiBAgWVO0WvByIyjRpY8UUoRGP7vo+XPpcAu1uMjKYrUk1fy24+f8vYLfNCNKk43Ru9lswugToKptwbVSjavtRLrg33drsU27o1Wu7i3GDpuRrmLAV9gb3DmZy4jckpD0M5OwWLr9RkCzntsbEDP+InZD7gMRQcrC3ysY4U2iB2q6HW4PHkX61Tuv8TGlh6JPvEPiW4FKpLN2kTi6l3QZ7iGGhSnbb076wL9oh0SGZXX/pR6zT2o1QvQ6R4P2upxEteMswG0Rb/gOG+H/qxVP9kBPoIvoZvuMr8VrkZLCF4dqQ+Uzb2reMsut0etMK7kjp9dOc1rwgxyDDzktJuBal8AK0Lb0mBw9jFalQ41AU4ecSs0VLLZOpZIurwB5a4XxbhuLAWwCnkyB22wFfT9DYgwkMy6hW15F9UJwx0QCvrDh/0dMabkHqTvXGhh8nWe+ficksehbOxqFBcLlStY3pNIE2gFxOBIgeEeZZOxseuNeTjADR75ag66jH4S8XVoJyQ/NvICfg/GbCoosW+KnTLH2pEOzl9SZ2iAglbGQcHBPBLe6swPLqtrbiUVembfXfL1qvrHXsZp1qkdYka88PN5Sn5YY0sLsxW8VdCHLhArsHxgz89h5pKYZ7NtRY7kou/1+CuGOgah+J246s0PHh5/9kHrRE7R40toxZWju6QRp2HxH6jkWSQNgYeKFclZ1hUo3+nreXUru5/WO2l94yNrtUKZ9+tfGSTT1dEEAAA=
+            # Removed "Analytics" property
         Metadata:
             aws:cdk:path: CyberworldsStack/CDKMetadata/Default
 Outputs:

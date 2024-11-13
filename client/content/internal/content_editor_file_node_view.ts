@@ -10,8 +10,8 @@ import {
 import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {layoutContentFile} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
-    ContentFilePreviewExpirationTimers,
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/render_content_file_preview.js";
@@ -121,6 +121,7 @@ export function createContentEditorFileNodeViewConstructor({
                         layout,
                         screenWidth,
                         isMobile,
+                        isInitialAppRender: false,
                         expirationTimers: getExpirationTimers(),
                     }),
                 );
@@ -147,11 +148,10 @@ export function createContentEditorFileNodeViewConstructor({
                     reference: fileReference,
                     attachmentTarget: getAttachmentTarget(),
                     expirationTimers: getExpirationTimers(),
-                    isInert: false,
+                    isInitialAppRender: false,
                     // If we're currently uploading this `FileId` then disable polling.
                     // `FileUploadService` will push us updates immediately when they're available.
                     isOurEditorUploading,
-                    isEditorInitialAppRender: false,
                     rootNavigate,
                     getReporter,
                     onUpdate: (file, signedUrlSearch) => {

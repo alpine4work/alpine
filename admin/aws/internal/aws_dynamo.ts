@@ -7,6 +7,10 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
+const awsDynamoReadPermissionMask = 0b01;
+const awsDynamoWritePermissionMask = 0b10;
+const awsDynamoReadWritePermissionMask = 0b11;
+
 export class AwsDynamo {
     private readonly _stack: Stack;
     private readonly _tableByName: ReadonlyMap<string, ITable>;
@@ -88,9 +92,24 @@ export class AwsDynamo {
     /**
      * Grant read/write access to all of our DynamoDB tables.
      */
-    public grantReadWriteData(grantee: IGrantable, options?: {allowExpensiveScan?: boolean}) {
+    public grantReadWriteData(
+        grantee: IGrantable,
+        options?: {allowExpensiveScan?: boolean; disallowQuery?: boolean},
+    ) {
         for (const table of this._tableByName.values()) {
-            this._grantReadWriteData(grantee, table, options);
+            this._grantData(grantee, table, awsDynamoReadWritePermissionMask, options);
+        }
+    }
+
+    /**
+     * Grant read access to all of our DynamoDB tables.
+     */
+    public grantReadData(
+        grantee: IGrantable,
+        options?: {allowExpensiveScan?: boolean; disallowQuery?: boolean},
+    ) {
+        for (const table of this._tableByName.values()) {
+            this._grantData(grantee, table, awsDynamoReadPermissionMask, options);
         }
     }
 
@@ -100,55 +119,83 @@ export class AwsDynamo {
     public grantReadWriteDataForTable(
         grantee: IGrantable,
         tableName: string,
-        options?: {allowExpensiveScan?: boolean},
+        options?: {allowExpensiveScan?: boolean; disallowQuery?: boolean},
     ) {
         const table = assertExists(this._tableByName.get(tableName));
-        this._grantReadWriteData(grantee, table, options);
+        this._grantData(grantee, table, awsDynamoReadWritePermissionMask, options);
     }
 
-    private _grantReadWriteData(
+    /**
+     * Grant read access to a single DynamoDB table.
+     */
+    public grantReadDataForTable(
+        grantee: IGrantable,
+        tableName: string,
+        options?: {allowExpensiveScan?: boolean; disallowQuery?: boolean},
+    ) {
+        const table = assertExists(this._tableByName.get(tableName));
+        this._grantData(grantee, table, awsDynamoReadPermissionMask, options);
+    }
+
+    private _grantData(
         grantee: IGrantable,
         table: ITable,
-        {allowExpensiveScan = false}: {allowExpensiveScan?: boolean} = {},
+        permissionMask: number,
+        {
+            allowExpensiveScan = false,
+            disallowQuery = false,
+        }: {
+            allowExpensiveScan?: boolean;
+            disallowQuery?: boolean;
+        } = {},
     ) {
         const allowedDynamoClientActions = filterMapArray(
             Object.entries(
-                cast<{[K in DynamoClientAction]: boolean}>({
-                    // Allowed
-                    GetItem: true,
-                    BatchGetItem: true,
-                    PutItem: true,
-                    DeleteItem: true,
-                    BatchWriteItem: true,
-                    TransactWriteItems: true,
-                    TransactGetItems: true,
-                    Query: true,
+                cast<{
+                    [K in
+                        | DynamoClientAction
+                        // Write transaction entries that aren't top-level DynamoDB actions.
+                        | "UpdateItem"
+                        | "ConditionCheckItem"]: number | null;
+                }>({
+                    // Allowed read actions
+                    GetItem: awsDynamoReadPermissionMask,
+                    BatchGetItem: awsDynamoReadPermissionMask,
+                    TransactGetItems: awsDynamoReadPermissionMask,
+                    Query: !disallowQuery ? awsDynamoReadPermissionMask : null,
+                    ConditionCheckItem: awsDynamoReadPermissionMask,
+
+                    // Allowed write actions
+                    PutItem: awsDynamoWritePermissionMask,
+                    DeleteItem: awsDynamoWritePermissionMask,
+                    BatchWriteItem: awsDynamoWritePermissionMask,
+                    TransactWriteItems: awsDynamoWritePermissionMask,
+                    UpdateItem: awsDynamoWritePermissionMask,
 
                     // Not allowed
                     //
                     // Think: If an attacker somehow got access to our container, how could we limit
                     // their damage? Not allowing them to `Scan` to see every item in the table is a
                     // big limitation. They must know item keys or queries to see the relevant data.
-                    Scan: allowExpensiveScan,
-                    CreateTable: false,
-                    DescribeTable: false,
-                    DescribeTimeToLive: false,
-                    UpdateTimeToLive: false,
-                    UpdateTable: false,
+                    Scan: allowExpensiveScan ? awsDynamoReadPermissionMask : null,
+                    CreateTable: null,
+                    DescribeTable: null,
+                    DescribeTimeToLive: null,
+                    UpdateTimeToLive: null,
+                    UpdateTable: null,
                 }),
             ),
-            ([action, isAllowed]) => (isAllowed ? action : undefined),
+            ([action, actionPermissionMask]) =>
+                actionPermissionMask !== null &&
+                (actionPermissionMask & permissionMask) === actionPermissionMask
+                    ? action
+                    : undefined,
         );
 
         grantee.grantPrincipal.addToPrincipalPolicy(
             new PolicyStatement({
                 resources: [table.tableArn, `${table.tableArn}/index/*`],
-                actions: [
-                    ...allowedDynamoClientActions,
-                    // Write transaction entries that aren't top-level DynamoDB actions.
-                    "UpdateItem",
-                    "ConditionCheckItem",
-                ].map(action => `dynamodb:${action}`),
+                actions: allowedDynamoClientActions.map(action => `dynamodb:${action}`),
             }),
         );
     }

@@ -181,6 +181,13 @@ export function serializeProsemirrorFragmentToHtml(
     fragment: Fragment,
     options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
 ): string {
+    return serializeProsemirrorFragmentToHtmlGenerator(fragment, options).generateHtml();
+}
+
+export function serializeProsemirrorFragmentToHtmlGenerator(
+    fragment: Fragment,
+    options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
+): HtmlFragmentGenerator {
     const widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration> = [];
     const inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
 
@@ -220,12 +227,11 @@ export function serializeProsemirrorFragmentToHtml(
         inlineDecorationQueue,
     };
 
-    return serializeProsemirrorFragment(
-        options.startPos ?? 0,
-        fragment,
-        new HtmlFragmentGenerator(),
-        context,
-    ).generateHtml();
+    const fragmentHtml = new HtmlFragmentGenerator();
+
+    serializeProsemirrorFragment(options.startPos ?? 0, fragment, fragmentHtml, context);
+
+    return fragmentHtml;
 }
 
 type DOMOutputSpecArray = _DOMOutputSpecArray<DOMOutputSpec>;
@@ -649,8 +655,6 @@ function serializeProsemirrorFragment(
         const decoration = context.widgetDecorationQueue.pop()!;
         targetContainer.appendChild(decoration.html);
     }
-
-    return targetContainer;
 }
 
 /**

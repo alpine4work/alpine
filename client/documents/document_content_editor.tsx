@@ -26,7 +26,6 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.j
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {useContentEditorLoadingIndicator} from "~/client/content/use_content_editor_loading_indicator.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -121,6 +120,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -133,10 +133,15 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
-export type DocumentContentEditorInitialScroll = {
-    readonly type: "CommentThread";
-    readonly commentThreadId: DocumentCommentThreadId;
-};
+export type DocumentContentEditorInitialScroll =
+    | {
+          readonly type: "CommentInOpenThread";
+          readonly commentIndex: number;
+      }
+    | {
+          readonly type: "CommentThread";
+          readonly commentThreadId: DocumentCommentThreadId;
+      };
 
 type DocumentContentEditorSidebarState =
     | {
@@ -183,7 +188,6 @@ export function DocumentContentEditor({
     documentId,
     initialDocument,
     initialCommentThreadResult,
-    initialScrollToCommentIndex,
     initialScroll,
     shouldInitiallyFocus,
     onCreate,
@@ -199,7 +203,6 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
-    initialScrollToCommentIndex: number | null;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
     onCreate?: () => void;
@@ -224,7 +227,6 @@ export function DocumentContentEditor({
     const {
         spaceId,
         isConnected,
-        isSaving,
         editorState,
         onChangeEditorState,
         otherPresenceStateByConnectionId,
@@ -1336,30 +1338,34 @@ export function DocumentContentEditor({
 
             const editorContainerElement = assertExists(editorContainerRef.current);
 
-            if (initialCommentThreadResult) {
-                if (initialScrollToCommentIndex !== null) {
-                    commentThreadListViewRef.current?.jumpToCommentIndex(
-                        initialCommentThreadResult.commentThread.id,
-                        initialScrollToCommentIndex,
+            if (!initialScroll) return;
+
+            switch (initialScroll.type) {
+                case "CommentInOpenThread": {
+                    if (initialCommentThreadResult) {
+                        commentThreadListViewRef.current?.jumpToCommentIndex(
+                            initialCommentThreadResult.commentThread.id,
+                            initialScroll.commentIndex,
+                        );
+                    }
+                    break;
+                }
+                case "CommentThread": {
+                    const firstCommentMarkElement = editorContainerElement.querySelector(
+                        `[data-comment="${initialScroll.commentThreadId}"]`,
                     );
+                    if (firstCommentMarkElement) {
+                        scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
+                            behavior: "instant",
+                            prefer: "top",
+                        });
+                    }
+                    break;
                 }
-            } else if (initialScroll) {
-                const firstCommentMarkElement = editorContainerElement.querySelector(
-                    `[data-comment="${initialScroll.commentThreadId}"]`,
-                );
-                if (firstCommentMarkElement) {
-                    scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect(), {
-                        behavior: "instant",
-                        prefer: "top",
-                    });
-                }
+                default:
+                    throw exhaustive(initialScroll);
             }
-        }, [
-            initialCommentThreadResult,
-            initialScroll,
-            initialScrollToCommentIndex,
-            scrollToEditorRect,
-        ]);
+        }, [initialCommentThreadResult, initialScroll, scrollToEditorRect]);
     }
 
     /* ========================================================================== *\
@@ -1495,8 +1501,6 @@ export function DocumentContentEditor({
         };
     }, [isInitialAppRender]);
 
-    const {loadingIndicator, onLoadingIndicator} = useContentEditorLoadingIndicator(isSaving);
-
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         withMobileLayout,
@@ -1552,32 +1556,6 @@ export function DocumentContentEditor({
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
-        stickyBanner: loadingIndicator ? (
-            <Box
-                position="relative"
-                pointerEvents="none"
-                // Our background color intentionally doesn't cover `paddingRight`. So we don't
-                // cover the scrollbar.
-                paddingRight="2.5"
-                display="flex"
-                justifyContent="flex-end"
-                style={{
-                    // Make sure there's no half pixel gap between this element and the navigation
-                    // bar on high resolution devices.
-                    top: -1,
-                }}
-            >
-                <Box
-                    paddingTop="2"
-                    paddingBottom="1.5"
-                    paddingLeft="1.5"
-                    backgroundColor="grey-0"
-                    borderBottomLeftRadius="1"
-                >
-                    {loadingIndicator}
-                </Box>
-            </Box>
-        ) : null,
     });
 
     return (
@@ -1658,7 +1636,6 @@ export function DocumentContentEditor({
                                 [documentId],
                             )}
                             onEnsureFileAttachmentTarget={ensureCreateDocument}
-                            onLoadingIndicator={onLoadingIndicator}
                             openCommentThread={openCommentThread}
                             onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                                 setPressedCommentThreadId(pressedCommentThreadId => {

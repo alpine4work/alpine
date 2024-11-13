@@ -112,6 +112,9 @@ function TaskQueryViewDesktopHeader(
                 alignItems="center"
                 maxWidth="1/3"
                 style={{marginTop: nameBaselineAlignmentMarginTop}}
+                // Align the left edge of the desktop header name text with the left edge of
+                // the "Name" column header.
+                paddingLeft="5"
             >
                 <TaskQueryViewDesktopHeaderName
                     ref={nameRef}

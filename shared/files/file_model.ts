@@ -126,10 +126,14 @@ export class FileModel extends Model(
                     // the loading count calculation.
                     assertEqualTypes<
                         keyof typeof this.preview,
-                        "type" | "isProcessing" | "duration"
+                        "type" | "isProcessing" | "duration" | "metadata"
                     >();
 
                     if (this.preview.duration === "Processing") {
+                        loadingCount++;
+                    }
+
+                    if (this.preview.metadata === "Processing") {
                         loadingCount++;
                     }
                     break;

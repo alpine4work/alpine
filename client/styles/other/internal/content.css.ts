@@ -32,7 +32,36 @@ import {
     desktopNavigationBarHeight,
     mobileNavigationBarHeight,
 } from "~/client/styles/other/internal/navigation_bar.css.js";
-import * as sharedClassNames from "~/shared/content/content_styles.js";
+import {
+    boldClassName,
+    checkListItemCheckedClassName,
+    codeBlockClassName,
+    codeBlockLineClassName,
+    codeBlockLineContentClassName,
+    codeBlockWrapperClassName,
+    codeClassName,
+    commentClassName,
+    dividerClassName,
+    fileClassName,
+    fileFloatClassName,
+    fileFloatLeftClassName,
+    fileFloatRightClassName,
+    fileRowClassName,
+    headingLevel1ClassName,
+    headingLevel2ClassName,
+    headingLevel3ClassName,
+    highlightClassNameByColor,
+    italicClassName,
+    linkClassName,
+    listItemClassName,
+    listItemIndentationVar,
+    orderedListItemClassName,
+    paragraphClassName,
+    quoteBlockClassName,
+    strikeClassName,
+    titleClassName,
+    unorderedListItemClassName,
+} from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
@@ -50,39 +79,6 @@ import {lerp} from "~/shared/helpers/number/lerp.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-
-const boldClassName = `.${sharedClassNames.boldClassName}`;
-const unorderedListItemClassName = `.${sharedClassNames.unorderedListItemClassName}`;
-const checkListItemCheckedClassName = `.${sharedClassNames.checkListItemCheckedClassName}`;
-const codeBlockClassName = `.${sharedClassNames.codeBlockClassName}`;
-const codeBlockLineClassName = `.${sharedClassNames.codeBlockLineClassName}`;
-const codeBlockLineContentClassName = `.${sharedClassNames.codeBlockLineContentClassName}`;
-const codeBlockWrapperClassName = `.${sharedClassNames.codeBlockWrapperClassName}`;
-const codeClassName = `.${sharedClassNames.codeClassName}`;
-const commentClassName = `.${sharedClassNames.commentClassName}`;
-const dividerClassName = `.${sharedClassNames.dividerClassName}`;
-const headingLevel1ClassName = `.${sharedClassNames.headingLevel1ClassName}`;
-const headingLevel2ClassName = `.${sharedClassNames.headingLevel2ClassName}`;
-const headingLevel3ClassName = `.${sharedClassNames.headingLevel3ClassName}`;
-const italicClassName = `.${sharedClassNames.italicClassName}`;
-const linkClassName = `.${sharedClassNames.linkClassName}`;
-const listItemClassName = `.${sharedClassNames.listItemClassName}`;
-const listItemIndentationVar = sharedClassNames.listItemIndentationVar;
-const orderedListItemClassName = `.${sharedClassNames.orderedListItemClassName}`;
-const paragraphClassName = `.${sharedClassNames.paragraphClassName}`;
-const quoteBlockClassName = `.${sharedClassNames.quoteBlockClassName}`;
-const strikeClassName = `.${sharedClassNames.strikeClassName}`;
-const titleClassName = `.${sharedClassNames.titleClassName}`;
-const fileRowClassName = `.${sharedClassNames.fileRowClassName}`;
-const fileFloatClassName = `.${sharedClassNames.fileFloatClassName}`;
-const fileFloatLeftClassName = `.${sharedClassNames.fileFloatLeftClassName}`;
-const fileFloatRightClassName = `.${sharedClassNames.fileFloatRightClassName}`;
-const fileClassName = `.${sharedClassNames.fileClassName}`;
-
-const highlightClassNameByColor = mapObjectValues(
-    sharedClassNames.highlightClassNameByColor,
-    className => `.${className}`,
-);
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -896,7 +892,9 @@ export const fileMinSizeRem = parseRemLengthNumber(fileMinSize);
 const fileRowMaxHeight = spacing["128"];
 export const fileRowMaxHeightRem = parseRemLengthNumber(fileRowMaxHeight);
 
-const fileRowGapWidth = spacing["2.5"];
+const fileRowGapWidthSpacing = "2.5";
+export {fileRowGapWidthSpacing as fileRowGapWidth};
+const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
 export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
 
 globalStyle(fileRowClassName, {
@@ -992,7 +990,7 @@ globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
     marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
 });
 
-const fileBorderRadius = "1";
+export const fileBorderRadius = "1";
 
 globalStyle(fileClassName, {
     zIndex: "10",
@@ -1018,7 +1016,7 @@ globalStyle(`${fileClassName} > *`, {
     pointerEvents: "none",
 });
 
-export const fileViewerClassName = style({
+export const fileImageViewerClassName = style({
     selectors: {
         [`${fileClassName}&`]: {
             minWidth: "auto",
@@ -1026,6 +1024,26 @@ export const fileViewerClassName = style({
             maxHeight: "none",
             borderRadius: 0,
             cursor: "inherit",
+        },
+    },
+});
+
+export const fileChannelViewPreviewClassName = style({});
+
+export const fileBlankImageForSelectionClassName = style({
+    position: "absolute",
+    inset: "0",
+    width: "100%",
+    height: "100%",
+    userSelect: "text",
+    pointerEvents: "none",
+    // `z-index` needs to render over code block line numbers and floating video
+    // player UI.
+    zIndex: "70",
+    selectors: {
+        [`${fileClassName}${fileChannelViewPreviewClassName} &`]: {
+            display: "none",
+            userSelect: "none",
         },
     },
 });
@@ -1078,17 +1096,20 @@ export const fileImagePreviewContentClassName = style({
             // happens when the file source is replaced).
             transition: `opacity ${loadedFileImageAnimationDurationMs}ms ease-in-out`,
         },
-        [`${mobilePlatformSelector} &`]: {
+        [[
             // Turn off selection on mobile. Specifically for mobile Safari where allowing
             // text selection for images leads us to some weird states where Safari renders
             // a text selection in addition to our ProseMirror `NodeSelection`.
-            userSelect: "none",
-        },
-        [`${fileClassName}:has(${contentFileVideoPlayerStyles.containerClassName}) &`]: {
+            `${mobilePlatformSelector} &`,
             // Turn off selection styles if our preview has a video player. Since for video
             // players we render an invisible `<img>` with `user-select: text` that renders
             // on top of the video controls. Otherwise video controls would render over
             // the selection style which looks wrong.
+            `${fileClassName}:has(${contentFileVideoPlayerStyles.containerClassName}) &`,
+            // Turn off selection in channel view asides. The user shouldn't be able to
+            // select anything there.
+            `${fileClassName}${fileChannelViewPreviewClassName} &`,
+        ].join(", ")]: {
             userSelect: "none",
         },
     },
@@ -1204,7 +1225,7 @@ const darkFileBorderColor = Color.rgb(
 //
 // We use `&::before` to avoid competing with the `&::after` selector for
 // `selectionFileClassNameByColor`.
-globalStyle(`${fileClassName}:not(${fileViewerClassName})::before`, {
+globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     content: '""',
     pointerEvents: "none",
     // Should render over `<video>` element for video preview (`z-index` 30).
@@ -1224,8 +1245,11 @@ globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
 // If the file is near black or near white then we want to keep the border in a
 // matching color scheme since we add an opposite background color to make the
 // image visible.
+//
+// We always want to render the border for files rendered in
+// `<ChannelViewAside>`.
 globalStyle(
-    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName})::before`,
+    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${fileChannelViewPreviewClassName})::before`,
     {boxShadow: "none"},
 );
 
@@ -1234,8 +1258,11 @@ globalStyle(
 // If the file is near black or near white then we want to keep the border in a
 // matching color scheme since we add an opposite background color to make the
 // image visible.
+//
+// We always want to render the border for files rendered in
+// `<ChannelViewAside>`.
 globalStyle(
-    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName})::before`,
+    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${fileChannelViewPreviewClassName})::before`,
     {boxShadow: "none"},
 );
 
@@ -1252,6 +1279,15 @@ export const pressedFileClassName = style({
                 pressedFileBackgroundColor.blue(),
                 buttonPressedOverlayOpacity / 2,
             ]).hexa(),
+        },
+        // Any preview in dark mode that doesn't have an image is rendered directly on
+        // `grey-0`. So apply a color that should change the background color to
+        // `grey-5` on press.
+        [`&:not(:has(${fileImagePreviewContentClassName}))::before`]: {
+            backgroundColor: lightFileBorderColor,
+        },
+        [`${darkColorSchemeSelector} &:not(:has(${fileImagePreviewContentClassName}))::before`]: {
+            backgroundColor: darkFileBorderColor,
         },
     },
 });

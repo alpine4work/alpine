@@ -104,8 +104,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // - `nmbb` stands for `NativeMobileBottomBar`
     // - `kt` stands for `KeyboardToolbar`
     // - `wkt` stands for `WithKeyboardToolbar`
+    // - `gli` stands for `GlobalLoadingIndicator`
     static private let bottomBarRegex = try! Regex<(Substring, Substring, Substring?)>(
-        " id='(nmbb-(w?kt-)?[^']*)'"
+        " id='(nmbb-(?:(kt|wkt|gli)-)?[^']*)'"
     )
 
     static private let inboxBannerUrlQueryRegex = try! Regex<Substring>(
@@ -288,11 +289,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private enum WebBottomBarViewType {
         case normal(withKeyboardToolbar: Bool)
         case keyboardToolbar
+        case globalLoadingIndicator
 
         var isNormal: Bool {
             switch self {
             case .normal(withKeyboardToolbar: _): true
             case .keyboardToolbar: false
+            case .globalLoadingIndicator: false
             }
         }
     }
@@ -386,6 +389,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     switch webBottomBarViewState.type {
                     case .normal(let withKeyboardToolbar): withKeyboardToolbar
                     case .keyboardToolbar: true
+                    case .globalLoadingIndicator: false
                     }
                 }) ? bottomBarKeyboardToolbarHeight : 0)
     }
@@ -2104,8 +2108,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 ) {
                     let webBottomBarViewType: WebBottomBarViewType =
                         if let typeMatch = match.2 {
-                            if typeMatch == "wkt-" {
+                            if typeMatch == "wkt" {
                                 .normal(withKeyboardToolbar: true)
+                            } else if typeMatch == "gli" {
+                                .globalLoadingIndicator
                             } else {
                                 .keyboardToolbar
                             }
@@ -2802,8 +2808,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let extraWebBottomBarHeight =
                 switch webBottomBarViewState.type {
                 case .normal(let withKeyboardToolbar):
-                    withKeyboardToolbar ? bottomBarKeyboardToolbarHeight : 0
+                    withKeyboardToolbar ? bottomBarKeyboardToolbarHeight : 0.0
                 case .keyboardToolbar: bottomBarKeyboardToolbarHeight
+                case .globalLoadingIndicator: 0.0
                 }
 
             let webBottomBarHeight =
@@ -3040,6 +3047,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     0,
                     keyboardOffsetWithoutToolbar > 0
                         ? keyboardOffsetWithoutToolbar + bottomBarKeyboardToolbarHeight : 0
+                )
+            // The global loading indicator doesn't move with the keyboard. Just the
+            // tab bar.
+            case .globalLoadingIndicator:
+                -max(
+                    0,
+                    actualTabBarHeight - tabBarScrollOffset
                 )
             }
 

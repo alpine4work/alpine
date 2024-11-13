@@ -1142,6 +1142,10 @@ function TaskCollectionsInput(
                     isBlocking={true}
                     withoutRootBlockingScope={true}
                     withoutBlockingTarget={true}
+                    onBlockingCoverPointerDown={() => {
+                        if (document.activeElement instanceof HTMLElement)
+                            document.activeElement.blur();
+                    }}
                     // Set a constant `overflowBottom` value instead of relying on the current
                     // keyboard height (which will be updated asynchronously after `isEditing` is
                     // true). This stops the overlay placement from jumping around while the

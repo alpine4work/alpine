@@ -1,17 +1,24 @@
 import classNames from "classnames";
 import Color from "color";
+import prettyBytes from "pretty-bytes";
 import {Node} from "prosemirror-model";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
-import {handoffContentFileReference} from "~/client/content/internal/handoff_content_file_reference.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {handoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
+import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    addContentFileAudioPlayerBehavior,
+    renderContentFileAudioPlayer,
+} from "~/client/content/internal/render_content_file_audio_player.js";
 import {
     addContentFileVideoPlayerBehavior,
     renderContentFileVideoPlayer,
@@ -30,6 +37,8 @@ import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
     colorSchemeVars,
+    contentFileAudioPlayerStyles,
+    contentFileVideoAndAudioPlayerControlsStyles,
     contentFileVideoPlayerStyles,
     contentStyles,
     greyElevated2ClassName,
@@ -37,11 +46,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {
-    ContentReferences,
-    emptyContentReferences,
-    getContentReferencesFileSignedUrlSearchExpirationTime,
-} from "~/shared/content/content_references.js";
+import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     codeBlockClassName,
     codeBlockLineClassName,
@@ -104,153 +109,13 @@ import {
     getFileSignedUrlFromAttachment,
     getFileWithoutSignedUrlFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
-import {falseStore, trueStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {ValueStore} from "~/shared/store/value_store.js";
 
 let isContentFilePreviewSignedUrlRefreshDisabledForTest = false;
 
 export function disableContentFilePreviewSignedUrlRefreshForTest() {
     assert(import.meta.jest);
     isContentFilePreviewSignedUrlRefreshDisabledForTest = true;
-}
-
-const contentFileSignedUrlEagerExpirationDurationMs = 1000 * 20;
-const contentFileSignedUrlRefreshDurationMs =
-    contentFileSignedUrlEagerExpirationDurationMs + 1000 * 20;
-
-export class ContentFilePreviewExpirationTimers {
-    private _isPaused = true;
-    private readonly _storeByTime = new Map<
-        number,
-        {timeout: Timeout | null; readonly store: ValueStore<boolean>}
-    >();
-
-    public isPaused() {
-        return this._isPaused;
-    }
-
-    /**
-     * Pause all timers in this object. Any stores that are currently false
-     * (e.g. `getExpiredTimerStore()`) won't be updated to true while this object
-     * is paused since all timeouts have been cancelled. If you call `play()` all
-     * timers will be re-scheduled.
-     *
-     * You should call this function when your component that renders file previews
-     * unmounts in order to prevent memory leaks. Otherwise we'll keep accumulating
-     * hour long timers that are never cancelled even if the user doesn't care
-     * about them anymore.
-     */
-    public pause(): void {
-        assert(!this._isPaused);
-        this._isPaused = true;
-
-        for (const entry of this._storeByTime.values()) {
-            entry.timeout?.clear();
-            entry.timeout = null;
-        }
-    }
-
-    /**
-     * Resume all paused timers in this object.
-     *
-     * If any timers should have been fired while the object was paused then we'll
-     * fire those timers basically immediately after play has been called.
-     *
-     * This object starts in a paused state so you must call play to start
-     * registering timers.
-     */
-    public play(): void {
-        assert(this._isPaused);
-        this._isPaused = false;
-
-        for (const [time, entry] of this._storeByTime) {
-            if (!entry.store.getSnapshot()) {
-                entry.timeout ??= createTimeout(() => {
-                    entry.store.finalSet(true);
-
-                    // New signed URLs shouldn't have this expiration time. Delete from our map to
-                    // prevent memory leaks.
-                    this._storeByTime.delete(time);
-                }, Math.max(0, time - Date.now()));
-            }
-        }
-    }
-
-    /**
-     * Return a store which will switch to true ~20-30 seconds before the preview
-     * URL actually expires. Generally returns return the same referentially equal
-     * store for the same expiration time in the preview URL.
-     */
-    public getExpiredTimerStore(signedUrlSearch: string): Store<boolean> {
-        // If we're on the server then always return false so we don't create
-        // unnecessary timers on the server. This shouldn't realistically create issues
-        // with SSR hydration since signed URLs should be generated at the start of an
-        // SSR request and last much much longer (e.g. 1 hour) than an SSR request
-        // should reasonably take (e.g. 1 second).
-        if (typeof window === "undefined") return falseStore;
-
-        const expirationTime =
-            getContentReferencesFileSignedUrlSearchExpirationTime(signedUrlSearch);
-
-        // Round to the nearest 10 seconds so we end up creating fewer stores.
-        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 10)) * (1000 * 10);
-
-        const eagerExpirationTime =
-            roundedExpirationTime - contentFileSignedUrlEagerExpirationDurationMs;
-
-        return this._getStore(eagerExpirationTime);
-    }
-
-    /**
-     * Return a store which will switch to true ~40-50 seconds before the preview
-     * URL expires. Generally returns the same referentially equal store for the
-     * same expiration time in the preview URL.
-     */
-    public getRefreshTimerStore(signedUrlSearch: string): Store<boolean> {
-        // If we're on the server then always return false so we don't create
-        // unnecessary timers on the server. This shouldn't realistically create issues
-        // with SSR hydration since signed URLs should be generated at the start of an
-        // SSR request and last much much longer (e.g. 1 hour) than an SSR request
-        // should reasonably take (e.g. 1 second).
-        if (typeof window === "undefined") return falseStore;
-
-        const expirationTime =
-            getContentReferencesFileSignedUrlSearchExpirationTime(signedUrlSearch);
-
-        // Round to the nearest 10 seconds so we end up creating fewer stores.
-        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 10)) * (1000 * 10);
-
-        const refreshTime = roundedExpirationTime - contentFileSignedUrlRefreshDurationMs;
-
-        return this._getStore(refreshTime);
-    }
-
-    private _getStore(time: number) {
-        // Make sure this isn't run on the server since we don't want to register a
-        // bunch of unnecessary timeouts. The `typeof window === "undefined"`
-        // check should handle this so this assertion is an extra precaution.
-        assert(typeof window !== "undefined");
-
-        const durationMsUntilTime = time - Date.now();
-        if (durationMsUntilTime <= 0) return trueStore;
-
-        return getOrSetDefaultMapValue(this._storeByTime, time, () => {
-            const store = new ValueStore(false);
-
-            const timeout = !this._isPaused
-                ? createTimeout(() => {
-                      store.finalSet(true);
-
-                      // New signed URLs shouldn't have this expiration time. Delete from our map to
-                      // prevent memory leaks.
-                      this._storeByTime.delete(time);
-                  }, durationMsUntilTime)
-                : null;
-
-            return {timeout, store};
-        }).store;
-    }
 }
 
 /**
@@ -273,6 +138,8 @@ export function renderContentFilePreview(
         layout,
         screenWidth,
         isMobile,
+        isInitialAppRender,
+        withoutInteractivity = false,
         expirationTimers,
     }: {
         spaceId: SpaceId;
@@ -281,6 +148,8 @@ export function renderContentFilePreview(
         layout: ContentFileLayout;
         screenWidth: number;
         isMobile: boolean;
+        isInitialAppRender: boolean;
+        withoutInteractivity?: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
     },
 ): HtmlElementGenerator {
@@ -325,10 +194,10 @@ export function renderContentFilePreview(
             }),
         );
 
-        const processingHtml = new HtmlElementGenerator("div");
-        containerHtml.appendChild(processingHtml);
+        const unknownHtml = new HtmlElementGenerator("div");
+        containerHtml.appendChild(unknownHtml);
 
-        processingHtml.setAttribute(
+        unknownHtml.setAttribute(
             "class",
             sprinkles({
                 display: "flex",
@@ -342,46 +211,85 @@ export function renderContentFilePreview(
             }),
         );
 
-        processingHtml.appendChild(
+        unknownHtml.appendChild(
             createSvgHtmlGenerator(
                 fileDottedSvg({
+                    weight: "light",
                     className: sprinkles({
-                        width: "5",
-                        height: "5",
+                        color: "grey-30",
+                        width: "7",
+                        height: "7",
                     }),
                 }),
             ),
         );
-        processingHtml.appendChild(new HtmlTextGenerator("Unknown file"));
+        const unknownLabelHtml = new HtmlElementGenerator("div");
+        unknownHtml.appendChild(unknownLabelHtml);
+        unknownLabelHtml.setAttribute("class", sprinkles({textAlign: "center"}));
+        unknownLabelHtml.appendChild(new HtmlTextGenerator("Unknown"));
+        unknownLabelHtml.appendChild(new HtmlElementGenerator("br"));
+        unknownLabelHtml.appendChild(
+            new HtmlTextGenerator(prettyBytes(reference.file.contentLength)),
+        );
 
         appendImageHtmlForSelection(containerHtml, isMobile);
     } else {
         switch (reference.file.preview.type) {
             case "Image": {
-                renderContentFileImagePreview(get, {
+                renderContentFileImagePreview(get, html, {
                     spaceId,
                     signedUrlSearch: reference.signedUrlSearch,
                     file: reference.file,
                     filePreview: reference.file.preview,
                     layout,
                     isMobile,
+                    isInitialAppRender,
+                    withoutInteractivity,
                     expirationTimers,
-                    html,
                 });
                 break;
             }
             case "Audio": {
-                // TODO(calebmer, #files): Implement
+                const audioSrc = getContentFileViewerSrc({
+                    spaceId,
+                    signedUrlSearch: reference.signedUrlSearch,
+                    file: reference.file,
+                });
+
+                if (reference.file.preview.isProcessing || audioSrc === null) {
+                    renderContentFileProcessingPreview(html, {file: reference.file, layout});
+                } else {
+                    const containerHtml = new HtmlElementGenerator("div");
+                    html.appendChild(containerHtml);
+                    containerHtml.setAttribute(
+                        "class",
+                        classNames(
+                            contentFileAudioPlayerStyles.containerClassName,
+                            contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
+                        ),
+                    );
+
+                    renderContentFileAudioPlayer(containerHtml, {
+                        file: reference.file,
+                        filePreview: reference.file.preview,
+                        audioSrc,
+                        isMobile,
+                        isInitialAppRender,
+                        withoutInteractivity,
+                        layout,
+                    });
+                }
+
+                appendImageHtmlForSelection(html, isMobile);
                 break;
             }
             case "Code": {
-                renderContentFileCodePreview({
+                renderContentFileCodePreview(html, {
                     file: reference.file,
                     filePreview: reference.file.preview,
                     layout,
                     screenWidth,
                     isMobile,
-                    html,
                 });
                 break;
             }
@@ -409,20 +317,7 @@ function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, isMobi
     containerHtml.appendChild(imageHtmlForSelection);
     imageHtmlForSelection.setAttribute("aria-hidden", "true");
     imageHtmlForSelection.setAttribute("src", transparentImageDataUrl);
-    imageHtmlForSelection.setAttribute(
-        "class",
-        sprinkles({
-            position: "absolute",
-            inset: "0",
-            width: "full",
-            height: "full",
-            userSelect: "text",
-            pointerEvents: "none",
-            // `z-index` needs to render over code block line numbers and floating video
-            // player UI.
-            zIndex: "70",
-        }),
-    );
+    imageHtmlForSelection.setAttribute("class", contentStyles.fileBlankImageForSelectionClassName);
 }
 
 function renderContentFileProcessingPreview(
@@ -447,7 +342,7 @@ function renderContentFileProcessingPreview(
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            color: "grey-30",
+            color: "grey-40",
         }),
     );
 
@@ -503,6 +398,7 @@ function renderContentFileProcessingPreview(
 
 function renderContentFileImagePreview(
     get: <Value>(store: Store<Value>) => Value,
+    html: HtmlElementGenerator,
     {
         spaceId,
         signedUrlSearch,
@@ -510,8 +406,9 @@ function renderContentFileImagePreview(
         filePreview,
         layout,
         isMobile,
+        isInitialAppRender,
+        withoutInteractivity,
         expirationTimers,
-        html,
     }: {
         spaceId: SpaceId;
         signedUrlSearch: string;
@@ -519,8 +416,9 @@ function renderContentFileImagePreview(
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
         isMobile: boolean;
+        isInitialAppRender: boolean;
+        withoutInteractivity: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
-        html: HtmlElementGenerator;
     },
 ) {
     if (
@@ -660,7 +558,7 @@ function renderContentFileImagePreview(
     // size of the file use `reference.file.preview.size`.
     const fileSize = getFilePreviewSize(file);
 
-    renderContentFileImagePreviewInner(get, {
+    renderContentFileImagePreviewInner(get, html, {
         spaceId,
         signedUrlSearch,
         file,
@@ -670,13 +568,15 @@ function renderContentFileImagePreview(
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
         isMobile,
+        isInitialAppRender,
+        withoutInteractivity,
         expirationTimers,
-        html,
     });
 }
 
 function renderContentFileImagePreviewInner(
     get: <Value>(store: Store<Value>) => Value,
+    html: HtmlElementGenerator,
     {
         spaceId,
         signedUrlSearch,
@@ -687,8 +587,9 @@ function renderContentFileImagePreviewInner(
         filePreviewPlaceholder,
         layout,
         isMobile,
+        isInitialAppRender,
+        withoutInteractivity,
         expirationTimers,
-        html,
     }: {
         spaceId: SpaceId;
         signedUrlSearch: string;
@@ -699,8 +600,9 @@ function renderContentFileImagePreviewInner(
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
         isMobile: boolean;
+        isInitialAppRender: boolean;
+        withoutInteractivity: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
-        html: HtmlElementGenerator;
     },
 ) {
     const adjustments = getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder);
@@ -842,7 +744,11 @@ function renderContentFileImagePreviewInner(
         html.appendChild(videoPlayerHtml);
         videoPlayerHtml.setAttribute(
             "class",
-            classNames(contentFileVideoPlayerStyles.containerClassName, greyElevated2ClassName),
+            classNames(
+                contentFileVideoPlayerStyles.containerClassName,
+                contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
+                greyElevated2ClassName,
+            ),
         );
 
         renderContentFileVideoPlayer(videoPlayerHtml, {
@@ -851,6 +757,9 @@ function renderContentFileImagePreviewInner(
             file,
             durationMs: filePreview.videoDuration,
             layout,
+            isMobile,
+            isInitialAppRender,
+            withoutInteractivity,
         });
 
         // We disable `user-select: text` on
@@ -866,21 +775,22 @@ function renderContentFileImagePreviewInner(
     }
 }
 
-function renderContentFileCodePreview({
-    file,
-    filePreview,
-    layout,
-    screenWidth,
-    isMobile,
-    html,
-}: {
-    file: FileModel;
-    filePreview: FileCodePreview;
-    layout: ContentFileLayout;
-    screenWidth: number;
-    isMobile: boolean;
-    html: HtmlElementGenerator;
-}) {
+function renderContentFileCodePreview(
+    html: HtmlElementGenerator,
+    {
+        file,
+        filePreview,
+        layout,
+        screenWidth,
+        isMobile,
+    }: {
+        file: FileModel;
+        filePreview: FileCodePreview;
+        layout: ContentFileLayout;
+        screenWidth: number;
+        isMobile: boolean;
+    },
+) {
     html.setAttribute(
         "class",
         classNames(html.getAttribute("class"), sprinkles({backgroundColor: "grey-0"})),
@@ -1355,9 +1265,10 @@ export function addContentFilePreviewBehavior(
         reference,
         attachmentTarget,
         expirationTimers,
-        isInert,
-        isOurEditorUploading,
-        isEditorInitialAppRender,
+        isInert = false,
+        isInitialAppRender,
+        isOurEditorUploading = false,
+        isEditorInitialAppRender = false,
         rootNavigate,
         getReporter,
         onUpdate,
@@ -1365,15 +1276,17 @@ export function addContentFilePreviewBehavior(
         onShiftMouseDown,
         onLongPress,
         onDrag,
+        onOpenViewer,
     }: {
         spaceId: SpaceId;
         node: Node;
         reference: {signedUrlSearch: string; file: FileModel} | undefined;
         attachmentTarget: FileAttachmentTarget;
         expirationTimers: ContentFilePreviewExpirationTimers;
-        isInert: boolean;
-        isOurEditorUploading: ((fileId: FileId) => boolean) | false;
-        isEditorInitialAppRender: boolean;
+        isInert?: boolean;
+        isInitialAppRender: boolean;
+        isOurEditorUploading?: ((fileId: FileId) => boolean) | false;
+        isEditorInitialAppRender?: boolean;
         rootNavigate: NavigateFunction;
         getReporter: () => Reporter;
         onUpdate: (file: FileModel, signedUrlSearch: string) => void;
@@ -1381,12 +1294,10 @@ export function addContentFilePreviewBehavior(
         onShiftMouseDown?: (event: PointerEvent) => void;
         onLongPress?: () => void;
         onDrag?: (dragPromise: Promise<void>) => void;
+        onOpenViewer?: () => {preventDefault: boolean} | void;
     },
 ): () => void {
     assert(element.classList.contains(fileClassName));
-
-    // Make sure `play()` was called on the expiration timers object.
-    assert(!expirationTimers.isPaused());
 
     let hasCleanedUp = false;
     let pollTimeout: Timeout | null = null;
@@ -1617,14 +1528,29 @@ export function addContentFilePreviewBehavior(
             if (result?.preventDefault) return;
         }
 
+        // If this is audio, then click doesn't open the file viewer but rather
+        // plays/pauses the audio.
+        if (audioPlayerBehavior) {
+            const result = audioPlayerBehavior?.onPress();
+            if (result?.preventDefault) return;
+        }
+
         openViewer();
     };
 
     const openViewer = () => {
+        if (onOpenViewer) {
+            const result = onOpenViewer();
+            if (result?.preventDefault) return;
+        }
+
         if (!reference) return;
         const {file} = reference;
 
-        handoffContentFileReference(reference);
+        handoffContentFilePreviewState({
+            ownedByElement: element,
+            reference,
+        });
 
         rootNavigate(location => {
             const searchParams = new URLSearchParams(location.search);
@@ -1858,16 +1784,43 @@ export function addContentFilePreviewBehavior(
         if (containerElement) {
             videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
                 durationMs: reference.file.preview.videoDuration,
+                isInitialAppRender,
                 getReporter,
                 onOpenViewer: openViewer,
             });
         }
     }
 
+    let audioPlayerBehavior: {
+        onPress: () => {preventDefault: boolean} | void;
+        cleanup: () => void;
+    } | null = null;
+    if (reference?.file.preview?.type === "Audio" && !reference.file.preview.isProcessing) {
+        const containerElement = element.getElementsByClassName(
+            contentFileAudioPlayerStyles.containerClassName,
+        )[0];
+
+        if (containerElement) {
+            audioPlayerBehavior = addContentFileAudioPlayerBehavior(containerElement, {
+                filePreview: reference.file.preview,
+                isInitialAppRender,
+                getReporter,
+                onOpenViewer: openViewer,
+            });
+        }
+    }
+
+    // Retain after all other behavior code runs to make sure we'll always release
+    // even if an error is thrown.
+    expirationTimers.retain();
+
     return () => {
+        expirationTimers.release();
+
         hasCleanedUp = true;
 
         videoPlayerBehavior?.cleanup();
+        audioPlayerBehavior?.cleanup();
 
         if (!isInert) {
             element.removeEventListener("pointerdown", handlePointerDown);

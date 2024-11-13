@@ -10,7 +10,8 @@ import {
     TestSessionActionContext,
     createTestContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createChannel, createPost, updateChannelName} from "~/server/forum/data/forum_table.js";
+import {updateChannelName} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     AllMiniLmL6V2LanguageModel,
     allMiniLmL6V2LanguageModelEmbedTextTestCounter,
@@ -1089,23 +1090,18 @@ test("will reindex if a dependency changes", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const channel = await createChannel(session.action(), {
-        spaceId: space.id,
-        name: "Test",
-    });
+    const channel = await TestChannel.create(session, {name: "Test"});
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
 
-    const post1 = await createPost(session.action(), {
-        channelId: channel.id,
+    const post1 = await channel.createPost(session, {
         content: createSimplePostContent(
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.",
         ),
     });
 
-    const post2 = await createPost(session.action(), {
-        channelId: channel.id,
+    const post2 = await channel.createPost(session, {
         content: createSimplePostContent(
             "Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.",
         ),
@@ -1954,13 +1950,11 @@ test("searches with natural language parsing works", async () => {
     // So the next `createdTime` is larger...
     import.meta.jest.advanceTimersByTime(1000);
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
+    const channel = await TestChannel.create(session1, {
         name: "Transit Enjoyers",
     });
 
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
+    const post = await channel.createPost(session1, {
         content: createSimplePostContent(
             "Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Check out this trains document.",
         ),

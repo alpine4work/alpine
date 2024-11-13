@@ -126,7 +126,17 @@ export function getCollaborativelyUpdateContentResult(
                         }
                     }
 
-                    const stepResult = step.apply(content);
+                    let stepResult;
+                    try {
+                        stepResult = step.apply(content);
+                    } catch (error) {
+                        if (error instanceof RangeError) {
+                            throw new FailedPreconditionError(
+                                `Couldn't apply step to content: ${error.message}`,
+                            );
+                        }
+                        throw error;
+                    }
                     if (!stepResult.doc) {
                         throw new FailedPreconditionError(
                             `Couldn't apply step to content: ${stepResult.failed!}`,
@@ -164,11 +174,22 @@ export function getCollaborativelyUpdateContentResult(
 
                     for (let i = conflictingSteps.length - 1; i >= 0; i--) {
                         const {invertedStep} = conflictingSteps[i]!;
-                        const invertedStepResult = invertedStep.apply(clientContent);
-                        if (!invertedStepResult.doc)
+                        let invertedStepResult;
+                        try {
+                            invertedStepResult = invertedStep.apply(clientContent);
+                        } catch (error) {
+                            if (error instanceof RangeError) {
+                                throw new DataLossError(
+                                    `Couldn't apply inverse of saved content step: ${error.message}`,
+                                );
+                            }
+                            throw error;
+                        }
+                        if (!invertedStepResult.doc) {
                             throw new DataLossError(
                                 `Couldn't apply inverse of saved content step: ${invertedStepResult.failed!}`,
                             );
+                        }
 
                         clientContent = invertedStepResult.doc;
                     }
@@ -193,7 +214,17 @@ export function getCollaborativelyUpdateContentResult(
                             }
                         }
 
-                        const stepResult = step.apply(clientContent);
+                        let stepResult;
+                        try {
+                            stepResult = step.apply(clientContent);
+                        } catch (error) {
+                            if (error instanceof RangeError) {
+                                throw new FailedPreconditionError(
+                                    `Couldn't apply step to content: ${error.message}`,
+                                );
+                            }
+                            throw error;
+                        }
                         if (!stepResult.doc) {
                             throw new FailedPreconditionError(
                                 `Couldn't apply step to content: ${stepResult.failed!}`,

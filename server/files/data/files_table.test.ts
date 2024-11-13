@@ -4,11 +4,14 @@ import {
     FileUploader,
     attachFileAsUploader,
     attachFileFromAttachment,
+    detachFile,
     getFileAsUploader,
     getFileFromAttachment,
+    getPostDraftFileAttachments,
     startUploadingAndProcessingFile,
 } from "~/server/files/data/files_table.js";
-import {FilePostAuthorizer, createChannel, createPost} from "~/server/forum/data/forum_table.js";
+import {FilePostAuthorizer, createOrReplacePostDraft} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
@@ -24,6 +27,7 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
@@ -4677,49 +4681,168 @@ test("can't finish processing file alternative preview image if alternative is a
     );
 });
 
-test("can finish processing file audio preview duration", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
+test("can finish processing file audio preview", async () => {
+    {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "audio/mpeg",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
-    });
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
+        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+            spaceId: space.id,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Audio",
-                isProcessing: true,
-                duration: "Processing",
-            },
-        }),
-    );
+            hasAlternative: false,
+            hasPreview: {type: "Audio"},
+        });
 
-    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: "Processing",
+                    metadata: "Processing",
+                },
+            }),
+        );
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
+        await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: 2000,
+                    metadata: "Processing",
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: false,
+                    duration: 2000,
+                    metadata: {
+                        title: "A",
+                        artist: "B",
+                        album: "C",
+                    },
+                },
+            }),
+        );
+    }
+
+    {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+            spaceId: space.id,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Audio",
-                isProcessing: false,
-                duration: 2000,
-            },
-        }),
-    );
+            hasAlternative: false,
+            hasPreview: {type: "Audio"},
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: "Processing",
+                    metadata: "Processing",
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: true,
+                    duration: "Processing",
+                    metadata: {
+                        title: "A",
+                        artist: "B",
+                        album: "C",
+                    },
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "audio/mpeg",
+                contentLength: 100,
+                isUploading: true,
+                alternative: null,
+                preview: {
+                    type: "Audio",
+                    isProcessing: false,
+                    duration: 2000,
+                    metadata: {
+                        title: "A",
+                        artist: "B",
+                        album: "C",
+                    },
+                },
+            }),
+        );
+    }
 });
 
 test("can't finish processing file audio preview duration with the wrong session", async () => {
@@ -4746,6 +4869,7 @@ test("can't finish processing file audio preview duration with the wrong session
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4765,6 +4889,7 @@ test("can't finish processing file audio preview duration with the wrong session
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4793,6 +4918,7 @@ test("can't finish processing file audio preview duration twice", async () => {
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4808,8 +4934,104 @@ test("can't finish processing file audio preview duration twice", async () => {
             alternative: null,
             preview: {
                 type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
+    ).rejects.toThrow(
+        new InternalError("File has already finished processing its audio preview duration"),
+    );
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview duration when preview is finished processing", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A",
+        artist: "B",
+        album: "C",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
                 isProcessing: false,
                 duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
             },
         }),
     );
@@ -4829,6 +5051,11 @@ test("can't finish processing file audio preview duration twice", async () => {
                 type: "Audio",
                 isProcessing: false,
                 duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
             },
         }),
     );
@@ -4922,6 +5149,342 @@ test("can't finish processing file audio preview duration for file with an image
     );
 });
 
+test("can't finish processing file audio preview metadata with the wrong session", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(otherSession.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata twice", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A",
+        artist: "B",
+        album: "C",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(
+        new InternalError("File has already finished processing its audio preview metadata"),
+    );
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata when preview is finished processing", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: 2000,
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A",
+        artist: "B",
+        album: "C",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+                metadata: {
+                    title: "A",
+                    artist: "B",
+                    album: "C",
+                },
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata for file without preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can't finish processing file audio preview metadata for file with an image preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+            title: "A",
+            artist: "B",
+            album: "C",
+        }),
+    ).rejects.toThrow(new InternalError("File doesn't have an audio preview"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+});
+
 test("can't finish processing file image preview size for file with an audio preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -4945,6 +5508,7 @@ test("can't finish processing file image preview size for file with an audio pre
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4969,6 +5533,7 @@ test("can't finish processing file image preview size for file with an audio pre
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -4997,6 +5562,7 @@ test("can't finish processing file image preview placeholder for file with an au
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5019,6 +5585,7 @@ test("can't finish processing file image preview placeholder for file with an au
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5047,6 +5614,7 @@ test("can't finish processing file image preview content for file with an audio 
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5070,6 +5638,7 @@ test("can't finish processing file image preview content for file with an audio 
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5098,6 +5667,7 @@ test("can't finish processing file image preview video duration for file with an
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5117,6 +5687,7 @@ test("can't finish processing file image preview video duration for file with an
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
+                metadata: "Processing",
             },
         }),
     );
@@ -5765,20 +6336,9 @@ test("can't attach file if you don't have edit access to the target", async () =
 
     await fileUploader.finishUploading(session2.action());
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post1 = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 1"),
-    });
-
-    const post2 = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 2"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post1 = await channel.createPost(session1);
+    const post2 = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
@@ -5861,15 +6421,8 @@ test("can attach file to new target", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session1.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
 
     await expect(
         getFileFromAttachment(
@@ -5946,15 +6499,8 @@ test("can attach file to new target as the uploader", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
@@ -6031,15 +6577,8 @@ test("can't attach file to new target if you don't have edit access", async () =
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session2);
 
     await expect(
         getFileFromAttachment(
@@ -6109,20 +6648,9 @@ test("can't attach file to new target you don't have access to", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const channel = await createChannel(session1.action(), {
-        spaceId: space.id,
-        name: "Test Channel",
-    });
-
-    const post1 = await createPost(session2.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 1"),
-    });
-
-    const post2 = await createPost(session3.action(), {
-        channelId: channel.id,
-        content: createSimplePostContent("Test Post 2"),
-    });
+    const channel = await TestChannel.create(session1);
+    const post1 = await channel.createPost(session2);
+    const post2 = await channel.createPost(session3);
 
     await expect(
         getFileFromAttachment(
@@ -6169,4 +6697,436 @@ test("can't attach file to new target you don't have access to", async () => {
         from: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
         to: FilePostAuthorizer.bind({type: "Post", postId: post2.id}),
     });
+});
+
+test("can detach file as uploader", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+    );
+
+    expect(
+        await getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await detachFile(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+});
+
+test("can detach file as non-uploader", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+    );
+
+    expect(
+        await getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await detachFile(
+        session1.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+});
+
+test("can't detach file without view access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+    );
+
+    expect(
+        await getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        detachFile(
+            session3.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+
+    expect(
+        await getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can't detach file without edit access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session2);
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+    );
+
+    expect(
+        await getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        detachFile(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have edit access to post"));
+
+    expect(
+        await getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await detachFile(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session1.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+});
+
+test("can get all files attached to post draft", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const file1Uploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await file1Uploader.finishUploading(session2.action());
+
+    const file2Uploader = await startUploadingAndProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await file2Uploader.finishUploading(session1.action());
+
+    const draftId = generateChronologicalId<PostDraftId>();
+
+    await expect(
+        getPostDraftFileAttachments(
+            session1.action(),
+            space.id,
+            session1.account.id,
+            draftId,
+            FilePostAuthorizer,
+        ),
+    ).rejects.toThrow(new NotFoundError("Post draft not found"));
+
+    await createOrReplacePostDraft(session1.action(), space.id, session1.account.id, draftId, {
+        channelId: null,
+        content: createSimplePostContent("Test Post 1"),
+    });
+
+    expect(
+        await getPostDraftFileAttachments(
+            session1.action(),
+            space.id,
+            session1.account.id,
+            draftId,
+            FilePostAuthorizer,
+        ),
+    ).toEqual([]);
+
+    await expect(
+        getPostDraftFileAttachments(
+            session2.action(),
+            space.id,
+            session1.account.id,
+            draftId,
+            FilePostAuthorizer,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Can't access drafts from other accounts"));
+
+    await attachFileAsUploader(
+        session1.action(),
+        space.id,
+        file2Uploader.fileId,
+        FilePostAuthorizer.bind({type: "PostDraft", accountId: session1.account.id, draftId}),
+    );
+
+    expect(
+        await getPostDraftFileAttachments(
+            session1.action(),
+            space.id,
+            session1.account.id,
+            draftId,
+            FilePostAuthorizer,
+        ),
+    ).toEqual([file2Uploader.fileId]);
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        file1Uploader.fileId,
+        FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+    );
+
+    expect(
+        await getPostDraftFileAttachments(
+            session1.action(),
+            space.id,
+            session1.account.id,
+            draftId,
+            FilePostAuthorizer,
+        ),
+    ).toEqual([file2Uploader.fileId]);
+
+    await attachFileFromAttachment(session1.action(), space.id, file1Uploader.fileId, {
+        from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        to: FilePostAuthorizer.bind({type: "PostDraft", accountId: session1.account.id, draftId}),
+    });
+
+    expect(
+        await getPostDraftFileAttachments(
+            session1.action(),
+            space.id,
+            session1.account.id,
+            draftId,
+            FilePostAuthorizer,
+        ),
+    ).toEqual([file1Uploader.fileId, file2Uploader.fileId]);
 });

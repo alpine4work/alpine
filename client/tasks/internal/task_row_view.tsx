@@ -1,4 +1,5 @@
 import {useDraggable} from "@dnd-kit/core";
+import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
@@ -46,7 +47,15 @@ import {
 } from "~/client/styles/styles.js";
 import {
     desktopTaskRowViewIndentationRem,
+    desktopTaskRowViewStatusButtonWidth,
+    desktopTaskRowViewStatusButtonWidthRem,
     mobileTaskRowViewIndentationRem,
+    mobileTaskRowViewStatusButtonWidth,
+    mobileTaskRowViewStatusButtonWidthRem,
+    taskRowViewDragHandleWidth,
+    taskRowViewDragHandleWidthRem,
+    taskRowViewExpandButtonWidth,
+    taskRowViewExpandButtonWidthRem,
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -94,7 +103,6 @@ import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_conte
 import {
     RemLength,
     Spacing,
-    parseRemLengthNumber,
     screenPaddingX,
     screenPaddingXRem,
     spacing,
@@ -172,31 +180,25 @@ const Box = null;
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
 
-const desktopTaskRowViewStatusButtonWidth = "6";
-const desktopTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
-    spacing[desktopTaskRowViewStatusButtonWidth],
-);
-
-const mobileTaskRowViewStatusButtonWidth = "7";
-const mobileTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
-    spacing[mobileTaskRowViewStatusButtonWidth],
-);
-
-const taskRowViewExpandButtonWidth = "5";
-const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(spacing[taskRowViewExpandButtonWidth]);
-
-const taskRowViewDragHandleWidth = "5";
-const taskRowViewDragHandleWidthRem = parseRemLengthNumber(spacing[taskRowViewDragHandleWidth]);
-
 const borderCoverClassName = sprinkles({
     position: "absolute",
     zIndex: "-10",
     top: "0",
     bottom: "0",
-    left: screenPaddingX,
     right: screenPaddingX,
     pointerEvents: "none",
     backgroundColor: "grey-0",
+});
+
+const borderCoverWithColumnsClassName = sprinkles({
+    // We let the task row border run to the left edge in a column layout since the
+    // space sidebar has no right border. So our border is implicitly stopped by
+    // the margin of the space sidebar.
+    left: "0",
+});
+
+const borderCoverWithoutColumnsClassName = sprinkles({
+    left: screenPaddingX,
 });
 
 const marginLeftContainerClassName = sprinkles({
@@ -767,6 +769,9 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         // Even though title isn't technically the first column, it's the first
                         // editable column so we put the user there.
@@ -774,7 +779,6 @@ function TaskRowView(
                     } else {
                         focusPreviousCell(column);
                     }
-
                     break;
                 }
 
@@ -794,6 +798,9 @@ function TaskRowView(
 
                     event.preventDefault();
                     event.stopPropagation();
+
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
 
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusCell(columns[columns.length - 1]!);
@@ -820,6 +827,9 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusFirstVisibleTaskCell(column);
                     } else {
@@ -845,6 +855,9 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusLastVisibleTaskCell(column);
                     } else {
@@ -861,6 +874,9 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
+
                     if (assertExists(titleInputRef.current).isFocused()) {
                         focusLastVisibleTaskTitleEnd();
                     } else {
@@ -876,6 +892,9 @@ function TaskRowView(
                 case "PageUp": {
                     event.preventDefault();
                     event.stopPropagation();
+
+                    // Navigating between cells changes the interaction modality to keyboard.
+                    setInteractionModality("keyboard");
 
                     if (assertExists(titleInputRef.current).isFocused()) {
                         focusFirstVisibleTaskTitleStart();
@@ -895,6 +914,9 @@ function TaskRowView(
                         event.preventDefault();
                         event.stopPropagation();
 
+                        // Navigating between cells changes the interaction modality to keyboard.
+                        setInteractionModality("keyboard");
+
                         // Even though title isn't technically the first column, it's the first
                         // editable column so we put the user there.
                         focusCell("Title");
@@ -911,6 +933,9 @@ function TaskRowView(
                     if (capabilities.hasColumns && !isTextInputElement(document.activeElement)) {
                         event.preventDefault();
                         event.stopPropagation();
+
+                        // Navigating between cells changes the interaction modality to keyboard.
+                        setInteractionModality("keyboard");
 
                         focusCell(columns[columns.length - 1]!);
                     }
@@ -1267,7 +1292,12 @@ function TaskRowView(
 
     const borderCoverNode = (
         <div
-            className={borderCoverClassName}
+            className={classNames(
+                borderCoverClassName,
+                capabilities.hasColumns
+                    ? borderCoverWithColumnsClassName
+                    : borderCoverWithoutColumnsClassName,
+            )}
             style={{
                 // Draw the top and bottom border with a shadow so it:
                 //
@@ -1514,7 +1544,11 @@ function TaskRowView(
                     </div>
                 )}
             </div>
-            <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
+            <FocusRing
+                isVisibleFromAnyFocus={!capabilities.isReadOnly}
+                offset="0"
+                insetBottom="border"
+            >
                 <div
                     ref={titleCellRef}
                     data-testid={

@@ -5,6 +5,7 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Keep an item from our DynamoDB realtime framework up-to-date on the client.
@@ -15,6 +16,9 @@ import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
  * You must connect to a WebSocket or other push-based realtime service outside
  * of this hook and then pass in relevant `isConnected` and `subscribeToEvents`
  * props to wire up this hook to a WebSocket.
+ *
+ * If the item is deleted then we'll set an `isDeleted` flag and update the
+ * version but we'll keep the old item around to avoid breaking the UI.
  */
 export function useDynamoGeneralRealtimeItem<Model>(
     initialItem: DynamoGeneralRealtimeItem<Model>,
@@ -64,7 +68,9 @@ export function useDynamoGeneralRealtimeItem<Model>(
         (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => void
     >;
 } {
-    const [itemFromState, setItem] = useState(initialItem);
+    const [itemFromState, setItem] = useState<
+        DynamoGeneralRealtimeItem<Model> & {readonly isDeleted?: true}
+    >(initialItem);
     let item = itemFromState;
 
     // If the item provided via props is a newer version then use it in our state.
@@ -86,18 +92,29 @@ export function useDynamoGeneralRealtimeItem<Model>(
 /**
  * The same as `useDynamoGeneralRealtimeItem()` but you can bring your
  * own state.
+ *
+ * If the item is deleted then we'll set an `isDeleted` flag and update the
+ * version but we'll keep the old item around to avoid breaking the UI.
  */
 export function useDynamoGeneralRealtimeItemBase<Model>(
     {
         item,
         onUpdateItem,
     }: {
-        item: DynamoGeneralRealtimeItem<Model>;
+        /**
+         * The current realtime item.
+         */
+        item: DynamoGeneralRealtimeItem<Model> & {readonly isDeleted?: true};
+
+        /**
+         * Update the realtime item with an updater function that takes as input the
+         * current realtime item.
+         */
         onUpdateItem: Memo<
             (
                 update: (
                     item: DynamoGeneralRealtimeItem<Model>,
-                ) => DynamoGeneralRealtimeItem<Model>,
+                ) => DynamoGeneralRealtimeItem<Model> & {readonly isDeleted?: true},
             ) => void
         >;
     },
@@ -156,16 +173,42 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
     const handleEventTransaction = useCallback(
         (eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>) => {
             for (const event of eventTransaction) {
-                if (item.key === event.item.key) {
-                    onUpdateItem(item => {
-                        // If our event transaction has a higher versioned item of the same key then
-                        // update our state.
-                        if (event.item.key === item.key && event.item.version > item.version) {
-                            return event.item as DynamoGeneralRealtimeItem<Model>;
-                        }
+                if (event.item.key !== item.key) continue;
 
-                        return item;
-                    });
+                switch (event.type) {
+                    case "DeleteItem": {
+                        onUpdateItem(item => {
+                            // If our delete event is a higher version then what we have in state then set
+                            // the `isDeleted` flag to true but keep the old item data around. This allows
+                            // the developer to ignore deleted items and keep rendering data. An
+                            // alternative would be to set the item to null but that would cause the
+                            // existing UI to break which is generally not a good UX.
+                            if (event.item.key === item.key && event.item.version > item.version) {
+                                return {
+                                    ...item,
+                                    version: event.item.version,
+                                    isDeleted: true,
+                                };
+                            }
+
+                            return item;
+                        });
+                        break;
+                    }
+                    case "PutItem": {
+                        onUpdateItem(item => {
+                            // If our event transaction has a higher versioned item of the same key then
+                            // update our state.
+                            if (event.item.key === item.key && event.item.version > item.version) {
+                                return event.item as DynamoGeneralRealtimeItem<Model>;
+                            }
+
+                            return item;
+                        });
+                        break;
+                    }
+                    default:
+                        throw exhaustive(event);
                 }
             }
         },

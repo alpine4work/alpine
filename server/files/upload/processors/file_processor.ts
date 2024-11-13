@@ -4,7 +4,11 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileHasPreview, FileImagePreviewSize} from "~/shared/files/file_preview.js";
+import {
+    FileAudioPreviewMetadata,
+    FileHasPreview,
+    FileImagePreviewSize,
+} from "~/shared/files/file_preview.js";
 import {If} from "~/shared/helpers/types/if.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -188,11 +192,13 @@ type FileProcessorTemplateResultFromHasImagePreview<
         {imagePreviewVideoDurationPromise?: undefined}
     > & {
         audioPreviewDurationPromise?: undefined;
+        audioPreviewMetadataPromise?: undefined;
         codePreviewContentPromise?: undefined;
     };
 
 type FileProcessorTemplateResultFromHasAudioPreview = {
     audioPreviewDurationPromise: Promise<number>;
+    audioPreviewMetadataPromise: Promise<FileAudioPreviewMetadata>;
     imagePreviewSizePromise?: undefined;
     imagePreviewPlaceholderPromise?: undefined;
     imagePreviewContentPromise?: undefined;
@@ -207,6 +213,7 @@ type FileProcessorTemplateResultFromHasCodePreview = {
     imagePreviewContentPromise?: undefined;
     imagePreviewVideoDurationPromise?: undefined;
     audioPreviewDurationPromise?: undefined;
+    audioPreviewMetadataPromise?: undefined;
 };
 
 export const fileNoopProcessor: FileProcessor = {

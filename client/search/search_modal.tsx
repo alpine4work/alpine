@@ -254,10 +254,9 @@ export function SearchModal({
                             const destinationPath = getSearchResultDestinationPath({
                                 spaceId: space.id,
                                 resultId: result.id,
-                                options: {
-                                    searchKey: output.key,
-                                    withDesktopLayout: false,
-                                },
+                                searchKey: output.key,
+                                searchTime: output.queryTime,
+                                withDesktopLayout: false,
                             });
 
                             void switchPeek({
@@ -401,6 +400,7 @@ export function SearchModal({
                                     ) : (
                                         <SearchModalResultList
                                             searchKey={output.key}
+                                            searchTime={output.queryTime}
                                             results={output.results}
                                             selectedPeek={selectedPeek}
                                             switchPeek={switchPeek}
@@ -555,6 +555,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
 
 function SearchModalResultList({
     searchKey,
+    searchTime,
     results,
     selectedPeek,
     switchPeek,
@@ -562,6 +563,7 @@ function SearchModalResultList({
     markResultSelectAffinityInteraction,
 }: {
     searchKey: string;
+    searchTime: Date;
     results: ReadonlyArray<SearchResult>;
     selectedPeek: PeekSwitcherStatePeekBase<{resultId: SearchResultId}> | null;
     switchPeek: Memo<
@@ -599,10 +601,9 @@ function SearchModalResultList({
             const destinationPath = getSearchResultDestinationPath({
                 spaceId: space.id,
                 resultId: result.id,
-                options: {
-                    searchKey,
-                    withDesktopLayout: true,
-                },
+                searchKey,
+                searchTime,
+                withDesktopLayout: true,
             });
 
             // If the user double clicked there may be an ongoing pending transition
@@ -657,10 +658,9 @@ function SearchModalResultList({
                                 const destinationPath = getSearchResultDestinationPath({
                                     spaceId: space.id,
                                     resultId: result.id,
-                                    options: {
-                                        searchKey,
-                                        withDesktopLayout: false,
-                                    },
+                                    searchKey,
+                                    searchTime,
+                                    withDesktopLayout: false,
                                 });
 
                                 void switchPeek({
@@ -674,7 +674,15 @@ function SearchModalResultList({
                 ),
             };
         },
-        [handleDoubleClick, results, searchKey, selectedPeek?.extra.resultId, space.id, switchPeek],
+        [
+            handleDoubleClick,
+            results,
+            searchKey,
+            searchTime,
+            selectedPeek?.extra.resultId,
+            space.id,
+            switchPeek,
+        ],
     );
 
     return (

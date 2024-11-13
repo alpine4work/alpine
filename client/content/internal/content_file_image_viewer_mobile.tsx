@@ -2,9 +2,10 @@
 
 import classNames from "classnames";
 import {DownloadSimple, SpinnerGap} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -18,7 +19,6 @@ import {
     maxContentFileImageViewerMobilePreviewSize,
 } from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
-    ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
     renderFileImagePreviewPlaceholder,
 } from "~/client/content/internal/render_content_file_preview.js";
@@ -36,7 +36,10 @@ import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_f
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {
+    getFileContentTypeNoun,
+    getFileContentTypeStartOfSentenceNoun,
+} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -54,6 +57,8 @@ export function ContentFileImageViewerMobile({
     navigationBarSize,
     viewerSize,
     onShare,
+    withoutZoom = false,
+    extraChildrenForVideo,
 }: {
     file: FileModel;
     signedUrlSearch: string;
@@ -63,6 +68,8 @@ export function ContentFileImageViewerMobile({
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
     onShare: () => Promise<void>;
+    withoutZoom?: boolean;
+    extraChildrenForVideo?: ReactNode;
 }) {
     assert(file.preview?.type === "Image");
 
@@ -99,7 +106,7 @@ export function ContentFileImageViewerMobile({
                         size={spacing[contentFileViewerLargeProcessingIndicatorIconSize.mobile]}
                         weight={contentFileViewerLargeProcessingIndicatorWeight.mobile}
                     />
-                    Processing image
+                    Processing {getFileContentTypeNoun(file.contentType)}
                 </Box>
             </Box>
         );
@@ -120,7 +127,10 @@ export function ContentFileImageViewerMobile({
     // 2 is likely the best solution.
     if (
         file.preview.size.width * file.preview.size.height >=
-        maxContentFileImageViewerMobilePreviewSize
+            maxContentFileImageViewerMobilePreviewSize &&
+        // If zooming is disabled we're ok showing the image at a scaled down size
+        // which fits in the viewer.
+        !withoutZoom
     ) {
         return (
             <Box
@@ -132,7 +142,8 @@ export function ContentFileImageViewerMobile({
             >
                 <Box display="flex" flexDirection="column" alignItems="center" gap="2">
                     <Box fontSize="100" color="grey-0-const">
-                        Image is too large to view in app
+                        {getFileContentTypeStartOfSentenceNoun(file.contentType)} is too large to
+                        view in app
                     </Box>
                     <Button
                         variant="neutral"
@@ -163,6 +174,8 @@ export function ContentFileImageViewerMobile({
             loaderDataPromise={loaderDataPromise}
             navigationBarSize={navigationBarSize}
             viewerSize={viewerSize}
+            withoutZoom={withoutZoom}
+            extraChildrenForVideo={extraChildrenForVideo}
         />
     );
 }
@@ -264,6 +277,8 @@ function ContentFileImageMobileViewerInner({
     loaderDataPromise,
     navigationBarSize,
     viewerSize,
+    withoutZoom,
+    extraChildrenForVideo,
 }: {
     file: FileModel;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
@@ -273,6 +288,8 @@ function ContentFileImageMobileViewerInner({
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
+    withoutZoom: boolean;
+    extraChildrenForVideo: ReactNode;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLDivElement>(null);
@@ -291,18 +308,20 @@ function ContentFileImageMobileViewerInner({
         fileScale = resizedFileHeight / fileSize.height;
     }
 
+    const fileScaledWidth = fileSize.width * fileScale;
+    const fileScaledHeight = fileSize.height * fileScale;
+
     const transformStateMeasurements = useMemo(
         () => ({
             viewerMarginTop: navigationBarSize.height,
             viewerWidth: viewerSize.width,
             viewerHeight: viewerSize.height,
-            width: fileSize.width * fileScale,
-            height: fileSize.height * fileScale,
+            width: fileScaledWidth,
+            height: fileScaledHeight,
         }),
         [
-            fileScale,
-            fileSize.height,
-            fileSize.width,
+            fileScaledHeight,
+            fileScaledWidth,
             navigationBarSize.height,
             viewerSize.height,
             viewerSize.width,
@@ -331,10 +350,11 @@ function ContentFileImageMobileViewerInner({
             new: transformStates.new.clone({measurements: transformStateMeasurements}),
         });
     } else if (
-        transformStates.old ||
-        transformStates.new.zoomScale !== 1 ||
-        transformStates.new.panTranslateX !== 0 ||
-        transformStates.new.panTranslateY !== 0
+        withoutZoom &&
+        (transformStates.old ||
+            transformStates.new.zoomScale !== 1 ||
+            transformStates.new.panTranslateX !== 0 ||
+            transformStates.new.panTranslateY !== 0)
     ) {
         setTransformStates({
             old: null,
@@ -364,6 +384,8 @@ function ContentFileImageMobileViewerInner({
     // have to access it through a global and you can't import `hammerjs` on the
     // server. But it's very popular and gets the job done so we use it.
     useEffect(() => {
+        if (withoutZoom) return;
+
         const containerElement = assertExists(containerRef.current);
 
         let hasCleanedUp = false;
@@ -498,7 +520,7 @@ function ContentFileImageMobileViewerInner({
             hasCleanedUp = true;
             cleanup?.();
         };
-    }, []);
+    }, [withoutZoom]);
 
     const fileTranslateX = viewerSize.width / 2 - fileSize.width / 2;
     const fileTranslateY = viewerSize.height / 2 - fileSize.height / 2;
@@ -536,7 +558,7 @@ function ContentFileImageMobileViewerInner({
 
         const imageElement = assertExists(imageRef.current);
 
-        const imageContentElement = loaderDataResult.value.image;
+        const imageContentElement = loaderDataResult.value.imageElement;
         if (!imageContentElement) return;
 
         // eslint-disable-next-line react-compiler/react-compiler
@@ -592,7 +614,7 @@ function ContentFileImageMobileViewerInner({
         if (loaderDataResult.isPending) return;
         assert(loaderDataResult.value?.type === "Image");
 
-        const imageContentElement = loaderDataResult.value.image;
+        const imageContentElement = loaderDataResult.value.imageElement;
         if (!imageContentElement) return;
 
         // When the user zooms all the way in we want to show them the image's pixels
@@ -608,7 +630,7 @@ function ContentFileImageMobileViewerInner({
                 className={classNames(
                     fileClassName,
                     isLoaded && contentStyles.loadedFileImagePreviewClassName,
-                    contentStyles.fileViewerClassName,
+                    contentStyles.fileImageViewerClassName,
                     sprinkles({
                         boxShadow: !adjustments.hasTransparentBackground
                             ? "elevation-20-above-content-file-viewer-modal"
@@ -648,6 +670,25 @@ function ContentFileImageMobileViewerInner({
                     [filePreviewPlaceholder, fileSize.height, fileSize.width, isLoadedAndAnimated],
                 )}
             </div>
+            {withoutZoom && extraChildrenForVideo && (
+                // We need to render `extraChildrenForVideo` outside of the image `<div>` since
+                // the image `<div>` will be scaled down. We don't want our video controls to be
+                // scaled down.
+                <div
+                    className={sprinkles({
+                        zIndex: "10",
+                        position: "absolute",
+                    })}
+                    style={{
+                        width: fileScaledWidth,
+                        height: fileScaledHeight,
+                        left: viewerSize.width / 2 - fileScaledWidth / 2,
+                        top: viewerSize.height / 2 - fileScaledHeight / 2,
+                    }}
+                >
+                    {extraChildrenForVideo}
+                </div>
+            )}
         </Box>
     );
 }

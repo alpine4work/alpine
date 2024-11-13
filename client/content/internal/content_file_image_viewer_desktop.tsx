@@ -5,6 +5,7 @@ import {SpinnerGap} from "phosphor-react";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     contentFileViewerDesktopMarginBottom,
     contentFileViewerDesktopMarginTop,
@@ -17,7 +18,6 @@ import {
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
-    ContentFilePreviewExpirationTimers,
     getFileImagePreviewRenderingAdjustments,
     handleCopyContentFile,
     handleDownloadContentFile,
@@ -214,7 +214,7 @@ function ContentFileImageDesktopViewerInner({
                     const schema = new ProsemirrorSchema({
                         nodes: {
                             ...contentBaseProsemirrorSchemaSpec.nodes,
-                            ...createContentFileProsemirrorNodeSpecs({}),
+                            ...createContentFileProsemirrorNodeSpecs(),
                         },
                         marks: contentBaseProsemirrorSchemaSpec.marks,
                     });
@@ -307,7 +307,7 @@ function ContentFileImageDesktopViewerInner({
 
         const imageElement = assertExists(imageRef.current);
 
-        const imageContentElement = loaderDataResult.value.image;
+        const imageContentElement = loaderDataResult.value.imageElement;
         if (!imageContentElement) return;
 
         // eslint-disable-next-line react-compiler/react-compiler
@@ -366,7 +366,7 @@ function ContentFileImageDesktopViewerInner({
         if (loaderDataResult.isPending) return;
         assert(loaderDataResult.value?.type === "Image");
 
-        const imageContentElement = loaderDataResult.value.image;
+        const imageContentElement = loaderDataResult.value.imageElement;
         if (!imageContentElement) return;
 
         // When the user zooms all the way in we want to show them the image's pixels
@@ -434,7 +434,7 @@ function ContentFileImageDesktopViewerInner({
                         className={classNames(
                             fileClassName,
                             isLoaded && contentStyles.loadedFileImagePreviewClassName,
-                            contentStyles.fileViewerClassName,
+                            contentStyles.fileImageViewerClassName,
                             sprinkles({
                                 boxShadow: !adjustments.hasTransparentBackground
                                     ? "elevation-20-above-content-file-viewer-modal"

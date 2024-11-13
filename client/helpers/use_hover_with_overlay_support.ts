@@ -54,8 +54,8 @@ export function useHoverWithOverlaySupport(): [
         const handleDocumentPointerEnter = (event: PointerEvent) => {
             if (event.pointerType !== "mouse") return;
 
-            if (!event.currentTarget || event.currentTarget instanceof Node) {
-                setIsHovered(element.contains(event.currentTarget));
+            if (!event.target || event.target instanceof Node) {
+                setIsHovered(element.contains(event.target));
             }
         };
 

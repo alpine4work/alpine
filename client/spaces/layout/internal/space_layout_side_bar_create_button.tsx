@@ -1,8 +1,11 @@
+import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import {IconContext, Plus, SpinnerGap} from "phosphor-react";
-import {ReactNode} from "react";
+import {ReactNode, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {ChannelBrandIcon} from "~/client/icons/brand/channel_brand_icon.js";
 import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
 import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
@@ -11,145 +14,188 @@ import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
 // used in `<SearchResultView/>`'s `getSearchResultTypeDisplay()`. If you
 // change an icon here you should also change it there.
 export function SpaceLayoutSideBarCreateButton() {
+    const clientInfo = useClientInfo();
     const {space} = useSpaceContext();
     const peekStackContext = usePeekStackContext();
 
+    const triggerRef = useRef<OverlayTriggerButtonRef>(null);
+    const originalInteractionModalityRef = useRef<Modality | null>(null);
+
     return (
-        <MenuButton
-            placement="right-start"
-            // Centers the first item with the create button.
-            offsetAlong="-5"
-            size="brand-icons"
-            actions={[
-                [
-                    {
-                        withCustomLayout: true,
-                        pressErrorTitle: "Couldn’t create post",
-                        onPress: async () => {
-                            const draftId = generateId();
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                // NOTE(calebmer): I'd really like to use Ctrl+N as the keyboard shortcut to
+                // open the create menu but unfortunately we can't override that shortcut in
+                // Chrome. When we ship a desktop app we should bind Ctrl+N to the create menu.
+                if (
+                    event.key === "m" &&
+                    (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-                            await peekStackContext.push(
-                                `/s/${space.id}/posts/new/${draftId}?focus=channel`,
-                            );
-                        },
-                        render: ({isPressed, shouldShowPendingSpinner}) => (
-                            <SpaceLayoutSideBarCreateButtonItem
-                                icon={<PostBrandBigIcon />}
-                                label="Post"
-                                description="Share your ideas in a channel"
-                                isPressed={isPressed}
-                                shouldShowPendingSpinner={shouldShowPendingSpinner}
-                            />
-                        ),
-                    },
-                    {
-                        withCustomLayout: true,
-                        pressErrorTitle: "Couldn’t open new chat",
-                        onPress: async () => {
-                            await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
-                        },
-                        render: ({isPressed, shouldShowPendingSpinner}) => (
-                            <SpaceLayoutSideBarCreateButtonItem
-                                icon={<ChatBrandBigIcon />}
-                                label="Message"
-                                description="Start a chat with anyone"
-                                isPressed={isPressed}
-                                shouldShowPendingSpinner={shouldShowPendingSpinner}
-                            />
-                        ),
-                    },
-                    {
-                        withCustomLayout: true,
-                        pressErrorTitle: "Couldn’t create document",
-                        onPress: async () => {
-                            const documentId = generateId();
-                            await peekStackContext.push(
-                                `/s/${space.id}/documents/${documentId}?create&focus`,
-                            );
-                        },
-                        render: ({isPressed, shouldShowPendingSpinner}) => (
-                            <SpaceLayoutSideBarCreateButtonItem
-                                icon={<DocumentBrandBigIcon />}
-                                label="Document"
-                                description="Write what’s on your mind"
-                                isPressed={isPressed}
-                                shouldShowPendingSpinner={shouldShowPendingSpinner}
-                            />
-                        ),
-                    },
-                    {
-                        withCustomLayout: true,
-                        pressErrorTitle: "Couldn’t open tasks",
-                        onPress: async () => {
-                            await peekStackContext.push(`/s/${space.id}/tasks?focus=new`);
-                        },
-                        render: ({isPressed, shouldShowPendingSpinner}) => (
-                            <SpaceLayoutSideBarCreateButtonItem
-                                icon={<TaskBrandBigIcon />}
-                                label="Task"
-                                description="Keep track of work to do later"
-                                isPressed={isPressed}
-                                shouldShowPendingSpinner={shouldShowPendingSpinner}
-                            />
-                        ),
-                    },
-                ],
-                [
-                    {
-                        hasChildren: true,
-                        key: "more",
-                        label: "More",
-                        actions: [
-                            {
-                                label: "Channel",
-                                icon: <ChannelBrandIcon size="5" />,
-                                pressErrorTitle: "Couldn’t create channel",
-                                onPress: async () => {
-                                    const channelId = generateId();
+                    // Restore the interaction modality from before the create menu opened when the
+                    // create menu closes.
+                    originalInteractionModalityRef.current = getInteractionModality();
+                    setInteractionModality("keyboard");
 
-                                    await peekStackContext.push(
-                                        `/s/${space.id}/channels/${channelId}?create`,
-                                    );
-                                },
-                            },
-                            {
-                                label: "Task collection",
-                                icon: <TaskCollectionBrandIcon size="5" />,
-                                pressErrorTitle: "Couldn’t create task collection",
-                                onPress: async () => {
-                                    const collectionId = generateId();
-
-                                    await peekStackContext.push(
-                                        `/s/${space.id}/tasks/collections/${collectionId}?create`,
-                                    );
-                                },
-                            },
-                            {
-                                label: "Task view",
-                                icon: <TaskQueryBrandIcon size="5" />,
-                                pressErrorTitle: "Couldn’t create task view",
-                                onPress: async () => {
-                                    await peekStackContext.push(`/s/${space.id}/tasks/view`);
-                                },
-                            },
-                        ],
-                    },
-                ],
-            ]}
+                    assertExists(triggerRef.current).open({
+                        initiallyFocus: "FirstFocusableElement",
+                    });
+                }
+            }}
         >
-            <IconButton size="lg" description="Create" tooltipPlacement="right">
-                <Plus />
-            </IconButton>
-        </MenuButton>
+            <MenuButton
+                ref={triggerRef}
+                placement="right-start"
+                // Centers the first item with the create button.
+                offsetAlong="-5"
+                size="brand-icons"
+                onClose={() => {
+                    if (originalInteractionModalityRef.current !== null) {
+                        setInteractionModality(originalInteractionModalityRef.current);
+                        originalInteractionModalityRef.current = null;
+                    }
+                }}
+                actions={[
+                    [
+                        {
+                            withCustomLayout: true,
+                            pressErrorTitle: "Couldn’t create post",
+                            onPress: async () => {
+                                const draftId = generateChronologicalId();
+
+                                await peekStackContext.push(
+                                    `/s/${space.id}/posts/new/${draftId}?focus=channel`,
+                                );
+                            },
+                            render: ({isPressed, shouldShowPendingSpinner}) => (
+                                <SpaceLayoutSideBarCreateButtonItem
+                                    icon={<PostBrandBigIcon />}
+                                    label="Post"
+                                    description="Share your ideas in a channel"
+                                    isPressed={isPressed}
+                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
+                                />
+                            ),
+                        },
+                        {
+                            withCustomLayout: true,
+                            pressErrorTitle: "Couldn’t open new chat",
+                            onPress: async () => {
+                                await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
+                            },
+                            render: ({isPressed, shouldShowPendingSpinner}) => (
+                                <SpaceLayoutSideBarCreateButtonItem
+                                    icon={<ChatBrandBigIcon />}
+                                    label="Message"
+                                    description="Start a chat with anyone"
+                                    isPressed={isPressed}
+                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
+                                />
+                            ),
+                        },
+                        {
+                            withCustomLayout: true,
+                            pressErrorTitle: "Couldn’t create document",
+                            onPress: async () => {
+                                const documentId = generateId();
+                                await peekStackContext.push(
+                                    `/s/${space.id}/documents/${documentId}?create&focus`,
+                                );
+                            },
+                            render: ({isPressed, shouldShowPendingSpinner}) => (
+                                <SpaceLayoutSideBarCreateButtonItem
+                                    icon={<DocumentBrandBigIcon />}
+                                    label="Document"
+                                    description="Write what’s on your mind"
+                                    isPressed={isPressed}
+                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
+                                />
+                            ),
+                        },
+                        {
+                            withCustomLayout: true,
+                            pressErrorTitle: "Couldn’t open tasks",
+                            onPress: async () => {
+                                await peekStackContext.push(`/s/${space.id}/tasks?focus=new`);
+                            },
+                            render: ({isPressed, shouldShowPendingSpinner}) => (
+                                <SpaceLayoutSideBarCreateButtonItem
+                                    icon={<TaskBrandBigIcon />}
+                                    label="Task"
+                                    description="Keep track of work to do later"
+                                    isPressed={isPressed}
+                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
+                                />
+                            ),
+                        },
+                    ],
+                    [
+                        {
+                            hasChildren: true,
+                            key: "more",
+                            label: "More",
+                            actions: [
+                                {
+                                    label: "Channel",
+                                    icon: <ChannelBrandIcon size="5" />,
+                                    pressErrorTitle: "Couldn’t create channel",
+                                    onPress: async () => {
+                                        const channelId = generateId();
+
+                                        await peekStackContext.push(
+                                            `/s/${space.id}/channels/${channelId}?create`,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: "Task collection",
+                                    icon: <TaskCollectionBrandIcon size="5" />,
+                                    pressErrorTitle: "Couldn’t create task collection",
+                                    onPress: async () => {
+                                        const collectionId = generateId();
+
+                                        await peekStackContext.push(
+                                            `/s/${space.id}/tasks/collections/${collectionId}?create`,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: "Task view",
+                                    icon: <TaskQueryBrandIcon size="5" />,
+                                    pressErrorTitle: "Couldn’t create task view",
+                                    onPress: async () => {
+                                        await peekStackContext.push(`/s/${space.id}/tasks/view`);
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                ]}
+            >
+                <IconButton
+                    size="lg"
+                    description="Create"
+                    tooltipPlacement="right"
+                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+M" : "Ctrl+M"}
+                >
+                    <Plus />
+                </IconButton>
+            </MenuButton>
+        </GlobalKeyDownEvent>
     );
 }
 

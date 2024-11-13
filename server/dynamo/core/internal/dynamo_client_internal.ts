@@ -92,7 +92,7 @@ export class DynamoClientInternal {
         input: Input,
     ): Promise<Output> {
         if (import.meta.jest) {
-            dynamoClientExecuteActionTestCounter.incrementForTest();
+            dynamoClientExecuteActionTestCounter.incrementForTest(action);
         }
 
         let request = new Request(this._url, {

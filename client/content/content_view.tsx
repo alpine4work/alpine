@@ -9,6 +9,7 @@ import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {
@@ -17,11 +18,8 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    addContentFilePreviewBehavior,
-} from "~/client/content/internal/render_content_file_preview.js";
-import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
+import {addContentFilePreviewBehavior} from "~/client/content/internal/render_content_file_preview.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -49,9 +47,8 @@ import {
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {
-    ContentReferences,
     ContentWithReferences,
-    mergeContentReferencesFileById,
+    emptyContentReferences,
 } from "~/shared/content/content_references.js";
 import {
     codeBlockWrapperClassName,
@@ -66,7 +63,12 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -102,29 +104,7 @@ declare global {
     var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
 }
 
-/**
- * A read-only view of content. Used as a complement to `<ContentEditor>` when
- * you want to disable editing of content and only allow reading the content.
- */
-export function ContentView({
-    withMobileLayout,
-    content: contentFromProps,
-    contentUpdatedTime,
-    placeholder,
-    className,
-    "aria-label": ariaLabel,
-    "aria-labelledby": ariaLabelledBy,
-    isInert = false,
-    isTruncated = false,
-    isEditorInitialAppRender = false,
-    isBackgroundColorGrey5 = false,
-    fileAttachmentTarget,
-    shouldHighlightComment,
-    withUserSelectNone = false,
-    onSeeMoreContent,
-    onSeeLessContent,
-    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
-}: {
+export type ContentViewProps<Content extends ContentWithReferences> = {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
      * in peeks on the desktop platform.
@@ -134,7 +114,19 @@ export function ContentView({
     /**
      * The content to render.
      */
-    content: ContentWithReferences;
+    content: Content;
+
+    /**
+     * Update the references associated with `content`. Should merge the new
+     * references with the old ones with `mergeContentReferences()`.
+     *
+     * This is important for files. If you have a recently uploaded file then
+     * we'll poll the file until it's finished processing. Once it's finished
+     * processing this function is called to update our `FileModel` in state.
+     * If we don't update the `FileModel` in state it'll look like the file is
+     * processing forever.
+     */
+    onMergeContentReferences?: (contentReferences: Content["references"]) => void;
 
     /**
      * This prop puts an `(updated)` message at the end of our content with a
@@ -218,14 +210,14 @@ export function ContentView({
      * Useful when you want to show snippet of truncated content that expands to
      * more.
      */
-    onSeeMoreContent?: () => void;
+    onSeeMoreContent?: (targetElement: HTMLDivElement) => void;
 
     /**
      * Adds a "See less" button which when clicked should collapse content to a
      * truncated version which a "See more" button should be able to expand (see
      * `onSeeMoreContent`).
      */
-    onSeeLessContent?: () => void;
+    onSeeLessContent?: (targetElement: HTMLDivElement) => void;
 
     /**
      * Override the screen width provided to `layoutContentFileRow()`. By default
@@ -234,10 +226,40 @@ export function ContentView({
      * set this value for better layout results. Measured in pixels.
      */
     fileLayoutScreenWidth?: number;
-}) {
+};
+
+/**
+ * A read-only view of content. Used as a complement to `<ContentEditor>` when
+ * you want to disable editing of content and only allow reading the content.
+ */
+export function ContentView<Content extends ContentWithReferences>({
+    withMobileLayout,
+    content,
+    onMergeContentReferences,
+    contentUpdatedTime,
+    placeholder,
+    className,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    isInert = false,
+    isTruncated = false,
+    isEditorInitialAppRender = false,
+    isBackgroundColorGrey5 = false,
+    fileAttachmentTarget,
+    shouldHighlightComment,
+    withUserSelectNone = false,
+    onSeeMoreContent,
+    onSeeLessContent,
+    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
+}: ContentViewProps<Content>) {
     assert(
-        !contentFromProps.doc.type.schema.nodes.file || fileAttachmentTarget,
+        !content.doc.type.schema.nodes.file || fileAttachmentTarget,
         "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+    );
+
+    assert(
+        !content.doc.type.schema.nodes.file || onMergeContentReferences,
+        "When the ProseMirror schema supports files then the prop `onMergeContentReferences` is required",
     );
 
     const rootNavigate = useRootNavigate();
@@ -270,35 +292,12 @@ export function ContentView({
 
     const events = useEvents({
         getContent: () => content,
+        onMergeContentReferences: onMergeContentReferences ?? noop,
         onSeeMoreContent: onSeeMoreContent ?? noop,
         onSeeLessContent: onSeeLessContent ?? noop,
     });
 
-    const [filePreviewExpirationTimers] = useState<ContentFilePreviewExpirationTimers | undefined>(
-        () => (fileAttachmentTarget ? new ContentFilePreviewExpirationTimers() : undefined),
-    );
-    const [updatedContentReferencesFileById, setUpdatedContentReferencesFileById] = useState<
-        ContentReferences["fileById"] | null
-    >(null);
-
-    const updatedContentReferences = useMemo(() => {
-        if (!updatedContentReferencesFileById) return contentFromProps.references;
-
-        const newFileById = mergeContentReferencesFileById(
-            contentFromProps.references.fileById,
-            updatedContentReferencesFileById,
-        );
-
-        if (newFileById === contentFromProps.references.fileById)
-            return contentFromProps.references;
-
-        return {...contentFromProps.references, fileById: newFileById};
-    }, [contentFromProps.references, updatedContentReferencesFileById]);
-
-    const content = useMemo(
-        () => ({doc: contentFromProps.doc, references: updatedContentReferences}),
-        [contentFromProps.doc, updatedContentReferences],
-    );
+    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
 
     const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
         readonly doc: Node;
@@ -338,7 +337,7 @@ export function ContentView({
         setInitialCodeBlockDecorationsState(null);
     }
 
-    const {isTitleEmpty, isBodyEmpty, htmlStore} = useMemo(() => {
+    const {isTitleEmpty, isBodyEmpty, htmlGeneratorStore} = useMemo(() => {
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
         if (contentUpdatedTime) {
@@ -466,8 +465,8 @@ export function ContentView({
             }
         });
 
-        let htmlStore: Store<{
-            html: string;
+        let htmlGeneratorStore: Store<{
+            htmlGenerator: HtmlFragmentGenerator;
             codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
         }>;
 
@@ -490,21 +489,22 @@ export function ContentView({
             const codeBlockDecorationsStore =
                 createContentCodeBlockHtmlSerializationDecorationsStore(content.doc);
 
-            htmlStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
-                renderContentFragmentToHtmlStore(content, {
+            htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
+                renderContentFragmentToHtmlGeneratorStore(content, {
                     spaceId,
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
                     isMobile,
+                    isInitialAppRender,
                     isInert,
                     withPosAttribute: true,
                     placeholder,
                     decorations: [decorations, codeBlockDecorations],
                     shouldHighlightComment,
                     filePreviewExpirationTimers,
-                }).map(html => ({
-                    html,
+                }).map(htmlGenerator => ({
+                    htmlGenerator,
                     codeBlockDecorations,
                 })),
             );
@@ -521,20 +521,21 @@ export function ContentView({
                 language.getParser();
             });
 
-            htmlStore = renderContentFragmentToHtmlStore(content, {
+            htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
                 spaceId,
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
                 isMobile,
+                isInitialAppRender,
                 isInert,
                 withPosAttribute: true,
                 placeholder,
                 decorations: [decorations, initialCodeBlockDecorations],
                 shouldHighlightComment,
                 filePreviewExpirationTimers,
-            }).map(html => ({
-                html,
+            }).map(htmlGenerator => ({
+                htmlGenerator,
                 codeBlockDecorations: initialCodeBlockDecorations!,
             }));
         }
@@ -542,7 +543,7 @@ export function ContentView({
         return {
             isTitleEmpty: isContentTitleEmpty(content.doc),
             isBodyEmpty: isContentBodyEmpty(content.doc),
-            htmlStore,
+            htmlGeneratorStore,
         };
     }, [
         contentUpdatedTime,
@@ -558,13 +559,49 @@ export function ContentView({
         spaceId,
         accountStore,
         spaceContext?.currentAccount,
-        placeholder,
+        isInitialAppRender,
         isInert,
+        placeholder,
         shouldHighlightComment,
         filePreviewExpirationTimers,
     ]);
 
-    const {html, codeBlockDecorations} = useStore(htmlStore);
+    const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
+
+    const previousContentDocRef = useRef<Node>(content.doc);
+    const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        const element = assertExists(ref.current);
+
+        const previousContentDoc = previousContentDocRef.current;
+        previousContentDocRef.current = content.doc;
+        const previousHtmlGenerator = previousHtmlGeneratorRef.current;
+        previousHtmlGeneratorRef.current = htmlGenerator;
+
+        if (previousHtmlGenerator === htmlGenerator) return;
+
+        if (
+            !previousHtmlGenerator ||
+            // Force the content HTML to be re-created if `content.doc` changes. If content
+            // changes dramatically then `patchNode()` has some limitations (e.g. doesn't
+            // handle children insertion, removal, and re-ordering well). For all other
+            // changes try patching our HTML.
+            previousContentDoc !== content.doc
+        ) {
+            // This case happens during a hot reload. We need to remove the children
+            // currently in the DOM.
+            while (element.hasChildNodes()) {
+                element.firstChild!.remove();
+            }
+
+            element.appendChild(htmlGenerator.generateNode());
+        } else {
+            assert(htmlGenerator.patchNode(previousHtmlGenerator, element));
+        }
+    }, [content.doc, htmlGenerator, isInitialAppRender]);
 
     const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
         readonly key: Id;
@@ -607,13 +644,6 @@ export function ContentView({
         );
     }, []);
 
-    useLayoutEffectWithoutServerSideWarning(() => {
-        filePreviewExpirationTimers?.play();
-        return () => {
-            filePreviewExpirationTimers?.pause();
-        };
-    }, [filePreviewExpirationTimers]);
-
     // Some behaviors in this function depend on this effect being a layout effect.
     // For example, on initial render when `<ContentEditor>` transitions from
     // `<ContentView>` to ProseMirror's `EditorView` we must run
@@ -621,9 +651,11 @@ export function ContentView({
     // `EditorView` is initialized. This only happens if
     // `addContentFilePreviewBehavior()` is in a layout effect.
     useLayoutEffectWithoutServerSideWarning(() => {
-        // Re-run this effect whenever the HTML changes.
+        if (isInitialAppRender) return;
+
+        // Re-run this effect whenever the content changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        html;
+        content.doc;
 
         const parentElement = assertExists(ref.current);
 
@@ -796,9 +828,9 @@ export function ContentView({
                     }
 
                     if (shouldShowSeeLessContentButton) {
-                        events.onSeeLessContent();
+                        events.onSeeLessContent(assertExists(ref.current));
                     } else if (shouldShowSeeMoreContentButton) {
-                        events.onSeeMoreContent();
+                        events.onSeeMoreContent(assertExists(ref.current));
                     }
                 };
 
@@ -930,27 +962,25 @@ export function ContentView({
                         attachmentTarget: assertExists(fileAttachmentTarget),
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                         isInert,
-                        isOurEditorUploading: false,
+                        isInitialAppRender,
                         isEditorInitialAppRender,
                         rootNavigate,
                         getReporter: () => reporter,
                         onUpdate: (file, signedUrlSearch) => {
-                            setUpdatedContentReferencesFileById(fileById => {
-                                return mergeContentReferencesFileById(
-                                    fileById ?? new Map(),
-                                    new Map([[file.id, {signedUrlSearch, file}]]),
-                                );
+                            events.onMergeContentReferences({
+                                ...emptyContentReferences,
+                                fileById: new Map([[file.id, {signedUrlSearch, file}]]),
                             });
                         },
                         onSignedUrlRefresh: (fileId, signedUrlSearch) => {
-                            setUpdatedContentReferencesFileById(fileById => {
-                                const oldFile = content.references.fileById.get(fileId);
-                                if (!oldFile) return fileById;
+                            const oldFile = events.getContent().references.fileById.get(fileId);
+                            if (!oldFile) return;
 
-                                return mergeContentReferencesFileById(
-                                    fileById ?? new Map(),
-                                    new Map([[fileId, {signedUrlSearch, file: oldFile.file}]]),
-                                );
+                            events.onMergeContentReferences({
+                                ...emptyContentReferences,
+                                fileById: new Map([
+                                    [fileId, {signedUrlSearch, file: oldFile.file}],
+                                ]),
                             });
                         },
                     },
@@ -967,7 +997,6 @@ export function ContentView({
         };
     }, [
         events,
-        html,
         isInert,
         navigate,
         handleCodeBlockCopyButtonHoverEnd,
@@ -984,6 +1013,7 @@ export function ContentView({
         filePreviewExpirationTimers,
         isEditorInitialAppRender,
         rootNavigate,
+        isInitialAppRender,
     ]);
 
     // Watch all parent elements of our content editor for scroll events. When a
@@ -1324,9 +1354,11 @@ export function ContentView({
                 style={
                     withUserSelectNone ? {userSelect: "none", WebkitUserSelect: "none"} : undefined
                 }
-                dangerouslySetInnerHTML={{__html: html}}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
+                dangerouslySetInnerHTML={
+                    isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
+                }
             />
             {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
             {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (

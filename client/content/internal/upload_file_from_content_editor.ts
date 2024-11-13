@@ -411,6 +411,7 @@ async function actuallyUploadFileFromContentEditor(
                                         type: "Audio",
                                         isProcessing: true,
                                         duration: "Processing",
+                                        metadata: "Processing",
                                     };
                                     break;
                                 }
@@ -634,11 +635,40 @@ async function actuallyUploadFileFromContentEditor(
                             assert(file.preview.isProcessing);
 
                             return file.clone({
-                                preview: {
-                                    type: "Audio",
-                                    isProcessing: false,
-                                    duration: event.duration,
-                                },
+                                preview:
+                                    file.preview.metadata !== "Processing"
+                                        ? {
+                                              type: "Audio",
+                                              isProcessing: false,
+                                              duration: event.duration,
+                                              metadata: file.preview.metadata,
+                                          }
+                                        : {
+                                              ...file.preview,
+                                              duration: event.duration,
+                                          },
+                            });
+                        });
+                        break;
+                    }
+                    case "AudioPreviewMetadata": {
+                        assertExists(state).fileStore.set(file => {
+                            assert(file?.preview?.type === "Audio");
+                            assert(file.preview.isProcessing);
+
+                            return file.clone({
+                                preview:
+                                    file.preview.duration !== "Processing"
+                                        ? {
+                                              type: "Audio",
+                                              isProcessing: false,
+                                              duration: file.preview.duration,
+                                              metadata: event.metadata,
+                                          }
+                                        : {
+                                              ...file.preview,
+                                              metadata: event.metadata,
+                                          },
                             });
                         });
                         break;

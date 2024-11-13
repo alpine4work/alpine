@@ -420,9 +420,9 @@ function IconButton(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? {light: "grey-50-const", dark: "grey-60-const"}
+                          ? {light: "grey-40-const", dark: "grey-60-const"}
                           : isHoveredOrTriggeredOverlayOpen
-                          ? {light: "grey-60-const", dark: "grey-70-const"}
+                          ? {light: "grey-50-const", dark: "grey-70-const"}
                           : undefined,
                       color: isPressed ? "grey-0-const" : "grey-10-const",
                   }
@@ -534,7 +534,12 @@ function IconButton(
             isDisabled={isDisabled || withoutTooltip || isPending}
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
         >
-            <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
+            <FocusRing
+                offset={isQuietVariant ? "0" : "0.5"}
+                // Make sure the `<FocusRing>` doesn't render around the touch slop area. Just
+                // the button area.
+                inset={touchSlop.slop}
+            >
                 {createElement(
                     isFocusable ? "button" : "div",
                     // eslint-disable-next-line react-compiler/react-compiler

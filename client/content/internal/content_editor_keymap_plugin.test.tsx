@@ -78,7 +78,6 @@ function TestContentEditor({
                 state={state}
                 onChange={setState}
                 fileAttachmentTarget={fileAttachmentTarget}
-                onLoadingIndicator={() => {}}
             />
         </TestSpaceContextProvider>
     );
@@ -270,7 +269,6 @@ function arrowLeftKeyboardEvent({
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function arrowUpKeyboardEvent({
     metaKey = false,
     shiftKey = false,
@@ -6572,7 +6570,7 @@ test("pressing enter when a file is selected creates a paragraph between two fil
     expect(getSelection()).toEqual({type: "node", anchor: 4});
 });
 
-test("pressing arrow down when file is select and the last thing creates a new paragraph", () => {
+test("pressing arrow down when file is selected and the last thing creates a new paragraph", () => {
     render(
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
@@ -6592,6 +6590,31 @@ test("pressing arrow down when file is select and the last thing creates a new p
     expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
 
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+});
+
+test("pressing arrow up when file is selected and the first thing creates a new paragraph", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowUpKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
 
     expect(getDoc().toString()).toEqual("doc(fileRow(file))");
     expect(getSelection()).toEqual({type: "node", anchor: 1});

@@ -22,7 +22,10 @@ import {
 } from "~/client/design/schedule_after_navigation_animation.js";
 import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
-import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
+import {
+    isElementOwnedBy,
+    setElementOwnedBy,
+} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -95,6 +98,7 @@ export function MobileFullScreenModal({
     onClose: onCloseFromProps,
     children,
     "data-ownedby": dataOwnedBy,
+    ownedByElement,
 }: {
     onClose: () => void;
     children?:
@@ -104,6 +108,7 @@ export function MobileFullScreenModal({
               onCloseWithAnimation: (options?: {withoutFocus?: boolean}) => void;
           }) => ReactNode);
     "data-ownedby"?: string;
+    ownedByElement?: Element | null;
 }) {
     const modalContext = assertExists(
         useContext(MobileFullScreenModalContext),
@@ -340,6 +345,19 @@ export function MobileFullScreenModal({
         return disableMobileWebKitDefaultScroll();
     }, [isInitialRender]);
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialRender) return;
+
+        const modalElement = assertExists(modalRef.current);
+
+        if (!ownedByElement) return;
+
+        setElementOwnedBy(modalElement, ownedByElement);
+        return () => {
+            setElementOwnedBy(modalElement, null);
+        };
+    }, [isInitialRender, ownedByElement]);
+
     return createPortal(
         <FocusScope contain>
             <Box
@@ -380,7 +398,9 @@ export function MobileFullScreenModal({
                                     backgroundColor="grey-0"
                                     // Can set this so `isElementOwnedBy()` considers children of this modal to be
                                     // owned by some other element on the page.
-                                    data-ownedby={dataOwnedBy}
+                                    data-ownedby={
+                                        typeof dataOwnedBy === "string" ? dataOwnedBy : undefined
+                                    }
                                 >
                                     {typeof children === "function"
                                         ? // eslint-disable-next-line react-compiler/react-compiler

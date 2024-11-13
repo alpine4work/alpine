@@ -84,6 +84,7 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
@@ -93,10 +94,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
-import {
-    ContentFilePreviewExpirationTimers,
-    handleCopyContentFile,
-} from "~/client/content/internal/render_content_file_preview.js";
+import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
@@ -104,7 +102,6 @@ import {
 } from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {selectFiles} from "~/client/content/select_files.js";
-import {ContentEditorLoadingIndicatorSummary} from "~/client/content/use_content_editor_loading_indicator.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
@@ -136,6 +133,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
@@ -511,21 +509,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onArrowUp?: (event: KeyboardEvent) => void;
 
     /**
-     * If the `<ContentEditor>` is processing some asynchronous data then it'll
-     * call this function with a promise so the parent component can show a
-     * loading indicator for the duration of the promise.
-     *
-     * If the `<ContentEditor>` supports files then this prop is required. You must
-     * show a loading indicator while a file is uploading or else the user may not
-     * know what's going on.
-     */
-    onLoadingIndicator?: (
-        summary: ContentEditorLoadingIndicatorSummary,
-        promise: Promise<void>,
-        progressStore: Store<number> | null,
-    ) => void;
-
-    /**
      * Opens a comment thread when clicked. If your schema supports comment marks
      * you must provide this function to open them. `<ContentEditor>` knows almost
      * nothing about how comments are implemented, only how they are styled.
@@ -622,6 +605,7 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     withMobileLayout,
     state,
+    onChange,
     placeholder,
     className,
     "aria-label": ariaLabel,
@@ -708,6 +692,14 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 isEditorInitialAppRender={true}
                 withMobileLayout={withMobileLayout}
                 content={state.getContent()}
+                onMergeContentReferences={references => {
+                    const unwrappedState = unwrap(state);
+                    const transaction = updateContentEditorReferences(unwrappedState.tr, {
+                        type: "Merge",
+                        references,
+                    });
+                    onChange(wrap(unwrappedState.apply(transaction)), transaction);
+                }}
                 placeholder={placeholder}
                 className={className}
                 aria-label={ariaLabel}
@@ -766,6 +758,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isMobile = useIsMobile();
     const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -819,6 +813,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const navigateRef = useRef(navigate);
     const reporterRef = useRef(reporter);
     const contextRef = useRef(context);
+    const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
+    const filePreviewExpirationTimersRef = useRef(filePreviewExpirationTimers);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
@@ -833,6 +829,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         navigateRef.current = navigate;
         reporterRef.current = reporter;
         contextRef.current = context;
+        addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
+        filePreviewExpirationTimersRef.current = filePreviewExpirationTimers;
         spaceContextRef.current = spaceContext;
     });
 
@@ -1063,11 +1061,6 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                            Node and mark views                             *
         \* ========================================================================== */
 
-        const filePreviewExpirationTimers = schema.nodes.file
-            ? new ContentFilePreviewExpirationTimers()
-            : undefined;
-        filePreviewExpirationTimers?.play();
-
         const getFileLayoutScreenWidth = () =>
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
@@ -1139,7 +1132,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getReporter: () => reporterRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
-                getExpirationTimers: () => assertExists(filePreviewExpirationTimers),
+                getExpirationTimers: () => filePreviewExpirationTimersRef.current,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -1671,7 +1664,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // both asynchronous pastes and asynchronous drops. I feel like the copy
             // "Dropping" might confuse the user since they might not associate the word
             // "drop" with their drag operation.
-            propsRef.current.onLoadingIndicator?.("Pasting", promise, null);
+            addGlobalLoadingIndicatorRef.current(promise, {type: "Pasting"});
 
             promise.catch(error => {
                 reporter.displayError(
@@ -1808,13 +1801,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             // While a file is uploading show an "Uploading" loading indicator with the
                             // progress percentage. If multiple files are uploading at once then the
-                            // implementation of `onLoadingIndicator` is responsible for putting together
+                            // global loading indicator implementation is responsible for putting together
                             // an aggregated summary.
-                            propsRef.current.onLoadingIndicator?.(
-                                "Uploading",
-                                promise,
-                                progressCompositeStore,
-                            );
+                            addGlobalLoadingIndicatorRef.current(promise, {
+                                type: "Uploading",
+                                progressStore: progressCompositeStore,
+                            });
 
                             const {signedUrlSearch, fileStore} =
                                 await fileReferencePromiseResolver.promise;
@@ -2887,7 +2879,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewRef.current = null;
             document.removeEventListener("selectionchange", handleDocumentSelectionChange);
-            filePreviewExpirationTimers?.pause();
             tripleClickDragStateRef.current?.dispose();
             fileDragState?.dispose();
             view.destroy();
@@ -3648,8 +3639,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const {schema} = unwrappedState;
 
     assert(
-        !schema.nodes.file || (fileAttachmentTarget && props.onLoadingIndicator),
-        "When the ProseMirror schema supports files then the props `fileAttachmentTarget` and `onLoadingIndicator` are required",
+        !schema.nodes.file || fileAttachmentTarget,
+        "When the ProseMirror schema supports files then the prop `fileAttachmentTarget` is required",
     );
 
     const floaterState = state.getFloaterState();
@@ -3962,7 +3953,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             [
                 {
                     label: "Undo",
-                    isDisabled: canUndo,
+                    isDisabled: !canUndo,
                     keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Z" : "Ctrl+Z",
                     onPress: () => {
                         const view = assertExists(viewRef.current);
@@ -3971,7 +3962,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 {
                     label: "Redo",
-                    isDisabled: canRedo,
+                    isDisabled: !canRedo,
                     keyboardShortcutHint: clientInfo.isAppleDevice ? "⌘+Y" : "Ctrl+Y",
                     onPress: () => {
                         const view = assertExists(viewRef.current);

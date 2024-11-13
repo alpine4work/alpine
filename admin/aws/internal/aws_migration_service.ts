@@ -38,8 +38,8 @@ export class AwsMigrationService extends Construct {
                 joinPath(
                     runfilesPath,
                     process.env.CDK_LITE === "true"
-                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
-                        : "cyberworlds/server/migration/migration_image_tarball/tarball.tar",
+                        ? "cyberworlds/admin/aws/empty_image_tarball_load/tarball.tar"
+                        : "cyberworlds/server/migration/migration_image_tarball_load/tarball.tar",
                 ),
             ),
             // Send logs to AWS. Container logs are short-lived and used for debugging

@@ -16,6 +16,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
 import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 
 export function meta() {
@@ -48,7 +49,7 @@ export default function CreateRoute() {
                     description="Share your ideas in a channel"
                     pressErrorTitle="Couldn’t create post"
                     onPress={async () => {
-                        const draftId = generateId();
+                        const draftId = generateChronologicalId();
 
                         await rootNavigate(`/s/${space.id}/posts/new/${draftId}?focus=channel`);
                     }}

@@ -1,4 +1,4 @@
-import {Memo, useEffect, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {
@@ -70,14 +70,18 @@ export function useDynamoGeneralRealtimeIndexQuery<Model>(
     },
 ): {
     query: DynamoGeneralRealtimeIndexQuery<Model>;
+    handleEvent: Memo<
+        (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
+        }) => void
+    >;
 } {
     const [query, setQuery] = useState(() =>
         DynamoGeneralRealtimeIndexQuery.new(initialQueryResult),
     );
 
-    useDynamoGeneralRealtimeIndexQueryBase({query, onUpdateQuery: setQuery}, options);
-
-    return {query};
+    return useDynamoGeneralRealtimeIndexQueryBase({query, onUpdateQuery: setQuery}, options);
 }
 
 /**
@@ -151,17 +155,33 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
          */
         reloadQuery: Memo<() => Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>>;
     },
-) {
+): {
+    query: DynamoGeneralRealtimeIndexQuery<Model, Extra>;
+    handleEvent: Memo<
+        (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
+        }) => void
+    >;
+} {
     const setErrorState = useErrorState();
 
-    // Subscribe to realtime events that may change what's in the channel.
-    useEffect(() => {
-        return subscribeToEvents(event => {
+    const handleEvent = useCallback(
+        (event: {
+            readTime: Date;
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>;
+        }) => {
             onUpdateQuery(query =>
                 query.handleEventTransaction(event.readTime, event.eventTransaction),
             );
-        });
-    }, [onUpdateQuery, subscribeToEvents]);
+        },
+        [onUpdateQuery],
+    );
+
+    // Subscribe to realtime events that may change what's in the channel.
+    useEffect(() => {
+        return subscribeToEvents(handleEvent);
+    }, [handleEvent, subscribeToEvents]);
 
     // Whenever we connect, we need to backfill changes from when we initially read
     // inbox entries until now. That way if any realtime events happened during
@@ -217,4 +237,9 @@ export function useDynamoGeneralRealtimeIndexQueryBase<Model, Extra>(
             error => setErrorState(error),
         );
     }, [backfillQuery, isConnected, onUpdateQuery, query, reloadQuery, setErrorState]);
+
+    return {
+        query,
+        handleEvent,
+    };
 }

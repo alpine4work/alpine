@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
-load("//admin/bazel:production_transition.bzl", "production_transition")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("//admin/bazel:production_transition.bzl", "production_transition", "production_transition_executable")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 exports_files(glob(["test_fixtures/*"]))
@@ -69,9 +69,9 @@ js_image_layer(
 
 oci_image(
     name = "upload_image",
-    base = "@debian",
+    base = "@ubuntu_libreoffice_image",
     tars = [
-        "//admin/aws:helpers/www_data_owned_directory_oci_layer.tar",
+        "//admin/aws:www_data_directory_layer",
         ":upload_image_layer",
     ],
     # For security, use the `www-data` user which exists on our Linux image. It
@@ -79,10 +79,27 @@ oci_image(
     user = "www-data",
 )
 
-oci_tarball(
-    name = "upload_image_tarball",
+oci_load(
+    name = "upload_image_tarball_load",
     image = ":upload_image",
     repo_tags = ["cyberworlds-job-queue-service:latest"],
+)
+
+filegroup(
+    name = "upload_image_tarball",
+    srcs = [":upload_image_tarball_load"],
+    output_group = "tarball",
+)
+
+# Convenience target for running:
+#
+# ```
+# bazel run //server/files/upload:upload_image_tarball_load_production
+# docker run -it cyberworlds-job-queue-service:latest /bin/bash
+# ```
+production_transition_executable(
+    name = "upload_image_tarball_load_production",
+    target = ":upload_image_tarball_load",
 )
 
 production_transition(

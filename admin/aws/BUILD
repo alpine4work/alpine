@@ -1,16 +1,11 @@
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@npm//:aws-cdk/package_json.bzl", cdk_bin = "bin")
 load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
-
-exports_files([
-    # A manually built OCI layer that creates a directory `/var/www-data` and
-    # grants write access for that directory to the `www-data` user.
-    "helpers/www_data_owned_directory_oci_layer.tar",
-])
 
 ts_project(
     name = "aws",
@@ -40,6 +35,7 @@ filegroup(
         "//:cdk_files",
         "//admin/opensearch/deploy:deploy_production",
         "//app:app_image_tarball_production",
+        "//server/files/upload:upload_image_tarball_production",
         "//server/jobs/queue:queue_image_tarball_production",
         "//server/migration:migration_image_tarball_production",
         "//server/tasks/realtime:realtime_image_tarball_production",
@@ -95,15 +91,21 @@ js_image_layer(
 
 oci_image(
     name = "empty_image",
-    base = "@debian",
+    base = "@debian_image",
     tars = [":empty_image_layer"],
     user = "www-data",
 )
 
-oci_tarball(
-    name = "empty_image_tarball",
+oci_load(
+    name = "empty_image_tarball_load",
     image = ":empty_image",
     repo_tags = ["cyberworlds-empty-service:latest"],
+)
+
+filegroup(
+    name = "empty_image_tarball",
+    srcs = [":empty_image_tarball_load"],
+    output_group = "tarball",
 )
 
 production_transition(
@@ -167,4 +169,16 @@ write_source_files(
         "templates/cyberworlds_lifecycle_stack.yaml": "output_lite/CyberworldsLifecycleStack.template.yaml",
         "templates/cyberworlds_stack.yaml": "output_lite/CyberworldsStack.template.yaml",
     },
+)
+
+# Layer for a container built with `oci_image()` that creates a `/var/www-data`
+# directory which the `www-data` user has write access to. The `www-data` user
+# can't write to anything else in the container.
+tar(
+    name = "www_data_directory_layer",
+    mtree = [
+        # 33 is the `uid` of the `www-data` user in our Linux container.
+        "var/www-data uid=33 gid=33 mode=0770 type=dir",
+    ],
+    visibility = ["//visibility:public"],
 )

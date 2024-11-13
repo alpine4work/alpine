@@ -1,3 +1,4 @@
+import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -47,4 +48,28 @@ export class AccountModelWithoutSpace {
             serialize: account => account.initialData,
             deserialize: account => new AccountModelWithoutSpace(account),
         });
+
+    private static _unknown: AccountModelWithoutSpace | null = null;
+
+    /**
+     * Get the model for an unknown account. If we need an account model but we
+     * have no account available then you may use this model to render an unknown
+     * account.
+     */
+    public static getUnknown(): AccountModelWithoutSpace {
+        this._unknown ??= new AccountModelWithoutSpace({
+            // Since "u" is not allowed in IDs we use "n" in place of "u" since "n" is an
+            // upside down "u".
+            //
+            // TODO(calebmer): We should create an account with this ID in the database
+            // to make sure we don't randomly create an account with this ID. (Which is
+            // incredibly unlikely but not impossible.)
+            id: assertId<AccountId>("nnkn0wnacc0nnt000000000000"),
+            version: 0,
+            name: "Unknown",
+            nameVersion: 0,
+        });
+
+        return this._unknown;
+    }
 }

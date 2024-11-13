@@ -3,13 +3,17 @@ import {
     FilePostAuthorizer,
     authorizeChannelAccess,
     authorizePostAccess,
+    backfillChannelAndMetadata,
     backfillChannelPosts,
     backfillPostComments,
     createChannel,
+    createOrReplacePostDraft,
     createPost,
     createPostComment,
     deletePostComment,
     getChannel,
+    getChannelAndMetadata,
+    getChannelContributors,
     getChannelPosts,
     getPost,
     getPostCommentAuthors,
@@ -43,7 +47,7 @@ export default implementRpcs(definitions, {
                 context,
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction();
+            return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },
 
@@ -54,7 +58,7 @@ export default implementRpcs(definitions, {
                 context,
                 input,
             );
-            return getDynamoGeneralRealtimeEventTransaction();
+            return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },
 
@@ -63,7 +67,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {getDynamoGeneralRealtimeEventTransaction} =
                 await updateChannelNameAndDescription(context, input);
-            return getDynamoGeneralRealtimeEventTransaction();
+            return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },
 
@@ -72,6 +76,32 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const channel = await getChannel(context, input.channelId, {consistency: "Strong"});
             return {channel};
+        },
+    },
+
+    getChannelAndMetadata: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const channelResult = await getChannelAndMetadata(context, input);
+            return {channelResult};
+        },
+    },
+
+    backfillChannelAndMetadata: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const backfillChannelResult = await backfillChannelAndMetadata(context, input);
+            return {backfillChannelResult};
+        },
+    },
+
+    getChannelContributors: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const contributors = await getChannelContributors(context, input.channelId, {
+                limit: input.limit,
+            });
+            return {contributors};
         },
     },
 
@@ -118,7 +148,7 @@ export default implementRpcs(definitions, {
                     spaceId,
                     createdTime,
                 },
-                ...(await getDynamoGeneralRealtimeEventTransaction()),
+                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
             };
         },
     },
@@ -130,7 +160,7 @@ export default implementRpcs(definitions, {
                 await updatePostContent(context.actor.authorizeSession(), input);
             return {
                 contentUpdatedTime,
-                ...(await getDynamoGeneralRealtimeEventTransaction()),
+                ...(await getDynamoGeneralRealtimeEventTransaction(context)),
             };
         },
     },
@@ -252,6 +282,26 @@ export default implementRpcs(definitions, {
         visibility: ["PostRealtimeService"],
         execute: (context, input) => {
             return backfillPostComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    createOrReplacePostDraft: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const sessionContext = context.actor.authorizeSession();
+
+            await createOrReplacePostDraft(
+                sessionContext,
+                input.spaceId,
+                sessionContext.actor.getAccountId(),
+                input.draftId,
+                {
+                    channelId: input.channelId,
+                    content: input.content,
+                },
+            );
+
+            return {};
         },
     },
 });

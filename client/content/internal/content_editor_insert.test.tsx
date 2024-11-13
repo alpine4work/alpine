@@ -10,7 +10,9 @@ import {
     getEditorViewForTest,
 } from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     PostContentProsemirrorSchema,
     PostContentWithReferences,
@@ -18,12 +20,19 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {generateId} from "~/shared/id/id.js";
 
 // ProseMirror calls this function when `state.tr.scrollIntoView()`
 // transactions. Instead of logging a warning, do nothing.
 window.scrollBy = () => {};
 
 const schema = PostContentProsemirrorSchema;
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget = markMemoIfNotRendering(
+    cast<FileAttachmentTarget>({type: "Post", postId: generateId()}),
+);
 
 type TestContentEditorRef = ContentEditorRef<PostContentWithReferences>;
 
@@ -47,6 +56,7 @@ const TestContentEditor = forwardRef(function TestContentEditor(
             ref={ref}
             aria-label="Test"
             withMobileLayout={false}
+            fileAttachmentTarget={fileAttachmentTarget}
             state={state}
             onChange={setState}
         />

@@ -39,7 +39,7 @@ import {
  * Create a new message in a room.
  */
 type CreateMessageFunctionForTest<RoomKey extends string> = (
-    context: ServerSessionActionContext,
+    context: TestSessionActionContext,
     options: {
         roomKey: RoomKey;
         parentMessageIndex: number | null;

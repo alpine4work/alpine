@@ -73,7 +73,9 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
         if (!client || !shouldConnect) return;
 
         client.connect();
-        return () => client.disconnect();
+        return () => {
+            void client.disconnect();
+        };
     }, [client, shouldConnect]);
 
     const toggleShouldConnect = useCallback(() => {

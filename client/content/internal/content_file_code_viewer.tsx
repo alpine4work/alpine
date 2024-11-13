@@ -4,7 +4,6 @@ import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useMemo} from "react";
 import {
-    contentFileCodeViewerProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
     contentFileViewerLargeProcessingIndicatorGap,
     contentFileViewerLargeProcessingIndicatorIconSize,
@@ -99,7 +98,7 @@ export function ContentFileCodeViewer({
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                color={contentFileCodeViewerProcessingIndicatorColor}
+                color="grey-40"
             >
                 <Box
                     display="flex"

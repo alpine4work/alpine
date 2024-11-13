@@ -137,7 +137,6 @@ test("will refresh signed URL when it's about to expire", async () => {
                     state={state}
                     onChange={setState}
                     fileAttachmentTarget={fileAttachmentTarget}
-                    onLoadingIndicator={() => {}}
                 />
             </TestContextProvider>
         );

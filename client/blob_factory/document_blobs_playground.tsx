@@ -10,10 +10,12 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    emptyContentReferences,
+    mergeContentReferences,
+} from "~/shared/content/content_references.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {dummyDocumentContent} from "~/shared/documents/fixtures/communist_manifesto_document_content.js";
 import {generateId} from "~/shared/id/id.js";
@@ -63,7 +65,7 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
     const id = useId().replace(/:/g, "_");
     const [containerRef, containerRect] = useResizeObserver();
 
-    const content = useConstant(() => ({
+    const [content, setContent] = useState(() => ({
         doc: dummyDocumentContent.get(),
         references: emptyContentReferences,
     }));
@@ -106,6 +108,15 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
                             withMobileLayout={false}
                             content={content}
                             className={sprinkles({paddingBottom: "24"})}
+                            onMergeContentReferences={references => {
+                                setContent(content => ({
+                                    ...content,
+                                    references: mergeContentReferences(
+                                        content.references,
+                                        references,
+                                    ),
+                                }));
+                            }}
                         />
                     </div>
                 )}

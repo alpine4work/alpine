@@ -2,11 +2,7 @@ import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {
-    FileUploader,
-    startUploadingAndProcessingFile,
-    uploadFileTimeoutMs,
-} from "~/server/files/data/files_table.js";
+import {FileUploader, startUploadingAndProcessingFile} from "~/server/files/data/files_table.js";
 import {
     FileUploadServiceActionContext,
     FileUploadServiceSessionActionContext,
@@ -42,7 +38,11 @@ import {
     FileMp4VideoContentType,
     canonicalizeFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {UploadFileEvent, UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
+import {
+    UploadFileEvent,
+    UploadFileEventSchema,
+    uploadFileTimeoutMs,
+} from "~/shared/files/upload_file_event.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -394,6 +394,7 @@ async function uploadAndProcessFile(
                 imagePreviewContentPromise,
                 imagePreviewVideoDurationPromise,
                 audioPreviewDurationPromise,
+                audioPreviewMetadataPromise,
                 codePreviewContentPromise,
             } = fileProcessor.process(stream, signal, {
                 span,
@@ -692,6 +693,21 @@ async function uploadAndProcessFile(
                   })().catch(createAbortCatcher("File audio preview duration processing failed"))
                 : null;
 
+            const actualAudioPreviewMetadataPromise = audioPreviewMetadataPromise
+                ? (async () => {
+                      const metadata = await audioPreviewMetadataPromise;
+                      if (signal.aborted) throw signal.reason;
+                      if (hasAcceptedPreviewError) return;
+
+                      await fileUploader.finishProcessingAudioPreviewMetadata(context, metadata);
+
+                      sendEvent({
+                          type: "AudioPreviewMetadata",
+                          metadata,
+                      });
+                  })().catch(createAbortCatcher("File audio preview metadata processing failed"))
+                : null;
+
             const actualCodePreviewContentPromise = codePreviewContentPromise
                 ? (async () => {
                       const content = await codePreviewContentPromise;
@@ -783,6 +799,12 @@ async function uploadAndProcessFile(
                               childSpan.addData(spanData);
                               span.addData(spanData);
                           }
+                      })
+                    : null,
+                actualAudioPreviewMetadataPromise
+                    ? span.withSpan("Process file audio preview metadata", async childSpan => {
+                          childSpan.addData(sharedChildSpanData);
+                          await actualAudioPreviewMetadataPromise;
                       })
                     : null,
                 actualCodePreviewContentPromise

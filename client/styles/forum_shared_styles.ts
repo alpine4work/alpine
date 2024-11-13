@@ -6,18 +6,33 @@ import {
     assertSpacing,
     parseRemLengthNumber,
     screenPaddingX,
+    screenPaddingXRem,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export const desktopLayoutChannelViewAsidePaddingY = "1";
-export const mobileLayoutChannelViewAsidePaddingY = "4";
+export const postViewFlex = 6;
+export const postListViewAsideFlex = 4;
+
+export const channelViewMetadataSectionGap = "7";
+
+// We've picked `desktopLayoutChannelViewMetadataMarginTop` so that when you
+// edit the channel description the save and cancel buttons aren't covered by
+// the navigation bar. If we change the design for these inline editing
+// save/cancel buttons we can set `desktopLayoutChannelViewMetadataMarginTop`
+// to 0.
+export const desktopLayoutChannelViewMetadataMarginTop = "2";
+export const mobileLayoutChannelViewMetadataMarginTop = "2";
+
+export const desktopLayoutPostFauxInputCreateButtonMarginTop =
+    desktopLayoutChannelViewMetadataMarginTop;
+export const mobileLayoutPostFauxInputCreateButtonMarginTop = "6";
 
 export const postFauxInputCreateButtonHeight = "12";
 
-export const postContentViewOuterMarginY = "6";
-export const postContentViewInnerMarginY = "4";
+export const postContentViewOuterMarginY = "5";
+export const postContentViewInnerMarginY = "3";
 
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";
@@ -25,18 +40,17 @@ export const postContentViewHeaderHeight = "8";
 export const postContentViewFooterHeight = "8";
 export const postContentViewFooterButtonHeight = "7";
 
-export const postContentEditorPaddingX = "2";
-export const postContentEditorPaddingY = "1.5";
+export const postContentEditorPadding = "2";
 
 export const screenPaddingXWithoutPostContentEditorPadding = mapObjectValues(
     screenPaddingX,
     screenPaddingX =>
-        assertSpacing(`${parseInt(screenPaddingX, 10) - parseInt(postContentEditorPaddingX, 10)}`),
+        assertSpacing(`${parseFloat(screenPaddingX) - parseFloat(postContentEditorPadding)}`),
 );
 
-export const postContentViewInnerMarginYWithoutContentEditorPaddingY = subtractRemLengths(
+export const postContentViewInnerMarginYWithoutContentEditorPadding = subtractRemLengths(
     spacing[postContentViewInnerMarginY],
-    spacing[postContentEditorPaddingY],
+    spacing[postContentEditorPadding],
 );
 
 const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);
@@ -155,7 +169,43 @@ export const desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinn
     );
 
 export const channelViewHeaderMinHeight = addRemLengths(
-    spacing[desktopLayoutChannelViewAsidePaddingY],
+    spacing[desktopLayoutPostFauxInputCreateButtonMarginTop],
     spacing[postFauxInputCreateButtonHeight],
     spacing[postContentViewOuterMarginY],
+);
+
+export const postListViewAsideMaxWidth = "96";
+
+export const channelViewMetadataSectionTitleFontSize = "75";
+export const channelViewMetadataSectionTitleColor = "grey-50";
+export const channelViewMetadataSectionTitleMarginBottom = "1.5";
+
+export const channelViewAsidePostFileRowCount = 2;
+export const channelViewAsidePostFileColumnCount = 2;
+export const channelViewAsidePostFileCount =
+    channelViewAsidePostFileRowCount * channelViewAsidePostFileColumnCount;
+
+export const channelViewAsideFileGap = "2";
+
+export const channelViewAsideFileHeight: RemLength = `${
+    (parseRemLengthNumber(spacing[postListViewAsideMaxWidth]) -
+        parseRemLengthNumber(spacing[channelViewAsideFileGap]) *
+            (channelViewAsidePostFileColumnCount - 1) -
+        parseRemLengthNumber(spacing[screenPaddingX.desktop]) * 2) /
+    channelViewAsidePostFileColumnCount
+}rem`;
+
+export const channelFilesViewFileMaxSize = "64";
+export const channelFilesViewFileMinSize = "20";
+export const channelFilesViewFileRowFileCount = 3;
+
+export const channelFilesViewMaxWidth = mapObjectValues(
+    screenPaddingXRem,
+    (screenPaddingXRem): RemLength =>
+        `${
+            screenPaddingXRem * 2 +
+            parseRemLengthNumber(spacing[channelFilesViewFileMaxSize]) *
+                channelFilesViewFileRowFileCount +
+            contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1)
+        }rem`,
 );
