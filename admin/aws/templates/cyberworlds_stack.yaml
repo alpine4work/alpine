@@ -2828,6 +2828,7 @@ Resources:
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /api/internal/healthcheck
+            HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
             Port: 4000
             Protocol: HTTP
@@ -4456,6 +4457,7 @@ Resources:
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /healthcheck
+            HealthCheckTimeoutSeconds: 3
             HealthyThresholdCount: 3
             Port: 4000
             Protocol: HTTP

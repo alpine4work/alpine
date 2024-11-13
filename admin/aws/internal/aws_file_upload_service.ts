@@ -298,6 +298,7 @@ export class AwsFileUploadService extends Construct {
                 // ~15 seconds to consider the service healthy.
                 // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
                 interval: Duration.seconds(5),
+                timeout: Duration.seconds(3),
                 healthyThresholdCount: 3,
             },
             // See our comment on `stopTimeout`. File upload processing is potentially quite
