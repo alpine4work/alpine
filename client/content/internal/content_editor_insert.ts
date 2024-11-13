@@ -1,8 +1,10 @@
+//NOCOMMIT: remove this slint disable This is a temporary fix to allow us to use the fixTables command from prosemirror-tables.
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {tableClassName} from "~/shared/content/content_styles.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 function getInsertPosOrSelection(selection: Selection): number | Selection {
@@ -194,15 +196,14 @@ export function insertContentFiles(
 
 export function insertContentTable(view: EditorView) {
     const {schema} = view.state;
+    const cell = schema.node("table_cell", {}, [schema.node("paragraph")]);
+    const table_row = schema.node("table_row", {}, [cell, cell]);
+    const table = schema.node("table", {}, [table_row, table_row]);
 
-    // Create a cell with a paragraph
-    const cell = schema.node("tableCell", {}, [schema.node("paragraph")]);
+    insertNode(view, table);
 
-    // Create a row with multiple cells
-    const tableRow = schema.node("tableRow", {}, [cell, cell]);
-
-    // Create table with multiple rows
-    const table = schema.node("table", {}, [tableRow, tableRow]);
-
-    insertNode(view, table, schema.nodes.table?.spec.commands?.addColumnAfter);
+    // Apply initial table commands after insertion
+    // const commands = schema.nodes.table?.spec.commands;
+    // commands?.fixTables?.(view.state, view.dispatch);
+    // commands?.setAlignment?.({alignment: "left"})(view.state, view.dispatch);
 }

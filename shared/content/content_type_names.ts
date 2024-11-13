@@ -31,8 +31,8 @@ export const contentNodeTypeNames = {
     fileFloat: true,
     file: true,
     table: true,
-    tableRow: true,
-    tableCell: true,
+    table_row: true,
+    table_cell: true,
 };
 
 /**

@@ -59,9 +59,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
-    tableAlignClassName,
     tableCellClassName,
-    tableClassName,
     tableWrapperClassName,
     titleClassName,
     unorderedListItemClassName,
@@ -2031,14 +2029,8 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
 
 globalStyle(`${tableCellClassName}`, {
     border: `1px solid ${colors["grey-20"]}`,
-    // padding: "8px",
-    // textAlign: "left",
-    minWidth: "100px",
+    // minWidth: "30px",
 });
-
-// globalStyle(`${tableAlignClassName}`, {
-
-// });
 
 globalStyle(`${tableWrapperClassName}`, {
     ...blockStyles,
@@ -2077,4 +2069,33 @@ globalStyle(`${tableWrapperClassName}::-webkit-scrollbar-thumb`, {
 globalStyle(`${tableWrapperClassName} p`, {
     padding: spacing[0],
     margin: spacing[0],
+});
+
+// Add to existing styles
+globalStyle(`${tableWrapperClassName} .table-controls`, {
+    position: "absolute",
+    top: `-${spacing[8]}`,
+    right: 0,
+    display: "none",
+    gap: spacing[2],
+    padding: spacing[2],
+    background: colorSchemeVars["grey-10"],
+    borderRadius: borderRadius[1],
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    zIndex: 1,
+});
+
+globalStyle(`${tableWrapperClassName} .table-controls button`, {
+    padding: `${spacing[1]} ${spacing[2]}`,
+    background: colorSchemeVars["grey-0"],
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    borderRadius: borderRadius[1],
+    cursor: "pointer",
+    color: colorSchemeVars["grey-90"],
+    fontSize: fontSizes["50"].fontSize,
+    lineHeight: fontSizes["50"].lineHeight,
+});
+
+globalStyle(`${tableWrapperClassName} .table-controls button:hover`, {
+    background: colorSchemeVars["grey-10"],
 });

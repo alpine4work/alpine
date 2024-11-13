@@ -1,74 +1,79 @@
-import {Node as ProseMirrorNode} from "prosemirror-model";
+import {Node} from "prosemirror-model";
 import {NodeView} from "prosemirror-view";
-import {tableWrapperClassName} from "~/shared/content/content_styles.js";
 
-// Handles two width modes:
-// Fixed width mode (all columns have explicit widths):
-// table.style.width = `${totalWidth}px`;
+export interface CellAttrs {
+    colspan: number;
+    rowspan: number;
+    colwidth: Array<number> | null;
+}
 
-// Flexible width mode (some columns auto-sized):
-// table.style.minWidth = `${totalWidth}px`;
 /**
- * Updates the columns of a table node.
- * updateColumns function (the complex part):
- * Manages column widths and table layout
- * Takes a table node and updates the <colgroup> element with <col> elements
- *
- * - Processes each cell in the first row:
-Handles colspan
- * Manages column widths (either explicit or minimum)
- * Creates/updates <col> elements with appropriate styles
- *
- * @param node - The ProseMirror node to update the columns for.
- * @param colgroup - The colgroup element to update the columns for.
- * @param table - The table element to update the columns for.
- * @param cellMinWidth - The minimum width of a cell in pixels.
- * @param overrideCol - The column to override the width for.
- * @param overrideValue - The value to override the width with.
+ * @public
  */
-function updateColumns(
-    node: ProseMirrorNode,
+export class TableView implements NodeView {
+    public dom: HTMLDivElement;
+    public table: HTMLTableElement;
+    public colgroup: HTMLTableColElement;
+    public contentDOM: HTMLTableSectionElement;
+
+    constructor(public node: Node, public defaultCellMinWidth: number) {
+        this.dom = document.createElement("div");
+        this.dom.className = "tableWrapper";
+        this.table = this.dom.appendChild(document.createElement("table"));
+        this.table.style.setProperty("--default-cell-min-width", `${defaultCellMinWidth}px`);
+        this.colgroup = this.table.appendChild(document.createElement("colgroup"));
+        updateColumnsOnResize(node, this.colgroup, this.table, defaultCellMinWidth);
+        this.contentDOM = this.table.appendChild(document.createElement("tbody"));
+    }
+
+    update(node: Node): boolean {
+        if (node.type != this.node.type) return false;
+        this.node = node;
+        updateColumnsOnResize(node, this.colgroup, this.table, this.defaultCellMinWidth);
+        return true;
+    }
+
+    ignoreMutation(record: MutationRecord): boolean {
+        return (
+            record.type == "attributes" &&
+            (record.target == this.table || this.colgroup.contains(record.target))
+        );
+    }
+}
+
+/**
+ * @public
+ */
+export function updateColumnsOnResize(
+    node: Node,
     colgroup: HTMLTableColElement,
     table: HTMLTableElement,
-    cellMinWidth: number,
+    defaultCellMinWidth: number,
     overrideCol?: number,
     overrideValue?: number,
-) {
+): void {
     let totalWidth = 0;
     let fixedWidth = true;
-    let nextDOM = colgroup.firstChild;
+    let nextDOM = colgroup.firstChild as HTMLElement;
     const row = node.firstChild;
+    if (!row) return;
 
-    if (row !== null) {
-        for (let i = 0, col = 0; i < row.childCount; i += 1) {
-            const {colspan, colwidth} = row.child(i).attrs;
-
-            for (let j = 0; j < colspan; j += 1, col += 1) {
-                const hasWidth = overrideCol === col ? overrideValue : colwidth && colwidth[j];
-                const cssWidth = hasWidth ? `${hasWidth}px` : "";
-                totalWidth += hasWidth || cellMinWidth;
-                if (!hasWidth) fixedWidth = false;
-                if (!nextDOM) {
-                    const colElement = document.createElement("col");
-                    const [propertyKey, propertyValue] = getColStyleDeclaration(
-                        cellMinWidth,
-                        hasWidth,
-                    );
-                    colElement.style.setProperty(propertyKey, propertyValue);
-                    colgroup.appendChild(colElement);
-                } else {
-                    if ((nextDOM as HTMLTableColElement).style.width !== cssWidth) {
-                        const [propertyKey, propertyValue] = getColStyleDeclaration(
-                            cellMinWidth,
-                            hasWidth,
-                        );
-                        (nextDOM as HTMLTableColElement).style.setProperty(
-                            propertyKey,
-                            propertyValue,
-                        );
-                    }
-                    nextDOM = nextDOM.nextSibling;
+    for (let i = 0, col = 0; i < row.childCount; i++) {
+        const {colspan, colwidth} = row.child(i).attrs as CellAttrs;
+        for (let j = 0; j < colspan; j++, col++) {
+            const hasWidth = overrideCol == col ? overrideValue : colwidth && colwidth[j];
+            const cssWidth = hasWidth ? hasWidth + "px" : "";
+            totalWidth += hasWidth || defaultCellMinWidth;
+            if (!hasWidth) fixedWidth = false;
+            if (!nextDOM) {
+                const col = document.createElement("col");
+                col.style.width = cssWidth;
+                colgroup.appendChild(col);
+            } else {
+                if (nextDOM.style.width != cssWidth) {
+                    nextDOM.style.width = cssWidth;
                 }
+                nextDOM = nextDOM.nextSibling as HTMLElement;
             }
         }
     }
@@ -76,73 +81,14 @@ function updateColumns(
     while (nextDOM) {
         const after = nextDOM.nextSibling;
         nextDOM.parentNode?.removeChild(nextDOM);
-        nextDOM = after;
+        nextDOM = after as HTMLElement;
     }
 
     if (fixedWidth) {
-        table.style.width = `${totalWidth}px`;
+        table.style.width = totalWidth + "px";
         table.style.minWidth = "";
     } else {
         table.style.width = "";
-        table.style.minWidth = `${totalWidth}px`;
+        table.style.minWidth = totalWidth + "px";
     }
-}
-
-/**
- * Creates a NodeView for a table node.
- * Creates and manages the HTML structure for tables in the editor
- * Structure: div.tableWrapper > table > (colgroup + tbody)
- * Handles updates when table content changes
- * Ignores certain DOM mutations to prevent infinite loops
- *
- * @param node - The ProseMirror node to create a view for.
- * @param cellMinWidth - The minimum width of a cell in pixels.
- * @returns A NodeView for the table node.
- */
-export function createTableNodeView(node: ProseMirrorNode, cellMinWidth: number): NodeView {
-    // Create DOM structure
-    const dom = document.createElement("div");
-    dom.className = tableWrapperClassName;
-    dom.dataset.scrollbar = "false";
-
-    const table = document.createElement("table");
-    dom.appendChild(table);
-
-    const colgroup = document.createElement("colgroup");
-    table.appendChild(colgroup);
-
-    const contentDOM = document.createElement("tbody");
-    table.appendChild(contentDOM);
-
-    // Initial column update
-    updateColumns(node, colgroup, table, cellMinWidth);
-
-    return {
-        dom,
-        contentDOM,
-        update: (newNode: ProseMirrorNode) => {
-            if (newNode.type !== node.type) return false;
-            updateColumns(newNode, colgroup, table, cellMinWidth);
-            return true;
-        },
-        ignoreMutation: (mutation: MutationRecord | {type: "selection"; target: Element}) => {
-            return (
-                mutation.type === "attributes" &&
-                (mutation.target === table || colgroup.contains(mutation.target))
-            );
-        },
-    };
-}
-
-export function getColStyleDeclaration(
-    minWidth: number,
-    width: number | undefined,
-): [string, string] {
-    if (width) {
-        // apply the stored width unless it is below the configured minimum cell width
-        return ["width", `${Math.max(width, minWidth)}px`];
-    }
-
-    // set the minimum with on the column if it has no stored width
-    return ["min-width", `${minWidth}px`];
 }

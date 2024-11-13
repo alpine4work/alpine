@@ -1,5 +1,6 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
+
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {
     CellSelection,
@@ -11,7 +12,7 @@ import {
     deleteColumn,
     deleteRow,
     deleteTable,
-    fixTables,
+    fixTables as fixTablesFromProsemirrorTables,
     goToNextCell,
     mergeCells,
     setCellAttr,
@@ -25,9 +26,10 @@ import {
     tableCellClassName,
     tableClassName,
 } from "~/shared/content/content_styles.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 // table: {
-//     content: "tableRow+",
+//     content: "table_row+",
 //     tableRole: "table",
 //     isolating: true,
 //     group: "block",
@@ -36,15 +38,15 @@ import {
 //         return ["table", 0];
 //     },
 // },
-// tableRow: {
-//     content: "tableCell+",
+// table_row: {
+//     content: "table_cell+",
 //     tableRole: "row",
 //     parseDOM: [{tag: "tr"}],
 //     toDOM() {
 //         return ["tr", 0];
 //     },
 // },
-// tableCell: {
+// table_cell: {
 //     content: "block+",
 //     tableRole: "cell",
 //     parseDOM: [{tag: "td"}],
@@ -52,12 +54,28 @@ import {
 //         return ["td", 0];
 //     },
 // },
-export const tableNode = {
-    content: "tableRow+",
+export const table = {
+    name: "table",
+    content: "table_row+",
     group: "block",
     isolating: true,
     selectable: true,
     draggable: true,
+    tableRole: "table",
+    attrs: {
+        alignment: {
+            default: "left",
+            schema: Schema.string,
+        },
+        columns: {
+            default: 0,
+            schema: Schema.integer,
+        },
+        columnWidths: {
+            default: null,
+            schema: Schema.unknown,
+        },
+    },
 
     // Rendering
     toDOM: (node: Node) => {
@@ -138,7 +156,7 @@ export const tableNode = {
         },
         fixTables: (): Command => (state, dispatch) => {
             if (dispatch) {
-                fixTables(state);
+                fixTablesFromProsemirrorTables(state);
             }
             return true;
         },
@@ -158,21 +176,27 @@ export const tableNode = {
         setAlignment:
             (attrs: {alignment: "left" | "center" | "right"}): Command =>
             (state, dispatch) => {
-                if (dispatch) {
-                    dispatch(
-                        state.tr.setNodeMarkup(state.selection.$anchor.pos, null, {
-                            ...state.selection.$anchor.parent.attrs,
-                            alignment: attrs.alignment,
-                        }),
-                    );
+                if (!dispatch) {
+                    return true;
                 }
+
+                const $anchor = state.selection.$anchor;
+                const pos = $anchor.before($anchor.depth);
+
+                dispatch(
+                    state.tr.setNodeMarkup(pos, null, {
+                        ...state.selection.$anchor.parent.attrs,
+                        alignment: attrs.alignment,
+                    }),
+                );
                 return true;
             },
     },
 };
 
-export const tableRow = {
-    content: "(paragraph | tableCell)+",
+export const table_row = {
+    name: "table_row",
+    content: "(table_cell | table_header)+",
     tableRole: "row",
     selectable: true,
     draggable: true,
@@ -182,17 +206,20 @@ export const tableRow = {
     },
 };
 
-export const tableCell = {
+export const table_cell = {
+    name: "table_cell",
     group: "block",
     content: "block+",
     tableRole: "cell",
     selectable: true,
     draggable: true,
 
-    // attrs: {
-    //     colspan: {default: 1, schema: Schema.integer.default(1)},
-    //     rowspan: {default: 1, schema: Schema.integer.default(1)},
-    // },
+    attrs: {
+        colspan: {default: 1, schema: Schema.integer},
+        rowspan: {default: 1, schema: Schema.integer},
+        colwidth: {default: null, schema: Schema.unknown},
+        // colwidth: {default: null, schema: Schema.array(Schema.integer)},
+    },
     parseDOM: [
         {
             tag: "td",
@@ -213,5 +240,23 @@ export const tableCell = {
             },
             0,
         ] as const;
+    },
+};
+
+export const table_header = {
+    name: "table_header",
+    content: "block+",
+    // attrs: cellAttrs,
+    attrs: {
+        // Add these attributes
+        colspan: {default: 1, schema: Schema.integer},
+        rowspan: {default: 1, schema: Schema.integer},
+        colwidth: {default: null, schema: Schema.unknown},
+    },
+    tableRole: "header_cell",
+    isolating: true,
+    parseDOM: [{tag: "th"}],
+    toDOM() {
+        return ["th", 0] as const;
     },
 };

@@ -2,7 +2,7 @@ import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
-import {tableEditing} from "prosemirror-tables";
+import {TableView, columnResizing, tableEditing} from "prosemirror-tables";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
@@ -63,7 +63,20 @@ function buildPlugins<Content extends ContentWithReferences>({
     ) => Content["references"];
     disableUndoKeyboardShortcuts: boolean;
 }) {
-    return [
+    const hasTableSupport = !!(
+        schema.nodes.table &&
+        schema.nodes.table_row &&
+        schema.nodes.table_cell &&
+        schema.nodes.table_header &&
+        schema.nodes.table.spec.attrs &&
+        schema.nodes.table.spec.attrs.columns !== undefined &&
+        schema.nodes.table_cell.spec.attrs &&
+        schema.nodes.table_cell.spec.attrs.colspan !== undefined &&
+        schema.nodes.table_cell.spec.attrs.rowspan !== undefined
+    );
+
+    console.log("hasTableSupport", hasTableSupport);
+    const plugins = [
         history({
             // If we're disabling undo/redo keyboard shortcuts it means our rendering
             // component is managing undo/redo stacks. In that case our history plugin
@@ -81,10 +94,34 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
-        tableEditing({
-            allowTableNodeSelection: true,
-        }),
     ];
+    if (hasTableSupport) {
+        try {
+            plugins.push(
+                tableEditing({
+                    allowTableNodeSelection: true,
+                }),
+            );
+
+            // Add column resizing in a separate try block
+            try {
+                plugins.push(
+                    columnResizing({
+                        handleWidth: 10,
+                        cellMinWidth: 10,
+                        View: TableView,
+                        lastColumnResizable: true,
+                    }),
+                );
+            } catch (e) {
+                console.warn("Failed to initialize table column resizing:", e);
+            }
+        } catch (e) {
+            console.warn("Failed to initialize table editing:", e);
+        }
+    }
+
+    return plugins;
 }
 
 /**

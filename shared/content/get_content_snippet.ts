@@ -432,8 +432,8 @@ const lineBreakCountByNodeType: {
     // should not be counted as lines for the purpose of snippet cutting
     fileFloat: 0,
     table: 0,
-    tableRow: 1,
-    tableCell: 0,
+    table_row: 1,
+    table_cell: 0,
 };
 
 // YES->
@@ -477,6 +477,6 @@ const dontCutLeadingChildrenByNodeType: {
     heading: true,
     divider: true,
     table: false,
-    tableRow: true,
-    tableCell: false,
+    table_row: true,
+    table_cell: false,
 };
