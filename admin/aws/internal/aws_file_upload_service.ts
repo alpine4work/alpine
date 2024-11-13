@@ -292,7 +292,7 @@ export class AwsFileUploadService extends Construct {
         });
 
         listener.addTargets("TargetGroup", {
-            targetGroupName: "cyberworlds-files-target",
+            targetGroupName: "cyberworlds-files-target-group",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],
