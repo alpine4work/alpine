@@ -2101,25 +2101,29 @@ globalStyle(`${tableClassName} .table-controls button:hover`, {
 // Add after the table styles
 globalStyle(`${tableClassName} .column-button`, {
     position: "absolute",
-    width: spacing[2], // 8px
-    height: spacing[2], // 8px
-    padding: 0,
-    background: colorSchemeVars["grey-20"],
-    border: `1px solid ${colorSchemeVars["grey-30"]}`,
+    width: spacing[4], // 16px for icon
+    height: spacing[4], // 16px for icon
+    padding: spacing[1],
+    background: colorSchemeVars["grey-0"],
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
     borderRadius: "50%",
     cursor: "pointer",
-    left: "-4px", // Half the width to center it on the column border
-    top: "-12px",
+    left: "-12px", // Half the width to center it
+    top: "-20px",
     zIndex: 1000,
-    opacity: 0.7,
-    transition: "opacity 0.2s ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0,
+    transition: "opacity 0.2s ease, background-color 0.2s ease",
 });
 
 globalStyle(`${tableClassName} .column-button:hover`, {
     opacity: 1,
-    background: colorSchemeVars["grey-30"],
+    background: colorSchemeVars["grey-10"],
 });
 
+// Column button container styles
 globalStyle(`${tableClassName} .column-buttons-container`, {
     position: "absolute",
     top: 0,
@@ -2127,4 +2131,137 @@ globalStyle(`${tableClassName} .column-buttons-container`, {
     right: 0,
     height: 0,
     zIndex: 999,
+});
+
+globalStyle(`${tableClassName} td::after`, {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    right: "-3px", // Slightly offset to make it easier to grab
+    bottom: 0,
+    width: "6px", // Wide enough hit area for resizing
+    cursor: "col-resize",
+});
+
+globalStyle(`${tableClassName} td`, {
+    position: "relative",
+});
+
+// Show buttons on table hover
+globalStyle(`${tableClassName}:hover .column-button`, {
+    opacity: 1,
+});
+
+globalStyle(`${tableClassName} .column-button:hover`, {
+    background: colorSchemeVars["grey-10"],
+});
+
+// Tooltip styles
+globalStyle(`${tableClassName} .column-button-tooltip`, {
+    position: "absolute",
+    top: "-24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: colorSchemeVars["grey-90"],
+    color: colorSchemeVars["grey-0"],
+    padding: `${spacing[1]} ${spacing[2]}`,
+    borderRadius: borderRadius[1],
+    fontSize: fontSizes["50"].fontSize,
+    whiteSpace: "nowrap",
+    opacity: 0,
+    transition: "opacity 0.2s ease",
+    pointerEvents: "none",
+});
+
+globalStyle(`${tableClassName} .column-button:hover .column-button-tooltip`, {
+    opacity: 1,
+});
+
+// Column button styles
+globalStyle(`${tableClassName} .column-button`, {
+    position: "absolute",
+    width: spacing[4],
+    height: spacing[4],
+    padding: spacing[1],
+    background: colorSchemeVars["grey-0"],
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    borderRadius: "50%",
+    cursor: "pointer",
+    top: "-20px",
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0,
+    transition: "opacity 0.2s ease, background-color 0.2s ease",
+});
+
+// Column hover area
+globalStyle(`${tableClassName} .column-hover-area`, {
+    position: "absolute",
+    top: "-20px", // Match button position
+    bottom: 0,
+    width: "100%",
+    zIndex: 998,
+});
+
+// Show button only when hovering over specific column
+globalStyle(`${tableClassName} .column-hover-area:hover + .column-button`, {
+    opacity: 1,
+});
+
+globalStyle(`${tableClassName} .column-button:hover`, {
+    opacity: 1,
+    background: colorSchemeVars["grey-10"],
+});
+
+// Tooltip styles remain the same
+globalStyle(`${tableClassName} .column-button-tooltip`, {
+    position: "absolute",
+    top: "-24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: colorSchemeVars["grey-90"],
+    color: colorSchemeVars["grey-0"],
+    padding: `${spacing[1]} ${spacing[2]}`,
+    borderRadius: borderRadius[1],
+    fontSize: fontSizes["50"].fontSize,
+    whiteSpace: "nowrap",
+    opacity: 0,
+    transition: "opacity 0.2s ease",
+    pointerEvents: "none",
+});
+
+globalStyle(`${tableClassName} .column-button:hover .column-button-tooltip`, {
+    opacity: 1,
+});
+
+// Update the button selector to match new class name
+globalStyle(`${tableClassName} .column-after-button`, {
+    position: "absolute",
+    width: spacing[4],
+    height: spacing[4],
+    padding: spacing[1],
+    background: colorSchemeVars["grey-0"],
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    borderRadius: "50%",
+    cursor: "pointer",
+    top: "-20px",
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0,
+    transition: "opacity 0.2s ease, background-color 0.2s ease",
+    pointerEvents: "none",
+});
+
+// Update hover selector
+globalStyle(`${tableClassName} .column-container:hover .column-after-button`, {
+    opacity: 1,
+    pointerEvents: "auto",
+});
+
+globalStyle(`${tableClassName} .column-after-button:hover`, {
+    background: colorSchemeVars["grey-10"],
 });

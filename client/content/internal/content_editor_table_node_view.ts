@@ -1,3 +1,4 @@
+import {ArrowLeft, ArrowRight} from "phosphor-react";
 /* eslint-disable @typescript-eslint/unbound-method */
 import {Node} from "prosemirror-model";
 import {addColumnAfter} from "prosemirror-tables";
@@ -71,6 +72,53 @@ export class TableView implements NodeView {
     }
 }
 
+function addColumnAfterButton(
+    columnButtons: HTMLDivElement,
+    col: number,
+    position: number,
+    width: number,
+    view: EditorView,
+): void {
+    // Create container for the column
+    const columnContainer = document.createElement("div");
+    columnContainer.className = "column-container";
+    columnContainer.style.position = "absolute";
+    columnContainer.style.left = `${position - width / 2}px`;
+    columnContainer.style.width = `${width}px`;
+    columnContainer.style.top = "0";
+    columnContainer.style.bottom = "0";
+
+    // Create hover area for the column
+    const hoverArea = document.createElement("div");
+    hoverArea.className = "column-hover-area";
+
+    // Create button
+    const button = document.createElement("button");
+    button.className = "column-after-button";
+    button.setAttribute("aria-label", "Add column after");
+    button.style.left = `${width / 2 - 12}px`;
+
+    const tooltip = document.createElement("span");
+    tooltip.className = "column-button-tooltip";
+    tooltip.textContent = "Add column after";
+    button.appendChild(tooltip);
+
+    const icon = document.createElement("span");
+    icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 256 256">
+        <path fill="currentColor" d="M224.1 136.1l-72 72a8.1 8.1 0 0 1-11.3 0a8.2 8.2 0 0 1 0-11.4l58.4-58.4H40a8 8 0 0 1 0-16h159.2l-58.4-58.3a8.1 8.1 0 0 1 11.3-11.4l72 72a8.1 8.1 0 0 1 0 11.5Z"/>
+    </svg>`;
+    button.appendChild(icon);
+
+    button.addEventListener("click", event => {
+        event.stopPropagation();
+        addColumnAfter(view.state, view.dispatch);
+    });
+
+    columnContainer.appendChild(hoverArea);
+    columnContainer.appendChild(button);
+    columnButtons.appendChild(columnContainer);
+}
+
 /**
  * @public
  */
@@ -90,6 +138,12 @@ export function updateColumnsOnResize(
     const row = node.firstChild;
     if (!row) return;
 
+    // Clear existing column buttons before adding new ones
+    if (columnButtons) {
+        columnButtons.innerHTML = "";
+        columnButtons.className = "column-buttons-container";
+    }
+
     for (let i = 0, col = 0; i < row.childCount; i++) {
         const {colspan, colwidth} = row.child(i).attrs as CellAttrs;
         for (let j = 0; j < colspan; j++, col++) {
@@ -98,25 +152,10 @@ export function updateColumnsOnResize(
             totalWidth += hasWidth || defaultCellMinWidth;
             if (!hasWidth) fixedWidth = false;
 
-            // Create column button
             if (columnButtons) {
-                columnButtons.className = "column-buttons-container";
-
-                const button = document.createElement("button");
-                button.className = "column-button";
-                button.setAttribute("aria-label", `Column ${col + 1} options`);
-
-                // Position the button relative to column width
-                button.style.left = `${totalWidth - (hasWidth || defaultCellMinWidth) / 2}px`;
-
-                button.addEventListener("click", event => {
-                    event.stopPropagation();
-                    const columnIndex = col;
-                    console.log(`Column ${columnIndex + 1} clicked`);
-                    addColumnAfter(view.state, view.dispatch);
-                });
-
-                columnButtons.appendChild(button);
+                const buttonPosition = totalWidth - (hasWidth || defaultCellMinWidth) / 2;
+                const columnWidth = hasWidth || defaultCellMinWidth;
+                addColumnAfterButton(columnButtons, col, buttonPosition, columnWidth, view);
             }
 
             if (!nextDOM) {
