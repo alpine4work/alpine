@@ -23,7 +23,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_me
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -41,7 +41,7 @@ import {
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
     postViewMinHeight,
-    postViewNavigationBarSpaceRem,
+    postViewNavigationBarSpace,
     screenPaddingXWithoutPostContentEditorPadding,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
@@ -100,7 +100,6 @@ export function PostContentView({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
     const {currentAccount} = useSpaceContext();
 
     const contentContainerRef = useRef<HTMLDivElement>(null);
@@ -205,7 +204,7 @@ export function PostContentView({
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
-                    ? postViewMinHeight[platformRouteLayout][spacingScale]
+                    ? postViewMinHeight[platform][spacingScale]
                     : postCommentsState !== "Closed" && !isPostView
                     ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
                     : postContentViewMinHeightWithClosedCommentSection[spacingScale],
@@ -217,7 +216,7 @@ export function PostContentView({
         >
             {isPostView ? (
                 <Box paddingTop="safe-area-inset">
-                    <Box style={{height: postViewNavigationBarSpaceRem[platformRouteLayout]}} />
+                    <Box style={{height: postViewNavigationBarSpace[platform]}} />
                 </Box>
             ) : (
                 <>

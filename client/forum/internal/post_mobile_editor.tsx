@@ -20,11 +20,7 @@ import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_h
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {
-    postContentViewInnerMarginY,
-    postViewMarginTopRem,
-} from "~/client/styles/forum_shared_styles.js";
+import {postContentViewInnerMarginY} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -57,8 +53,6 @@ export function PostMobileEditor({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
-    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
     const context = useAppContext();
 
     const [postFromState, setPost] = useState(postFromProps);
@@ -177,9 +171,6 @@ export function PostMobileEditor({
                             marginX="center"
                             paddingX={screenPaddingX}
                             paddingBottom={postContentViewInnerMarginY}
-                            style={{
-                                paddingTop: postViewMarginTopRem[platformRouteLayout],
-                            }}
                         >
                             <PostContentViewHeader post={post} shouldShowChannel={true} />
                         </Box>

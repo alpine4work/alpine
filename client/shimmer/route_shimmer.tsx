@@ -53,9 +53,7 @@ import {
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
     postViewFlex,
-    postViewMarginTopRem,
-    postViewMarginTopRemIfNavigationBar,
-    postViewNavigationBarSpaceRem,
+    postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     desktopLayoutInboxBannerHeight,
@@ -1291,14 +1289,13 @@ function ChannelPostsNotificationRouteShimmer() {
 
 function PostRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             <Box flexGrow="1" overflow="hidden">
                 <Box height="safe-area-inset-top" />
-                {platform === "mobile" && (
-                    <Box style={{height: `${postViewNavigationBarSpaceRem.mobileNarrow}rem`}}>
+                {platform === "mobile" ? (
+                    <Box style={{height: postViewNavigationBarSpace[platform]}}>
                         <Box
                             height={navigationBarHeight}
                             display="flex"
@@ -1311,23 +1308,27 @@ function PostRouteShimmer() {
                             </Box>
                         </Box>
                     </Box>
+                ) : (
+                    <Box
+                        width="full"
+                        maxWidth={contentStyles.contentMaxWidth}
+                        marginX="center"
+                        style={{height: postViewNavigationBarSpace[platform]}}
+                    >
+                        <Box height={navigationBarHeight} display="flex" alignItems="center">
+                            <Box flexGrow="1">
+                                <PostShimmerHeader avatarSize="8" />
+                            </Box>
+                        </Box>
+                    </Box>
                 )}
                 <Box
                     flexShrink="0"
                     width="full"
                     maxWidth={contentStyles.contentMaxWidth}
                     marginX="center"
-                    style={{
-                        marginTop:
-                            platform !== "mobile" && routeLayout === "narrow"
-                                ? `${
-                                      postViewMarginTopRemIfNavigationBar.narrow -
-                                      postViewMarginTopRemIfNavigationBar.wide
-                                  }rem`
-                                : undefined,
-                    }}
                 >
-                    <PostShimmer withoutHeader={platform === "mobile"}>
+                    <PostShimmer withoutHeader={true}>
                         <ContentParagraphShimmer3 />
                     </PostShimmer>
                 </Box>
@@ -1344,7 +1345,6 @@ function PostRouteShimmer() {
 
 function NewPostRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden">
@@ -1355,25 +1355,33 @@ function NewPostRouteShimmer() {
                 marginX="center"
             >
                 <Box height="safe-area-inset-top" />
-                {platform === "mobile" && (
+                {platform === "mobile" ? (
+                    <>
+                        <Box
+                            height={navigationBarHeight}
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            paddingX={navigationBarMobileGap}
+                        >
+                            <MobileBackButton />
+                            <TextShimmer fontSize="100" width="16" />
+                            <MobileBackButtonSpacer />
+                        </Box>
+                        <PostShimmerHeader />
+                    </>
+                ) : (
                     <Box
                         height={navigationBarHeight}
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
-                        paddingX={navigationBarMobileGap}
                     >
-                        <MobileBackButton />
-                        <TextShimmer fontSize="100" width="16" />
-                        <MobileBackButtonSpacer />
+                        <Box width="full">
+                            <PostShimmerHeader />
+                        </Box>
                     </Box>
                 )}
-                <Box
-                    style={{
-                        height: postViewMarginTopRem[getPlatformRouteLayout(platform, routeLayout)],
-                    }}
-                />
-                <PostShimmerHeader />
             </Box>
         </Box>
     );

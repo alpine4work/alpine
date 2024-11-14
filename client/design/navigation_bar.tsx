@@ -13,13 +13,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLength,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -67,7 +61,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
-    desktopMarginTop,
     withoutMobileBackButton = false,
     onMobileCancel,
     isAlwaysOpaque = false,
@@ -177,15 +170,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
         ),
     );
 
-    const desktopMarginTopRem =
-        desktopMarginTop !== undefined
-            ? parseRemLength(
-                  desktopMarginTop.endsWith("rem")
-                      ? (desktopMarginTop as RemLength)
-                      : spacing[desktopMarginTop as Spacing],
-              )
-            : 0;
-
     const navigationBar = !isDisabled ? (
         <NavigationBar
             platform={platform}
@@ -210,7 +194,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleFontSize={desktopTitleFontSize}
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
-            desktopMarginTopRem={desktopMarginTopRem}
             withoutMobileBackButton={withoutMobileBackButton}
             onMobileCancel={onMobileCancel}
             isAlwaysOpaque={isAlwaysOpaque}
@@ -224,26 +207,10 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             () =>
                 !isDisabled
                     ? platform === "mobile"
-                        ? [
-                              desktopMarginTopRem !== 0
-                                  ? addRemLengths(
-                                        navigationBarHeight.mobile,
-                                        `${desktopMarginTopRem}rem`,
-                                    )
-                                  : spacing[navigationBarHeight.mobile],
-                              {withSafeArea: true},
-                          ]
-                        : [
-                              desktopMarginTopRem !== 0
-                                  ? addRemLengths(
-                                        navigationBarHeight.desktop,
-                                        `${desktopMarginTopRem}rem`,
-                                    )
-                                  : spacing[navigationBarHeight.desktop],
-                              {withSafeArea: true},
-                          ]
+                        ? [spacing[navigationBarHeight.mobile], {withSafeArea: true}]
+                        : [spacing[navigationBarHeight.desktop], {withSafeArea: true}]
                     : undefined,
-            [desktopMarginTopRem, isDisabled, platform],
+            [isDisabled, platform],
         ),
     };
 }

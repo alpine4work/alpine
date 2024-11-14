@@ -54,7 +54,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
     getSpacingScaleWithoutListening,
     useSpacingScale,
@@ -294,7 +294,6 @@ function PostListView(
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -792,7 +791,7 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
-                            ? postViewMinHeight[platformRouteLayout][spacingScale]
+                            ? postViewMinHeight[platform][spacingScale]
                             : item.postCommentsState !== "Closed" && !isPostView
                             ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
                             : postContentViewMinHeightWithClosedCommentSection[spacingScale],
@@ -1481,7 +1480,6 @@ function PostListView(
             platform,
             hasAside,
             isPostView,
-            platformRouteLayout,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,

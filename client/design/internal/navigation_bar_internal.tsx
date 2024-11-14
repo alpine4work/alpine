@@ -160,7 +160,6 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize,
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
-    desktopMarginTopRem,
     withoutMobileBackButton,
     onMobileCancel,
     isAlwaysOpaque,
@@ -197,7 +196,6 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
-    desktopMarginTopRem: number;
     withoutMobileBackButton: boolean;
     onMobileCancel: (() => void) | undefined;
     isAlwaysOpaque: boolean;
@@ -551,11 +549,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     flushSync(() => {
                         setScrollDirectionState({
                             scrollDirection,
-                            navigationBarTopOffset: Math.max(
-                                0,
-                                navigationBarTopOffset -
-                                    (platform !== "mobile" ? desktopMarginTopRem * remPx : 0),
-                            ),
+                            navigationBarTopOffset: Math.max(0, navigationBarTopOffset),
                             animateNavigationBar: null,
                         });
                     });
@@ -609,11 +603,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     flushSync(() => {
                         setScrollDirectionState({
                             scrollDirection,
-                            navigationBarTopOffset: Math.max(
-                                0,
-                                navigationBarTopOffset -
-                                    (platform !== "mobile" ? desktopMarginTopRem * remPx : 0),
-                            ),
+                            navigationBarTopOffset: Math.max(0, navigationBarTopOffset),
                             animateNavigationBar: null,
                         });
                     });
@@ -647,9 +637,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                     const isNavigationBarOpaqueIfNotAlwaysOpaque = lastIsNavigationBarOpaque
                         ? scrollOffset > 0
-                        : scrollOffset >
-                          navigationBarHeight +
-                              (platform !== "mobile" ? desktopMarginTopRem * remPx : 0);
+                        : scrollOffset > navigationBarHeight;
                     const isNavigationBarOpaque =
                         isAlwaysOpaque || isNavigationBarOpaqueIfNotAlwaysOpaque;
 
@@ -867,11 +855,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         setScrollDirectionState({
                             scrollDirection,
-                            navigationBarTopOffset: Math.max(
-                                0,
-                                nextNavigationBarTopOffset -
-                                    (platform !== "mobile" ? desktopMarginTopRem * remPx : 0),
-                            ),
+                            navigationBarTopOffset: Math.max(0, nextNavigationBarTopOffset),
                             animateNavigationBar: {
                                 translateY: nextNavigationBarTopOffset - lastNavigationBarTopOffset,
                                 isOpaque: nextIsNavigationBarOpaque,
@@ -927,10 +911,8 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             };
         },
         [
-            desktopMarginTopRem,
             isAlwaysOpaque,
             navigationBarHeightRem,
-            platform,
             titleBoundaryMarginTop,
             titleBoundaryRef,
             withoutDisappearingTitle,
@@ -1030,10 +1012,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             <div
                 style={{
                     position: "absolute",
-                    top:
-                        platform !== "mobile" && desktopMarginTopRem !== 0
-                            ? `${desktopMarginTopRem}rem`
-                            : 0,
+                    top: 0,
                     left: 0,
                     right: 0,
                     // Extend the space our `position: sticky` element can scroll in. This way in

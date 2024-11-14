@@ -85,37 +85,9 @@ const postCommentSectionGuidelineStartHeightRem =
 
 export const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
 
-const postContentViewHeaderHeightRem = parseRemLength(postContentViewHeaderHeight);
-
-// Don't add more space to the top of a single post so when switching between a
-// list of posts (probably from a channel posts notification) and a single post
-// in inbox the header is in the same place.
-const postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide =
-    postContentViewOuterMarginYRem;
-
-// TODO(calebmer, #larger-size-on-desktop): Switch this to large: I think this
-// should be 0 and removed entirely. Also the `useNavigationBar()` option that
-// comes with it. (Do this in separate commit).
-export const postViewMarginTopRemIfNavigationBar = {
-    wide:
-        postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide -
-        (navigationBarStyles.navigationBarHeightRem.desktop - postContentViewHeaderHeightRem) / 2,
-    narrow: 0,
-};
-
-export const postViewMarginTopRem = {
-    desktopWide: postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide,
-    desktopNarrow:
-        (navigationBarStyles.navigationBarHeightRem.desktop - postContentViewHeaderHeightRem) / 2 +
-        postViewMarginTopRemIfNavigationBar.narrow,
-    mobileNarrow:
-        (navigationBarStyles.navigationBarHeightRem.mobile - postContentViewHeaderHeightRem) / 2 +
-        postViewMarginTopRemIfNavigationBar.narrow,
-};
-
-export const postViewNavigationBarSpaceRem = mapObjectValues(
-    postViewMarginTopRem,
-    postViewMarginTopRem => postViewMarginTopRem + postContentViewHeaderHeightRem,
+export const postViewNavigationBarSpace = mapObjectValues(
+    navigationBarStyles.navigationBarHeight,
+    navigationBarHeight => subtractRemLengths(navigationBarHeight, postContentViewInnerMarginY),
 );
 
 const postContentViewMinHeightWithoutHeaderBase = mapObjectValues(
@@ -155,13 +127,13 @@ export const postContentViewMinHeightWithClosedCommentSection = mapObjectValues(
 );
 
 export const postViewMinHeight = mapObjectValues(
-    postViewNavigationBarSpaceRem,
-    postViewNavigationBarSpaceRem =>
+    postViewNavigationBarSpace,
+    postViewNavigationBarSpace =>
         mapObjectValues(
             postContentViewMinHeightWithoutHeaderBase,
             postContentViewMinHeightWithoutHeaderBase =>
                 addRemLengths(
-                    `${postViewNavigationBarSpaceRem}rem`,
+                    postViewNavigationBarSpace,
                     postContentViewMinHeightWithoutHeaderBase,
                     postContentViewOuterMarginBottom,
                 ),
@@ -191,7 +163,7 @@ export const channelViewAsideFileHeight: RemLength = `${
     (parseRemLength(postListViewAsideMaxWidth) -
         parseRemLength(channelViewAsideFileGap) * (channelViewAsidePostFileColumnCount - 1) -
         parseRemLength(screenPaddingX.desktop) * 2) /
-    parseRemLength(screenPaddingX.desktop)
+    channelViewAsidePostFileColumnCount
 }rem`;
 
 export const channelFilesViewFileMaxSize = "64";

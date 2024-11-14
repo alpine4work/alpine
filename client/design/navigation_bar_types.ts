@@ -179,12 +179,6 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     desktopTitleLeftSlop?: Spacing;
 
     /**
-     * Extra scroll space added above the navigation bar on desktop. Similar to safe
-     * area inset but the navigation bar doesn't cover this area when scrolled.
-     */
-    desktopMarginTop?: Spacing | RemLength;
-
-    /**
      * Don't render a back button on mobile. Only set this to true for top level
      * mobile tab routes.
      */

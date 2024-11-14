@@ -26,13 +26,12 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     postContentViewInnerMarginY,
-    postViewMarginTopRem,
+    postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -63,8 +62,6 @@ export function PostCreator({
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
-    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -272,44 +269,61 @@ export function PostCreator({
                         paddingTop="safe-area-inset"
                     >
                         {navigationBar}
-                        {platform === "mobile" && <Box height={navigationBarHeight} />}
-                        <Box
-                            flexShrink="0"
-                            width="full"
-                            maxWidth={contentStyles.contentMaxWidth}
-                            marginX="center"
-                            paddingX={screenPaddingX}
-                            paddingBottom={postContentViewInnerMarginY}
-                            style={{
-                                paddingTop: postViewMarginTopRem[platformRouteLayout],
-                            }}
-                        >
-                            <PostContentViewHeaderBase
-                                author={currentAccount}
-                                createdTime={displayCreatedTime}
-                                shouldCreatedTimeExcludeTime
-                                extraAfterCreatedTime={platform === "mobile" ? `, in:` : undefined}
-                                channelSelector={
-                                    platform !== "mobile" && (
+                        {platform === "desktop" ? (
+                            <Box
+                                position="relative"
+                                flexShrink="0"
+                                width="full"
+                                maxWidth={contentStyles.contentMaxWidth}
+                                marginX="center"
+                                paddingX={screenPaddingX}
+                                marginBottom={postContentViewInnerMarginY}
+                                style={{height: postViewNavigationBarSpace[platform]}}
+                            >
+                                <Box
+                                    position="absolute"
+                                    top="0"
+                                    display="flex"
+                                    alignItems="center"
+                                    height={
+                                        platform === "desktop" ? navigationBarHeight : undefined
+                                    }
+                                >
+                                    <PostContentViewHeaderBase
+                                        author={currentAccount}
+                                        createdTime={displayCreatedTime}
+                                        shouldCreatedTimeExcludeTime
+                                    />
+                                </Box>
+                            </Box>
+                        ) : (
+                            <>
+                                <Box height={navigationBarHeight} />
+                                <Box
+                                    flexShrink="0"
+                                    width="full"
+                                    maxWidth={contentStyles.contentMaxWidth}
+                                    marginX="center"
+                                    paddingX={screenPaddingX}
+                                    paddingBottom={postContentViewInnerMarginY}
+                                >
+                                    <PostContentViewHeaderBase
+                                        author={currentAccount}
+                                        createdTime={displayCreatedTime}
+                                        shouldCreatedTimeExcludeTime
+                                        extraAfterCreatedTime=", in:"
+                                    />
+                                    <Box paddingTop="1" paddingLeft="10">
                                         <PostCreatorChannelSelectorInput
                                             ref={channelSelectorRef}
                                             channel={channel}
                                             onChannelChange={setChannel}
+                                            width="full"
                                         />
-                                    )
-                                }
-                            />
-                            {platform === "mobile" && (
-                                <Box paddingTop="1" paddingLeft="10">
-                                    <PostCreatorChannelSelectorInput
-                                        ref={channelSelectorRef}
-                                        channel={channel}
-                                        onChannelChange={setChannel}
-                                        width="full"
-                                    />
+                                    </Box>
                                 </Box>
-                            )}
-                        </Box>
+                            </>
+                        )}
                         <ContentEditor
                             ref={editorRef}
                             aria-label="New post"
