@@ -77,6 +77,7 @@ export function createFileWebSafeVideoProcessor(
                         temporaryDirectoryPath,
                     ): Promise<{
                         contentType: FileContentType;
+                        contentLength: number;
                         data: Buffer;
                     }> => {
                         const output1Path = joinPath(
@@ -268,6 +269,7 @@ export function createFileWebSafeVideoProcessor(
 
                         return {
                             contentType: ffmpegImagePreviewContentOutputContentType,
+                            contentLength: outputData.length,
                             // Unfortunately, `sharp` doesn't support efficient stream processing so it's
                             // more efficient to read the full data buffer into memory than to use
                             // `fs.createReadStream()` and stream that data into `sharp`. See our comment

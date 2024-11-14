@@ -145,6 +145,7 @@ type FileProcessorTemplateResult<
               {
                   alternativePromise: Promise<{
                       contentType: FileContentType;
+                      contentLength: number;
                       data: Buffer | ReadableStream;
                   }>;
               },
@@ -181,6 +182,7 @@ type FileProcessorTemplateResultFromHasImagePreview<
     {
         imagePreviewContentPromise: Promise<{
             contentType: FileContentType;
+            contentLength: number;
             data: Buffer | ReadableStream;
         }>;
     },

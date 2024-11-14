@@ -52,7 +52,11 @@ export function createFileIcoImageProcessor(
                 });
 
                 let previewPlaceholderPromise: Promise<FileImagePreviewPlaceholder>;
-                let previewContentPromise: Promise<{contentType: FileContentType; data: Buffer}>;
+                let previewContentPromise: Promise<{
+                    contentType: FileContentType;
+                    contentLength: number;
+                    data: Buffer;
+                }>;
                 switch (bestImage.type) {
                     case "png": {
                         previewPlaceholderPromise =
@@ -60,6 +64,7 @@ export function createFileIcoImageProcessor(
 
                         previewContentPromise = Promise.resolve({
                             contentType: "image/png",
+                            contentLength: bestImageData.length,
                             data: bestImageData,
                         });
                         break;
@@ -89,7 +94,11 @@ export function createFileIcoImageProcessor(
                                 .toBuffer()
                                 .catch(rethrowClassifiedSharpError);
 
-                            return {contentType: "image/png", data};
+                            return {
+                                contentType: "image/png",
+                                contentLength: data.length,
+                                data,
+                            };
                         })();
                         break;
                     }

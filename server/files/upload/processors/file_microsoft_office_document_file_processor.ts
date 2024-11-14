@@ -96,6 +96,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
         ) => {
             const alternativePromiseResolver = createPromiseResolver<{
                 contentType: FileContentType;
+                contentLength: number;
                 data: ReadableStream;
             }>();
 
@@ -111,6 +112,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
 
             const previewContentPromise: Promise<{
                 contentType: FileContentType;
+                contentLength: number;
                 data: Buffer | ReadableStream;
             }> = withTemporaryDirectory(
                 parentTemporaryDirectoryPath,
@@ -218,12 +220,12 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                         inputWriteStream.destroy();
                     }
 
-                    const outputReadStream = fsSync.createReadStream(
-                        joinPath(temporaryDirectoryPath, "file.pdf"),
-                    );
+                    const outputPath = joinPath(temporaryDirectoryPath, "file.pdf");
+                    const outputReadStream = fsSync.createReadStream(outputPath);
 
                     alternativePromiseResolver.resolve({
                         contentType: "application/pdf",
+                        contentLength: (await fs.stat(outputPath)).size,
                         data: outputReadStream,
                     });
 

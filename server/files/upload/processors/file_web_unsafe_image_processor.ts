@@ -28,6 +28,7 @@ export function createFileWebUnsafeImageProcessor(
 
             const imagePreviewContentPromise = (async (): Promise<{
                 contentType: FileContentType;
+                contentLength: number;
                 data: Buffer;
             }> => {
                 // Unfortunately, `sharp` doesn't support efficient stream processing so it's
@@ -63,7 +64,11 @@ export function createFileWebUnsafeImageProcessor(
                     .toBuffer()
                     .catch(rethrowClassifiedSharpError);
 
-                return {contentType: "image/avif", data: outputData};
+                return {
+                    contentType: "image/avif",
+                    contentLength: outputData.length,
+                    data: outputData,
+                };
             })();
 
             return {

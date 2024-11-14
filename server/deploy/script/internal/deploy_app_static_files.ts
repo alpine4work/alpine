@@ -8,10 +8,11 @@ import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_co
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -77,7 +78,6 @@ export async function uploadAppStaticFilesBeforeDeploy(
     }
 
     const uploadFileByPath = new Map<string, AppStaticBucketManifestFile>();
-    const uploadFileContentByPath = new Map<string, Buffer>();
 
     const traverse = async (relativePath: string, path: string) => {
         const childPathNames = await fs.readdir(path);
@@ -90,18 +90,9 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 if ((await fs.stat(childPath)).isDirectory()) {
                     await traverse(`${childRelativePath}/`, childPath);
                 } else {
-                    const content = await fs.readFile(childPath);
-                    const contentMd5 = crypto.createHash("md5").update(content).digest("base64");
-
-                    // Save the file's contents for later if the hash changed.
-                    const oldFile = oldFileByPath.get(childRelativePath);
-                    if (oldFile?.contentMd5 !== contentMd5) {
-                        uploadFileContentByPath.set(childRelativePath, content);
-                    }
-
                     uploadFileByPath.set(childRelativePath, {
                         path: childRelativePath,
-                        contentMd5,
+                        contentMd5: await getFileMd5Hash(childPath),
                         uploadTime: currentTime,
                         // Files we upload before a deploy should expire. If the deploy succeeds we
                         // switch this to false. If the deploy fails then the static files will be kept
@@ -152,13 +143,15 @@ export async function uploadAppStaticFilesBeforeDeploy(
         Body: JSON.stringify(AppStaticBucketManifestSchema.serialize(newManifest)),
     });
 
+    // Only allow 8 `PutObject()` requests at once.
+    let mutexCount = 0;
+    const mutexes = createArrayWithLength(8, () => new Mutex());
+
     await runAllPromises(
         mapIterable(uploadFileByPath.values(), async newFile => {
             // If the file content didn't change then don't upload the file again.
             const oldFile = oldFileByPath.get(newFile.path);
             if (oldFile?.contentMd5 === newFile.contentMd5) return;
-
-            const content = assertExists(uploadFileContentByPath.get(newFile.path));
 
             // Use the same logic to determine the `Content-Type` as the `serve-static`
             // module we use in development. Source code here:
@@ -175,13 +168,20 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 }
             }
 
-            await context.r2.PutObject({
-                Bucket: appStaticBucketName,
-                Key: `files/${newFile.path}`,
-                ContentMD5: newFile.contentMd5,
-                ContentType: contentType || "application/octet-stream",
-                ContentLength: content.byteLength,
-                Body: content,
+            const newFilePath = joinPath(rootPath, newFile.path);
+
+            const mutex = mutexes[mutexCount % mutexes.length]!;
+            mutexCount++;
+
+            await mutex.withLock(async () => {
+                await context.r2.PutObject({
+                    Bucket: appStaticBucketName,
+                    Key: `files/${newFile.path}`,
+                    ContentMD5: newFile.contentMd5,
+                    ContentType: contentType || "application/octet-stream",
+                    ContentLength: (await fs.stat(newFilePath)).size,
+                    Body: fs.createReadStream(newFilePath),
+                });
             });
         }),
     );
@@ -190,6 +190,16 @@ export async function uploadAppStaticFilesBeforeDeploy(
         manifest: newManifest,
         paths: new Set(uploadFileByPath.keys()),
     };
+}
+
+async function getFileMd5Hash(path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash("md5");
+        const stream = fs.createReadStream(path);
+        stream.on("error", reject);
+        stream.on("data", chunk => hash.update(chunk));
+        stream.on("end", () => resolve(hash.digest("base64")));
+    });
 }
 
 export async function cleanupAppStaticFilesAfterDeploy(
