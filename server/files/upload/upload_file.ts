@@ -398,6 +398,12 @@ async function uploadAndProcessFile(
             console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "close");
         });
 
+        stream.on("pipe", () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pipe");
+        });
+
         // TODO(calebmer, #files): Consider transitioning objects to infrequent access
         // after 1-3 months?
         // https://developers.cloudflare.com/r2/buckets/object-lifecycles
@@ -534,15 +540,6 @@ async function uploadAndProcessFile(
                       const alternative = await alternativePromise;
                       if (signal.aborted) throw signal.reason;
 
-                      let dataContentLength: number = 0;
-                      if (alternative.data instanceof Buffer) {
-                          dataContentLength = alternative.data.length;
-                      } else {
-                          alternative.data.on("data", (chunk: Buffer) => {
-                              dataContentLength += chunk.length;
-                          });
-                      }
-
                       // NOTE: We don't `Promise.race()` `PutObject()` with
                       // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
                       // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
@@ -560,13 +557,13 @@ async function uploadAndProcessFile(
 
                       await fileUploader.finishProcessingAlternative(context, {
                           contentType: alternative.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: alternative.contentLength,
                       });
 
                       sendEvent({
                           type: "Alternative",
                           contentType: alternative.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: alternative.contentLength,
                           isImagePreviewContent: false,
                       });
 
@@ -574,8 +571,8 @@ async function uploadAndProcessFile(
                           file: {
                               alternative: {
                                   contentType: alternative.contentType,
-                                  contentLength: dataContentLength,
-                                  contentLengthRatio: dataContentLength / contentLength,
+                                  contentLength: alternative.contentLength,
+                                  contentLengthRatio: alternative.contentLength / contentLength,
                               },
                           },
                       };
@@ -652,15 +649,6 @@ async function uploadAndProcessFile(
                       if (signal.aborted) throw signal.reason;
                       if (hasAcceptedPreviewError) return;
 
-                      let dataContentLength: number = 0;
-                      if (content.data instanceof Buffer) {
-                          dataContentLength = content.data.length;
-                      } else {
-                          content.data.on("data", (chunk: Buffer) => {
-                              dataContentLength += chunk.length;
-                          });
-                      }
-
                       // NOTE: We don't `Promise.race()` `PutObject()` with
                       // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
                       // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
@@ -681,21 +669,21 @@ async function uploadAndProcessFile(
 
                       await fileUploader.finishProcessingImagePreviewContent(context, {
                           contentType: content.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: content.contentLength,
                           isAlternative: fileProcessor.hasAlternative === "ImagePreviewContent",
                       });
 
                       sendEvent({
                           type: "ImagePreviewContent",
                           contentType: content.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: content.contentLength,
                       });
 
                       if (fileProcessor.hasAlternative === "ImagePreviewContent") {
                           sendEvent({
                               type: "Alternative",
                               contentType: content.contentType,
-                              contentLength: dataContentLength,
+                              contentLength: content.contentLength,
                               isImagePreviewContent: true,
                           });
                       }
@@ -704,15 +692,16 @@ async function uploadAndProcessFile(
                           file: {
                               preview: {
                                   contentType: content.contentType,
-                                  contentLength: dataContentLength,
-                                  contentLengthRatio: dataContentLength / contentLength,
+                                  contentLength: content.contentLength,
+                                  contentLengthRatio: content.contentLength / contentLength,
                               },
                               alternative:
                                   fileProcessor.hasAlternative === "ImagePreviewContent"
                                       ? {
                                             contentType: content.contentType,
-                                            contentLength: dataContentLength,
-                                            contentLengthRatio: dataContentLength / contentLength,
+                                            contentLength: content.contentLength,
+                                            contentLengthRatio:
+                                                content.contentLength / contentLength,
                                         }
                                       : undefined,
                           },
