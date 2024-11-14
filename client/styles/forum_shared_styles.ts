@@ -93,7 +93,6 @@ const postContentViewHeaderHeightRem = parseRemLength(postContentViewHeaderHeigh
 const postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide =
     postContentViewOuterMarginYRem;
 
-// NOCOMMIT:
 // TODO(calebmer, #larger-size-on-desktop): Switch this to large: I think this
 // should be 0 and removed entirely. Also the `useNavigationBar()` option that
 // comes with it. (Do this in separate commit).
