@@ -265,26 +265,6 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                 },
             });
 
-            if (input.Body instanceof ReadableStream) {
-                input = {
-                    ...input,
-                    Body: input.Body.pipe(
-                        // NOTE(calebmer): `put()` calls wait for 15s then fail with an `ECONNRESET`
-                        // in production unless there's a pass-through stream here. My best guess is
-                        // the AWS SDK is checking to see if the stream is an HTTP request stream and
-                        // doing something differently that isn't terminating?
-                        //
-                        // TODO(calebmer, #files): Remove this if it doesn't work.
-                        new PassThroughStream(),
-                    ),
-                };
-
-                signal?.addEventListener("abort", () => {
-                    assert(input.Body instanceof ReadableStream);
-                    input.Body.destroy(signal.reason);
-                });
-            }
-
             return this._client
                 .send(new PutObjectCommand(input), {abortSignal: signal})
                 .catch(rethrowClassifiedCloudflareR2Error);
