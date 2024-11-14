@@ -27,16 +27,14 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {
     NavigationBarContent,
     NavigationBarContentRef,
 } from "~/client/design/navigation_bar_content.js";
 import {
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeightRem,
     navigationBarHeight,
+    navigationBarHeightRem as navigationBarHeightRemByPlatform,
 } from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
@@ -44,17 +42,21 @@ import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {
+    getRemPxWithoutListening,
+    getSpacingScaleWithoutListening,
+} from "~/client/remix/spacing_scale_context.js";
 import {navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
     convertRemLengthToPx,
-    isRemLength,
-    parseRemLengthNumber,
-    remPxByPlatform,
+    parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -80,8 +82,8 @@ const navigationBarTransitionDebounceScrollTimeoutMs = 1200;
  * visible then we show it, otherwise we hide it.
  */
 const navigationBarVisibleHeightThresholdForReveal = "6";
-const navigationBarVisibleHeightThresholdForRevealRem = parseRemLengthNumber(
-    spacing[navigationBarVisibleHeightThresholdForReveal],
+const navigationBarVisibleHeightThresholdForRevealRem = parseRemLength(
+    navigationBarVisibleHeightThresholdForReveal,
 );
 
 {
@@ -96,7 +98,7 @@ const navigationBarVisibleHeightThresholdForRevealRem = parseRemLengthNumber(
 
     assert(
         mobileNavigationBarVisibleHeightThresholdForReveal ===
-            navigationBarVisibleHeightThresholdForRevealRem * remPxByPlatform.mobile,
+            navigationBarVisibleHeightThresholdForRevealRem * remPxBySpacingScale.large,
     );
 }
 
@@ -136,8 +138,7 @@ const initialScrollDirectionState: ScrollDirectionState = {
 };
 
 export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
-    isMobile,
-    withMobileLayout,
+    platform,
     handleRef,
     navigationBarRef: externalNavigationBarRef,
     title,
@@ -164,8 +165,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     onMobileCancel,
     isAlwaysOpaque,
 }: {
-    isMobile: boolean;
-    withMobileLayout: boolean;
+    platform: Platform;
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
@@ -206,9 +206,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         null,
     );
 
-    const navigationBarHeightRem = isMobile
-        ? mobileNavigationBarHeightRem
-        : desktopNavigationBarHeightRem;
+    const navigationBarHeightRem = navigationBarHeightRemByPlatform[platform];
 
     const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
@@ -275,7 +273,10 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
             let scrollDebounceTimeout: Timeout | null = null;
 
-            const getTitleBoundaryOffset = (remPx: number, element: HTMLElement): number | null => {
+            const getTitleBoundaryOffset = (
+                spacingScale: SpacingScale,
+                element: HTMLElement,
+            ): number | null => {
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarContentElement ??= navigationBarContent.getElement();
@@ -288,12 +289,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 let titleBoundaryOffset =
                     titleBoundaryParentElement.offsetTop +
                     (titleBoundaryMarginTop
-                        ? convertRemLengthToPx(
-                              isRemLength(titleBoundaryMarginTop)
-                                  ? titleBoundaryMarginTop
-                                  : spacing[titleBoundaryMarginTop],
-                              remPx,
-                          )
+                        ? convertRemLengthToPx(titleBoundaryMarginTop, spacingScale)
                         : 0);
                 while (
                     titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
@@ -336,7 +332,8 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 scrollDebounceTimeout?.clear();
                 scrollDebounceTimeout = null;
 
-                const remPx = getRemPxWithoutListening();
+                const spacingScale = getSpacingScaleWithoutListening();
+                const remPx = remPxBySpacingScale[spacingScale];
                 const navigationBarHeight = navigationBarHeightRem * remPx;
 
                 const scrollOffset = Math.max(0, element.scrollTop);
@@ -360,7 +357,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 const isNavigationBarOpaque = isAlwaysOpaque || scrollOffset > navigationBarHeight;
                 lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
 
-                const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
+                const titleBoundaryOffset = getTitleBoundaryOffset(spacingScale, element);
 
                 const isNavigationBarTitleVisible =
                     withoutDisappearingTitle ||
@@ -472,7 +469,8 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     }
                 }
 
-                const remPx = getRemPxWithoutListening();
+                const spacingScale = getSpacingScaleWithoutListening();
+                const remPx = remPxBySpacingScale[spacingScale];
                 const navigationBarHeight = navigationBarHeightRem * remPx;
 
                 const lastScrollOffset = lastScrollOffsetRef.current;
@@ -538,7 +536,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                     const isNavigationBarOpaque = isAlwaysOpaque || scrollOffset > 0;
 
-                    const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
+                    const titleBoundaryOffset = getTitleBoundaryOffset(spacingScale, element);
 
                     const isNavigationBarTitleVisible =
                         withoutDisappearingTitle ||
@@ -556,7 +554,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarTopOffset: Math.max(
                                 0,
                                 navigationBarTopOffset -
-                                    (!isMobile ? desktopMarginTopRem * remPx : 0),
+                                    (platform !== "mobile" ? desktopMarginTopRem * remPx : 0),
                             ),
                             animateNavigationBar: null,
                         });
@@ -614,7 +612,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarTopOffset: Math.max(
                                 0,
                                 navigationBarTopOffset -
-                                    (!isMobile ? desktopMarginTopRem * remPx : 0),
+                                    (platform !== "mobile" ? desktopMarginTopRem * remPx : 0),
                             ),
                             animateNavigationBar: null,
                         });
@@ -650,11 +648,12 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const isNavigationBarOpaqueIfNotAlwaysOpaque = lastIsNavigationBarOpaque
                         ? scrollOffset > 0
                         : scrollOffset >
-                          navigationBarHeight + (!isMobile ? desktopMarginTopRem * remPx : 0);
+                          navigationBarHeight +
+                              (platform !== "mobile" ? desktopMarginTopRem * remPx : 0);
                     const isNavigationBarOpaque =
                         isAlwaysOpaque || isNavigationBarOpaqueIfNotAlwaysOpaque;
 
-                    const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
+                    const titleBoundaryOffset = getTitleBoundaryOffset(spacingScale, element);
 
                     const isNavigationBarTitleVisible =
                         withoutDisappearingTitle ||
@@ -811,7 +810,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             nextIsNavigationBarOpaque = true;
                         }
 
-                        const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
+                        const titleBoundaryOffset = getTitleBoundaryOffset(spacingScale, element);
 
                         const nextIsNavigationBarTitleVisible =
                             withoutDisappearingTitle ||
@@ -871,7 +870,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarTopOffset: Math.max(
                                 0,
                                 nextNavigationBarTopOffset -
-                                    (!isMobile ? desktopMarginTopRem * remPx : 0),
+                                    (platform !== "mobile" ? desktopMarginTopRem * remPx : 0),
                             ),
                             animateNavigationBar: {
                                 translateY: nextNavigationBarTopOffset - lastNavigationBarTopOffset,
@@ -930,8 +929,8 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         [
             desktopMarginTopRem,
             isAlwaysOpaque,
-            isMobile,
             navigationBarHeightRem,
+            platform,
             titleBoundaryMarginTop,
             titleBoundaryRef,
             withoutDisappearingTitle,
@@ -1031,7 +1030,10 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             <div
                 style={{
                     position: "absolute",
-                    top: !isMobile && desktopMarginTopRem !== 0 ? `${desktopMarginTopRem}rem` : 0,
+                    top:
+                        platform !== "mobile" && desktopMarginTopRem !== 0
+                            ? `${desktopMarginTopRem}rem`
+                            : 0,
                     left: 0,
                     right: 0,
                     // Extend the space our `position: sticky` element can scroll in. This way in
@@ -1080,13 +1082,12 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             opacity="0"
                             style={{
                                 height: `calc(${
-                                    spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                                    spacing[navigationBarHeight[platform]]
                                 } + var(--safe-area-inset-top, 0px))`,
                             }}
                         />
                         <NavigationBarContent
                             ref={navigationBarContentRef}
-                            withMobileLayout={withMobileLayout}
                             title={title}
                             withDisappearingTitle={!withoutDisappearingTitle}
                             subtitle={subtitle}

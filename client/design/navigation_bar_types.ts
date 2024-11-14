@@ -33,16 +33,6 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     isDisabled?: boolean;
 
     /**
-     * Should the navigation bar use a mobile layout even while on desktop? This is
-     * typically set to true in peeks. Peeks are visible on desktop but need a
-     * mobile-like layout.
-     *
-     * We use a mobile layout when in mobile mode regardless of whether this is
-     * true or not.
-     */
-    withMobileLayout: boolean;
-
-    /**
      * The title to display in the navigation bar. It will be truncated based
      * on how much room is in the navigation bar.
      *

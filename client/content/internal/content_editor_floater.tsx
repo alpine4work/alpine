@@ -31,14 +31,14 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function ContentEditorFloater({
-    isMobile,
-    withMobileLayout,
+    platform,
     state,
     viewRef,
     floaterState,
@@ -46,8 +46,7 @@ export function ContentEditorFloater({
     isFocused,
     setDecorationCallbacks,
 }: {
-    isMobile: boolean;
-    withMobileLayout: boolean;
+    platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
@@ -62,7 +61,7 @@ export function ContentEditorFloater({
     switch (floaterState.type) {
         case "PointerToolbar": {
             // The pointer toolbar never opens on mobile devices.
-            if (isMobile) return null;
+            if (platform === "mobile") return null;
 
             return (
                 <ContentEditorPointerToolbar
@@ -134,7 +133,6 @@ export function ContentEditorFloater({
         case "CommentInput": {
             return (
                 <ContentEditorCommentInputFloater
-                    withMobileLayout={withMobileLayout}
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}

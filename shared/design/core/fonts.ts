@@ -275,7 +275,7 @@ export const fontSizesByPlatform = {
     // Font size in between 300 and 400 used for our heading scale on mobile.
     // Should only be used for mobile headings, not considered a part of our
     // general typography scale.
-    "mobile-heading-350": {
+    "350-narrow-heading": {
         desktop: {
             fontSize: 19,
             letterSpacing: "-0.0156em",

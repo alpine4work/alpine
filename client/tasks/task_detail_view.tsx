@@ -21,7 +21,6 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -36,19 +35,20 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, invertSelectionColorsClassName, sprinkles} from "~/client/styles/styles.js";
 import {
-    desktopTaskDetailViewNavigationBarSpacerMarginBottom,
-    desktopTaskDetailViewStatusButtonSize,
-    mobileTaskDetailViewStatusButtonPaddingBottom,
-    mobileTaskDetailViewStatusButtonPaddingTop,
-    mobileTaskDetailViewStatusButtonSize,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
+    taskDetailViewNavigationBarSpacerDesktopMarginBottom,
     taskDetailViewSectionGap,
+    taskDetailViewStatusButtonMobilePaddingBottom,
+    taskDetailViewStatusButtonMobilePaddingTop,
+    taskDetailViewStatusButtonSize,
     taskDetailViewSubtasksFieldLabelPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -118,21 +118,20 @@ import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 const taskDetailViewReadOnlyReasonStickyBannerHeight = "8";
 
 export function TaskDetailView({
-    withMobileLayout,
     taskSubscription,
     childrenQuery,
     affinityManager,
     initialChildrenGridViewExpansionState,
     notesClient,
 }: {
-    withMobileLayout: boolean;
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     notesClient: TaskDetailNotesContentEditorWebSocketClient;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone, isAppleDevice} = useClientInfo();
@@ -429,7 +428,7 @@ export function TaskDetailView({
 
             const paragraphLineHeight = convertRemLengthToPx(
                 contentStyles.paragraphFontSize.lineHeight,
-                getRemPxWithoutListening(),
+                getSpacingScaleWithoutListening(),
             );
 
             // Add a paragraph line height in either direction as slop. We consider the
@@ -697,19 +696,19 @@ export function TaskDetailView({
         undoManager,
     ]);
 
-    const openTaskCommentsExtraAction = withMobileLayout
-        ? {
-              icon: <ChatCircleDots />,
-              description: "Open comments",
-              onPress: async () => {
-                  await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
-              },
-              pressErrorTitle: "Couldn't open comments",
-          }
-        : undefined;
+    const openTaskCommentsExtraAction =
+        routeLayout === "narrow"
+            ? {
+                  icon: <ChatCircleDots />,
+                  description: "Open comments",
+                  onPress: async () => {
+                      await navigate(`/s/${spaceId}/tasks/${taskId}/comments?from=task`);
+                  },
+                  pressErrorTitle: "Couldn't open comments",
+              }
+            : undefined;
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout,
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         titleBoundaryRef: titleInputElementRef,
         menuActions: contextMenuActions,
@@ -718,7 +717,7 @@ export function TaskDetailView({
         desktopControls: (
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}
-                size={desktopTaskDetailViewStatusButtonSize}
+                size={taskDetailViewStatusButtonSize.desktop}
                 taskSubscription={taskSubscription}
                 undoManager={undoManager}
                 affinityManager={affinityManager}
@@ -727,7 +726,7 @@ export function TaskDetailView({
             />
         ),
         // The open/close button with the title looks a little weird?
-        withoutDisappearingTitle: !!readOnlyReason && !isMobile,
+        withoutDisappearingTitle: !!readOnlyReason && platform !== "mobile",
         stickyBanner: readOnlyReason && (
             <Box
                 className={invertSelectionColorsClassName}
@@ -791,7 +790,6 @@ export function TaskDetailView({
                                     node: (
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}
-                                            withMobileLayout={withMobileLayout}
                                             taskSubscription={taskSubscription}
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
@@ -823,7 +821,6 @@ export function TaskDetailView({
                         },
                         [
                             renderChildrenGridViewItem,
-                            withMobileLayout,
                             taskSubscription,
                             undoManager,
                             affinityManager,
@@ -914,7 +911,6 @@ const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
 
 function TaskDetailViewMain(
     {
-        withMobileLayout,
         taskSubscription,
         undoManager,
         affinityManager,
@@ -938,7 +934,6 @@ function TaskDetailViewMain(
         focusDueDateInput,
         notesClient,
     }: {
-        withMobileLayout: boolean;
         taskSubscription: TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
@@ -965,7 +960,7 @@ function TaskDetailViewMain(
     ref: Ref<TaskDetailViewMainRef>,
 ) {
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
@@ -1109,29 +1104,29 @@ function TaskDetailViewMain(
                 flexDirection="column"
                 position="relative"
             >
-                {isMobile && (
+                {platform === "mobile" && (
                     // On mobile, create some space for the navigation bar since it's back button
                     // will conflict with the status button.
                     <Spacer space={navigationBarHeight} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box paddingBottom={taskDetailViewSectionGap} paddingX={screenPaddingX}>
-                        {!isMobile ? (
+                        {platform !== "mobile" ? (
                             <Box
                                 height={navigationBarHeight}
-                                marginBottom={desktopTaskDetailViewNavigationBarSpacerMarginBottom}
+                                marginBottom={taskDetailViewNavigationBarSpacerDesktopMarginBottom}
                             />
                         ) : (
                             <Box
                                 // The `paddingTop` of `3` happens to align with the
                                 // `<DocumentCommentThreadHeader>`'s resolve button on mobile.
-                                paddingTop={mobileTaskDetailViewStatusButtonPaddingTop}
-                                paddingBottom={mobileTaskDetailViewStatusButtonPaddingBottom}
+                                paddingTop={taskDetailViewStatusButtonMobilePaddingTop}
+                                paddingBottom={taskDetailViewStatusButtonMobilePaddingBottom}
                             >
-                                {isMobile && (
+                                {platform === "mobile" && (
                                     <TaskDetailViewStatusButton
                                         elementRef={statusButtonRef}
-                                        size={mobileTaskDetailViewStatusButtonSize}
+                                        size={taskDetailViewStatusButtonSize.mobile}
                                         taskSubscription={taskSubscription}
                                         undoManager={undoManager}
                                         affinityManager={affinityManager}
@@ -1376,7 +1371,6 @@ function TaskDetailViewMain(
                 <Spacer space={taskDetailViewSectionGap} />
                 <TaskDetailNotesField
                     ref={notesFieldRef}
-                    withMobileLayout={withMobileLayout}
                     taskId={taskId}
                     isReadOnly={isReadOnly}
                     pushUndoStackEntry={pushUndoStackEntry}
@@ -1422,9 +1416,10 @@ function TaskDetailViewMain(
                         height="5"
                         pointerEvents="none"
                         style={{
-                            height: isMobile
-                                ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
-                                : undefined,
+                            height:
+                                platform === "mobile"
+                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                                    : undefined,
                         }}
                     />
                 )}

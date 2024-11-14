@@ -8,7 +8,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -62,9 +62,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
                 commentThreadCountAgainstLimit:
                     documentCommentThreadCountAgainstLimit[
-                        getInitialAppRenderIsMobile(context.loader.getClientInfo())
-                            ? "mobile"
-                            : "desktop"
+                        getInitialAppRenderPlatform(context.loader.getClientInfo())
                     ],
             }),
             url.searchParams.get("inbox") === "show"
@@ -106,15 +104,9 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
     ];
 });
 
-export default function DocumentCommentThreadRoute({
-    withMobileLayout: withMobileLayoutProp = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
-    const isMobile = useIsMobile();
+export default function DocumentCommentThreadRoute() {
+    const platform = usePlatform();
     const rootNavigate = useRootNavigate();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
         document: initialDocument,
@@ -138,15 +130,13 @@ export default function DocumentCommentThreadRoute({
     useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
 
     const navigationBar = useNavigationBar({
-        isDisabled: !isMobile,
-        withMobileLayout,
+        isDisabled: platform !== "mobile",
         title: "Comment thread",
         withoutDisappearingTitle: true,
     });
 
     const node = (
         <DocumentCommentThreadListView
-            withMobileLayout={withMobileLayout}
             documentId={initialDocument.id}
             content={editorState.getContent()}
             isConnected={isConnected}
@@ -162,7 +152,7 @@ export default function DocumentCommentThreadRoute({
                 // - Navigate the peek we are rendered in
                 rootNavigate(
                     `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
-                        isMobile
+                        platform === "mobile"
                             ? // On mobile, only scroll to where the comment lives in the document. Don't open
                               // up the comment overlay.
                               `scroll=comments-${commentThreadId}`
@@ -181,12 +171,12 @@ export default function DocumentCommentThreadRoute({
             navigationBar={navigationBar}
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.
-            withSafeAreaInsetTop={!isMobile}
+            withSafeAreaInsetTop={platform !== "mobile"}
             header={useMemo(() => {
-                if (!isMobile) return undefined;
+                if (platform !== "mobile") return undefined;
 
                 return {
-                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    minHeight: spacing[navigationBarHeight[platform]],
                     node: (
                         <Box
                             position="relative"
@@ -199,14 +189,13 @@ export default function DocumentCommentThreadRoute({
                         </Box>
                     ),
                 };
-            }, [isMobile])}
+            }, [platform])}
         />
     );
 
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            withMobileLayout: withMobileLayout,
             maxWidth: documentCommentThreadListViewMaxWidth,
         },
         node,

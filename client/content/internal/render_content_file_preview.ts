@@ -33,7 +33,7 @@ import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
 import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {warningIconSvg} from "~/client/icons/warning_icon_svg.js";
-import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
     colorSchemeVars,
@@ -56,7 +56,9 @@ import {
 } from "~/shared/content/content_styles.js";
 import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
-import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
@@ -137,7 +139,8 @@ export function renderContentFilePreview(
         reference,
         layout,
         screenWidth,
-        isMobile,
+        platform,
+        spacingScale,
         isInitialAppRender,
         withoutInteractivity = false,
         expirationTimers,
@@ -147,7 +150,8 @@ export function renderContentFilePreview(
         reference: {signedUrlSearch: string; file: FileModel} | undefined;
         layout: ContentFileLayout;
         screenWidth: number;
-        isMobile: boolean;
+        platform: Platform;
+        spacingScale: SpacingScale;
         isInitialAppRender: boolean;
         withoutInteractivity?: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
@@ -176,7 +180,7 @@ export function renderContentFilePreview(
             }),
         );
 
-        appendImageHtmlForSelection(blankHtml, isMobile);
+        appendImageHtmlForSelection(blankHtml, platform);
     } else if (!reference.file.preview) {
         const containerHtml = new HtmlElementGenerator("div");
         html.appendChild(containerHtml);
@@ -232,7 +236,7 @@ export function renderContentFilePreview(
             new HtmlTextGenerator(prettyBytes(reference.file.contentLength)),
         );
 
-        appendImageHtmlForSelection(containerHtml, isMobile);
+        appendImageHtmlForSelection(containerHtml, platform);
     } else {
         switch (reference.file.preview.type) {
             case "Image": {
@@ -242,7 +246,7 @@ export function renderContentFilePreview(
                     file: reference.file,
                     filePreview: reference.file.preview,
                     layout,
-                    isMobile,
+                    platform,
                     isInitialAppRender,
                     withoutInteractivity,
                     expirationTimers,
@@ -273,14 +277,14 @@ export function renderContentFilePreview(
                         file: reference.file,
                         filePreview: reference.file.preview,
                         audioSrc,
-                        isMobile,
+                        platform,
                         isInitialAppRender,
                         withoutInteractivity,
                         layout,
                     });
                 }
 
-                appendImageHtmlForSelection(html, isMobile);
+                appendImageHtmlForSelection(html, platform);
                 break;
             }
             case "Code": {
@@ -289,7 +293,8 @@ export function renderContentFilePreview(
                     filePreview: reference.file.preview,
                     layout,
                     screenWidth,
-                    isMobile,
+                    platform,
+                    spacingScale,
                 });
                 break;
             }
@@ -310,8 +315,8 @@ export function renderContentFilePreview(
  * selectable image in `contenteditable="true"`. This is consistent with our
  * `user-select` style for `fileImagePreviewContentClassName`.
  */
-function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, isMobile: boolean) {
-    if (isMobile) return;
+function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, platform: Platform) {
+    if (platform === "mobile") return;
 
     const imageHtmlForSelection = new HtmlElementGenerator("img");
     containerHtml.appendChild(imageHtmlForSelection);
@@ -405,7 +410,7 @@ function renderContentFileImagePreview(
         file,
         filePreview,
         layout,
-        isMobile,
+        platform,
         isInitialAppRender,
         withoutInteractivity,
         expirationTimers,
@@ -415,7 +420,7 @@ function renderContentFileImagePreview(
         file: FileModel;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
-        isMobile: boolean;
+        platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
@@ -567,7 +572,7 @@ function renderContentFileImagePreview(
         filePreviewSize: filePreview.size,
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
-        isMobile,
+        platform,
         isInitialAppRender,
         withoutInteractivity,
         expirationTimers,
@@ -586,7 +591,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize,
         filePreviewPlaceholder,
         layout,
-        isMobile,
+        platform,
         isInitialAppRender,
         withoutInteractivity,
         expirationTimers,
@@ -599,7 +604,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize: FileImagePreviewSize;
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
-        isMobile: boolean;
+        platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
         expirationTimers: ContentFilePreviewExpirationTimers;
@@ -757,7 +762,7 @@ function renderContentFileImagePreviewInner(
             file,
             durationMs: filePreview.videoDuration,
             layout,
-            isMobile,
+            platform,
             isInitialAppRender,
             withoutInteractivity,
         });
@@ -771,7 +776,7 @@ function renderContentFileImagePreviewInner(
         // `contentStyles.fileImagePreviewContentClassName` then it'll render under the
         // video controls and under the `<video>` element itself once the video is
         // playing.
-        appendImageHtmlForSelection(html, isMobile);
+        appendImageHtmlForSelection(html, platform);
     }
 }
 
@@ -782,13 +787,15 @@ function renderContentFileCodePreview(
         filePreview,
         layout,
         screenWidth,
-        isMobile,
+        platform,
+        spacingScale,
     }: {
         file: FileModel;
         filePreview: FileCodePreview;
         layout: ContentFileLayout;
         screenWidth: number;
-        isMobile: boolean;
+        platform: Platform;
+        spacingScale: SpacingScale;
     },
 ) {
     html.setAttribute(
@@ -802,7 +809,7 @@ function renderContentFileCodePreview(
     // row. Then add a comment to the code preview.
     html.setAttribute("style", `height: ${layout.height}px`);
 
-    appendImageHtmlForSelection(html, isMobile);
+    appendImageHtmlForSelection(html, platform);
 
     if (filePreview.content === "Processing") {
         renderContentFileProcessingPreview(html, {file, layout});
@@ -810,12 +817,8 @@ function renderContentFileCodePreview(
     }
 
     const fullWidth = Math.min(
-        contentStyles.blockMaxWidthRem[isMobile ? "mobile" : "desktop"] *
-            remPxByPlatform[isMobile ? "mobile" : "desktop"],
-        screenWidth -
-            screenPaddingXRem[isMobile ? "mobile" : "desktop"] *
-                remPxByPlatform[isMobile ? "mobile" : "desktop"] *
-                2,
+        contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
+        screenWidth - screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
     );
 
     const initialScale =
@@ -1429,7 +1432,7 @@ export function addContentFilePreviewBehavior(
             // let's start our `pointerdown` event by setting `element.draggable = true`.
             //
             // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
-            if (!getIsMobileWithoutListening()) {
+            if (getPlatformWithoutListening() !== "mobile") {
                 element.draggable = true;
             }
 
@@ -1447,7 +1450,7 @@ export function addContentFilePreviewBehavior(
         //
         // - Prevent the document from focusing (and keyboard from opening)
         // - Prevent the file from being dragged
-        if (getIsMobileWithoutListening()) {
+        if (getPlatformWithoutListening() === "mobile") {
             event.preventDefault();
         } else {
             // By default, the browser will focus our `[contenteditable=true]` element on
@@ -1587,7 +1590,7 @@ export function addContentFilePreviewBehavior(
         assert(!isInert);
 
         // Don't allow dragging with the web drag API on mobile.
-        if (getIsMobileWithoutListening()) {
+        if (getPlatformWithoutListening() === "mobile") {
             event.stopPropagation();
             event.preventDefault();
             return;

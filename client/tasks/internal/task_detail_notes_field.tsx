@@ -5,7 +5,7 @@ import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles, tasksStyles} from "~/client/styles/styles.js";
 import {
     taskDetailNotesFieldLabelPaddingBottom,
@@ -32,7 +32,6 @@ export {TaskDetailNotesFieldForwardRef as TaskDetailNotesField};
 
 function TaskDetailNotesField(
     {
-        withMobileLayout,
         taskId,
         isReadOnly,
         pushUndoStackEntry,
@@ -40,7 +39,6 @@ function TaskDetailNotesField(
         pushRedoStackEntry,
         notesClient,
     }: {
-        withMobileLayout: boolean;
         taskId: TaskId;
         isReadOnly: boolean;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -50,7 +48,7 @@ function TaskDetailNotesField(
     },
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const labelId = useId();
     const editorRef = useRef<ContentEditorRef<TaskNotesContentWithReferences>>(null);
@@ -98,15 +96,11 @@ function TaskDetailNotesField(
             >
                 Notes
             </span>
-            <FocusRing
-                insetX={screenPaddingX[isMobile ? "mobile" : "desktop"]}
-                isVisibleWhenFocusWithin
-            >
+            <FocusRing insetX={screenPaddingX[platform]} isVisibleWhenFocusWithin>
                 {isReadOnly ? (
                     <Box className={tasksStyles.detailNotesContentEditorClassName}>
                         <ContentView
                             aria-labelledby={labelId}
-                            withMobileLayout={withMobileLayout}
                             content={state.editorState.getContent()}
                             onMergeContentReferences={references =>
                                 notesClient.changeEditorState(
@@ -123,7 +117,6 @@ function TaskDetailNotesField(
                         <ContentEditor
                             ref={editorRef}
                             aria-labelledby={labelId}
-                            withMobileLayout={withMobileLayout}
                             state={state.editorState}
                             onChange={state => notesClient.changeEditorState(state)}
                             placeholder="Add more details…"

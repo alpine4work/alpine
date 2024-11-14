@@ -4,10 +4,9 @@ import {
     RemLength,
     addRemLengths,
     assertSpacing,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
-    spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -17,17 +16,18 @@ export const postListViewAsideFlex = 4;
 
 export const channelViewMetadataSectionGap = "7";
 
-// We've picked `desktopLayoutChannelViewMetadataMarginTop` so that when you
-// edit the channel description the save and cancel buttons aren't covered by
-// the navigation bar. If we change the design for these inline editing
-// save/cancel buttons we can set `desktopLayoutChannelViewMetadataMarginTop`
-// to 0.
-export const desktopLayoutChannelViewMetadataMarginTop = "2";
-export const mobileLayoutChannelViewMetadataMarginTop = "2";
+// We've picked `channelViewAsideMarginTop` so that when you edit the channel
+// description the save and cancel buttons aren't covered by the navigation
+// bar. If we change the design for these inline editing save/cancel buttons we
+// can set `channelViewAsideMarginTop` to 0.
+export const channelViewAsideMarginTop = "2";
 
-export const desktopLayoutPostFauxInputCreateButtonMarginTop =
-    desktopLayoutChannelViewMetadataMarginTop;
-export const mobileLayoutPostFauxInputCreateButtonMarginTop = "6";
+export const channelViewHeaderNarrowRouteLayoutMarginTop = "2";
+
+export const postFauxInputCreateButtonMarginTop = {
+    wide: channelViewAsideMarginTop,
+    narrow: "6",
+} as const;
 
 export const postFauxInputCreateButtonHeight = "12";
 
@@ -49,16 +49,14 @@ export const screenPaddingXWithoutPostContentEditorPadding = mapObjectValues(
 );
 
 export const postContentViewInnerMarginYWithoutContentEditorPadding = subtractRemLengths(
-    spacing[postContentViewInnerMarginY],
-    spacing[postContentEditorPadding],
+    postContentViewInnerMarginY,
+    postContentEditorPadding,
 );
 
-const fontSize75LineHeightRem = parseRemLengthNumber(fontSizes["75"].lineHeight);
-const postContentViewFooterHeightRem = parseRemLengthNumber(spacing[postContentViewFooterHeight]);
-const postContentViewFooterButtonHeightRem = parseRemLengthNumber(
-    spacing[postContentViewFooterButtonHeight],
-);
-const postContentViewOuterMarginYRem = parseRemLengthNumber(spacing[postContentViewOuterMarginY]);
+const fontSize75LineHeightRem = parseRemLength(fontSizes["75"].lineHeight);
+const postContentViewFooterHeightRem = parseRemLength(postContentViewFooterHeight);
+const postContentViewFooterButtonHeightRem = parseRemLength(postContentViewFooterButtonHeight);
+const postContentViewOuterMarginYRem = parseRemLength(postContentViewOuterMarginY);
 
 // Visually, we want `postContentViewOuterMarginY` of space from the bottom of
 // the button text. So adjust our outer padding bottom to exclude footer
@@ -69,7 +67,7 @@ const postContentViewOuterMarginBottomRem =
 export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOuterMarginBottomRem}rem`;
 
 const postContentViewOuterOpenCommentSectionMarginBottomRem =
-    postContentViewOuterMarginBottomRem - parseRemLengthNumber(spacing[messageInputPaddingY]);
+    postContentViewOuterMarginBottomRem - parseRemLength(messageInputPaddingY);
 
 export const postContentViewOuterOpenCommentSectionMarginBottom: RemLength = `${postContentViewOuterOpenCommentSectionMarginBottomRem}rem`;
 
@@ -78,10 +76,7 @@ export const postContentViewFooterButtonIconSize = "4";
 export const postCommentSectionGuidelineOffset = mapObjectValues(
     screenPaddingX,
     (paddingX): RemLength =>
-        `${
-            parseRemLengthNumber(spacing[paddingX]) +
-            parseRemLengthNumber(spacing[postContentViewFooterButtonIconSize]) / 2
-        }rem`,
+        `${parseRemLength(paddingX) + parseRemLength(postContentViewFooterButtonIconSize) / 2}rem`,
 );
 
 const postCommentSectionGuidelineStartHeightRem =
@@ -90,50 +85,49 @@ const postCommentSectionGuidelineStartHeightRem =
 
 export const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
 
-const postContentViewHeaderHeightRem = parseRemLengthNumber(spacing[postContentViewHeaderHeight]);
+const postContentViewHeaderHeightRem = parseRemLength(postContentViewHeaderHeight);
 
 // Don't add more space to the top of a single post so when switching between a
 // list of posts (probably from a channel posts notification) and a single post
 // in inbox the header is in the same place.
-export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
+const postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide =
     postContentViewOuterMarginYRem;
 
-export const desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar =
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput -
-    (navigationBarStyles.desktopNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2;
+// TODO(calebmer, #larger-size-on-desktop): Switch this to large: I think this
+// should be 0 and removed entirely. Also the `useNavigationBar()` option that
+// comes with it. (Do this in separate commit).
+export const postViewMarginTopRemIfNavigationBar = {
+    wide:
+        postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide -
+        (navigationBarStyles.navigationBarHeightRem.desktop - postContentViewHeaderHeightRem) / 2,
+    narrow: 0,
+};
 
-export const mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar = 0;
+export const postViewMarginTopRem = {
+    desktopWide: postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide,
+    desktopNarrow:
+        (navigationBarStyles.navigationBarHeightRem.desktop - postContentViewHeaderHeightRem) / 2 +
+        postViewMarginTopRemIfNavigationBar.narrow,
+    mobileNarrow:
+        (navigationBarStyles.navigationBarHeightRem.mobile - postContentViewHeaderHeightRem) / 2 +
+        postViewMarginTopRemIfNavigationBar.narrow,
+};
 
-export const mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
-    (navigationBarStyles.mobileNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2 +
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar;
-
-export const mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput =
-    (navigationBarStyles.desktopNavigationBarHeightRem - postContentViewHeaderHeightRem) / 2 +
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar;
-
-export const desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
-    postContentViewHeaderHeightRem;
-
-export const mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
-    postContentViewHeaderHeightRem;
-
-export const mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput =
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput +
-    postContentViewHeaderHeightRem;
+export const postViewNavigationBarSpaceRem = mapObjectValues(
+    postViewMarginTopRem,
+    postViewMarginTopRem => postViewMarginTopRem + postContentViewHeaderHeightRem,
+);
 
 const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
-    spacing[postContentViewInnerMarginY],
+    postContentViewInnerMarginY,
     contentStyles.paragraphFontSize.lineHeight,
-    spacing[postContentViewInnerMarginY],
-    spacing[postContentViewFooterHeight],
+    postContentViewInnerMarginY,
+    postContentViewFooterHeight,
 );
 
 const postContentViewMinHeightBase = addRemLengths(
-    spacing[postContentViewOuterMarginY],
-    spacing[postContentViewHeaderHeight],
+    postContentViewOuterMarginY,
+    postContentViewHeaderHeight,
     postContentViewMinHeightWithoutHeaderBase,
 );
 
@@ -147,31 +141,20 @@ export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
     postContentViewOuterMarginBottom,
 );
 
-export const mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
-    addRemLengths(
-        `${mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-        postContentViewMinHeightWithoutHeaderBase,
-        postContentViewOuterMarginBottom,
-    );
-
-export const mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
-    addRemLengths(
-        `${mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-        postContentViewMinHeightWithoutHeaderBase,
-        postContentViewOuterMarginBottom,
-    );
-
-export const desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput =
-    addRemLengths(
-        `${desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-        postContentViewMinHeightWithoutHeaderBase,
-        postContentViewOuterMarginBottom,
-    );
+export const postViewMinHeight = mapObjectValues(
+    postViewNavigationBarSpaceRem,
+    postViewNavigationBarSpaceRem =>
+        addRemLengths(
+            `${postViewNavigationBarSpaceRem}rem`,
+            postContentViewMinHeightWithoutHeaderBase,
+            postContentViewOuterMarginBottom,
+        ),
+);
 
 export const channelViewHeaderMinHeight = addRemLengths(
-    spacing[desktopLayoutPostFauxInputCreateButtonMarginTop],
-    spacing[postFauxInputCreateButtonHeight],
-    spacing[postContentViewOuterMarginY],
+    postFauxInputCreateButtonMarginTop.wide,
+    postFauxInputCreateButtonHeight,
+    postContentViewOuterMarginY,
 );
 
 export const postListViewAsideMaxWidth = "96";
@@ -188,11 +171,10 @@ export const channelViewAsidePostFileCount =
 export const channelViewAsideFileGap = "2";
 
 export const channelViewAsideFileHeight: RemLength = `${
-    (parseRemLengthNumber(spacing[postListViewAsideMaxWidth]) -
-        parseRemLengthNumber(spacing[channelViewAsideFileGap]) *
-            (channelViewAsidePostFileColumnCount - 1) -
-        parseRemLengthNumber(spacing[screenPaddingX.desktop]) * 2) /
-    channelViewAsidePostFileColumnCount
+    (parseRemLength(postListViewAsideMaxWidth) -
+        parseRemLength(channelViewAsideFileGap) * (channelViewAsidePostFileColumnCount - 1) -
+        parseRemLength(screenPaddingX.desktop) * 2) /
+    parseRemLength(screenPaddingX.desktop)
 }rem`;
 
 export const channelFilesViewFileMaxSize = "64";
@@ -204,8 +186,7 @@ export const channelFilesViewMaxWidth = mapObjectValues(
     (screenPaddingXRem): RemLength =>
         `${
             screenPaddingXRem * 2 +
-            parseRemLengthNumber(spacing[channelFilesViewFileMaxSize]) *
-                channelFilesViewFileRowFileCount +
+            parseRemLength(channelFilesViewFileMaxSize) * channelFilesViewFileRowFileCount +
             contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1)
         }rem`,
 );

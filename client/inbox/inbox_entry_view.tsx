@@ -6,7 +6,6 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -21,8 +20,9 @@ import {
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
@@ -32,7 +32,7 @@ import {
     searchStyles,
 } from "~/client/styles/styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -44,9 +44,7 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 export const inboxEntryWidth = "96";
 
 const inboxEntryViewTouchSwipeIconWidth = "16";
-const inboxEntryViewTouchSwipeIconWidthRem = parseRemLengthNumber(
-    spacing[inboxEntryViewTouchSwipeIconWidth],
-);
+const inboxEntryViewTouchSwipeIconWidthRem = parseRemLength(inboxEntryViewTouchSwipeIconWidth);
 
 const inboxEntryDeleteAnimationFadeDurationMs = 150;
 const inboxEntryDeleteAnimationSlideDurationMs = 230;

@@ -14,12 +14,10 @@ import {ChannelId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 
 export function ChannelDesktopCreator({
-    withMobileLayout,
     channelId,
     shouldInitiallyFocusChannelName,
     createChannel,
 }: {
-    withMobileLayout: boolean;
     channelId: ChannelId;
     shouldInitiallyFocusChannelName: boolean;
     createChannel: (name: string) => Promise<void>;
@@ -41,7 +39,6 @@ export function ChannelDesktopCreator({
     );
 
     const navigationBar = useNavigationBar({
-        withMobileLayout,
         withoutDisappearingTitle: true,
         title: (
             <ChannelViewNameEditor
@@ -85,7 +82,6 @@ export function ChannelDesktopCreator({
 
     return (
         <PostListView
-            withMobileLayout={withMobileLayout}
             channelHeader={useMemo(
                 () => ({
                     isOnlyNavigationBar: false,

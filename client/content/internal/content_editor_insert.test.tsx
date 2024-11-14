@@ -55,7 +55,6 @@ const TestContentEditor = forwardRef(function TestContentEditor(
         <ContentEditor
             ref={ref}
             aria-label="Test"
-            withMobileLayout={false}
             fileAttachmentTarget={fileAttachmentTarget}
             state={state}
             onChange={setState}

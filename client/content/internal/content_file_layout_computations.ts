@@ -1,6 +1,8 @@
 import * as kiwi from "@lume/kiwi";
 import {contentStyles} from "~/client/styles/styles.js";
-import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,
@@ -18,7 +20,7 @@ const fallbackFileAspectRatio = 3 / 2;
 
 // Use the larger `remPx` size (mobile) and the larger block max width
 // (mobile). The file will be scaled down as necessary.
-const largeFallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxByPlatform.mobile;
+const largeFallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxBySpacingScale.large;
 const largeFallbackFileHeight = largeFallbackFileWidth / fallbackFileAspectRatio;
 const largeFallbackFileSize = {width: largeFallbackFileWidth, height: largeFallbackFileHeight};
 
@@ -67,12 +69,20 @@ export type ContentFileLayout = {
  */
 export function computeContentFileRowLayout<Files extends Array<FileModel | null>>(
     files: Files,
-    {screenWidth, isMobile}: {screenWidth: number; isMobile: boolean},
+    {
+        screenWidth,
+        platform,
+        spacingScale,
+    }: {
+        screenWidth: number;
+        platform: Platform;
+        spacingScale: SpacingScale;
+    },
 ): {[Key in keyof Files]: ContentFileLayout} {
     assert(files.length >= 1);
     assert(files.length <= 3);
 
-    const remPx = remPxByPlatform[isMobile ? "mobile" : "desktop"];
+    const remPx = remPxBySpacingScale[spacingScale];
 
     const solver = new kiwi.Solver();
 
@@ -201,8 +211,8 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
     }
 
     const fileRowWidth = Math.min(
-        contentStyles.blockMaxWidthRem[isMobile ? "mobile" : "desktop"] * remPx,
-        screenWidth - screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2,
+        contentStyles.blockMaxWidthRem[platform] * remPx,
+        screenWidth - screenPaddingXRem[platform] * remPx * 2,
     );
 
     // When we add up all our widths it must be less than the total `fileRowWidth`.
@@ -330,15 +340,23 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
 export function computeContentFileFloatLayout(
     direction: "left" | "right",
     file: FileModel | null,
-    {screenWidth, isMobile}: {screenWidth: number; isMobile: boolean},
+    {
+        screenWidth,
+        platform,
+        spacingScale,
+    }: {
+        screenWidth: number;
+        platform: Platform;
+        spacingScale: SpacingScale;
+    },
 ): ContentFileLayout {
-    const remPx = remPxByPlatform[isMobile ? "mobile" : "desktop"];
+    const remPx = remPxBySpacingScale[spacingScale];
     const {width, height} = getFilePreviewSize(file);
 
     const fileFloatMaxWidth = Math.round(
         Math.min(
-            contentStyles.blockMaxWidthRem[isMobile ? "mobile" : "desktop"] * remPx,
-            screenWidth - screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2,
+            contentStyles.blockMaxWidthRem[platform] * remPx,
+            screenWidth - screenPaddingXRem[platform] * remPx * 2,
         ) * contentStyles.fileFloatMaxWidthPercent,
     );
 

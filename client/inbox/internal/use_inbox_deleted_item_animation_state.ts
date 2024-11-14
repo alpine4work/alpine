@@ -1,9 +1,9 @@
 import {RefObject, useEffect, useMemo, useState} from "react";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {inboxEntryDeleteAnimationDurationMs} from "~/client/inbox/inbox_entry_view.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
@@ -22,7 +22,7 @@ export function useInboxDeletedItemAnimationState({
         item: DynamoGeneralRealtimeItem<InboxEntryModel>;
     }>;
 }) {
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
     const [deletedItemAnimationsState, setDeletedItemAnimationsState] = useState<{
         readonly activeAnimations: {
@@ -74,10 +74,10 @@ export function useInboxDeletedItemAnimationState({
 
             // If we are deleting the first item, don't animate into the top padding.
             if (typeof offset === "number" && deletedItem.index === 0) {
-                offset -= convertRemLengthToPx(spacing["1"], remPx);
+                offset -= convertRemLengthToPx("1", spacingScale);
             }
 
-            offset ??= convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
+            offset ??= convertRemLengthToPx(inboxEntryViewMinHeight, spacingScale);
 
             if (!deletedItemAnimationsState.activeAnimations) {
                 setDeletedItemAnimationsState({

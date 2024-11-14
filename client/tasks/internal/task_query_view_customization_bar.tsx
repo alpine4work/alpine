@@ -11,35 +11,34 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {desktopNavigationBarHeightRem} from "~/client/design/navigation_bar_helpers.js";
+import {navigationBarHeightRem} from "~/client/design/navigation_bar_helpers.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
 } from "~/client/design/overlay_trigger_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {greyElevated2ClassName} from "~/client/styles/styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
 import {
     TaskQueryFilterEditor,
-    desktopTaskQueryFilterEditorHeight,
+    taskQueryFilterEditorDesktopHeight,
 } from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-const desktopTaskQueryViewCustomizationBarMarginYRem =
-    (desktopNavigationBarHeightRem -
-        parseRemLengthNumber(spacing[desktopTaskQueryFilterEditorHeight])) /
-    2;
+const taskQueryViewCustomizationBarDesktopMarginYRem =
+    (navigationBarHeightRem.desktop - parseRemLength(taskQueryFilterEditorDesktopHeight)) / 2;
 
-export const desktopTaskQueryViewCustomizationBarMarginY = `${desktopTaskQueryViewCustomizationBarMarginYRem}rem`;
+export const taskQueryViewCustomizationBarDesktopMarginY = `${taskQueryViewCustomizationBarDesktopMarginYRem}rem`;
 
 export type TaskQueryViewCustomizationBarRef = {
     openAddFilterMenu(): void;
@@ -54,7 +53,6 @@ export {TaskQueryViewCustomizationBarForwardRef as TaskQueryViewCustomizationBar
 
 function TaskQueryViewCustomizationBar(
     {
-        withMobileLayout,
         store,
         filters,
         filterReferences,
@@ -65,7 +63,6 @@ function TaskQueryViewCustomizationBar(
         defaultOrderSentence,
         initiallyFocus = null,
     }: {
-        withMobileLayout: boolean;
         store: TaskClientStore;
         filters: ReadonlyArray<TaskQueryFilter>;
         filterReferences: TaskQueryFilterReferences;
@@ -81,6 +78,8 @@ function TaskQueryViewCustomizationBar(
     },
     ref: Ref<TaskQueryViewCustomizationBarRef>,
 ) {
+    const routeLayout = useRouteLayout();
+
     const addFilterMenuRef = useRef<OverlayTriggerButtonRef>(null);
     const sortsOverlayRef = useRef<OverlayTriggerButtonRef>(null);
 
@@ -130,7 +129,7 @@ function TaskQueryViewCustomizationBar(
         <Box
             display="flex"
             alignItems="flex-start"
-            style={{minHeight: desktopTaskQueryFilterEditorHeight}}
+            style={{minHeight: taskQueryFilterEditorDesktopHeight}}
         >
             {filters.length > 0 && (
                 <Box height="6" display="flex" alignItems="center" paddingRight="2">
@@ -161,7 +160,6 @@ function TaskQueryViewCustomizationBar(
                     return (
                         <TaskQueryFilterEditor
                             key={index}
-                            withMobileLayout={false}
                             store={store}
                             filter={filter}
                             filterReferences={filterReferences}
@@ -183,7 +181,7 @@ function TaskQueryViewCustomizationBar(
                         />
                     );
                 })}
-                <Box height={desktopTaskQueryFilterEditorHeight} display="flex" alignItems="center">
+                <Box height={taskQueryFilterEditorDesktopHeight} display="flex" alignItems="center">
                     <TaskQueryAddFilterMenuButton
                         ref={addFilterMenuRef}
                         onAddFilter={filter => {
@@ -198,7 +196,7 @@ function TaskQueryViewCustomizationBar(
                             <Button
                                 variant={shouldCollapse ? "quiet" : "neutral"}
                                 icon={<Plus />}
-                                height={desktopTaskQueryFilterEditorHeight}
+                                height={taskQueryFilterEditorDesktopHeight}
                                 paddingX="2"
                             >
                                 Add filter
@@ -211,7 +209,7 @@ function TaskQueryViewCustomizationBar(
                 <OverlayTriggerButton
                     ref={sortsOverlayRef}
                     aria-haspopup={true}
-                    placement={withMobileLayout ? "bottom-end" : "bottom-start"}
+                    placement={routeLayout === "narrow" ? "bottom-end" : "bottom-start"}
                     overlay={
                         <Box
                             className={greyElevated2ClassName}
@@ -231,7 +229,7 @@ function TaskQueryViewCustomizationBar(
                 >
                     <Button
                         icon={<SortAscending />}
-                        height={desktopTaskQueryFilterEditorHeight}
+                        height={taskQueryFilterEditorDesktopHeight}
                         paddingX="2"
                     >
                         {sorts.length === 0
@@ -301,7 +299,6 @@ function TaskQueryViewCustomizationBarSortsOverlay({
     return (
         <Box width="96" padding="4" overflow="hidden">
             <TaskQuerySortsEditor
-                withMobileLayout={false}
                 sortsWithId={sortsWithId}
                 onSortsWithIdChange={setSortsWithId}
                 defaultOrderSentence={defaultOrderSentence}

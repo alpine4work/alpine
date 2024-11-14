@@ -25,15 +25,14 @@ import {
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     postContentViewInnerMarginY,
+    postViewMarginTopRem,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -47,7 +46,6 @@ import {PostDraftId} from "~/shared/id/types/id_types.js";
 import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function PostCreator({
-    withMobileLayout: withMobileLayoutProp,
     draftId,
     displayCreatedTime,
     initialChannel,
@@ -55,7 +53,6 @@ export function PostCreator({
     shouldReturnBack,
     initiallyFocus,
 }: {
-    withMobileLayout: boolean;
     draftId: PostDraftId;
     displayCreatedTime: Date;
     initialChannel: ChannelPreviewModel | null;
@@ -65,7 +62,9 @@ export function PostCreator({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -73,8 +72,6 @@ export function PostCreator({
     const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const [state, setState] = useState(() => ContentEditorState.create(initialContent));
 
@@ -167,7 +164,7 @@ export function PostCreator({
         <Button
             ref={createButtonRef}
             variant="neutral"
-            withoutMinWidth={isMobile}
+            withoutMinWidth={platform === "mobile"}
             isDisabled={isContentEmpty(state.getDoc()) || !channel}
             pressErrorTitle="Couldn’t create post"
             onPress={async () => {
@@ -207,11 +204,10 @@ export function PostCreator({
     );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: !isMobile,
-        withMobileLayout,
+        isDisabled: platform !== "mobile",
         title: "New post",
         withoutDisappearingTitle: true,
-        replaceActions: isMobile && (
+        replaceActions: platform === "mobile" && (
             <Box
                 display="flex"
                 justifyContent="flex-end"
@@ -241,7 +237,7 @@ export function PostCreator({
             display="flex"
             flexDirection="column"
         >
-            {!isMobile && (
+            {platform !== "mobile" && (
                 // No safe area cover on mobile since the navigation bar will act as a safe
                 // area cover.
                 <Box
@@ -276,7 +272,7 @@ export function PostCreator({
                         paddingTop="safe-area-inset"
                     >
                         {navigationBar}
-                        {isMobile && <Box height={navigationBarHeight} />}
+                        {platform === "mobile" && <Box height={navigationBarHeight} />}
                         <Box
                             flexShrink="0"
                             width="full"
@@ -285,20 +281,16 @@ export function PostCreator({
                             paddingX={screenPaddingX}
                             paddingBottom={postContentViewInnerMarginY}
                             style={{
-                                paddingTop: withMobileLayout
-                                    ? isMobile
-                                        ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                        : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                    : `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
+                                paddingTop: postViewMarginTopRem[platformRouteLayout],
                             }}
                         >
                             <PostContentViewHeaderBase
                                 author={currentAccount}
                                 createdTime={displayCreatedTime}
                                 shouldCreatedTimeExcludeTime
-                                extraAfterCreatedTime={isMobile ? `, in:` : undefined}
+                                extraAfterCreatedTime={platform === "mobile" ? `, in:` : undefined}
                                 channelSelector={
-                                    !isMobile && (
+                                    platform !== "mobile" && (
                                         <PostCreatorChannelSelectorInput
                                             ref={channelSelectorRef}
                                             channel={channel}
@@ -307,7 +299,7 @@ export function PostCreator({
                                     )
                                 }
                             />
-                            {isMobile && (
+                            {platform === "mobile" && (
                                 <Box paddingTop="1" paddingLeft="10">
                                     <PostCreatorChannelSelectorInput
                                         ref={channelSelectorRef}
@@ -321,7 +313,6 @@ export function PostCreator({
                         <ContentEditor
                             ref={editorRef}
                             aria-label="New post"
-                            withMobileLayout={withMobileLayout}
                             state={state}
                             onChange={state => setState(state)}
                             // On mobile, don't allow interactions when unfocused. We're already in an
@@ -358,7 +349,7 @@ export function PostCreator({
                                 assertExists(createButtonRef.current).press();
                             }}
                         />
-                        {!isMobile && (
+                        {platform !== "mobile" && (
                             <Box
                                 marginTop="-12"
                                 flexShrink="0"

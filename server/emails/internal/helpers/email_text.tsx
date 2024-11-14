@@ -2,7 +2,7 @@ import {MjmlText} from "mjml-react";
 import {ReactNode} from "react";
 import {Color, colors} from "~/shared/design/core/colors.js";
 import {FontSize, createFontStyles, fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const emailFontStyles = createFontStyles({
@@ -33,7 +33,7 @@ export function EmailText({
             }
             lineHeight={`${convertRemLengthToPx(
                 fontSizesByPlatform[fontSize].desktop.lineHeight,
-                remPxByPlatform.desktop,
+                "medium",
             )}px`}
             fontStyle={emailFontStyles[style].fontStyle}
             fontWeight={emailFontStyles[style].fontWeight}

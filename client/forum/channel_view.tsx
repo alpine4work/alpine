@@ -20,7 +20,8 @@ import {
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -31,7 +32,7 @@ import {
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeQueryResult,
@@ -51,20 +52,17 @@ import {
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelView({
-    withMobileLayout: withMobileLayoutProp,
     initialChannelResult,
     initialPostsResult,
 }: {
-    withMobileLayout: boolean;
     initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
 }) {
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
@@ -111,7 +109,7 @@ export function ChannelView({
     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
     // expanded comments on mobile. So make sure to close them all.
-    if (isMobile && posts.hasOpenPostComments()) {
+    if (platform === "mobile" && posts.hasOpenPostComments()) {
         setPosts(posts.closeAllPostComments());
     }
 
@@ -176,18 +174,17 @@ export function ChannelView({
     }, [channel.id]);
 
     const [isEditingNameInline, setIsEditingNameInline] = useState(false);
-    if (isEditingNameInline && isMobile) setIsEditingNameInline(false);
+    if (isEditingNameInline && platform === "mobile") setIsEditingNameInline(false);
 
     const [isEditingDescriptionInline, setIsEditingDescriptionInline] = useState(false);
-    if (isEditingDescriptionInline && isMobile) setIsEditingDescriptionInline(false);
+    if (isEditingDescriptionInline && platform === "mobile") setIsEditingDescriptionInline(false);
 
     const [editNameAndDescriptionMobileModalState, setEditNameAndDescriptionMobileModalState] =
         useState<{readonly initiallyFocus: "Name" | "Description"} | null>(null);
-    if (editNameAndDescriptionMobileModalState && !isMobile)
+    if (editNameAndDescriptionMobileModalState && platform !== "mobile")
         setEditNameAndDescriptionMobileModalState(null);
 
     const navigationBarProps: Omit<NavigationBarProps, "ref"> = {
-        withMobileLayout,
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
             <ChannelViewNameEditor
@@ -214,7 +211,7 @@ export function ChannelView({
                     // Disable selection from double click.
                     event.preventDefault();
 
-                    if (!isMobile) {
+                    if (platform !== "mobile") {
                         setIsEditingNameInline(true);
                     }
                 }}
@@ -222,12 +219,10 @@ export function ChannelView({
                 {channel.name}
             </Box>
         ),
-        desktopMaxWidth: !withMobileLayout
-            ? addRemLengths(
-                  spacing[contentStyles.contentMaxWidth],
-                  spacing[postListViewAsideMaxWidth],
-              )
-            : contentStyles.contentMaxWidth,
+        desktopMaxWidth:
+            routeLayout !== "narrow"
+                ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
+                : contentStyles.contentMaxWidth,
         // Create a bit of space to the left so we don't cut off the channel name
         // editor border.
         desktopTitleLeftSlop: "1",
@@ -251,7 +246,7 @@ export function ChannelView({
                 {
                     label: "Edit name",
                     onPress: () => {
-                        if (!isMobile) {
+                        if (platform !== "mobile") {
                             setIsEditingNameInline(true);
                         } else {
                             setEditNameAndDescriptionMobileModalState({initiallyFocus: "Name"});
@@ -261,7 +256,7 @@ export function ChannelView({
                 {
                     label: "Edit description",
                     onPress: () => {
-                        if (!isMobile) {
+                        if (platform !== "mobile") {
                             setIsEditingDescriptionInline(true);
                         } else {
                             setEditNameAndDescriptionMobileModalState({
@@ -271,7 +266,7 @@ export function ChannelView({
                     },
                 },
             ],
-            ...(withMobileLayout
+            ...(routeLayout === "narrow"
                 ? [
                       [
                           {
@@ -288,7 +283,10 @@ export function ChannelView({
         ],
     };
 
-    const navigationBar = useNavigationBar({...navigationBarProps, isDisabled: !withMobileLayout});
+    const navigationBar = useNavigationBar({
+        ...navigationBarProps,
+        isDisabled: routeLayout !== "narrow",
+    });
 
     const channelHeader = useMemo(
         (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
@@ -322,7 +320,7 @@ export function ChannelView({
             overflow="hidden"
             height="full"
         >
-            {!withMobileLayout && (
+            {routeLayout !== "narrow" && (
                 <Box
                     position="absolute"
                     zIndex="10"
@@ -358,7 +356,6 @@ export function ChannelView({
                 </Box>
             )}
             <PostListView
-                withMobileLayout={withMobileLayout}
                 channelHeader={channelHeader}
                 posts={posts}
                 onMergePostContentReferences={useCallback(
@@ -392,7 +389,7 @@ export function ChannelView({
                     );
                 }, [])}
                 aside={
-                    !withMobileLayout && (
+                    routeLayout !== "narrow" && (
                         <ChannelViewAside
                             channel={channel}
                             channelAndMetadataQuery={channelAndMetadataQuery}
@@ -402,7 +399,7 @@ export function ChannelView({
                         />
                     )
                 }
-                withStaticNavigationBar={!withMobileLayout}
+                withStaticNavigationBar={routeLayout !== "narrow"}
                 navigationBar={navigationBar}
             />
             {editNameAndDescriptionMobileModalState && (

@@ -42,7 +42,6 @@ function TestContentEditor({initialContent}: {initialContent?: Node}) {
             <TooltipCoordinationContextProvider>
                 <ContentEditor
                     aria-label="Test"
-                    withMobileLayout={false}
                     state={state}
                     onChange={setState}
                     fileAttachmentTarget={fileAttachmentTarget}

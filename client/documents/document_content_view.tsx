@@ -8,18 +8,11 @@ import {DocumentModel} from "~/shared/documents/document_model.js";
 
 const {documentContentClassName} = documentContentStyles;
 
-export function DocumentContentView({
-    withMobileLayout,
-    initialDocument,
-}: {
-    withMobileLayout: boolean;
-    initialDocument: DocumentModel;
-}) {
+export function DocumentContentView({initialDocument}: {initialDocument: DocumentModel}) {
     const [document, setDocument] = useState(initialDocument);
 
     return (
         <ContentView
-            withMobileLayout={withMobileLayout}
             content={document.content}
             onMergeContentReferences={references => {
                 setDocument(document =>

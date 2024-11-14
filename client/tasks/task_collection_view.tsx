@@ -23,8 +23,9 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
@@ -95,7 +96,6 @@ import {
 import {TaskQuerySort, serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskCollectionView({
-    withMobileLayout: withMobileLayoutProp,
     store,
     collectionId,
     collectionSubscription,
@@ -110,7 +110,6 @@ export function TaskCollectionView({
     createCollection,
     shouldInitiallyShowTopGhostTask,
 }: {
-    withMobileLayout: boolean;
     store: TaskClientStore;
     collectionId: TaskCollectionId;
     // If `collectionSubscription` is null, that means we are creating a
@@ -132,12 +131,11 @@ export function TaskCollectionView({
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {isAppleDevice} = useClientInfo();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const [{filters, filterReferences}, _setFiltersState] = useState({
         filters: initialFilters,
@@ -375,9 +373,9 @@ export function TaskCollectionView({
                 {
                     label: "Edit name",
                     onPress: () => {
-                        if (!withMobileLayout) {
+                        if (routeLayout !== "narrow") {
                             assertExists(desktopHeaderRef.current).editName();
-                        } else if (!isMobile) {
+                        } else if (platform !== "mobile") {
                             assertExists(navigationBarDesktopNameRef.current).editName();
                         } else {
                             setEditNameMobileModalState({initiallyFocusName: true});
@@ -387,9 +385,9 @@ export function TaskCollectionView({
                 {
                     label: "Edit color",
                     onPress: () => {
-                        if (!withMobileLayout) {
+                        if (routeLayout !== "narrow") {
                             assertExists(desktopHeaderRef.current).editColor();
-                        } else if (!isMobile) {
+                        } else if (platform !== "mobile") {
                             assertExists(navigationBarDesktopNameRef.current).editColor();
                         } else {
                             setEditNameMobileModalState({initiallyFocusName: false});
@@ -459,7 +457,7 @@ export function TaskCollectionView({
                 },
             ]);
 
-            if (withMobileLayout) {
+            if (routeLayout === "narrow") {
                 // eslint-disable-next-line react-compiler/react-compiler
                 menuActions.push([
                     {
@@ -471,7 +469,7 @@ export function TaskCollectionView({
                             if (!customizationState) {
                                 setCustomizationState({initiallyFocus: "AddFilter"});
                             } else {
-                                if (isMobile) {
+                                if (platform === "mobile") {
                                     assertExists(
                                         mobileCustomizationSectionRef.current,
                                     ).openAddFilterMenu();
@@ -492,7 +490,7 @@ export function TaskCollectionView({
                             if (!customizationState) {
                                 setCustomizationState({initiallyFocus: "AddSort"});
                             } else {
-                                if (isMobile) {
+                                if (platform === "mobile") {
                                     assertExists(
                                         mobileCustomizationSectionRef.current,
                                     ).openAddSortMenu();
@@ -553,16 +551,16 @@ export function TaskCollectionView({
         customizationState,
         filters,
         isAppleDevice,
-        isMobile,
         isPrivate,
         isReadOnly,
         navigate,
+        platform,
         redoEvent,
+        routeLayout,
         sorts,
         space.id,
         store,
         undoEvent,
-        withMobileLayout,
     ]);
 
     const readOnlyStickyBannerHeight = "8";
@@ -594,7 +592,7 @@ export function TaskCollectionView({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
-    const itemCountBeforeGridView = withMobileLayout ? 1 : 0;
+    const itemCountBeforeGridView = routeLayout === "narrow" ? 1 : 0;
 
     const shiftRenderedRangeForGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
@@ -676,7 +674,7 @@ export function TaskCollectionView({
         redo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(() => {
-            if (!withMobileLayout) {
+            if (routeLayout !== "narrow") {
                 return {
                     isReadOnly,
                     hasParentTaskTitle: true,
@@ -693,7 +691,7 @@ export function TaskCollectionView({
                     hasColumns: false,
                 };
             }
-        }, [isReadOnly, withMobileLayout]),
+        }, [isReadOnly, routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         query: queryState.activeQuery.query,
@@ -774,11 +772,10 @@ export function TaskCollectionView({
             // top of the view in a non-sticky manner.
             //
             // We do this for peeks too.
-            if (withMobileLayout) return;
+            if (routeLayout === "narrow") return;
 
             return {
-                minHeight:
-                    spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
+                minHeight: spacing[navigationBarHeight[platform]],
                 node: (
                     <>
                         {readOnlyStickyBanner}
@@ -812,22 +809,21 @@ export function TaskCollectionView({
             defaultOrderSentence,
             filterReferences,
             filters,
-            isMobile,
             isReadOnly,
             menuActions,
+            platform,
             readOnlyStickyBanner,
+            routeLayout,
             setSorts,
             shouldInitiallyFocusEditableCollectionName,
             sorts,
             store,
             updateFilters,
-            withMobileLayout,
         ]),
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: !withMobileLayout,
-        withMobileLayout,
+        isDisabled: routeLayout !== "narrow",
         withoutDisappearingTitle: true,
         title: (
             <TaskCollectionViewMobileNavigationBarTitle
@@ -843,7 +839,7 @@ export function TaskCollectionView({
                 desktopNameRef={navigationBarDesktopNameRef}
             />
         ),
-        desktopTitleLeftSlop: !isMobile ? "2" : undefined,
+        desktopTitleLeftSlop: platform !== "mobile" ? "2" : undefined,
         shareButton: {},
         menuActions,
         stickyBanner: readOnlyStickyBanner,
@@ -851,16 +847,16 @@ export function TaskCollectionView({
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
-            if (withMobileLayout && index === 0) {
+            if (routeLayout === "narrow" && index === 0) {
                 return {
                     key: "CustomizationBar",
-                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    minHeight: spacing[navigationBarHeight[platform]],
                     node: (
                         <Box paddingTop="safe-area-inset">
                             <Box height={navigationBarHeight} />
                             {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {customizationState &&
-                                (isMobile ? (
+                                (platform === "mobile" ? (
                                     <TaskQueryViewCustomizationMobileSection
                                         ref={mobileCustomizationSectionRef}
                                         store={store}
@@ -876,7 +872,6 @@ export function TaskCollectionView({
                                     <Box paddingX={screenPaddingX} paddingTop="1" paddingBottom="6">
                                         <TaskQueryViewCustomizationBar
                                             ref={desktopCustomizationBarRef}
-                                            withMobileLayout={withMobileLayout}
                                             store={store}
                                             shouldCollapseWhenFiltersAreEmpty={true}
                                             defaultOrderSentence={defaultOrderSentence}
@@ -897,10 +892,10 @@ export function TaskCollectionView({
             return renderGridViewItem(index - itemCountBeforeGridView);
         },
         [
-            withMobileLayout,
+            routeLayout,
             renderGridViewItem,
             itemCountBeforeGridView,
-            isMobile,
+            platform,
             readOnlyReason?.message,
             customizationState,
             store,
@@ -941,7 +936,7 @@ export function TaskCollectionView({
                     itemCount={itemCountBeforeGridView + gridViewItemCount}
                     alwaysRenderAdditionalItemIndexes={useMemo(
                         () =>
-                            withMobileLayout
+                            routeLayout === "narrow"
                                 ? [
                                       // Always render `<TaskQueryViewCustomizationMobileSection>`
                                       // regardless of where we've scrolled. We can return focus there at
@@ -957,16 +952,16 @@ export function TaskCollectionView({
                         [
                             alwaysRenderAdditionalGridViewItemIndexes,
                             itemCountBeforeGridView,
-                            withMobileLayout,
+                            routeLayout,
                         ],
                     )}
                     scrollbarInsetTop={
-                        withMobileLayout
+                        routeLayout === "narrow"
                             ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
                             : undefined
                     }
                     scrollbarInsetTopItemIndex={
-                        !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
+                        routeLayout !== "narrow" && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
                             : undefined
                     }
@@ -1059,12 +1054,12 @@ function TaskCollectionViewMobileNavigationBarTitle({
     affinityManager: TaskClientStoreSearchAffinityManager;
     desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef>;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const collectionEntry = useStore(collectionSubscription?.collectionEntryStore ?? null);
     const collection = collectionEntry?.collection ?? null;
 
-    if (isMobile) {
+    if (platform === "mobile") {
         return (
             <>
                 <Box

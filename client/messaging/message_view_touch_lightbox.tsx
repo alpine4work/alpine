@@ -13,7 +13,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {Box} from "~/client/design/box.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Menu, MenuAction} from "~/client/design/menu.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -23,7 +22,8 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getMessageBubbleMarginLeft,
@@ -49,7 +49,7 @@ import {
 import {
     addRemLengths,
     convertRemLengthToPx,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -95,7 +95,7 @@ export function MessageViewTouchLightbox<
     getMessageUrl: (messageIndex: number) => URL;
     onClose: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space, currentAccount} = useSpaceContext();
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
@@ -184,7 +184,7 @@ export function MessageViewTouchLightbox<
                     [
                         presentedElement,
                         {
-                            x: [0, -convertRemLengthToPx(spacing["9"], getRemPxWithoutListening())],
+                            x: [0, -convertRemLengthToPx("9", getSpacingScaleWithoutListening())],
                         },
                         {
                             at: translateY === 0 ? 0 : 0.1,
@@ -222,7 +222,7 @@ export function MessageViewTouchLightbox<
             presentedElement,
             {
                 y: [null, translateY],
-                x: [-convertRemLengthToPx(spacing["9"], getRemPxWithoutListening()), 0],
+                x: [-convertRemLengthToPx("9", getSpacingScaleWithoutListening()), 0],
             },
             {
                 duration: 0.2,
@@ -272,14 +272,14 @@ export function MessageViewTouchLightbox<
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths(spacing["1.5"], contentViewStyles.truncatedHeight);
+        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
 
         // Remove some vertical padding from the parent message to move it closer to a
         // big emoji message which doesn't render in a bubble.
-        if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
+        if (!messageTextForBigEmojiMessage) height = addRemLengths(height, "1.5");
 
         const scaledHeight = `${
-            Math.round(parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16) / 16
+            Math.round(parseRemLength(height) * messageViewReplyPreviewScale * 16) / 16
         }rem`;
 
         const truncatedContent = getTruncatedMessageContentForReplyPreview({
@@ -296,10 +296,10 @@ export function MessageViewTouchLightbox<
                     height: scaledHeight,
                     paddingLeft: getMessageBubbleMarginLeft(screenPaddingX.mobile),
                     paddingRight: addRemLengths(
-                        spacing["3"],
+                        "3",
                         // The lightbox should only open if the primary input can't hover.
-                        spacing[messageViewActionsWidthWithoutHoveringPrimaryInput],
-                        spacing[screenPaddingX.mobile],
+                        messageViewActionsWidthWithoutHoveringPrimaryInput,
+                        screenPaddingX.mobile,
                     ),
                 }}
             >
@@ -340,11 +340,9 @@ export function MessageViewTouchLightbox<
                             isInert={true}
                             isTruncated={true}
                             isCompact={true}
-                            isExtraCompact={isMobile}
+                            isExtraCompact={platform === "mobile"}
                             isBackgroundColorGrey5={true}
                             withUserSelectNone={true}
-                            // Only rendered on mobile layouts.
-                            withMobileLayout={true}
                             content={truncatedContent}
                             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                         />
@@ -352,7 +350,7 @@ export function MessageViewTouchLightbox<
                 </div>
             </Box>
         );
-    }, [isMobile, messageStartOfSentenceNoun, messageTextForBigEmojiMessage, parentMessage]);
+    }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, parentMessage, platform]);
 
     const menuActions: Array<Array<MenuAction>> = [];
 
@@ -423,7 +421,7 @@ export function MessageViewTouchLightbox<
                                 messageIndex: message.index,
                                 messageRoomKey: message.getRoomKey(),
                                 messagePayload: message.payload,
-                                isMobile,
+                                platform,
                                 returnFocusAfterEditing: null,
                             });
                         }
@@ -498,7 +496,7 @@ export function MessageViewTouchLightbox<
                             style={{
                                 paddingLeft: addRemLengths(
                                     getMessageBubbleMarginLeft(screenPaddingX.mobile),
-                                    parentMessage === null ? spacing["1.5"] : spacing["1"],
+                                    parentMessage === null ? "1.5" : "1",
                                 ),
                             }}
                         >
@@ -582,12 +580,10 @@ export function MessageViewTouchLightbox<
                                 <ContentView
                                     isInert={true}
                                     isCompact={true}
-                                    isExtraCompact={isMobile}
+                                    isExtraCompact={platform === "mobile"}
                                     isBackgroundColorGrey5={true}
                                     withUserSelectNone={true}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                                    // Only rendered on mobile layouts.
-                                    withMobileLayout={true}
                                     content={
                                         // Should only be able to open a lightbox for a message with content. If a
                                         // message is deleted then show nothing. (Message may be deleted in realtime.)
@@ -614,10 +610,7 @@ export function MessageViewTouchLightbox<
                         paddingTop={defaultTooltipOffset}
                         className={pointerEventsNoneNotInheritedClassName}
                         style={{
-                            paddingLeft: addRemLengths(
-                                spacing[screenPaddingX.mobile],
-                                spacing["9"],
-                            ),
+                            paddingLeft: addRemLengths(screenPaddingX.mobile, "9"),
                             opacity: !hasOpenTranslateYAnimationFinished ? 0 : undefined,
                             animation: hasOpenTranslateYAnimationFinished
                                 ? !isFadingOut

@@ -4,6 +4,7 @@ import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {navigationBarStyles} from "~/client/styles/styles.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -17,7 +18,7 @@ if (process.env.NODE_ENV !== "development") {
         return null;
     };
 } else {
-    BazelBuildIndicator = function BazelBuildIndicator({isMobile}: {isMobile: boolean}) {
+    BazelBuildIndicator = function BazelBuildIndicator({platform}: {platform: Platform}) {
         const messageRef = useRef<HTMLDivElement>(null);
 
         const [messageState, setMessageState] = useState<{
@@ -173,14 +174,8 @@ if (process.env.NODE_ENV !== "development") {
                     // available in every bundle.
                     style={{
                         height: subtractRemLengths(
-                            spacing[
-                                navigationBarStyles[
-                                    isMobile
-                                        ? "mobileNavigationBarHeight"
-                                        : "desktopNavigationBarHeight"
-                                ]
-                            ],
-                            spacing["2"],
+                            navigationBarStyles.navigationBarHeight[platform],
+                            "2",
                         ),
                     }}
                 >

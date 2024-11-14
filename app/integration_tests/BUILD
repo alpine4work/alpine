@@ -23,6 +23,7 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 #   delete confirmation modals, right click context menus, etc.)
 # - Inline editing states for channel name, channel description, post, task
 #   collection name, etc.
+# - All task filters and sorts.
 
 ts_playwright_tests(
     name = "integration_tests",

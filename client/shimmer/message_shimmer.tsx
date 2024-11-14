@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {Ref, forwardRef} from "react";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
@@ -22,9 +22,8 @@ import {
 import {
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
-    spacing,
 } from "~/shared/design/core/spacing.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -60,7 +59,7 @@ function MessageShimmer(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
 
     return (
@@ -81,11 +80,9 @@ function MessageShimmer(
                     style={{
                         paddingLeft: addRemLengths(
                             getMessageBubbleMarginLeft(
-                                typeof paddingX === "string"
-                                    ? paddingX
-                                    : paddingX[isMobile ? "mobile" : "desktop"],
+                                typeof paddingX === "string" ? paddingX : paddingX[platform],
                             ),
-                            spacing["1.5"],
+                            "1.5",
                         ),
                     }}
                 >
@@ -169,8 +166,8 @@ function MessageShimmer(
                             style={{
                                 height: `${
                                     heightLines *
-                                    parseRemLengthNumber(
-                                        isMobile
+                                    parseRemLength(
+                                        platform === "mobile"
                                             ? contentStyles.extraCompactParagraphFontSize.lineHeight
                                             : contentStyles.paragraphFontSize.lineHeight,
                                     )

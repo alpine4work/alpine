@@ -15,7 +15,6 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
@@ -54,19 +53,19 @@ import {
 } from "~/client/messaging/messaging_typing_indicators.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
     channelViewHeaderMinHeight,
-    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
     postViewFlex,
+    postViewMinHeight,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
@@ -164,7 +163,6 @@ function PostListView(
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
         aside,
-        withMobileLayout: withMobileLayoutProp = false,
         navigationBar,
         withStaticNavigationBar,
         withSafeAreaInsetTop = false,
@@ -263,17 +261,6 @@ function PostListView(
         aside?: ReactNode;
 
         /**
-         * Use the mobile layout for a post list view even on desktop.
-         *
-         * The mobile layout doesn't have margins and will pin the comment input for
-         * single posts to the bottom of the screen.
-         *
-         * If you set this to true you may not pass in `aside` since `aside` can
-         * not render on mobile.
-         */
-        withMobileLayout?: boolean;
-
-        /**
          * If you want to include a navigation bar in this list view you may pass in
          * the result of `useNavigationBar()` here and the virtualized scroll view will
          * be properly configured.
@@ -301,9 +288,9 @@ function PostListView(
     ref: Ref<PostListViewRef>,
 ) {
     const context = useAppContext();
-    const isMobile = useIsMobile();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -320,7 +307,7 @@ function PostListView(
         asideBufferedHeight: 0,
     });
 
-    const hasAside = !withMobileLayout && !!aside;
+    const hasAside = routeLayout !== "narrow" && !!aside;
     const hasNavigationBar = !!navigationBar?.navigationBar;
     const hasChannelHeader = !!channelHeader;
 
@@ -341,7 +328,8 @@ function PostListView(
     // Always pin the post comment input to the bottom of the list view on mobile
     // layout of a single post. We use a heuristic of one post with always open
     // comments to determine if we're in a single post context.
-    const isSingleLayoutWithPinnedCommentInput =
+    const isPostView =
+        hasNavigationBar &&
         !channelHeader &&
         posts.getPostCount() === 1 &&
         posts.getPostContentItemIfExists(0)?.postCommentsState === "AlwaysOpen";
@@ -355,7 +343,7 @@ function PostListView(
     //   aware of the fact that you're looking at a comment section in the middle
     //   of a feed of posts. Opening in a new route with a post-specific header
     //   lets the user stay focused.
-    if (isMobile && !isSingleLayoutWithPinnedCommentInput) {
+    if (platform === "mobile" && !isPostView) {
         assert(!posts.hasOpenPostComments(), "Posts can't have open comments on mobile");
     }
 
@@ -506,7 +494,7 @@ function PostListView(
                                     (view.getHeight() * 2) /
                                         convertRemLengthToPx(
                                             postContentViewMinHeightWithClosedCommentSection,
-                                            getRemPxWithoutListening(),
+                                            getSpacingScaleWithoutListening(),
                                         ),
                                 ),
                             );
@@ -706,11 +694,11 @@ function PostListView(
                     type: "StartEditing",
                     postId,
                     currentContent,
-                    isMobile,
+                    platform,
                 });
             },
         }),
-        [isMobile, jumpToPostCommentIndex, postEditingDispatch],
+        [jumpToPostCommentIndex, platform, postEditingDispatch],
     );
 
     // Make sure the bottom of the scroll view stays visible when the keyboard
@@ -746,7 +734,7 @@ function PostListView(
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
                             hasNavigationBar || withStaticNavigationBar
-                                ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                                ? navigationBarHeight[platform]
                                 : "0rem",
                             !item.channelHeader.isOnlyNavigationBar
                                 ? channelViewHeaderMinHeight
@@ -774,10 +762,7 @@ function PostListView(
                                         <Spacer space={navigationBarHeight} />
                                     )}
                                     {!item.channelHeader.isOnlyNavigationBar && (
-                                        <ChannelViewHeader
-                                            channelHeader={item.channelHeader}
-                                            withMobileLayout={withMobileLayout}
-                                        />
+                                        <ChannelViewHeader channelHeader={item.channelHeader} />
                                     )}
                                 </div>
                                 {hasAside && (
@@ -798,17 +783,11 @@ function PostListView(
                 case "PostContent": {
                     return {
                         key: `PostContent:${item.post.id}`,
-                        minHeight:
-                            hasNavigationBar && isSingleLayoutWithPinnedCommentInput
-                                ? withMobileLayout
-                                    ? isMobile
-                                        ? mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
-                                        : mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
-                                    : desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
-                                : item.postCommentsState !== "Closed" &&
-                                  !isSingleLayoutWithPinnedCommentInput
-                                ? postContentViewMinHeightWithOpenCommentSection
-                                : postContentViewMinHeightWithClosedCommentSection,
+                        minHeight: isPostView
+                            ? postViewMinHeight[platformRouteLayout]
+                            : item.postCommentsState !== "Closed" && !isPostView
+                            ? postContentViewMinHeightWithOpenCommentSection
+                            : postContentViewMinHeightWithClosedCommentSection,
                         node: (
                             <div
                                 className={sprinkles({
@@ -819,9 +798,7 @@ function PostListView(
                                             ? "safe-area-inset"
                                             : undefined,
                                     paddingBottom:
-                                        index ===
-                                        posts.getItemCount() -
-                                            (isSingleLayoutWithPinnedCommentInput ? 2 : 1)
+                                        index === posts.getItemCount() - (isPostView ? 2 : 1)
                                             ? "safe-area-inset"
                                             : undefined,
                                 })}
@@ -868,8 +845,7 @@ function PostListView(
                                             />
                                         </div>
                                     )}
-                                    {(item.postCommentsState === "Closed" ||
-                                        isSingleLayoutWithPinnedCommentInput) && (
+                                    {(item.postCommentsState === "Closed" || isPostView) && (
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
@@ -895,7 +871,6 @@ function PostListView(
                                         </div>
                                     )}
                                     <PostContentView
-                                        withMobileLayout={withMobileLayout}
                                         post={item.post}
                                         postComments={item.postComments}
                                         postCommentsState={item.postCommentsState}
@@ -905,10 +880,7 @@ function PostListView(
                                         shouldShowChannel={
                                             shouldNotShowChannelId !== item.post.channel.id
                                         }
-                                        hasNavigationBar={hasNavigationBar}
-                                        isSingleLayoutWithPinnedCommentInput={
-                                            isSingleLayoutWithPinnedCommentInput
-                                        }
+                                        isPostView={isPostView}
                                         initialScroll={
                                             index === 0 || (hasChannelHeader && index === 1)
                                                 ? initialScrollForFirstPost ?? null
@@ -940,8 +912,7 @@ function PostListView(
                             </div>
                         ),
                         renderAdditionalItemIndexes:
-                            item.postCommentInputItemIndex !== null &&
-                            !isSingleLayoutWithPinnedCommentInput
+                            item.postCommentInputItemIndex !== null && !isPostView
                                 ? [item.postCommentInputItemIndex]
                                 : undefined,
                     };
@@ -972,8 +943,8 @@ function PostListView(
                                 : item.type === "OptimisticPostComment"
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
-                        minHeight: messageViewMinHeight[isMobile ? "mobile" : "desktop"],
-                        renderAdditionalItemIndexes: !isSingleLayoutWithPinnedCommentInput
+                        minHeight: messageViewMinHeight[platform],
+                        renderAdditionalItemIndexes: !isPostView
                             ? [item.postCommentInputItemIndex]
                             : [],
                         withManualLayout: true,
@@ -983,7 +954,6 @@ function PostListView(
                                     item.type === "LoadedPostComment" ||
                                     item.type === "OptimisticPostComment" ? (
                                         <MessageView
-                                            withMobileLayout={withMobileLayout}
                                             messageNoun="comment"
                                             message={item.postComment}
                                             previousMessage={previousComment}
@@ -999,7 +969,7 @@ function PostListView(
                                                     : null
                                             }
                                             centeringMarginRight={
-                                                !isSingleLayoutWithPinnedCommentInput
+                                                !isPostView
                                                     ? postCommentSectionGuidelineSpace
                                                     : undefined
                                             }
@@ -1070,7 +1040,7 @@ function PostListView(
                                                 width: "full",
                                                 maxWidth: contentStyles.contentMaxWidth,
                                                 overflow: "hidden",
-                                                paddingLeft: !isSingleLayoutWithPinnedCommentInput
+                                                paddingLeft: !isPostView
                                                     ? postCommentSectionGuidelineSpace
                                                     : undefined,
                                             })}
@@ -1078,7 +1048,7 @@ function PostListView(
                                                 flex: postViewFlex,
                                             }}
                                         >
-                                            {!isSingleLayoutWithPinnedCommentInput && (
+                                            {!isPostView && (
                                                 <div
                                                     className={sprinkles({
                                                         position: "absolute",
@@ -1088,27 +1058,22 @@ function PostListView(
                                                         borderLeftWidth: "thick",
                                                     })}
                                                     style={{
-                                                        left: `calc(${
-                                                            postCommentSectionGuidelineOffset[
-                                                                isMobile ? "mobile" : "desktop"
-                                                            ]
-                                                        } - 1px)`,
+                                                        left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
                                                     }}
                                                 />
                                             )}
                                             {item.postCommentIndex === 0 && (
                                                 <Spacer
                                                     space={
-                                                        !isSingleLayoutWithPinnedCommentInput
+                                                        !isPostView
                                                             ? "4"
                                                             : messageViewTimestampDividerMarginTop
                                                     }
                                                 />
                                             )}
                                             {messageNode}
-                                            {isSingleLayoutWithPinnedCommentInput &&
-                                                // -2 instead of -1 since when
-                                                // `isSingleLayoutWithPinnedCommentInput` is true we don't
+                                            {isPostView &&
+                                                // -2 instead of -1 since when `isPostView` is true we don't
                                                 // actually render the final comment input item in `posts`.
                                                 index === posts.getItemCount() - 2 && (
                                                     <div
@@ -1154,7 +1119,7 @@ function PostListView(
                                         width: "full",
                                         maxWidth: contentStyles.contentMaxWidth,
                                         overflow: "hidden",
-                                        paddingLeft: !isSingleLayoutWithPinnedCommentInput
+                                        paddingLeft: !isPostView
                                             ? postCommentSectionGuidelineSpace
                                             : undefined,
                                     })}
@@ -1162,7 +1127,7 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {!isSingleLayoutWithPinnedCommentInput && (
+                                    {!isPostView && (
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
@@ -1172,11 +1137,7 @@ function PostListView(
                                                 borderLeftWidth: "thick",
                                             })}
                                             style={{
-                                                left: `calc(${
-                                                    postCommentSectionGuidelineOffset[
-                                                        isMobile ? "mobile" : "desktop"
-                                                    ]
-                                                } - 1px)`,
+                                                left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
                                             }}
                                         />
                                     )}
@@ -1184,7 +1145,7 @@ function PostListView(
                                         0 && (
                                         <Spacer
                                             space={
-                                                !isSingleLayoutWithPinnedCommentInput
+                                                !isPostView
                                                     ? "4"
                                                     : messageViewTimestampDividerMarginTop
                                             }
@@ -1193,9 +1154,8 @@ function PostListView(
                                     <MessagingTypingIndicators
                                         typingStateByConnectionId={item.typingStateByConnectionId}
                                         shouldAddMarginBottom={
-                                            isSingleLayoutWithPinnedCommentInput &&
-                                            // -2 instead of -1 since when
-                                            // `isSingleLayoutWithPinnedCommentInput` is true we don't
+                                            isPostView &&
+                                            // -2 instead of -1 since when `isPostView` is true we don't
                                             // actually render the final comment input item in `posts`.
                                             index === posts.getItemCount() - 2
                                         }
@@ -1240,7 +1200,7 @@ function PostListView(
                     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
                     // post in a new route. Supplemental sanity check to the assert at the beginning
                     // of this component.
-                    assert(!isMobile);
+                    assert(platform !== "mobile");
 
                     const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
                         item.post.id,
@@ -1254,7 +1214,6 @@ function PostListView(
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
                         <PostCommentInput
-                            withMobileLayout={withMobileLayout}
                             isStickyPositioned={true}
                             post={item.post}
                             viewRef={viewRef}
@@ -1299,7 +1258,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: messageInputMinHeight[isMobile ? "mobile" : "desktop"],
+                        minHeight: messageInputMinHeight[platform],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1386,11 +1345,7 @@ function PostListView(
                                                     borderBottomLeftRadius: "2",
                                                 })}
                                                 style={{
-                                                    left: `calc(${
-                                                        postCommentSectionGuidelineOffset[
-                                                            isMobile ? "mobile" : "desktop"
-                                                        ]
-                                                    } - 1px)`,
+                                                    left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
                                                 }}
                                             />
                                             {inputNode}
@@ -1452,7 +1407,7 @@ function PostListView(
                 case "MoreUnloadedPosts": {
                     return {
                         key: "MoreUnloadedPosts",
-                        minHeight: !isMobile ? "36.125rem" : "26.25rem",
+                        minHeight: platform !== "mobile" ? "36.125rem" : "26.25rem",
                         node: (
                             <div
                                 className={sprinkles({
@@ -1473,7 +1428,7 @@ function PostListView(
                                 >
                                     <PostShimmer />
                                     <PostShimmer />
-                                    {!isMobile && <PostShimmer />}
+                                    {platform !== "mobile" && <PostShimmer />}
                                     <div
                                         className={sprinkles({
                                             position: "relative",
@@ -1515,10 +1470,10 @@ function PostListView(
             posts,
             hasNavigationBar,
             withStaticNavigationBar,
-            isMobile,
-            withMobileLayout,
+            platform,
             hasAside,
-            isSingleLayoutWithPinnedCommentInput,
+            isPostView,
+            platformRouteLayout,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
@@ -1542,7 +1497,7 @@ function PostListView(
         <>
             {messageEditingModals}
             {postEditingModals}
-            {isMobile && postEditing.state.isEditing && (
+            {platform === "mobile" && postEditing.state.isEditing && (
                 <MobileFullScreenModal
                     onClose={() => postEditing.dispatch({type: "CancelEditing"})}
                 >
@@ -1604,7 +1559,7 @@ function PostListView(
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
                         (withStaticNavigationBar
-                            ? spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                            ? spacing[navigationBarHeight[platform]]
                             : undefined) ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
@@ -1612,14 +1567,14 @@ function PostListView(
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
-                        posts.getItemCount() - (isSingleLayoutWithPinnedCommentInput ? 1 : 0)
+                        posts.getItemCount() - (isPostView ? 1 : 0)
                     }
                     renderItem={renderItem}
                     // Always render the post content if we're in a single post with pinned comment
                     // input layout.
                     alwaysRenderAdditionalItemIndexes={useMemo(
-                        () => (isSingleLayoutWithPinnedCommentInput ? [0] : []),
-                        [isSingleLayoutWithPinnedCommentInput],
+                        () => (isPostView ? [0] : []),
+                        [isPostView],
                     )}
                     onRenderedRangeChange={tryLoadingMoreData}
                     onScroll={scrollOffset => {
@@ -1665,14 +1620,14 @@ function PostListView(
                     extraChildrenContentHeight={asideSize?.height ?? 0}
                     extraChildren={
                         <>
-                            {navigationBar?.navigationBar && isSingleLayoutWithPinnedCommentInput
+                            {navigationBar?.navigationBar && isPostView
                                 ? (() => {
                                       const navigationBarElement = navigationBar.navigationBar;
                                       if (!navigationBarElement) return null;
 
                                       // For mobile devices we open `<PostMobileEditorView>` for editing so we don't
                                       // need to replace the more button.
-                                      if (isMobile) return navigationBarElement;
+                                      if (platform === "mobile") return navigationBarElement;
 
                                       // NOTE(calebmer): Ok, this is admittedly a bit hacky. Generally we should
                                       // avoid using `cloneElement()` but this is the cleanest way I could imagine
@@ -1781,7 +1736,7 @@ function PostListView(
                         </>
                     }
                 />
-                {isSingleLayoutWithPinnedCommentInput &&
+                {isPostView &&
                     (() => {
                         const lastPostContentItem = assertExists(
                             posts.getPostContentItemIfExists(channelHeader ? 1 : 0),
@@ -1799,7 +1754,6 @@ function PostListView(
 
                         return (
                             <PostCommentInput
-                                withMobileLayout={withMobileLayout}
                                 isStickyPositioned={false}
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}

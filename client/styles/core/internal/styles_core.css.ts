@@ -12,5 +12,5 @@ export * from "~/client/styles/core/internal/color_scheme.css.js";
 export * from "~/client/styles/core/internal/elevation.css.js";
 export * from "~/client/styles/core/internal/fonts.css.js";
 export * from "~/client/styles/core/internal/input_placeholder.css.js";
-export * from "~/client/styles/core/internal/platform.css.js";
+export * from "~/client/styles/core/internal/selectors.css.js";
 export * from "~/client/styles/core/internal/sprinkles.css.js";

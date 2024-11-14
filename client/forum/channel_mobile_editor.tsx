@@ -89,7 +89,6 @@ export function ChannelMobileEditor({
     }, [initiallyFocus]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout: true,
         title,
         withoutDisappearingTitle: true,
         replaceActions: (
@@ -178,7 +177,6 @@ export function ChannelMobileEditor({
                                         ref={descriptionEditorRef}
                                         aria-labelledby={descriptionLabelId}
                                         isCompact={true}
-                                        withMobileLayout={true}
                                         state={descriptionState}
                                         onChange={(state, transaction) => {
                                             setDescriptionState(({hasDescriptionChanged}) => ({

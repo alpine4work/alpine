@@ -4,7 +4,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName, tasksStyles} from "~/client/styles/styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
@@ -54,7 +54,7 @@ function TaskRowViewDenseFields(
 ) {
     const {currentAccount} = useSpaceContext();
     const {timeZone} = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const assigneeInputRef = useRef<HTMLDivElement>(null);
     const priorityInputRef = useRef<HTMLDivElement>(null);
@@ -288,7 +288,7 @@ function TaskRowViewDenseFields(
                             // On mobile, don't blur once a value has been selected. This way the keyboard
                             // stays open and the user can tap on another field (e.g. assignee) to edit it
                             // instead of needing to reopen the keyboard.
-                            withoutBlurAfterSelection={isMobile}
+                            withoutBlurAfterSelection={platform === "mobile"}
                             assigneeAccountData={assigneeAccountData}
                             onAssigneeAccountChange={assigneeAccount => {
                                 const time = store.clock.now();
@@ -349,7 +349,7 @@ function TaskRowViewDenseFields(
                             // On mobile, don't blur once a value has been selected. This way the keyboard
                             // stays open and the user can tap on another field (e.g. assignee) to edit it
                             // instead of needing to reopen the keyboard.
-                            withoutBlurAfterSelection={isMobile}
+                            withoutBlurAfterSelection={platform === "mobile"}
                             priority={priority}
                             onPriorityChange={priority => {
                                 commitActionTransactionEvenIfGhost(taskId => [

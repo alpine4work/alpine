@@ -19,7 +19,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageInputAccountAvatarPaddingY,
@@ -35,7 +35,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -51,27 +51,25 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 const contentEditorCommentInputFloaterPaddingY = "2.5";
 
 const contentEditorCommentInputFloaterPaddingYDifferenceRem =
-    parseRemLengthNumber(spacing[contentEditorCommentInputFloaterPaddingY]) -
-    parseRemLengthNumber(spacing[messageViewBubblePaddingY.desktop]);
+    parseRemLength(contentEditorCommentInputFloaterPaddingY) -
+    parseRemLength(messageViewBubblePaddingY.desktop);
 
 const contentEditorCommentInputFloaterMinHeight: RemLength = `${
-    parseRemLengthNumber(messageViewBubbleMinHeight.desktop) +
+    parseRemLength(messageViewBubbleMinHeight.desktop) +
     contentEditorCommentInputFloaterPaddingYDifferenceRem * 2
 }rem`;
 
 const contentEditorCommentInputFloaterAccountAvatarPaddingY: RemLength = `${
-    parseRemLengthNumber(messageInputAccountAvatarPaddingY.desktop) +
+    parseRemLength(messageInputAccountAvatarPaddingY.desktop) +
     contentEditorCommentInputFloaterPaddingYDifferenceRem
 }rem`;
 
 export function ContentEditorCommentInputFloater({
-    withMobileLayout,
     state,
     viewRef,
     range,
     onClose: _onCloseWithoutAnimation,
 }: {
-    withMobileLayout: boolean;
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     range: {from: number; to: number};
@@ -80,8 +78,8 @@ export function ContentEditorCommentInputFloater({
     // We use desktop measurements for `contentEditorCommentInputFloaterMinHeight`
     // and `contentEditorCommentInputFloaterAccountAvatarPaddingY` so assert this
     // component isn't rendered on mobile.
-    const isMobile = useIsMobile();
-    assert(!isMobile);
+    const platform = usePlatform();
+    assert(platform !== "mobile");
 
     const overlayRef = useRef<OverlayRef>(null);
 
@@ -149,7 +147,6 @@ export function ContentEditorCommentInputFloater({
             overlay={
                 <Box>
                     <ContentEditorCommentInput
-                        withMobileLayout={withMobileLayout}
                         state={state}
                         viewRef={viewRef}
                         isNodeRange={isNodeRange}
@@ -171,7 +168,6 @@ export function ContentEditorCommentInputFloater({
 }
 
 function ContentEditorCommentInput({
-    withMobileLayout,
     state: documentState,
     viewRef: documentViewRef,
     isNodeRange: isNodeDocumentRange,
@@ -179,7 +175,6 @@ function ContentEditorCommentInput({
     onCloseWithoutAnimation,
     onCloseWithAnimation,
 }: {
-    withMobileLayout: boolean;
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
     isNodeRange: boolean;
@@ -338,7 +333,6 @@ function ContentEditorCommentInput({
                                 isCompact={true}
                                 // Never rendered on mobile so never extra compact.
                                 isExtraCompact={false}
-                                withMobileLayout={withMobileLayout}
                                 state={commentState}
                                 onChange={setCommentState}
                                 aria-label="New comment"

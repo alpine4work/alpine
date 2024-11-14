@@ -49,7 +49,7 @@ import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/pe
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {
@@ -272,7 +272,7 @@ function SpaceLayoutRouteInner({
     const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
     const clientInfo = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
@@ -365,10 +365,10 @@ function SpaceLayoutRouteInner({
     // If we switch to mobile then clear the `search` URL parameter
     // since mobile can't render the search modal.
     useEffect(() => {
-        if (!isMobile) return;
+        if (platform !== "mobile") return;
         if (searchParams.get("search") === null) return;
         setSearchQueryText(null);
-    }, [isMobile, searchParams, setSearchQueryText]);
+    }, [platform, searchParams, setSearchQueryText]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",
@@ -454,7 +454,7 @@ function SpaceLayoutRouteInner({
     for (const [searchParamName, searchParamValue] of searchParams) {
         switch (searchParamName) {
             case "search": {
-                if (isMobile) continue;
+                if (platform === "mobile") continue;
                 if (isInitialAppRender) continue;
 
                 if (hasAddedSearchModal) continue;
@@ -513,7 +513,7 @@ function SpaceLayoutRouteInner({
 
                 modals.push(
                     <ModalErrorBoundary
-                        key={`${searchParamName}-${fileId}-${isMobile}`}
+                        key={`${searchParamName}-${fileId}-${platform}`}
                         type="file"
                         error={error}
                     >
@@ -576,7 +576,7 @@ function SpaceLayoutRouteInner({
                     }
                     case "p": {
                         if (
-                            !isMobile &&
+                            platform !== "mobile" &&
                             (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
                         ) {
                             event.preventDefault();
@@ -618,7 +618,7 @@ function SpaceLayoutRouteInner({
                                     />
                                 </PeekStackContextProvider>
                                 {modals}
-                                {isMobile && !clientInfo.isNativeMobile && (
+                                {platform === "mobile" && !clientInfo.isNativeMobile && (
                                     <SpaceLayoutWebMobileTabBar initialInbox={initialInbox} />
                                 )}
                                 {clientInfo.isNativeMobile && (
@@ -654,7 +654,7 @@ function SpaceLayoutRouteOutlet({
     const context = useAppContext();
     const updateMetaTitle = useUpdateMetaTitle();
     const clientInfo = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const {resizedWindowHeightForMobileWebKit} = useMobileWebKitKeyboardSupport();
 
@@ -700,14 +700,14 @@ function SpaceLayoutRouteOutlet({
     // elements on mobile devices. (Like the URL bar.)
     const outletContainerHeight =
         resizedWindowHeightForMobileWebKit !== null
-            ? isMobile && !clientInfo.isNativeMobile
+            ? platform === "mobile" && !clientInfo.isNativeMobile
                 ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
                 : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
-            : isMobile && !clientInfo.isNativeMobile
+            : platform === "mobile" && !clientInfo.isNativeMobile
             ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
             : "100svh";
 
-    const globalLoadingIndicatorForMobile = isMobile ? globalLoadingIndicator : null;
+    const globalLoadingIndicatorForMobile = platform === "mobile" ? globalLoadingIndicator : null;
 
     const nodes = useMemo(() => {
         const nodes = [];
@@ -728,7 +728,7 @@ function SpaceLayoutRouteOutlet({
                     <RootOverlayScopeContextProvider
                         // Only create a root overlay scope here if we'll be shrinking our outlet height
                         // when the mobile keyboard opens.
-                        isDisabled={!isMobile}
+                        isDisabled={platform !== "mobile"}
                     >
                         <div
                             className={outletContainerClassName}
@@ -762,7 +762,7 @@ function SpaceLayoutRouteOutlet({
                             // Make sure inert content is not in the accessibility tree.
                             aria-hidden={isInert ? "true" : undefined}
                         >
-                            {!isMobile && (
+                            {platform !== "mobile" && (
                                 <SpaceLayoutSideBar
                                     space={space}
                                     initialInbox={initialInbox}
@@ -774,8 +774,7 @@ function SpaceLayoutRouteOutlet({
                             ) : (
                                 <LoadingIndicatorSpaceOutletContainer
                                     routeId="routes/s.$spaceId"
-                                    withMobileLayout={isMobile}
-                                    hasSpaceLayoutSidebar={!isMobile}
+                                    hasSpaceLayoutSidebar={platform !== "mobile"}
                                 >
                                     <Outlet />
                                 </LoadingIndicatorSpaceOutletContainer>
@@ -791,12 +790,13 @@ function SpaceLayoutRouteOutlet({
                                     style={{
                                         // Position with `top` instead of using `bottom: 0` so the saving indicator is
                                         // below the keyboard when the keyboard opens.
-                                        top: isMobile
-                                            ? `calc(100svh - ${addRemLengths(
-                                                  spacing[spaceLayoutWebMobileTabBarHeight],
-                                                  spacing[globalLoadingIndicatorChipHeight],
-                                              )})`
-                                            : undefined,
+                                        top:
+                                            platform === "mobile"
+                                                ? `calc(100svh - ${addRemLengths(
+                                                      spaceLayoutWebMobileTabBarHeight,
+                                                      globalLoadingIndicatorChipHeight,
+                                                  )})`
+                                                : undefined,
                                     }}
                                 >
                                     <GlobalLoadingIndicatorChip
@@ -843,10 +843,7 @@ function SpaceLayoutRouteOutlet({
                         className={outletContainerClassName}
                         style={outletContainerStyle}
                         renderOutlet={outlet => (
-                            <LoadingIndicatorSpaceOutletContainer
-                                routeId="routes/s.$spaceId"
-                                withMobileLayout={isMobile}
-                            >
+                            <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
                                 {outlet}
                             </LoadingIndicatorSpaceOutletContainer>
                         )}
@@ -878,10 +875,7 @@ function SpaceLayoutRouteOutlet({
                         className={outletContainerClassName}
                         style={outletContainerStyle}
                         renderOutlet={outlet => (
-                            <LoadingIndicatorSpaceOutletContainer
-                                routeId="routes/s.$spaceId"
-                                withMobileLayout={isMobile}
-                            >
+                            <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId">
                                 {outlet}
                             </LoadingIndicatorSpaceOutletContainer>
                         )}
@@ -922,10 +916,10 @@ function SpaceLayoutRouteOutlet({
         globalLoadingIndicatorForMobile,
         initialInbox,
         isInert,
-        isMobile,
         nativeMobileRouterState,
         outletContainerHeight,
         params.spaceId,
+        platform,
         setSearchQueryText,
         space,
         updateMetaTitle,

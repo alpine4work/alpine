@@ -12,6 +12,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -90,7 +91,7 @@ export function renderContentFileAudioPlayer(
         file,
         filePreview,
         audioSrc,
-        isMobile,
+        platform,
         isInitialAppRender,
         withoutInteractivity,
         layout,
@@ -98,17 +99,17 @@ export function renderContentFileAudioPlayer(
         file: FileModel;
         filePreview: FileAudioPreview & {isProcessing: false};
         audioSrc: string;
-        isMobile: boolean;
+        platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
         layout: {width: number; height: number} | null;
     },
 ) {
     const withoutControls =
-        withoutInteractivity || isMobile || (layout !== null && layout.width < 250);
+        withoutInteractivity || platform === "mobile" || (layout !== null && layout.width < 250);
     const withoutVisualization =
         withoutInteractivity ||
-        isMobile ||
+        platform === "mobile" ||
         (layout !== null &&
             (layout.width < 350 ||
                 // 185 was selected instead of 200 to make sure we show the visualization when

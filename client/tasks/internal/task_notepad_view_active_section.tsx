@@ -3,10 +3,11 @@ import {CaretRight} from "phosphor-react";
 import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {mobileNavigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -16,10 +17,9 @@ import {
     pulseAnimationClassName,
 } from "~/client/styles/styles.js";
 import {
-    desktopTaskNotepadViewActiveSectionMarginBottom,
-    mobileTaskNotepadViewActiveSectionMarginBottom,
     taskCardViewMaxWidth,
     taskCardViewMinHeight,
+    taskNotepadViewActiveSectionActualMarginBottom,
     taskNotepadViewActiveSectionCardGap,
     taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
     taskNotepadViewActiveSectionMarginTop,
@@ -43,7 +43,7 @@ import {
 } from "~/client/tasks/task_notepad_assignee_active_limit.js";
 import {
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -71,19 +71,18 @@ const TaskNotepadViewActiveSectionMemo = memo(TaskNotepadViewActiveSection);
 export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 
 function TaskNotepadViewActiveSection({
-    withMobileLayout,
     affinityManager,
     assigneeActiveQuery,
     activeDraggableData,
     overDroppableData,
 }: {
-    withMobileLayout: boolean;
     affinityManager: TaskClientStoreSearchAffinityManager;
     assigneeActiveQuery: TaskClientQuery;
     activeDraggableData: TaskGridViewDraggableData | undefined;
     overDroppableData: TaskGridViewDroppableData | undefined;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -166,31 +165,29 @@ function TaskNotepadViewActiveSection({
         (shouldRenderTruncatedExplainerCard ? 1 : 0);
 
     // There's less horizontal space on mobile for cards than in peeks on desktop.
-    const cardCountAboveTheFold = isMobile ? 1 : withMobileLayout ? 2 : 3;
+    const cardCountAboveTheFold = platform === "mobile" ? 1 : routeLayout === "narrow" ? 2 : 3;
 
     const cardWidthStyle = `calc(${(1 / cardCountAboveTheFold) * 100}% - ${
-        parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
+        parseRemLength(taskNotepadViewActiveSectionCardGap) *
             ((cardCountAboveTheFold - 1) / cardCountAboveTheFold) +
         (Math.max(cardCount, cardCountAboveTheFold) > cardCountAboveTheFold
-            ? parseRemLengthNumber(spacing[cardCountAboveTheFold <= 1 ? "16" : "4"])
+            ? parseRemLength(cardCountAboveTheFold <= 1 ? "16" : "4")
             : 0)
     }rem)`;
 
     return (
         <Box
             style={{
-                minHeight: taskNotepadViewActiveSectionMinHeight[isMobile ? "mobile" : "desktop"],
+                minHeight: taskNotepadViewActiveSectionMinHeight[platform],
                 paddingTop: `calc(${addRemLengths(
-                    spacing[taskNotepadViewActiveSectionMarginTop[isMobile ? "mobile" : "desktop"]],
+                    taskNotepadViewActiveSectionMarginTop[platform],
                     // Make room for the navigation bar on mobile.
-                    isMobile ? spacing[mobileNavigationBarHeight] : "0rem",
+                    platform === "mobile" ? navigationBarHeight.mobile : "0",
                 )} + var(--safe-area-inset-top, 0px))`,
                 // `columnHeaderControls` rendered for the notepad task grid view adds safe
                 // area inset top as margin for when it acts as a sticky header, remove a
                 // corresponding amount of space from our active section padding bottom.
-                paddingBottom: !isMobile
-                    ? desktopTaskNotepadViewActiveSectionMarginBottom
-                    : mobileTaskNotepadViewActiveSectionMarginBottom,
+                paddingBottom: taskNotepadViewActiveSectionActualMarginBottom[platform],
             }}
         >
             <Box
@@ -219,7 +216,6 @@ function TaskNotepadViewActiveSection({
                 {allTasks.slice(0, taskCardCount).map(({id: taskId, assigneeActivePosition}) => (
                     <TaskNotepadCardView
                         key={taskId}
-                        withMobileLayout={withMobileLayout}
                         widthStyle={cardWidthStyle}
                         affinityManager={affinityManager}
                         query={assigneeActiveQuery}

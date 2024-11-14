@@ -2,6 +2,7 @@ import {useRef} from "react";
 import {useButton} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {postFauxInputCreateButtonHeight} from "~/client/styles/forum_shared_styles.js";
@@ -15,14 +16,13 @@ import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 
 export function PostFauxInputCreateButton({
-    withMobileLayout,
     channel,
     isCreatingChannel,
 }: {
-    withMobileLayout: boolean;
     channel: ChannelModel;
     isCreatingChannel: boolean;
 }) {
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -37,7 +37,7 @@ export function PostFauxInputCreateButton({
                 // When in a mobile layout (e.g. a peek) then don't close the peek after a post
                 // is created. We want to navigate to the post and the user can navigate back
                 // to the channel with the back button.
-                if (withMobileLayout) {
+                if (routeLayout === "narrow") {
                     navigate(
                         `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content`,
                     );

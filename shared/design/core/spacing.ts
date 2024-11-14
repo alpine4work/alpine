@@ -1,27 +1,6 @@
 import {Memo} from "react";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-
-/**
- * The size of 1rem in pixels based on platform.
- *
- * Mobile is 1.25x the size of desktop.
- */
-export const remPxByPlatform = {
-    desktop: 16,
-    mobile: 20,
-} as const;
-
-/**
- * The maximum screen width for our mobile platform in pixels.
- */
-export const mobileMaxScreenWidth = 768;
-
-/**
- * Get the size of 1rem for the screen width.
- */
-export function getRemPxFromWindowWidth(windowWidth: number) {
-    return windowWidth <= mobileMaxScreenWidth ? remPxByPlatform.mobile : remPxByPlatform.desktop;
-}
 
 export type Spacing = keyof typeof spacing;
 
@@ -103,20 +82,32 @@ export function isRemLength(string: string): string is RemLength {
     return true;
 }
 
-const precomputedRemLengthNumberBySpacingRemLength = new Map<RemLength, number>(
-    Object.values(spacing).map(remLength => [remLength, parseFloat(remLength.slice(0, -3))]),
+const precomputedRemLengthNumberBySpacingRemLength = new Map<RemLength | Spacing, number>(
+    Object.entries(spacing).flatMap(([spacing, remLength]) => [
+        [remLength, parseFloat(remLength.slice(0, -3))],
+        [spacing as Spacing, parseFloat(remLength.slice(0, -3))],
+    ]),
 );
+
+export type ParsableRemLength = Spacing | RemLength | `-${Spacing}` | `-${RemLength}`;
 
 /**
  * Parses a length in rem units to the underlying rem value.
  */
-export function parseRemLengthNumber(remLength: RemLength): number {
+export function parseRemLength(remLength: ParsableRemLength): number {
+    if (remLength[0] === "-") return -parseRemLength(remLength.slice(1) as Spacing | RemLength);
+
     // Optimization: We've precomputed the rem length number for all `spacing`
     // values.
-    const precomputedRemLengthNumber = precomputedRemLengthNumberBySpacingRemLength.get(remLength);
+    const precomputedRemLengthNumber = precomputedRemLengthNumberBySpacingRemLength.get(
+        remLength as Spacing | RemLength,
+    );
     if (precomputedRemLengthNumber !== undefined) return precomputedRemLengthNumber;
 
+    // `Spacing` values should never arrive here. They should be handled by
+    // `precomputedRemLengthNumberBySpacingRemLength`.
     assert(remLength.endsWith("rem"));
+
     const remLengthNumber = parseFloat(remLength.slice(0, -3));
     assert(!isNaN(remLengthNumber));
     return remLengthNumber;
@@ -125,9 +116,9 @@ export function parseRemLengthNumber(remLength: RemLength): number {
 /**
  * Add two `RemLength`s together.
  */
-export function addRemLengths(...remLengths: Array<RemLength>): RemLength {
+export function addRemLengths(...remLengths: Array<ParsableRemLength>): RemLength {
     return `${remLengths.reduce(
-        (totalRemLength, remLength) => totalRemLength + parseRemLengthNumber(remLength),
+        (totalRemLength, remLength) => totalRemLength + parseRemLength(remLength),
         0,
     )}rem`;
 }
@@ -136,12 +127,12 @@ export function addRemLengths(...remLengths: Array<RemLength>): RemLength {
  * Subtract one `RemLength` from another.
  */
 export function subtractRemLengths(
-    remLength1: RemLength,
-    ...remLengths: Array<RemLength>
+    remLength1: ParsableRemLength,
+    ...remLengths: Array<ParsableRemLength>
 ): RemLength {
     return `${remLengths.reduce(
-        (totalRemLength, remLength) => totalRemLength - parseRemLengthNumber(remLength),
-        parseRemLengthNumber(remLength1),
+        (totalRemLength, remLength) => totalRemLength - parseRemLength(remLength),
+        parseRemLength(remLength1),
     )}rem`;
 }
 
@@ -158,8 +149,11 @@ export function negateRemLength(remLength: RemLength): RemLength {
  * Convert a length in rem units to a number using the root font size pixel
  * value.
  */
-export function convertRemLengthToPx(remLength: RemLength, remPx: number): number {
-    return parseRemLengthNumber(remLength) * remPx;
+export function convertRemLengthToPx(
+    remLength: ParsableRemLength,
+    spacingScale: SpacingScale,
+): number {
+    return parseRemLength(remLength) * remPxBySpacingScale[spacingScale];
 }
 
 /**
@@ -184,6 +178,6 @@ export const screenPaddingXRem: {
     readonly mobile: number;
     readonly desktop: number;
 } = {
-    mobile: parseRemLengthNumber(spacing[screenPaddingX.mobile]),
-    desktop: parseRemLengthNumber(spacing[screenPaddingX.desktop]),
+    mobile: parseRemLength(screenPaddingX.mobile),
+    desktop: parseRemLength(screenPaddingX.desktop),
 };

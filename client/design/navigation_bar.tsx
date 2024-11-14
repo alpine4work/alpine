@@ -2,10 +2,9 @@ import {useCallback, useMemo, useRef} from "react";
 import {flushSync} from "react-dom";
 import {NavigationBar} from "~/client/design/internal/navigation_bar_internal.js";
 import {
-    desktopNavigationBarHeight,
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
-    mobileNavigationBarHeight,
+    navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarProps, NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -13,12 +12,12 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     RemLength,
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -49,7 +48,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     ref,
     isDisabled = false,
-    withMobileLayout,
     title = null,
     titleBoundaryRef,
     titleBoundaryMarginTop,
@@ -74,7 +72,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     onMobileCancel,
     isAlwaysOpaque = false,
 }: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -181,7 +179,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     const desktopMarginTopRem =
         desktopMarginTop !== undefined
-            ? parseRemLengthNumber(
+            ? parseRemLength(
                   desktopMarginTop.endsWith("rem")
                       ? (desktopMarginTop as RemLength)
                       : spacing[desktopMarginTop as Spacing],
@@ -190,8 +188,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     const navigationBar = !isDisabled ? (
         <NavigationBar
-            isMobile={isMobile}
-            withMobileLayout={withMobileLayout || isMobile}
+            platform={platform}
             handleRef={navigationBarRef}
             navigationBarRef={ref}
             title={title}
@@ -226,27 +223,27 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
         scrollbarInsetTop: useMemo(
             () =>
                 !isDisabled
-                    ? isMobile
+                    ? platform === "mobile"
                         ? [
                               desktopMarginTopRem !== 0
                                   ? addRemLengths(
-                                        spacing[mobileNavigationBarHeight],
+                                        navigationBarHeight.mobile,
                                         `${desktopMarginTopRem}rem`,
                                     )
-                                  : spacing[mobileNavigationBarHeight],
+                                  : spacing[navigationBarHeight.mobile],
                               {withSafeArea: true},
                           ]
                         : [
                               desktopMarginTopRem !== 0
                                   ? addRemLengths(
-                                        spacing[desktopNavigationBarHeight],
+                                        navigationBarHeight.desktop,
                                         `${desktopMarginTopRem}rem`,
                                     )
-                                  : spacing[desktopNavigationBarHeight],
+                                  : spacing[navigationBarHeight.desktop],
                               {withSafeArea: true},
                           ]
                     : undefined,
-            [desktopMarginTopRem, isDisabled, isMobile],
+            [desktopMarginTopRem, isDisabled, platform],
         ),
     };
 }

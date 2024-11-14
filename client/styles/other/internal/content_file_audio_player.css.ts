@@ -10,7 +10,7 @@ import {
     playingClassName,
     waitingClassName,
 } from "~/client/styles/other/internal/content_file_video_and_audio_player_controls.css.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 
 export const containerClassName = style({
@@ -63,10 +63,8 @@ const loadingIndicatorAnimationKeyframes = keyframes({
 export const loadingIndicatorClassName = style({
     zIndex: "10",
     position: "absolute",
-    top: `calc(50% - ${
-        parseRemLengthNumber(loadingIndicatorSize) / 2 - parseRemLengthNumber(spacing["4"]) / 2
-    }rem)`,
-    left: `calc(50% - ${parseRemLengthNumber(loadingIndicatorSize) / 2}rem)`,
+    top: `calc(50% - ${parseRemLength(loadingIndicatorSize) / 2 - parseRemLength("4") / 2}rem)`,
+    left: `calc(50% - ${parseRemLength(loadingIndicatorSize) / 2}rem)`,
     width: loadingIndicatorSize,
     height: loadingIndicatorSize,
     color: colorSchemeVars["grey-90"],

@@ -1,10 +1,5 @@
 import {fontSizes} from "~/client/styles/styles.js";
-import {
-    RemLength,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {RemLength, addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 
 export const searchMobileInputFontSize = "100";
 export const searchMobileInputPaddingX = "3";
@@ -18,14 +13,12 @@ export const searchMobileInputMarginTop = "1";
 export const searchMobileInputMarginBottom = "3";
 
 export const minSearchMobileInputHeight = addRemLengths(
-    spacing[searchMobileInputPaddingY],
+    searchMobileInputPaddingY,
     fontSizes[searchMobileInputFontSize].lineHeight,
-    spacing[searchMobileInputPaddingY],
+    searchMobileInputPaddingY,
 );
 
-export const searchMobileInputBorderRadius = `${
-    parseRemLengthNumber(minSearchMobileInputHeight) / 2
-}rem`;
+export const searchMobileInputBorderRadius = `${parseRemLength(minSearchMobileInputHeight) / 2}rem`;
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least
@@ -46,30 +39,30 @@ export const searchResultViewTitleMarginBottom = "1";
 export const searchResultMediaViewSize = "9";
 
 export const minSearchResultViewBodyTextSnippetHeight: RemLength = `${
-    parseRemLengthNumber(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
+    parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
     minSearchResultViewBodyTextSnippetLineCount
 }rem`;
 
 export const minSearchResultViewBodyTextSnippetHeightWithTitle: RemLength = `${
-    parseRemLengthNumber(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
+    parseRemLength(fontSizes[searchResultViewBodyTextSnippetFontSize].lineHeight) *
     minSearchResultViewBodyTextSnippetLineCountWithTitle
 }rem`;
 
 export const minSearchResultViewHeightWithoutPaddingY: RemLength = `${Math.min(
     Math.max(
-        parseRemLengthNumber(spacing[searchResultMediaViewSize]),
-        parseRemLengthNumber(
+        parseRemLength(searchResultMediaViewSize),
+        parseRemLength(
             addRemLengths(
                 fontSizes[searchResultViewTitleFontSize].lineHeight,
                 minSearchResultViewBodyTextSnippetHeightWithTitle,
             ),
         ),
     ),
-    parseRemLengthNumber(addRemLengths(minSearchResultViewBodyTextSnippetHeight)),
+    parseRemLength(minSearchResultViewBodyTextSnippetHeight),
 )}rem`;
 
 export const minSearchResultViewHeight = addRemLengths(
-    spacing[searchResultViewPaddingY],
+    searchResultViewPaddingY,
     minSearchResultViewHeightWithoutPaddingY,
-    spacing[searchResultViewPaddingY],
+    searchResultViewPaddingY,
 );

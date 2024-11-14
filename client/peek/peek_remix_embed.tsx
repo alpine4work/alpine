@@ -4,9 +4,11 @@ import {UNSAFE_RouteContext as RouteContext, RouterProvider} from "react-router"
 import {StaticRouterProvider} from "react-router-dom/server.js";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {PeekContextDefinition} from "~/client/peek/internal/peek_context_definition.js";
 import {PeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed_router.js";
+// eslint-disable-next-line no-internal-imports
+import {PeekContextDefinition} from "~/client/remix/internal/peek_context_definition.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -16,13 +18,13 @@ import {PeekId} from "~/shared/id/types/id_types.js";
  */
 export function PeekRemixEmbed({
     peekId,
-    withMobileLayout,
+    layout,
     withoutSearchAffinityViewInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
 }: {
     peekId: PeekId;
-    withMobileLayout: boolean;
+    layout: RouteLayout;
     withoutSearchAffinityViewInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
@@ -81,10 +83,10 @@ export function PeekRemixEmbed({
             value={useMemo(
                 () => ({
                     id: peekId,
-                    withMobileLayout,
+                    layout,
                     withoutSearchAffinityViewInteraction,
                 }),
-                [peekId, withMobileLayout, withoutSearchAffinityViewInteraction],
+                [layout, peekId, withoutSearchAffinityViewInteraction],
             )}
         >
             <UpdateMetaTitleContextProvider

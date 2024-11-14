@@ -6,7 +6,7 @@ import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/core/t
 /**
  * The color scheme which identifies whether we are in dark mode.
  */
-export const darkColorSchemeSelector = ":root[data-color-scheme=dark]";
+export const darkColorSchemeSelector = ":root[data-color=dark]";
 
 /**
  * The color scheme which identifies whether we are in light mode.
@@ -14,7 +14,7 @@ export const darkColorSchemeSelector = ":root[data-color-scheme=dark]";
  * We define this as a `:not()` dark color scheme selector since in the rest of
  * our code we only really check the dark constant.
  */
-export const lightColorSchemeSelector = ":root:not([data-color-scheme=dark])";
+export const lightColorSchemeSelector = ":root:not([data-color=dark])";
 
 // Make sure browser UI is using the right styles. For example, text selection
 // color changes on MacOS with the color scheme.

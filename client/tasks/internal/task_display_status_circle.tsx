@@ -5,7 +5,7 @@ import {
     buttonStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
@@ -177,7 +177,7 @@ export function TaskDisplayStatusCircle({
             {displayStatus === "Closed" && (
                 <Check
                     weight="bold"
-                    size={addRemLengths(spacing["2"], spacing["0.5"])}
+                    size={spacing["2.5"]}
                     // We need this to make sure we don't inherit the color from
                     // `<IconContext.Provider>` (e.g. when used as a menu item in
                     // `getTaskStatusMenuActions()`).
@@ -189,12 +189,12 @@ export function TaskDisplayStatusCircle({
                 <div
                     className={activeHalfCircleContainerClassName}
                     style={{
-                        width: `calc(${parseRemLengthNumber(spacing[size]) / 2}rem - ${
+                        width: `calc(${parseRemLength(size) / 2}rem - ${
                             1 + activeHalfCircleMargin
                         }px)`,
                         height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
                         transform: `translateY(${activeHalfCircleMargin}px) translateX(${
-                            parseRemLengthNumber(spacing[size]) / 2
+                            parseRemLength(size) / 2
                         }rem) translateX(-1px)`,
                         // NOTE(calebmer): Safari appears to have a bug where `overflow: hidden` is not
                         // actually clipping our circle? After some research it's a known bug that

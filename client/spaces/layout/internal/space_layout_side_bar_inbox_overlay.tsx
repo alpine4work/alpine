@@ -12,7 +12,6 @@ import {
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -25,6 +24,7 @@ import {
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -289,7 +289,7 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     onClose: Memo<() => void>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
     // Whenever our query data changes, try loading more entries. In case our
     // rendered range stayed the same but we now see the loading indicator.
@@ -307,8 +307,8 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     const itemCount = query.getItemCount();
 
     const virtualizedViewHeight =
-        convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], remPx) -
-        convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeaderHeight], remPx);
+        convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], spacingScale) -
+        convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeaderHeight], spacingScale);
 
     return (
         <VirtualizedScrollView

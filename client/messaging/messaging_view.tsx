@@ -29,7 +29,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -178,7 +178,6 @@ export {MessagingViewForwardRef as MessagingView};
  */
 function MessagingView<RoomKey extends string, Message extends MessageModel<RoomKey>>(
     {
-        withMobileLayout,
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
         initialScrollOffset,
@@ -204,8 +203,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         scrollbarInsetTop,
         paddingX = screenPaddingX,
     }: {
-        withMobileLayout: boolean;
-
         /**
          * What we call messages in UI copy. Defaults to "message". For example
          * "Successfully deleted message". You may want that message to ready
@@ -388,7 +385,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     },
     ref: Ref<MessagingViewRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const reporter = useReporter();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
@@ -617,8 +614,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 }
                 default: {
                     return renderMessageListItem({
-                        isMobile,
-                        withMobileLayout,
+                        platform,
                         messageNoun,
                         messageStartOfSentenceNoun,
                         messages: state.messages,
@@ -654,15 +650,14 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
-            isMobile,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
             paddingX,
+            platform,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             state,
-            withMobileLayout,
         ],
     );
 
@@ -692,7 +687,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 <MessageInput
                     ref={inputRef}
                     messageNoun={messageNoun}
-                    withMobileLayout={withMobileLayout}
                     messages={state.messages}
                     isMessageCreationDisabled={isMessageCreationDisabled}
                     onUpdateMessages={update => setMessages(update)}

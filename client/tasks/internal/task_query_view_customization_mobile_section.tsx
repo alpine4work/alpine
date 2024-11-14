@@ -252,7 +252,6 @@ function TaskQueryViewCustomizationMobileSectionFilters({
                             {index !== 0 && <Box height="2" />}
                             <TaskQueryFilterEditor
                                 key={index}
-                                withMobileLayout={true}
                                 store={store}
                                 filter={filter}
                                 filterReferences={filterReferences}
@@ -359,7 +358,6 @@ function TaskQueryViewCustomizationMobileSectionSorts({
                 </TaskQueryAddSortMenuButton>
             </Box>
             <TaskQuerySortsEditor
-                withMobileLayout={true}
                 sortsWithId={sortsWithId}
                 onSortsWithIdChange={setSortsWithId}
                 defaultOrderSentence={defaultOrderSentence}

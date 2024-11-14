@@ -21,7 +21,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {borderRadius, pressOpacityOverlayClassName} from "~/client/styles/styles.js";
 import {
@@ -52,7 +52,6 @@ const TaskNotepadCardViewMemo = memo(TaskNotepadCardView);
 export {TaskNotepadCardViewMemo as TaskNotepadCardView};
 
 function TaskNotepadCardView({
-    withMobileLayout,
     widthStyle,
     affinityManager,
     query,
@@ -61,7 +60,6 @@ function TaskNotepadCardView({
     onExpand,
     deleteTaskAndAllChildren,
 }: {
-    withMobileLayout: boolean;
     widthStyle: string;
     affinityManager: TaskClientStoreSearchAffinityManager;
     query: TaskClientQuery;
@@ -70,7 +68,7 @@ function TaskNotepadCardView({
     onExpand: Memo<(taskId: TaskId) => void>;
     deleteTaskAndAllChildren: Memo<(taskId: TaskId) => void>;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const context = useAppContext();
     const {timeZone} = useClientInfo();
@@ -143,7 +141,6 @@ function TaskNotepadCardView({
 
     const content = (
         <TaskCardViewContent
-            withMobileLayout={withMobileLayout}
             displayStatus={displayStatus}
             title={title}
             assigneeAccountData={assigneeAccountData}
@@ -197,7 +194,7 @@ function TaskNotepadCardView({
                     borderRadius="2"
                     pointerEvents="none"
                     // On mobile since there are so few active cards onscreen at a time, we make the drag overlay
-                    opacity={isMobile ? "80" : undefined}
+                    opacity={platform === "mobile" ? "80" : undefined}
                 >
                     {content}
                 </Box>

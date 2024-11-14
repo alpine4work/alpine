@@ -47,7 +47,7 @@ const clientInfo = new Lazy((): ClientInfo => {
  * `ClientInfo` never changes after the page's initial load. All data in
  * `ClientInfo` should be immutable facts about the current device. Which is
  * why we don't have a `WithoutListening` suffix like other functions such as
- * `getIsMobileWithoutListening()`.
+ * `getPlatformWithoutListening()`.
  */
 export function getClientInfo(): ClientInfo {
     assert(typeof window !== "undefined");

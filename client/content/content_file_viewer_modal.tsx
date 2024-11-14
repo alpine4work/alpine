@@ -9,7 +9,7 @@ import {
 } from "~/client/content/internal/load_content_file_viewer_data.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useForceRevalidateRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -34,7 +34,7 @@ export function ContentFileViewerModal({
     onClose: () => void;
 }) {
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space} = useSpaceContext();
 
     const handoffFilePreviewState = useHandoffContentFilePreviewState(fileId);
@@ -185,9 +185,9 @@ export function ContentFileViewerModal({
             spaceId: space.id,
             signedUrlSearch: fileFromAttachmentOutput.output.signedUrlSearch,
             file: fileFromAttachmentOutput.output.file,
-            isMobile,
+            platform,
         }).then(loaderDataPromiseResolver.resolve, loaderDataPromiseResolver.reject);
-    }, [fileFromAttachmentOutput.output, isMobile, loaderDataPromiseResolver, space.id]);
+    }, [fileFromAttachmentOutput.output, loaderDataPromiseResolver, platform, space.id]);
 
     const [delayState, setDelayState] = useState<{startTime: number} | null>(() => ({
         startTime: Date.now(),
@@ -228,7 +228,7 @@ export function ContentFileViewerModal({
         <>
             {!fileFromAttachmentOutput.output ||
             !loaderDataPromiseResolver ||
-            delayState ? null : isMobile ? (
+            delayState ? null : platform === "mobile" ? (
                 <ContentFileViewerModalMobile
                     file={fileFromAttachmentOutput.output.file}
                     signedUrlSearch={fileFromAttachmentOutput.output.signedUrlSearch}

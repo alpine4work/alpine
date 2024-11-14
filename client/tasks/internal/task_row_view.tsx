@@ -36,7 +36,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -46,18 +46,15 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
-    desktopTaskRowViewIndentationRem,
-    desktopTaskRowViewStatusButtonWidth,
-    desktopTaskRowViewStatusButtonWidthRem,
-    mobileTaskRowViewIndentationRem,
-    mobileTaskRowViewStatusButtonWidth,
-    mobileTaskRowViewStatusButtonWidthRem,
     taskRowViewDragHandleWidth,
     taskRowViewDragHandleWidthRem,
     taskRowViewExpandButtonWidth,
     taskRowViewExpandButtonWidthRem,
     taskRowViewFirstColumnExtraPaddingLeft,
+    taskRowViewIndentationRem,
     taskRowViewMinHeight,
+    taskRowViewStatusButtonWidth,
+    taskRowViewStatusButtonWidthRem,
 } from "~/client/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -233,19 +230,16 @@ const expandButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName
     alignItems: "center",
 })}`;
 
-const desktopStatusButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles(
-    {
-        width: desktopTaskRowViewStatusButtonWidth,
+const statusButtonContainerClassName = {
+    desktop: `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+        width: taskRowViewStatusButtonWidth.desktop,
         height: taskRowViewMinHeight,
         paddingRight: "2",
         display: "flex",
         alignItems: "center",
-    },
-)}`;
-
-const mobileStatusButtonContainerClassName = `${pointerEventsNoneNotInheritedClassName} ${sprinkles(
-    {
-        width: mobileTaskRowViewStatusButtonWidth,
+    })}`,
+    mobile: `${pointerEventsNoneNotInheritedClassName} ${sprinkles({
+        width: taskRowViewStatusButtonWidth.mobile,
         height: taskRowViewMinHeight,
         paddingRight: "2",
         display: "flex",
@@ -253,24 +247,25 @@ const mobileStatusButtonContainerClassName = `${pointerEventsNoneNotInheritedCla
         // Add a lil extra space between status button and task title.
         position: "relative",
         left: "-0.5",
-    },
-)}`;
+    })}`,
+};
 
-const desktopPlaceholderStatusButtonClassName = sprinkles({
-    width: "4",
-    height: "4",
-    borderRadius: "full",
-    border: "grey-10",
-    pointerEvents: "none",
-});
-
-const mobilePlaceholderStatusButtonClassName = sprinkles({
-    width: "5",
-    height: "5",
-    borderRadius: "full",
-    border: "grey-10",
-    pointerEvents: "none",
-});
+const placeholderStatusButtonClassName = {
+    desktop: sprinkles({
+        width: "4",
+        height: "4",
+        borderRadius: "full",
+        border: "grey-10",
+        pointerEvents: "none",
+    }),
+    mobile: sprinkles({
+        width: "5",
+        height: "5",
+        borderRadius: "full",
+        border: "grey-10",
+        pointerEvents: "none",
+    }),
+};
 
 const titleCellClassName = sprinkles({
     flexGrow: "1",
@@ -419,7 +414,7 @@ function TaskRowView(
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
 
     const isInitialAppRender = useIsInitialAppRender();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const navigate = useNavigate();
     const context = useAppContext();
@@ -1149,12 +1144,13 @@ function TaskRowView(
     })();
 
     const [isTextInputWithinFocusedIfMobile, setIsTextInputWithinFocusedIfMobile] = useState(false);
-    if (!isMobile && isTextInputWithinFocusedIfMobile) setIsTextInputWithinFocusedIfMobile(false);
+    if (platform !== "mobile" && isTextInputWithinFocusedIfMobile)
+        setIsTextInputWithinFocusedIfMobile(false);
 
     const handleFocusChange = (event: FocusEvent) => {
         setIsTextInputWithinFocusedIfMobile(
             !isInitialAppRender &&
-                isMobile &&
+                platform === "mobile" &&
                 document.activeElement instanceof Element &&
                 isTextInputElement(document.activeElement) &&
                 event.currentTarget.contains(document.activeElement),
@@ -1275,19 +1271,16 @@ function TaskRowView(
 
     const marginLeft: RemLength = `${
         !withoutPaddingLeft
-            ? (isMobile ? mobileTaskRowViewIndentationRem : desktopTaskRowViewIndentationRem) *
-                  parents.length +
+            ? taskRowViewIndentationRem[platform] * parents.length +
               // On mobile we don't show the expand button, but if the query is auto-sorted
               // we still want to render row numbers in the expand button space.
-              (!isMobile || canPrimaryInputHover
+              (platform !== "mobile" || canPrimaryInputHover
                   ? taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
                   : screenPaddingXRem.mobile +
                     // Hardcoded `spacing["2.5"]`
                     0.625) +
-              (isMobile
-                  ? mobileTaskRowViewStatusButtonWidthRem
-                  : desktopTaskRowViewStatusButtonWidthRem)
-            : screenPaddingXRem[isMobile ? "mobile" : "desktop"]
+              taskRowViewStatusButtonWidthRem[platform]
+            : screenPaddingXRem[platform]
     }rem`;
 
     const borderCoverNode = (
@@ -1412,7 +1405,7 @@ function TaskRowView(
                     />
                 )}
                 {!withoutPaddingLeft &&
-                    (!isMobile || (hasTask && !isQueryManuallySorted)) &&
+                    (platform !== "mobile" || (hasTask && !isQueryManuallySorted)) &&
                     (!disableExpensiveFeaturesDuringScroll &&
                     !capabilities.isReadOnly &&
                     !isDraggableAfterLongTouch &&
@@ -1480,20 +1473,14 @@ function TaskRowView(
                         <div className={expandButtonContainerClassName} />
                     ))}
                 {!withoutPaddingLeft && (
-                    <div
-                        className={
-                            isMobile
-                                ? mobileStatusButtonContainerClassName
-                                : desktopStatusButtonContainerClassName
-                        }
-                    >
+                    <div className={statusButtonContainerClassName[platform]}>
                         {hasTask ? (
                             <TaskStatusButton
                                 ref={statusButtonRef}
                                 store={query.store}
                                 undoManager={undoManager}
                                 affinityManager={affinityManager}
-                                size={isMobile ? "5" : "4"}
+                                size={platform === "mobile" ? "5" : "4"}
                                 task={task}
                                 // Disable the ability to tab to this button. Since there are so many tasks and
                                 // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
@@ -1525,20 +1512,8 @@ function TaskRowView(
                                 }}
                             />
                         ) : (
-                            <div
-                                className={
-                                    isMobile
-                                        ? mobileStatusButtonContainerClassName
-                                        : desktopStatusButtonContainerClassName
-                                }
-                            >
-                                <div
-                                    className={
-                                        isMobile
-                                            ? mobilePlaceholderStatusButtonClassName
-                                            : desktopPlaceholderStatusButtonClassName
-                                    }
-                                />
+                            <div className={statusButtonContainerClassName[platform]}>
+                                <div className={placeholderStatusButtonClassName[platform]} />
                             </div>
                         )}
                     </div>
@@ -1758,7 +1733,7 @@ function TaskRowView(
                     focusTitleAll={focusTitleAll}
                 />
             )}
-            {!isInitialAppRender && isMobile && isTextInputWithinFocusedIfMobile && (
+            {!isInitialAppRender && platform === "mobile" && isTextInputWithinFocusedIfMobile && (
                 <TaskGridViewMobileKeyboardToolbar
                     portalRef={mobileKeyboardToolbarPortalRef}
                     maxGridExpandableTaskDepth={maxGridExpandableTaskDepth}
@@ -1953,16 +1928,17 @@ function TaskRowViewPaddingBottom({
     focusTitleEnd: () => void;
     focusTitleAll: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <div
             className={paddingBottomClassName}
             style={{
                 cursor: !capabilities.isReadOnly ? "text" : undefined,
-                height: isMobile
-                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[paddingBottomHeight]})`
-                    : undefined,
+                height:
+                    platform === "mobile"
+                        ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[paddingBottomHeight]})`
+                        : undefined,
             }}
             {...useOutOfBoundsClickSelection({
                 isDisabled: capabilities.isReadOnly,

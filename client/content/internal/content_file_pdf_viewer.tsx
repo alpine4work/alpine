@@ -2,7 +2,7 @@ import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -27,7 +27,7 @@ export function ContentFilePdfViewer({
     viewerHeight: number;
 }) {
     const clientInfo = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space} = useSpaceContext();
 
     const src = getContentFileViewerSrc({spaceId: space.id, signedUrlSearch, file});
@@ -68,12 +68,12 @@ export function ContentFilePdfViewer({
                     // rendered to fill the available space. So render using our document's actual
                     // size. In other rendering engines give the PDF `<iframe>` the full width.
                     width={
-                        clientInfo.renderingEngine === "WebKit" && !isMobile
+                        clientInfo.renderingEngine === "WebKit" && platform !== "mobile"
                             ? fileSize.width * fileScale
                             : viewerWidth
                     }
                     height={
-                        clientInfo.renderingEngine === "WebKit" && !isMobile
+                        clientInfo.renderingEngine === "WebKit" && platform !== "mobile"
                             ? fileSize.height * fileScale
                             : viewerHeight
                     }

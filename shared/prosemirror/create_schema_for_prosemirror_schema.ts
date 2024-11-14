@@ -26,34 +26,30 @@ import {
 import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema.js";
 
 declare module "prosemirror-model" {
-    class Fragment {
+    interface Fragment {
         // Expose the internal `content` property on fragments.
         // https://github.com/ProseMirror/prosemirror-model/blob/9201015c268947c34fa31be26b8b7aa5a0cf9776/src/fragment.ts#L18
-        public readonly content: ReadonlyArray<Node>;
-
-        // Expose the internal constructor on fragments.
-        // https://github.com/ProseMirror/prosemirror-model/blob/9201015c268947c34fa31be26b8b7aa5a0cf9776/src/fragment.ts#L16-L20
-        constructor(content: ReadonlyArray<Node>);
+        readonly content: ReadonlyArray<Node>;
     }
 }
 
 declare module "prosemirror-transform" {
-    class Step {
+    interface Step {
         // ProseMirror puts JSON IDs on the step prototype.
         // https://github.com/ProseMirror/prosemirror-transform/blob/8d6be028eebb28a2d981dee146eacdd2c1cffcd4/src/step.ts#L64
-        public readonly jsonID?: string;
+        readonly jsonID?: string;
     }
 
-    class ReplaceStep {
+    interface ReplaceStep {
         // Expose the internal `structure` property on replace steps.
         // https://github.com/ProseMirror/prosemirror-transform/blob/8d6be028eebb28a2d981dee146eacdd2c1cffcd4/src/replace_step.ts#LL23
-        public readonly structure: boolean;
+        readonly structure: boolean;
     }
 
-    class ReplaceAroundStep {
+    interface ReplaceAroundStep {
         // Expose the internal `structure` property on replace steps.
         // https://github.com/ProseMirror/prosemirror-transform/blob/8d6be028eebb28a2d981dee146eacdd2c1cffcd4/src/replace_step.ts#L104
-        public readonly structure: boolean;
+        readonly structure: boolean;
     }
 }
 
@@ -325,7 +321,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
         Schema.array(NodeUnionSchema)
             .nullable()
             .transform<Fragment>({
-                deserialize: value => (value === null ? Fragment.empty : new Fragment(value)),
+                deserialize: value => (value === null ? Fragment.empty : Fragment.from(value)),
                 serialize: value => (value.content.length > 0 ? value.content : null),
             }),
     );
@@ -333,7 +329,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
     const UncheckedFragmentSchema = Schema.array(UncheckedNodeUnionSchema)
         .nullable()
         .transform<Fragment>({
-            deserialize: value => (value === null ? Fragment.empty : new Fragment(value)),
+            deserialize: value => (value === null ? Fragment.empty : Fragment.from(value)),
             serialize: value => (value.content.length > 0 ? value.content : null),
         });
 

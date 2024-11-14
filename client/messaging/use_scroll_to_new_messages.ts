@@ -1,11 +1,11 @@
 import {Key, Memo, RefObject, useRef} from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {flushNavigationBarScrollEventEmitter} from "~/client/design/navigation_bar_helpers.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
-import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -133,8 +133,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 scrollDelta <=
                 newItemsHeight +
                     convertRemLengthToPx(
-                        messageViewMinHeight[getIsMobileWithoutListening() ? "mobile" : "desktop"],
-                        getRemPxWithoutListening(),
+                        messageViewMinHeight[getPlatformWithoutListening()],
+                        getSpacingScaleWithoutListening(),
                     ) *
                         4
             ) {

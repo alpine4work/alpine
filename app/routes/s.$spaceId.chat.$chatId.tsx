@@ -5,7 +5,6 @@ import {Box} from "~/client/design/box.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -91,19 +90,12 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
     ];
 });
 
-export default function ChatRoute({
-    withMobileLayout: withMobileLayoutProp = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function ChatRoute() {
     const [searchParams] = useSearchParams();
     const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry} =
         useLoaderDataWithSchema(LoaderSchema);
 
-    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const messageIndexString = searchParams.get("message");
     const messageIndex = messageIndexString ? parseInt(messageIndexString, 10) : null;
@@ -125,7 +117,6 @@ export default function ChatRoute({
             <ChatView
                 // Remount whenever we navigate to a different chat.
                 key={chat.id}
-                withMobileLayout={withMobileLayout}
                 chat={chat}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
@@ -138,7 +129,6 @@ export default function ChatRoute({
         {
             initialEntry: inboxEntry,
             maxWidth: messageViewMaxWidth,
-            withMobileLayout: withMobileLayout,
         },
         node,
     );

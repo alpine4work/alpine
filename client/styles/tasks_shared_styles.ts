@@ -3,10 +3,11 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const taskDetailViewSectionGap = "10";
 export const taskDetailViewDenseFieldGap = "5";
@@ -16,11 +17,10 @@ export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
 export const taskDetailViewSubtasksFieldLabelPaddingBottom = "2";
 export const taskCommentsHeaderNavigationBarSpacing = "10";
-export const desktopTaskDetailViewStatusButtonSize = "6";
-export const mobileTaskDetailViewStatusButtonSize = "7";
-export const mobileTaskDetailViewStatusButtonPaddingTop = "3";
-export const mobileTaskDetailViewStatusButtonPaddingBottom = "2";
-export const desktopTaskDetailViewNavigationBarSpacerMarginBottom = "-1";
+export const taskDetailViewStatusButtonSize = {desktop: "6", mobile: "7"} as const;
+export const taskDetailViewStatusButtonMobilePaddingTop = "3";
+export const taskDetailViewStatusButtonMobilePaddingBottom = "2";
+export const taskDetailViewNavigationBarSpacerDesktopMarginBottom = "-1";
 
 export const taskGridViewColumnHeaderHeight = "5";
 
@@ -47,7 +47,7 @@ export const taskRowViewColumnPaddingX = "1.5" satisfies Spacing;
 export const taskRowViewFirstColumnExtraPaddingLeft = spacing["6"];
 
 export const taskRowViewFirstColumnPaddingLeft: RemLength = addRemLengths(
-    spacing[taskRowViewColumnPaddingX],
+    taskRowViewColumnPaddingX,
     taskRowViewFirstColumnExtraPaddingLeft,
 );
 
@@ -57,22 +57,23 @@ export const taskRowViewFirstColumnWidth = `min(${addRemLengths(
 )}, ${taskRowViewColumnMinViewportWidth} + ${taskRowViewFirstColumnExtraPaddingLeft})`;
 
 const taskRowViewCollectionsColumnCellOverlayExtraWidth = subtractRemLengths(
-    spacing["2.5"],
-    spacing[taskRowViewColumnPaddingX],
+    "2.5",
+    taskRowViewColumnPaddingX,
 );
 
 export const taskRowViewCollectionsColumnCellOverlayWidth = `min(${addRemLengths(
-    spacing[maxTaskRowViewCollectionsColumnWidth],
+    maxTaskRowViewCollectionsColumnWidth,
     taskRowViewCollectionsColumnCellOverlayExtraWidth,
 )}, ${taskRowViewCollectionsColumnMinViewportWidth} + ${taskRowViewCollectionsColumnCellOverlayExtraWidth})`;
 
 export const taskRowViewLastColumnPaddingRight: Spacing = "0";
 
-export const desktopTaskRowViewIndentation = spacing[contentStyles.listItemIndentation];
-export const mobileTaskRowViewIndentation = spacing["6"];
+export const taskRowViewIndentation = {
+    desktop: contentStyles.listItemIndentation,
+    mobile: "6",
+} as const;
 
-export const desktopTaskRowViewIndentationRem = parseRemLengthNumber(desktopTaskRowViewIndentation);
-export const mobileTaskRowViewIndentationRem = parseRemLengthNumber(mobileTaskRowViewIndentation);
+export const taskRowViewIndentationRem = mapObjectValues(taskRowViewIndentation, parseRemLength);
 
 export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
 
@@ -88,9 +89,10 @@ export const taskNotepadViewActiveSectionMarginBottom = "8";
 export const taskNotepadViewActiveSectionPaddingY = "2";
 export const taskNotepadViewActiveSectionTitleFontSize = {desktop: "200", mobile: "100"} as const;
 
-export const desktopTaskNotepadViewActiveSectionMarginBottom = `max(${spacing[taskNotepadViewActiveSectionMarginBottom]} - var(--safe-area-inset-top, 0px), 0px)`;
-export const mobileTaskNotepadViewActiveSectionMarginBottom =
-    spacing[taskNotepadViewActiveSectionMarginBottom];
+export const taskNotepadViewActiveSectionActualMarginBottom = {
+    desktop: `max(${spacing[taskNotepadViewActiveSectionMarginBottom]} - var(--safe-area-inset-top, 0px), 0px)`,
+    mobile: spacing[taskNotepadViewActiveSectionMarginBottom],
+};
 
 export const taskQueryViewCustomizationMobileSectionGap = "4";
 export const taskQueryViewCustomizationMobileSectionMarginBottom = "7";
@@ -111,20 +113,20 @@ export const taskCollectionChipBorderRadius = "1";
 
 export const taskNotepadViewActiveSectionMinHeight = {
     desktop: addRemLengths(
-        spacing[taskNotepadViewActiveSectionMarginTop.desktop],
+        taskNotepadViewActiveSectionMarginTop.desktop,
         fontSizes[taskNotepadViewActiveSectionTitleFontSize.desktop].lineHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
+        taskNotepadViewActiveSectionPaddingY,
         taskCardViewMinHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        spacing[taskNotepadViewActiveSectionMarginBottom],
+        taskNotepadViewActiveSectionPaddingY,
+        taskNotepadViewActiveSectionMarginBottom,
     ),
     mobile: addRemLengths(
-        spacing[taskNotepadViewActiveSectionMarginTop.mobile],
+        taskNotepadViewActiveSectionMarginTop.mobile,
         fontSizes[taskNotepadViewActiveSectionTitleFontSize.mobile].lineHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
+        taskNotepadViewActiveSectionPaddingY,
         taskCardViewMinHeight,
-        spacing[taskNotepadViewActiveSectionPaddingY],
-        spacing[taskNotepadViewActiveSectionMarginBottom],
+        taskNotepadViewActiveSectionPaddingY,
+        taskNotepadViewActiveSectionMarginBottom,
     ),
 };
 
@@ -133,22 +135,14 @@ export const taskNotepadViewPaginatorHeight = {desktop: "6", mobile: "7"} as con
 export const newTaskCollectionNamePlaceholder = "New collection";
 export const defaultTaskQueryViewName = "New view";
 
-export const desktopTaskRowViewStatusButtonWidth = "6";
-export const desktopTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
-    spacing[desktopTaskRowViewStatusButtonWidth],
-);
-
-export const mobileTaskRowViewStatusButtonWidth = "7";
-export const mobileTaskRowViewStatusButtonWidthRem = parseRemLengthNumber(
-    spacing[mobileTaskRowViewStatusButtonWidth],
+export const taskRowViewStatusButtonWidth = {desktop: "6", mobile: "7"} as const;
+export const taskRowViewStatusButtonWidthRem = mapObjectValues(
+    taskRowViewStatusButtonWidth,
+    parseRemLength,
 );
 
 export const taskRowViewExpandButtonWidth = "5";
-export const taskRowViewExpandButtonWidthRem = parseRemLengthNumber(
-    spacing[taskRowViewExpandButtonWidth],
-);
+export const taskRowViewExpandButtonWidthRem = parseRemLength(taskRowViewExpandButtonWidth);
 
 export const taskRowViewDragHandleWidth = "5";
-export const taskRowViewDragHandleWidthRem = parseRemLengthNumber(
-    spacing[taskRowViewDragHandleWidth],
-);
+export const taskRowViewDragHandleWidthRem = parseRemLength(taskRowViewDragHandleWidth);

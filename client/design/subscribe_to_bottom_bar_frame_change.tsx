@@ -1,5 +1,4 @@
 import {Memo, RefObject, useCallback, useContext, useEffect} from "react";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     BottomBarFrameContext,
     bottomBarFrameContextForTest,
@@ -18,6 +17,7 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";

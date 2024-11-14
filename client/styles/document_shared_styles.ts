@@ -2,7 +2,7 @@ import {
     messageInputMinHeight,
     messageViewMinHeight,
 } from "~/client/styles/messaging_shared_styles.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const documentCommentThreadPreviewHeight = "48";
@@ -12,23 +12,23 @@ export const documentCommentThreadActionsHeight = "7";
 export const documentCommentThreadHeaderPaddingY = "5";
 
 export const documentCommentThreadHeaderMinHeightWithoutPaddingTop = addRemLengths(
-    spacing[documentCommentThreadActionsHeight],
-    spacing[documentCommentThreadHeaderPaddingY],
-    spacing[documentCommentThreadPreviewHeight],
-    spacing[documentCommentThreadHeaderPaddingY],
+    documentCommentThreadActionsHeight,
+    documentCommentThreadHeaderPaddingY,
+    documentCommentThreadPreviewHeight,
+    documentCommentThreadHeaderPaddingY,
 );
 
 export const documentCommentThreadHeaderMinHeight = addRemLengths(
-    spacing[documentCommentThreadHeaderPaddingY],
+    documentCommentThreadHeaderPaddingY,
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
 );
 
 export const documentCommentThreadCountAgainstLimit = mapObjectValues(
     messageViewMinHeight,
     (messageViewMinHeight, platform) =>
-        parseRemLengthNumber(
+        parseRemLength(
             addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight[platform]),
-        ) / parseRemLengthNumber(messageViewMinHeight),
+        ) / parseRemLength(messageViewMinHeight),
 );
 
 export const documentContentEditorSidebarWidth = "96";

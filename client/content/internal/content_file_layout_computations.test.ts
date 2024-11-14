@@ -225,108 +225,212 @@ const audioFile2 = new FileModel({
 });
 
 test("can layout a file row", () => {
-    expect(computeContentFileRowLayout([file1], {screenWidth, isMobile: false})).toEqual([
-        {height: 449.699, width: 600, widthFr: 1},
-    ]);
+    expect(
+        computeContentFileRowLayout([file1], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 449.699, width: 600, widthFr: 1}]);
 
-    expect(computeContentFileRowLayout([file2], {screenWidth, isMobile: false})).toEqual([
-        {height: 450, width: 600, widthFr: 1},
-    ]);
+    expect(
+        computeContentFileRowLayout([file2], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 450, width: 600, widthFr: 1}]);
 
-    expect(computeContentFileRowLayout([file3], {screenWidth, isMobile: false})).toEqual([
-        {height: 512, width: 384.036, widthFr: 0.64006},
-    ]);
+    expect(
+        computeContentFileRowLayout([file3], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
 
-    expect(computeContentFileRowLayout([file4], {screenWidth, isMobile: false})).toEqual([
-        {height: 512, width: 236.571, widthFr: 0.394286},
-    ]);
+    expect(
+        computeContentFileRowLayout([file4], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
 
-    expect(computeContentFileRowLayout([file5], {screenWidth, isMobile: false})).toEqual([
-        {height: 252, width: 600, widthFr: 1},
-    ]);
+    expect(
+        computeContentFileRowLayout([file5], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 252, width: 600, widthFr: 1}]);
 
-    expect(computeContentFileRowLayout([file6], {screenWidth, isMobile: false})).toEqual([
-        {height: 512, width: 215.04, widthFr: 0.3584},
-    ]);
+    expect(
+        computeContentFileRowLayout([file6], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
 
-    expect(computeContentFileRowLayout([file7], {screenWidth, isMobile: false})).toEqual([
-        {height: 80, width: 80, widthFr: 0.133333},
-    ]);
+    expect(
+        computeContentFileRowLayout([file7], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 80, width: 80, widthFr: 0.133333}]);
 
-    expect(computeContentFileRowLayout([file8], {screenWidth, isMobile: false})).toEqual([
-        {height: 238.095, width: 100, widthFr: 0.166667},
-    ]);
+    expect(
+        computeContentFileRowLayout([file8], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
 
-    expect(computeContentFileRowLayout([file9], {screenWidth, isMobile: false})).toEqual([
-        {height: 100, width: 238.095, widthFr: 0.396825},
-    ]);
+    expect(
+        computeContentFileRowLayout([file9], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 100, width: 238.095, widthFr: 0.396825}]);
 
-    expect(computeContentFileRowLayout([file10], {screenWidth, isMobile: false})).toEqual([
-        {height: 512, width: 215.04, widthFr: 0.3584},
-    ]);
+    expect(
+        computeContentFileRowLayout([file10], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
 
-    expect(computeContentFileRowLayout([file11], {screenWidth, isMobile: false})).toEqual([
-        {height: 252, width: 600, widthFr: 1},
-    ]);
+    expect(
+        computeContentFileRowLayout([file11], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([{height: 252, width: 600, widthFr: 1}]);
 
-    expect(computeContentFileRowLayout([file1, file2], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file1, file2], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 221.176, width: 295.099, widthFr: 0.500167},
         {height: 221.176, width: 294.901, widthFr: 0.499833},
     ]);
 
     expect(
-        computeContentFileRowLayout([file1, file3, file2], {screenWidth, isMobile: false}),
+        computeContentFileRowLayout([file1, file3, file2], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
     ).toEqual([
         {height: 169.708, width: 226.429, widthFr: 0.390395},
         {height: 169.708, width: 127.293, widthFr: 0.219471},
         {height: 169.708, width: 226.278, widthFr: 0.390134},
     ]);
 
-    expect(computeContentFileRowLayout([file1, file3], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file1, file3], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 283.069, width: 377.678, widthFr: 0.640132},
         {height: 283.069, width: 212.322, widthFr: 0.359868},
     ]);
 
-    expect(computeContentFileRowLayout([file3, file1], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file3, file1], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 283.069, width: 212.322, widthFr: 0.359868},
         {height: 283.069, width: 377.678, widthFr: 0.640132},
     ]);
 
-    expect(computeContentFileRowLayout([file1, file5], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file1, file5], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 158.808, width: 211.886, widthFr: 0.359128},
         {height: 158.808, width: 378.114, widthFr: 0.640872},
     ]);
 
-    expect(computeContentFileRowLayout([file1, file6], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file1, file6], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 336.331, width: 448.741, widthFr: 0.760578},
         {height: 336.331, width: 141.259, widthFr: 0.239422},
     ]);
 
-    expect(computeContentFileRowLayout([file4, file4], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file4, file4], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 512, width: 236.571, widthFr: 0.400969},
         {height: 512, width: 236.571, widthFr: 0.400969},
     ]);
 
     expect(
-        computeContentFileRowLayout([file4, file4, file4], {screenWidth, isMobile: false}),
+        computeContentFileRowLayout([file4, file4, file4], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
     ).toEqual([
         {height: 418.422, width: 193.333, widthFr: 0.333333},
         {height: 418.422, width: 193.333, widthFr: 0.333333},
         {height: 418.422, width: 193.333, widthFr: 0.333333},
     ]);
 
-    expect(computeContentFileRowLayout([file7, file1], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file7, file1], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
         {height: 80, width: 106.738, widthFr: 0.180912},
     ]);
 
-    expect(computeContentFileRowLayout([file7, file3], {screenWidth, isMobile: false})).toEqual([
+    expect(
+        computeContentFileRowLayout([file7, file3], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
         {height: 80, width: 80, widthFr: 0.135593},
     ]);
 
     expect(
-        computeContentFileRowLayout([audioFile1, audioFile2], {screenWidth, isMobile: false}),
+        computeContentFileRowLayout([audioFile1, audioFile2], {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
     ).toEqual([
         {height: 123.9, width: 295, widthFr: 0.5},
         {height: 123.9, width: 295, widthFr: 0.5},
@@ -335,7 +439,8 @@ test("can layout a file row", () => {
     expect(
         computeContentFileRowLayout([audioFile1, audioFile2], {
             screenWidth: mobileScreenWidth,
-            isMobile: true,
+            platform: "mobile",
+            spacingScale: "large",
         }),
     ).toEqual([
         {height: 100, width: 173.75, widthFr: 0.5},
@@ -344,67 +449,133 @@ test("can layout a file row", () => {
 });
 
 test("can layout a file float", () => {
-    expect(computeContentFileFloatLayout("left", file1, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file1, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 205.991,
         widthFr: 1,
         height: 147.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file2, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file2, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 205.867,
         widthFr: 1,
         height: 147.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file3, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file3, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 207.068,
         widthFr: 1,
         height: 257.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file4, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file4, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 216.558,
         widthFr: 1,
         height: 433.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file5, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file5, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 220,
         widthFr: 1,
         height: 96,
     });
 
-    expect(computeContentFileFloatLayout("left", file6, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file6, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 217.148,
         widthFr: 1,
         height: 477.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file7, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file7, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 100,
         widthFr: 1,
         height: 96,
     });
 
-    expect(computeContentFileFloatLayout("left", file8, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file8, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 115.508,
         widthFr: 1,
         height: 235.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file9, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file9, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 220,
         widthFr: 1,
         height: 96,
     });
 
-    expect(computeContentFileFloatLayout("left", file10, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file10, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 217.148,
         widthFr: 1,
         height: 477.4,
     });
 
-    expect(computeContentFileFloatLayout("left", file11, {screenWidth, isMobile: false})).toEqual({
+    expect(
+        computeContentFileFloatLayout("left", file11, {
+            screenWidth,
+            platform: "desktop",
+            spacingScale: "medium",
+        }),
+    ).toEqual({
         width: 220,
         widthFr: 1,
         height: 96,

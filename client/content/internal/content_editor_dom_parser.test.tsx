@@ -41,7 +41,6 @@ function TestContentEditor({
     return (
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={state}
             onChange={setState}
             fileAttachmentTarget={fileAttachmentTarget}

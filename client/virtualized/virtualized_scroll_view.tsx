@@ -20,7 +20,6 @@ import {
     unstable_cancelCallback,
     unstable_scheduleCallback,
 } from "scheduler";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     ScrollbarInset,
@@ -42,6 +41,7 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollViewState,
@@ -620,7 +620,7 @@ function VirtualizedScrollView(
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
     const {screenHeight} = useClientInfo();
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -648,19 +648,19 @@ function VirtualizedScrollView(
                     ...item,
                     minHeight:
                         typeof item.minHeight === "string"
-                            ? convertRemLengthToPx(item.minHeight, remPx)
+                            ? convertRemLengthToPx(item.minHeight, spacingScale)
                             : item.minHeight,
                     originalMinHeight: item.minHeight,
                 };
             });
-    }, [renderItemProp, remPx]);
+    }, [renderItemProp, spacingScale]);
 
     const bufferedItemHeight = useMemo(
         () =>
             typeof bufferedItemHeightProp === "string"
-                ? convertRemLengthToPx(bufferedItemHeightProp, remPx)
+                ? convertRemLengthToPx(bufferedItemHeightProp, spacingScale)
                 : bufferedItemHeightProp,
-        [bufferedItemHeightProp, remPx],
+        [bufferedItemHeightProp, spacingScale],
     );
 
     const initializeState = (): VirtualizedScrollViewActualState => {
@@ -670,7 +670,7 @@ function VirtualizedScrollView(
                 state: VirtualizedScrollViewState.initializeFromTop({
                     initialViewHeight:
                         typeof initialViewHeight === "string"
-                            ? convertRemLengthToPx(initialViewHeight, remPx)
+                            ? convertRemLengthToPx(initialViewHeight, spacingScale)
                             : initialViewHeight ?? screenHeight,
                     bufferedItemHeight,
                     itemCount,
@@ -687,7 +687,7 @@ function VirtualizedScrollView(
                 state: VirtualizedScrollViewState.initializeFromBottom({
                     initialViewHeight:
                         typeof initialViewHeight === "string"
-                            ? convertRemLengthToPx(initialViewHeight, remPx)
+                            ? convertRemLengthToPx(initialViewHeight, spacingScale)
                             : initialViewHeight ?? screenHeight,
                     bufferedItemHeight,
                     itemCount,

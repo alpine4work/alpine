@@ -34,7 +34,9 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
@@ -58,7 +60,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -105,12 +107,6 @@ declare global {
 }
 
 export type ContentViewProps<Content extends ContentWithReferences> = {
-    /**
-     * Are we rendering with a mobile layout? True on the mobile platform and true
-     * in peeks on the desktop platform.
-     */
-    withMobileLayout: boolean;
-
     /**
      * The content to render.
      */
@@ -245,7 +241,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
  * you want to disable editing of content and only allow reading the content.
  */
 export function ContentView<Content extends ContentWithReferences>({
-    withMobileLayout,
     content,
     onMergeContentReferences,
     contentUpdatedTime,
@@ -279,7 +274,9 @@ export function ContentView<Content extends ContentWithReferences>({
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
     const clientInfo = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
@@ -488,11 +485,8 @@ export function ContentView<Content extends ContentWithReferences>({
             fileLayoutScreenWidthFromProps ??
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
-            (withMobileLayout && !isMobile
-                ? convertRemLengthToPx(
-                      spacing[peekMobileLayoutWidth],
-                      remPxByPlatform[isMobile ? "mobile" : "desktop"],
-                  )
+            (routeLayout === "narrow" && platform !== "mobile"
+                ? convertRemLengthToPx(peekMobileLayoutWidth, spacingScale)
                 : clientInfo.screenWidth);
 
         // If we have some initial code block decorations from server-side rendering
@@ -509,7 +503,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
-                    isMobile,
+                    platform,
+                    spacingScale,
                     isInitialAppRender,
                     isInert,
                     withPosAttribute: true,
@@ -540,7 +535,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
-                isMobile,
+                platform,
+                spacingScale,
                 isInitialAppRender,
                 isInert,
                 withPosAttribute: true,
@@ -565,8 +561,9 @@ export function ContentView<Content extends ContentWithReferences>({
         shouldShowSeeLessContentButton,
         content,
         fileLayoutScreenWidthFromProps,
-        withMobileLayout,
-        isMobile,
+        routeLayout,
+        platform,
+        spacingScale,
         clientInfo.screenWidth,
         initialCodeBlockDecorations,
         id,
@@ -628,7 +625,8 @@ export function ContentView<Content extends ContentWithReferences>({
     // reset our state to null.
     if (
         codeBlockCopyButtonTooltipState &&
-        (isMobile || !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
+        (platform === "mobile" ||
+            !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
     ) {
         setCodeBlockCopyButtonTooltipState(null);
     }
@@ -1359,7 +1357,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 ref={ref}
                 className={classNames(
                     contentStyles.docClassName,
-                    withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
+                    routeLayout === "narrow"
+                        ? contentStyles.narrowRouteLayoutDocClassName
+                        : undefined,
                     isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
                     isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
                     className,

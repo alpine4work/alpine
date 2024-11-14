@@ -21,7 +21,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -127,7 +127,7 @@ function TaskAssigneeInput(
     },
     ref: Ref<TaskAssigneeInputRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
@@ -278,7 +278,7 @@ function TaskAssigneeInput(
             // will open a hovering edit menu (with copy/paste/etc. actions) which
             // conflicts with our overlay. So instead we clear out the text. The old text
             // will still be visible in a placeholder.
-            if (isOpen && !isMobile) {
+            if (isOpen && platform !== "mobile") {
                 inputElement.select();
             }
 
@@ -297,7 +297,7 @@ function TaskAssigneeInput(
                 return {
                     type: "Typing",
                     initialAssigneeAccountId: assigneeAccountData?.id ?? null,
-                    value: !isMobile ? inputValue : "",
+                    value: platform !== "mobile" ? inputValue : "",
                     hasChanged: false,
                     disableAnimationOut: false,
                     shouldSelectRef: {current: false},
@@ -536,7 +536,7 @@ function TaskAssigneeInput(
         [],
     );
 
-    const insetMarginY = isMobile ? "2.5" : avatarSize === "5" ? "0.5" : undefined;
+    const insetMarginY = platform === "mobile" ? "2.5" : avatarSize === "5" ? "0.5" : undefined;
 
     return (
         <div
@@ -545,7 +545,7 @@ function TaskAssigneeInput(
                 // target size][1].
                 //
                 // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
-                height: isMobile ? "9" : avatarSize,
+                height: platform === "mobile" ? "9" : avatarSize,
                 marginY: insetMarginY ? `-${insetMarginY}` : undefined,
                 marginLeft: avatarSize === "5" ? "-0.5" : undefined,
             })}
@@ -567,7 +567,7 @@ function TaskAssigneeInput(
                 disableAnimationOut={inputState.disableAnimationOut}
                 // Prefer rendering the overlay above the input on mobile since the keyboard
                 // will open below the input causing an overlay rendered below to jump up.
-                placement={isMobile ? "top-start" : "bottom-start"}
+                placement={platform === "mobile" ? "top-start" : "bottom-start"}
                 // The overlay blocks interaction with everything outside the overlay. Except
                 // the combobox input. We still want to render the overlay in our current
                 // overlay scope so that it animates smoothly with scroll animations (important
@@ -585,8 +585,8 @@ function TaskAssigneeInput(
                 // keyboard opens. The value was calculated based on the keyboard height in
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
-                overflowBottom={isMobile ? "18rem" : undefined}
-                overflowTop={navigationBarHeight[isMobile ? "mobile" : "desktop"]}
+                overflowBottom={platform === "mobile" ? "18rem" : undefined}
+                overflowTop={navigationBarHeight[platform]}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskAssigneeInputListBox
@@ -598,7 +598,10 @@ function TaskAssigneeInput(
                     </div>
                 }
             >
-                <FocusRing insetY={isMobile ? insetMarginY : undefined} isVisibleWhenFocusWithin>
+                <FocusRing
+                    insetY={platform === "mobile" ? insetMarginY : undefined}
+                    isVisibleWhenFocusWithin
+                >
                     <div
                         className={sprinkles({
                             position: "relative",
@@ -646,7 +649,7 @@ function TaskAssigneeInput(
                             }
                             className={sprinkles({
                                 color,
-                                height: isMobile ? "9" : "4",
+                                height: platform === "mobile" ? "9" : "4",
                             })}
                             style={{
                                 ...inputProps.style,

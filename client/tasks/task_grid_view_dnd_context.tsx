@@ -35,7 +35,7 @@ import {
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
 import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -590,7 +590,7 @@ function TaskRowViewDragOverlay({
                             top:
                                 data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
                                     ? `calc(${activatorTouchOffset.top - 1}px - ${
-                                          parseRemLengthNumber(spacing[taskRowViewMinHeight]) / 2
+                                          parseRemLength(taskRowViewMinHeight) / 2
                                       }rem)`
                                     : -1,
                             transform: [

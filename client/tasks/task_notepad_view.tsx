@@ -9,7 +9,8 @@ import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {tasksStyles} from "~/client/styles/styles.js";
 import {
@@ -53,7 +54,6 @@ import {
 } from "~/shared/tasks/task_notepad_page_id.js";
 
 export function TaskNotepadView({
-    withMobileLayout: withMobileLayoutProp,
     store,
     assigneeActiveQuery,
     affinityManager,
@@ -64,7 +64,6 @@ export function TaskNotepadView({
     shouldInitiallyFocusTopGhostTask,
     shouldInitiallyShowTopGhostTask,
 }: {
-    withMobileLayout: boolean;
     store: TaskClientStore;
     assigneeActiveQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
@@ -78,11 +77,10 @@ export function TaskNotepadView({
     shouldInitiallyFocusTopGhostTask: boolean;
     shouldInitiallyShowTopGhostTask: boolean;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     // Retain `assigneeActiveQuery`. We can't retain it in
     // `<TaskNotepadViewActiveSection>` since that component may be scrolled
@@ -327,7 +325,7 @@ export function TaskNotepadView({
     );
 
     const gridViewCapabilities: Memo<TaskGridViewCapabilities> = useMemo(() => {
-        if (!withMobileLayout) {
+        if (routeLayout !== "narrow") {
             return {
                 isReadOnly: false,
                 hasParentTaskTitle: false,
@@ -344,7 +342,7 @@ export function TaskNotepadView({
                 hasDenseFields: true,
             };
         }
-    }, [withMobileLayout]);
+    }, [routeLayout]);
 
     const {
         stateKey: gridViewStateKey,
@@ -406,10 +404,9 @@ export function TaskNotepadView({
         columnHeaderControls: useMemo(() => {
             // We don't have sticky column header controls when rendering on mobile
             // devices. Instead we render a navigation bar.
-            if (isMobile) return;
+            if (platform === "mobile") return;
 
-            const height =
-                spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop];
+            const height = spacing[navigationBarHeight[platform]];
 
             return {
                 minHeight: height,
@@ -429,7 +426,7 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [isMobile, paginatorElement]),
+        }, [paginatorElement, platform]),
     });
 
     const {undoEvent, redoEvent} = useEvents({
@@ -445,18 +442,17 @@ export function TaskNotepadView({
         // Don't initially focus the first task unless we're in our native mobile
         // app since iOS will only open the keyboard as a result of user interaction.
         // So it's a little weird to open the keyboard toolbar but not the keyboard.
-        if (isMobile && !isNativeMobile) return;
+        if (platform === "mobile" && !isNativeMobile) return;
 
         if (!shouldInitiallyFocusTopGhostTask) return;
 
         return scheduleAfterNavigationAnimation(() => {
             focusGridViewStart();
         });
-    }, [focusGridViewStart, isMobile, isNativeMobile, shouldInitiallyFocusTopGhostTask]);
+    }, [focusGridViewStart, isNativeMobile, platform, shouldInitiallyFocusTopGhostTask]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: !isMobile,
-        withMobileLayout,
+        isDisabled: platform !== "mobile",
         withoutDisappearingTitle: true,
         title: "Notepad",
         menuActions: useMemo(() => {
@@ -501,7 +497,7 @@ export function TaskNotepadView({
                 onSelectAll: () => focusGridViewEnd(),
             })}
         >
-            {!isMobile && (
+            {platform !== "mobile" && (
                 // Cover the top safe area. Except on mobile when our navigation bar will cover
                 // the safe area. So when the active section scrolls into safe area (e.g. in a
                 // peek on desktop) it's covered.
@@ -527,12 +523,12 @@ export function TaskNotepadView({
                         [alwaysRenderAdditionalGridViewItemIndexes],
                     )}
                     scrollbarInsetTop={
-                        withMobileLayout
+                        routeLayout === "narrow"
                             ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
                             : undefined
                     }
                     scrollbarInsetTopItemIndex={
-                        !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
+                        routeLayout !== "narrow" && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + 1
                             : undefined
                     }
@@ -541,24 +537,24 @@ export function TaskNotepadView({
                             if (index === 0) {
                                 return {
                                     key: "ActiveCards",
-                                    minHeight: isMobile
-                                        ? addRemLengths(
-                                              taskNotepadViewActiveSectionMinHeight.mobile,
-                                              spacing["2"],
-                                              spacing[taskNotepadViewPaginatorHeight.mobile],
-                                              spacing["2"],
-                                          )
-                                        : taskNotepadViewActiveSectionMinHeight.desktop,
+                                    minHeight:
+                                        platform === "mobile"
+                                            ? addRemLengths(
+                                                  taskNotepadViewActiveSectionMinHeight.mobile,
+                                                  "2",
+                                                  taskNotepadViewPaginatorHeight.mobile,
+                                                  "2",
+                                              )
+                                            : taskNotepadViewActiveSectionMinHeight.desktop,
                                     node: (
                                         <>
                                             <TaskNotepadViewActiveSection
-                                                withMobileLayout={withMobileLayout}
                                                 affinityManager={affinityManager}
                                                 assigneeActiveQuery={assigneeActiveQuery}
                                                 activeDraggableData={activeDraggableData}
                                                 overDroppableData={overDroppableData}
                                             />
-                                            {isMobile && (
+                                            {platform === "mobile" && (
                                                 <Box paddingX="2" paddingY="2">
                                                     {paginatorElement}
                                                 </Box>
@@ -574,11 +570,10 @@ export function TaskNotepadView({
                             activeDraggableData,
                             affinityManager,
                             assigneeActiveQuery,
-                            isMobile,
                             overDroppableData,
                             paginatorElement,
+                            platform,
                             renderGridViewItem,
-                            withMobileLayout,
                         ],
                     )}
                     onRenderedRangeChange={range => {

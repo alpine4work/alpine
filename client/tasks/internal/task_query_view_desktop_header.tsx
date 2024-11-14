@@ -5,13 +5,13 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
-    desktopTaskQueryViewCustomizationBarMarginY,
+    taskQueryViewCustomizationBarDesktopMarginY,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {
     TaskQueryViewDesktopHeaderName,
@@ -62,7 +62,7 @@ function TaskQueryViewDesktopHeader(
     },
     ref: Ref<TaskQueryViewDesktopHeaderRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const nameRef = useRef<TaskQueryViewDesktopHeaderNameRef>(null);
     const customizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
@@ -83,7 +83,7 @@ function TaskQueryViewDesktopHeader(
     // centered `fontSize="75"` customization bar (filters and sort). Calculate
     // the offset for center aligned `fontSize="200"` using font metrics.
     const nameBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesByPlatform["75"][isMobile ? "mobile" : "desktop"];
+        const fontSize75 = fontSizesByPlatform["75"][platform];
 
         const fontSize75Descender =
             fontSize75.fontSize *
@@ -92,7 +92,7 @@ function TaskQueryViewDesktopHeader(
 
         const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
 
-        const fontSize200 = fontSizesByPlatform["200"][isMobile ? "mobile" : "desktop"];
+        const fontSize200 = fontSizesByPlatform["200"][platform];
 
         const fontSize200Descender =
             fontSize200.fontSize *
@@ -102,7 +102,7 @@ function TaskQueryViewDesktopHeader(
         const fontSize200BottomHalfHeight = fontSize200Descender + fontSize200.fontSize / 2;
 
         return -fontSize200BottomHalfHeight + fontSize75BottomHalfHeight;
-    }, [isMobile]);
+    }, [platform]);
 
     return (
         <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
@@ -132,13 +132,12 @@ function TaskQueryViewDesktopHeader(
             <Box
                 flexGrow="1"
                 style={{
-                    paddingTop: desktopTaskQueryViewCustomizationBarMarginY,
-                    paddingBottom: desktopTaskQueryViewCustomizationBarMarginY,
+                    paddingTop: taskQueryViewCustomizationBarDesktopMarginY,
+                    paddingBottom: taskQueryViewCustomizationBarDesktopMarginY,
                 }}
             >
                 <TaskQueryViewCustomizationBar
                     ref={customizationBarRef}
-                    withMobileLayout={false}
                     store={store}
                     shouldCollapseWhenFiltersAreEmpty={false}
                     defaultOrderSentence={defaultOrderSentence}

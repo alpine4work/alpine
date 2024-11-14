@@ -108,7 +108,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function DocumentRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+export default function DocumentRoute() {
     const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -170,7 +170,6 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
         <DocumentContentEditor
             // Re-render when the document changes
             key={documentId}
-            withMobileLayout={withMobileLayout}
             documentId={documentId}
             initialDocument={initialDocument}
             initialCommentThreadResult={commentThreadResult}

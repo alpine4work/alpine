@@ -7,7 +7,7 @@
  */
 
 import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
-import {mobilePlatformSelector} from "~/client/styles/core/internal/platform.css.js";
+import {mobilePlatformSelector} from "~/client/styles/core/internal/selectors.css.js";
 import {
     interFontAscender,
     interFontDescender,

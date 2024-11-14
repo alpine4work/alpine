@@ -229,16 +229,16 @@ dependencies:
     specifier: ^1.2.5
     version: 1.2.5
   '@img/sharp-libvips-darwin-arm64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-darwin-arm64
+    specifier: file:/Users/calebmer/cyberworlds/admin/vendor/libvips/libvips-darwin-arm64
     version: file:admin/vendor/libvips/libvips-darwin-arm64
   '@img/sharp-libvips-darwin-x64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-darwin-x86_64
+    specifier: file:/Users/calebmer/cyberworlds/admin/vendor/libvips/libvips-darwin-x86_64
     version: file:admin/vendor/libvips/libvips-darwin-x86_64
   '@img/sharp-libvips-linux-arm64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-linux-arm64
+    specifier: file:/Users/calebmer/cyberworlds/admin/vendor/libvips/libvips-linux-arm64
     version: file:admin/vendor/libvips/libvips-linux-arm64
   '@img/sharp-libvips-linux-x64':
-    specifier: file:/Users/calebmer/Projects/cyberworlds/admin/vendor/libvips/libvips-linux-x86_64
+    specifier: file:/Users/calebmer/cyberworlds/admin/vendor/libvips/libvips-linux-x86_64
     version: file:admin/vendor/libvips/libvips-linux-x86_64
   '@inquirer/prompts':
     specifier: ^5.3.8

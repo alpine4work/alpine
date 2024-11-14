@@ -1,8 +1,8 @@
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 
 export function useInputWithAutoGrowingWidthSafeSpacerElement() {
-    const isMobile = useIsMobile();
-    if (!isMobile) return null;
+    const platform = usePlatform();
+    if (platform !== "mobile") return null;
 
     return (
         <span

@@ -6,6 +6,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -44,7 +45,7 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly messagePayload: MessageContentPayloadModel;
-          readonly isMobile: boolean;
+          readonly platform: Platform;
           readonly returnFocusAfterEditing: (() => void) | null;
       }
     | {
@@ -84,7 +85,7 @@ function reduce<RoomKey extends string>(
                     // The user is much more likely to need to edit from the end of the message than
                     // the start. But on mobile, if the message is long, editing should start at the
                     // start of the message so the cursor is visible.
-                    selectionAt: action.isMobile ? "start" : "end",
+                    selectionAt: action.platform === "mobile" ? "start" : "end",
                 }),
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,

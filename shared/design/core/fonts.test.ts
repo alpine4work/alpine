@@ -1,5 +1,6 @@
 import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {parseRemLengthNumber, remPxByPlatform} from "~/shared/design/core/spacing.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
 test("letter spacing matches Inter tracking formula", () => {
@@ -51,8 +52,8 @@ test("line heights are a multiple of 8", () => {
             Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
                 fontSizeName,
                 {
-                    desktop: `${Math.round(parseRemLengthNumber(desktop.lineHeight) * 8) / 8}rem`,
-                    mobile: `${Math.round(parseRemLengthNumber(mobile.lineHeight) * 8) / 8}rem`,
+                    desktop: `${Math.round(parseRemLength(desktop.lineHeight) * 8) / 8}rem`,
+                    mobile: `${Math.round(parseRemLength(mobile.lineHeight) * 8) / 8}rem`,
                 },
             ]),
         ),
@@ -81,13 +82,13 @@ test("line heights are determined algorithmically from font sizes", () => {
                 {
                     desktop: Math.round(
                         (getLineHeight(desktop.fontSize, mobile.fontSize) *
-                            remPxByPlatform.desktop) /
-                            (parseRemLengthNumber(desktop.lineHeight) * remPxByPlatform.desktop),
+                            remPxBySpacingScale.medium) /
+                            (parseRemLength(desktop.lineHeight) * remPxBySpacingScale.medium),
                     ),
                     mobile: Math.round(
                         (getLineHeight(desktop.fontSize, mobile.fontSize) *
-                            remPxByPlatform.mobile) /
-                            (parseRemLengthNumber(mobile.lineHeight) * remPxByPlatform.mobile),
+                            remPxBySpacingScale.large) /
+                            (parseRemLength(mobile.lineHeight) * remPxBySpacingScale.large),
                     ),
                 },
             ]),

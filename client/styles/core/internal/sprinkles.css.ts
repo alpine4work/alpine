@@ -24,7 +24,7 @@ import {fontSizes, fontStyles} from "~/client/styles/core/internal/fonts.css.js"
 import {
     desktopPlatformSelector,
     mobilePlatformSelector,
-} from "~/client/styles/core/internal/platform.css.js";
+} from "~/client/styles/core/internal/selectors.css.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";

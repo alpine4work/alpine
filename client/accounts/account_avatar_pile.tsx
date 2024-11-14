@@ -85,7 +85,7 @@ export function AccountAvatarPile({
             zIndex="0"
             style={{
                 paddingRight: addRemLengths(
-                    spacing[avatarSize],
+                    avatarSize,
                     negateRemLength(spacing[avatarOverlapWidth]),
                 ),
             }}

@@ -13,12 +13,12 @@ import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_vi
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
+    channelViewHeaderNarrowRouteLayoutMarginTop,
     channelViewMetadataSectionGap,
-    desktopLayoutPostFauxInputCreateButtonMarginTop,
-    mobileLayoutChannelViewMetadataMarginTop,
-    mobileLayoutPostFauxInputCreateButtonMarginTop,
     postContentViewOuterMarginY,
+    postFauxInputCreateButtonMarginTop,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -33,16 +33,16 @@ import {
 
 export function ChannelViewHeader({
     channelHeader,
-    withMobileLayout,
 }: {
     channelHeader: PostListChannelHeader & {isOnlyNavigationBar: false};
-    withMobileLayout: boolean;
 }) {
+    const routeLayout = useRouteLayout();
+
     return (
         <>
-            {withMobileLayout && (
+            {routeLayout === "narrow" && (
                 <Box
-                    paddingTop={mobileLayoutChannelViewMetadataMarginTop}
+                    paddingTop={channelViewHeaderNarrowRouteLayoutMarginTop}
                     paddingX={screenPaddingX}
                     display="flex"
                     flexDirection="column"
@@ -72,16 +72,11 @@ export function ChannelViewHeader({
                 </Box>
             )}
             <Box
-                paddingTop={
-                    withMobileLayout
-                        ? mobileLayoutPostFauxInputCreateButtonMarginTop
-                        : desktopLayoutPostFauxInputCreateButtonMarginTop
-                }
+                paddingTop={postFauxInputCreateButtonMarginTop[routeLayout]}
                 paddingBottom={postContentViewOuterMarginY}
                 paddingX={screenPaddingX}
             >
                 <PostFauxInputCreateButton
-                    withMobileLayout={withMobileLayout}
                     channel={channelHeader.channel}
                     isCreatingChannel={channelHeader.isCreatingChannel}
                 />
@@ -118,8 +113,6 @@ function ChannelViewHeaderMobileDescription({
         <Box paddingTop="1">
             <ContentViewWithSeeMoreToggle
                 isCompact={true}
-                // Only rendered in mobile layouts.
-                withMobileLayout={true}
                 content={description}
                 contentSnippet={descriptionSnippet}
             />
@@ -234,8 +227,6 @@ function ChannelViewHeaderMobileDescriptionEditor({
                         ref={editorRef}
                         aria-label="Description"
                         isCompact={true}
-                        // Only rendered in mobile layouts.
-                        withMobileLayout={true}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;

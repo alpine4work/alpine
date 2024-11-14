@@ -206,7 +206,6 @@ test("can copy when selection is partially within content view and partially out
                 elit.
             </p>
             <ContentView
-                withMobileLayout={false}
                 content={{
                     doc: createSimplePostContent(
                         "Vivamus sed orci sed mauris fringilla pharetra nec sed ex.",
@@ -224,7 +223,6 @@ test("can copy when selection is partially within content view and partially out
                 </p>
             </div>
             <ContentView
-                withMobileLayout={false}
                 content={{
                     doc: createSimplePostContent(
                         "Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.",

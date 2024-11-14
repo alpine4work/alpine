@@ -17,9 +17,9 @@ import {
 } from "~/client/styles/core/internal/color_scheme.css.js";
 import {fontSizes, fontStyles} from "~/client/styles/core/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/client/styles/core/internal/input_placeholder.css.js";
-import {mobilePlatformSelector} from "~/client/styles/core/internal/platform.css.js";
+import {largeSpacingScaleSelector} from "~/client/styles/core/internal/selectors.css.js";
 import {backgroundColorVar} from "~/client/styles/core/internal/sprinkles.css.js";
-import {remPxByPlatform} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],
@@ -27,8 +27,8 @@ globalStyle(":root", {
     color: colorSchemeVars["grey-100"],
     ...fontStyles.normal,
 
-    // Change the size of 1rem based on whether we're on desktop or mobile.
-    fontSize: remPxByPlatform.desktop,
+    // Change the size of 1rem based on our spacing scale.
+    fontSize: remPxBySpacingScale.medium,
 
     // By default we don't allow selecting any text. Instead individual elements
     // must opt-into text selection. This makes our UI feel more native. In a
@@ -46,8 +46,8 @@ globalStyle(":root", {
     WebkitTapHighlightColor: "rgba(0, 0, 0, 0)",
 });
 
-globalStyle(mobilePlatformSelector, {
-    fontSize: remPxByPlatform.mobile,
+globalStyle(largeSpacingScaleSelector, {
+    fontSize: remPxBySpacingScale.large,
 });
 
 globalStyle("body", {

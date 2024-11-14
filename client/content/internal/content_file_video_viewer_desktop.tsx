@@ -83,7 +83,7 @@ function ContentFileVideoViewerDesktopInner({
             file,
             durationMs,
             layout: null,
-            isMobile: false,
+            platform: "desktop",
             isInitialAppRender: false,
             withoutInteractivity: false,
         });

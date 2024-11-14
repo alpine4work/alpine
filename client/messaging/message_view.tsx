@@ -7,7 +7,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
@@ -27,8 +26,9 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
@@ -63,7 +63,7 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -89,13 +89,11 @@ export const bufferedMessageViewHeight: RemLength = "4rem";
 const mergeMessageMinuteLimit = 5;
 
 const messageViewTouchReplyIconSize = "5";
-const messageViewTouchReplyIconSizeRem = parseRemLengthNumber(
-    spacing[messageViewTouchReplyIconSize],
-);
+const messageViewTouchReplyIconSizeRem = parseRemLength(messageViewTouchReplyIconSize);
 
 const messageViewTouchReplyIconStartOffset = "1.5";
-const messageViewTouchReplyIconStartOffsetRem = parseRemLengthNumber(
-    spacing[messageViewTouchReplyIconStartOffset],
+const messageViewTouchReplyIconStartOffsetRem = parseRemLength(
+    messageViewTouchReplyIconStartOffset,
 );
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -125,7 +123,6 @@ function shouldMergeMessages(message1: MessageModelBase, message2: MessageModelB
 }
 
 export function MessageView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
-    withMobileLayout,
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
@@ -144,7 +141,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     paddingX = screenPaddingX,
     centeringMarginRight,
 }: {
-    withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
@@ -163,7 +159,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     centeringMarginRight?: Spacing;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -220,12 +216,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             hoverElement.removeEventListener("pointerenter", handlePointerEnter);
             hoverElement.removeEventListener("pointerleave", handlePointerLeave);
         };
-    }, [isMobile]);
+    }, []);
 
     const messageEditingForThisMessage =
         // If we're on a mobile device (with keyboard toolbars) then instead of editing
         // a message inline, we edit it within the sticky `<MessageInput>`.
-        !isMobile &&
+        platform !== "mobile" &&
         messageEditing.state.isEditing &&
         !message.isOptimistic &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
@@ -239,7 +235,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // If we're currently editing a message on mobile then cancel editing when
         // trying to reply to a message. Otherwise `<MessageInput>` will override the
         // reply state with editing state.
-        if (isMobile && messageEditing.state.isEditing) {
+        if (platform === "mobile" && messageEditing.state.isEditing) {
             messageEditing.dispatch({type: "CancelEditing"});
         }
 
@@ -799,9 +795,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             >
                 <ContentView
                     isCompact={true}
-                    isExtraCompact={isMobile}
+                    isExtraCompact={platform === "mobile"}
                     isBackgroundColorGrey5={true}
-                    withMobileLayout={withMobileLayout}
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdatedTime}
                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
@@ -811,13 +806,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
-        isMobile,
         message.payload,
         messageTextForBigEmojiMessage,
+        platform,
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
         touchLightboxState,
-        withMobileLayout,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -853,9 +847,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         fontSize: "75",
                     })}
                     style={{
-                        lineHeight: isMobile
-                            ? contentStyles.extraCompactParagraphFontSize.lineHeight
-                            : contentStyles.paragraphFontSize.lineHeight,
+                        lineHeight:
+                            platform === "mobile"
+                                ? contentStyles.extraCompactParagraphFontSize.lineHeight
+                                : contentStyles.paragraphFontSize.lineHeight,
                     }}
                 >
                     {`${messageStartOfSentenceNoun} deleted`}
@@ -864,9 +859,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
-        isMobile,
         message.payload.type,
         messageStartOfSentenceNoun,
+        platform,
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
     ]);
@@ -874,14 +869,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths(spacing["1.5"], contentViewStyles.truncatedHeight);
+        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
 
         // Remove some vertical padding from the parent message to move it closer to a
         // big emoji message which doesn't render in a bubble.
-        if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
+        if (!messageTextForBigEmojiMessage) height = addRemLengths(height, "1.5");
 
         const scaledHeight = `${
-            Math.round(parseRemLengthNumber(height) * messageViewReplyPreviewScale * 16) / 16
+            Math.round(parseRemLength(height) * messageViewReplyPreviewScale * 16) / 16
         }rem`;
 
         const truncatedContent = getTruncatedMessageContentForReplyPreview({
@@ -899,22 +894,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 style={{
                     height: scaledHeight,
                     paddingLeft: getMessageBubbleMarginLeft(
-                        typeof paddingX === "string"
-                            ? paddingX
-                            : paddingX[isMobile ? "mobile" : "desktop"],
+                        typeof paddingX === "string" ? paddingX : paddingX[platform],
                     ),
                     paddingRight: addRemLengths(
-                        spacing["3"],
-                        spacing[
-                            canPrimaryInputHover
-                                ? messageViewActionsWidth
-                                : messageViewActionsWidthWithoutHoveringPrimaryInput
-                        ],
-                        spacing[
-                            typeof paddingX === "string"
-                                ? paddingX
-                                : paddingX[isMobile ? "mobile" : "desktop"]
-                        ],
+                        "3",
+                        canPrimaryInputHover
+                            ? messageViewActionsWidth
+                            : messageViewActionsWidthWithoutHoveringPrimaryInput,
+                        typeof paddingX === "string" ? paddingX : paddingX[platform],
                     ),
                     // Hide message while lightbox is open so its blur doesn't bleed into
                     // the background.
@@ -990,11 +977,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             />
                             <div className={sprinkles({overflow: "hidden", pointerEvents: "none"})}>
                                 <ContentView
-                                    withMobileLayout={withMobileLayout}
                                     isInert={true}
                                     isTruncated={true}
                                     isCompact={true}
-                                    isExtraCompact={isMobile}
+                                    isExtraCompact={platform === "mobile"}
                                     isBackgroundColorGrey5={true}
                                     withUserSelectNone={true}
                                     content={truncatedContent}
@@ -1008,14 +994,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
-        isMobile,
         messageStartOfSentenceNoun,
         messageTextForBigEmojiMessage,
         onJumpToMessage,
         paddingX,
         parentMessage,
+        platform,
         touchLightboxState,
-        withMobileLayout,
     ]);
 
     const timestampDividerNode = useMemo(() => {
@@ -1119,9 +1104,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         getMessageBubbleMarginLeft(
                                             typeof paddingX === "string"
                                                 ? paddingX
-                                                : paddingX[isMobile ? "mobile" : "desktop"],
+                                                : paddingX[platform],
                                         ),
-                                        parentMessage === null ? spacing["1.5"] : spacing["1"],
+                                        parentMessage === null ? "1.5" : "1",
                                     ),
                                     // Hide message while lightbox is open so its blur doesn't bleed into
                                     // the background.
@@ -1149,10 +1134,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             </div>
                         ),
                     [
-                        isMobile,
                         message.author,
                         paddingX,
                         parentMessage,
+                        platform,
                         shouldMergeWithPreviousMessage,
                         touchLightboxState,
                     ],
@@ -1311,7 +1296,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         ) : (
                             <MessageViewEditor
                                 ref={messageEditorRef}
-                                withMobileLayout={withMobileLayout}
                                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                                 shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                                 shouldMergeWithNextMessage={shouldMergeWithNextMessage}

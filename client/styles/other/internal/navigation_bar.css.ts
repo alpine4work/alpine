@@ -1,18 +1,16 @@
 import {keyframes, style} from "@vanilla-extract/css";
 import {easeOutQuart} from "~/shared/design/core/easing.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 // These constants are exported from `navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
-export const desktopNavigationBarHeight: Spacing = "14";
-export const mobileNavigationBarHeight: Spacing = "14";
+export const navigationBarHeight = {
+    mobile: "14",
+    desktop: "14",
+} as const;
 
-export const desktopNavigationBarHeightRem = parseRemLengthNumber(
-    spacing[desktopNavigationBarHeight],
-);
-export const mobileNavigationBarHeightRem = parseRemLengthNumber(
-    spacing[mobileNavigationBarHeight],
-);
+export const navigationBarHeightRem = mapObjectValues(navigationBarHeight, parseRemLength);
 
 const navigationBarBackgroundFadeOutKeyframes = keyframes({
     from: {opacity: 1},

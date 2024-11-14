@@ -1,5 +1,4 @@
 import {useEffect} from "react";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     flushNavigationBarScrollEventEmitter,
     getNavigationBarHeightRemWithoutListening,
@@ -9,10 +8,11 @@ import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mo
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-export const textInputVisibilityMaintainerMarginYRem = parseRemLengthNumber(spacing["5"]);
+export const textInputVisibilityMaintainerMarginYRem = parseRemLength("5");
 
 const maintainTextInputVisibilityEmitter = new EventEmitter<HTMLElement>();
 

@@ -16,7 +16,6 @@ import {
 import {createPortal, flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     OverlaySinkContext,
     overlaySinkContextForTest,
@@ -39,13 +38,8 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
-import {
-    RemLength,
-    Spacing,
-    convertRemLengthToPx,
-    isSpacing,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {RemLength, Spacing, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -387,9 +381,9 @@ function Overlay(
             const getOptions = () => {
                 // Getting the value of 1rem without subscribing so that all our `<Overlay>`
                 // components don't need to re-render after the initial render.
-                const remPx = getRemPxWithoutListening();
+                const spacingScale = getSpacingScaleWithoutListening();
 
-                const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
+                const paddingPx = convertRemLengthToPx("1", spacingScale);
 
                 const portalRect = portalElement!.getBoundingClientRect();
                 const viewportHeight = document.documentElement.getBoundingClientRect().height;
@@ -404,10 +398,7 @@ function Overlay(
                                   Math.max(0, portalRect.top),
                           ) +
                           (overflowTop !== undefined
-                              ? convertRemLengthToPx(
-                                    isSpacing(overflowTop) ? spacing[overflowTop] : overflowTop,
-                                    remPx,
-                                )
+                              ? convertRemLengthToPx(overflowTop, spacingScale)
                               : 0),
                     bottom: sameHeight
                         ? 0
@@ -422,24 +413,18 @@ function Overlay(
                                     0,
                                     getElementWindowSafeAreaInsetBottomPx(targetElement) -
                                         Math.max(0, viewportHeight - portalRect.bottom),
-                                ) +
-                                convertRemLengthToPx(
-                                    isSpacing(overflowBottom)
-                                        ? spacing[overflowBottom]
-                                        : overflowBottom,
-                                    remPx,
-                                )),
+                                ) + convertRemLengthToPx(overflowBottom, spacingScale)),
                     left: sameWidth
                         ? 0
                         : paddingPx +
                           (typeof overlaySink.insetLeft === "string"
-                              ? convertRemLengthToPx(overlaySink.insetLeft, remPx)
+                              ? convertRemLengthToPx(overlaySink.insetLeft, spacingScale)
                               : overlaySink.insetLeft ?? 0),
                     right: sameWidth
                         ? 0
                         : paddingPx +
                           (typeof overlaySink.insetRight === "string"
-                              ? convertRemLengthToPx(overlaySink.insetRight, remPx)
+                              ? convertRemLengthToPx(overlaySink.insetRight, spacingScale)
                               : overlaySink.insetRight ?? 0),
                 };
 
@@ -491,37 +476,9 @@ function Overlay(
                                   options: {
                                       offset: [
                                           offsetAlong
-                                              ? offsetAlong.startsWith("-")
-                                                  ? -convertRemLengthToPx(
-                                                        !offsetAlong.endsWith("rem")
-                                                            ? spacing[
-                                                                  offsetAlong.slice(1) as Spacing
-                                                              ]
-                                                            : (offsetAlong.slice(1) as RemLength),
-                                                        remPx,
-                                                    )
-                                                  : convertRemLengthToPx(
-                                                        !offsetAlong.endsWith("rem")
-                                                            ? spacing[offsetAlong as Spacing]
-                                                            : (offsetAlong as RemLength),
-                                                        remPx,
-                                                    )
+                                              ? convertRemLengthToPx(offsetAlong, spacingScale)
                                               : 0,
-                                          offset
-                                              ? offset.startsWith("-")
-                                                  ? -convertRemLengthToPx(
-                                                        !offset.endsWith("rem")
-                                                            ? spacing[offset.slice(1) as Spacing]
-                                                            : (offset.slice(1) as RemLength),
-                                                        remPx,
-                                                    )
-                                                  : convertRemLengthToPx(
-                                                        !offset.endsWith("rem")
-                                                            ? spacing[offset as Spacing]
-                                                            : (offset as RemLength),
-                                                        remPx,
-                                                    )
-                                              : 0,
+                                          offset ? convertRemLengthToPx(offset, spacingScale) : 0,
                                       ],
                                   },
                               },

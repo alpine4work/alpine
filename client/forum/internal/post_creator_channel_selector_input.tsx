@@ -30,7 +30,7 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -103,7 +103,7 @@ function PostCreatorChannelSelectorInput(
     },
     ref: Ref<PostCreatorChannelSelectorInputRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -262,7 +262,7 @@ function PostCreatorChannelSelectorInput(
             // will open a hovering edit menu (with copy/paste/etc. actions) which
             // conflicts with our overlay. So instead we clear out the text. The old text
             // will still be visible in a placeholder.
-            if (isOpen && !isMobile) {
+            if (isOpen && platform !== "mobile") {
                 inputElement.select();
             }
 
@@ -284,7 +284,7 @@ function PostCreatorChannelSelectorInput(
                 if (inputState.type === "Typing") return inputState;
                 return {
                     type: "Typing",
-                    value: !isMobile ? inputValue : "",
+                    value: platform !== "mobile" ? inputValue : "",
                     hasChanged: false,
                     disableAnimationOut: false,
                     shouldSelectRef: {current: false},
@@ -577,7 +577,7 @@ function PostCreatorChannelSelectorListBox({
     selectedKey: string | null;
     areItemsLoading: boolean;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
@@ -605,7 +605,7 @@ function PostCreatorChannelSelectorListBox({
             style={{
                 // On mobile the height needs to be less than half of the available space when
                 // the keyboard and navigation bar are open.
-                maxHeight: isMobile ? "10rem" : spacing["64"],
+                maxHeight: platform === "mobile" ? "10rem" : spacing["64"],
             }}
         >
             <ul {...listBoxProps} ref={listBoxRef}>
@@ -617,10 +617,10 @@ function PostCreatorChannelSelectorListBox({
                         alignItems="center"
                         style={{
                             height: addRemLengths(
-                                spacing["1.5"],
+                                "1.5",
                                 fontSizes["75"].lineHeight,
                                 fontSizes["50"].lineHeight,
-                                spacing["1.5"],
+                                "1.5",
                             ),
                         }}
                     >

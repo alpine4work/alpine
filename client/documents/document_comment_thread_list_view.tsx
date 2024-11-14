@@ -12,7 +12,6 @@ import {
     useState,
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -31,7 +30,8 @@ import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     documentCommentThreadActionsHeight,
@@ -59,10 +59,11 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -222,7 +223,6 @@ const UnpersistedIsResolvedByCommentThreadIdSchema = Schema.map(
  */
 function DocumentCommentThreadListView(
     {
-        withMobileLayout,
         documentId,
         content,
         onCommentThreadSnippetPress,
@@ -243,7 +243,6 @@ function DocumentCommentThreadListView(
         backgroundSlopBottomIfPinnedCommentInput,
         previewFileLayoutScreenWidth: originalPreviewFileLayoutScreenWidth,
     }: {
-        withMobileLayout: boolean;
         documentId: DocumentId;
         content: DocumentContentWithReferences;
         onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
@@ -354,8 +353,8 @@ function DocumentCommentThreadListView(
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
-    const isMobile = useIsMobile();
-    const remPx = useRemPx();
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
 
     const {space} = useSpaceContext();
@@ -364,17 +363,17 @@ function DocumentCommentThreadListView(
     const previewFileLayoutScreenWidthRem = useMemo(
         () =>
             (originalPreviewFileLayoutScreenWidth
-                ? parseRemLengthNumber(originalPreviewFileLayoutScreenWidth)
-                : clientInfo.screenWidth / remPx) -
-            parseRemLengthNumber(
-                spacing[
-                    typeof paddingX === "string"
-                        ? paddingX
-                        : paddingX[isMobile ? "mobile" : "desktop"]
-                ],
-            ) *
+                ? parseRemLength(originalPreviewFileLayoutScreenWidth)
+                : clientInfo.screenWidth / remPxBySpacingScale[spacingScale]) -
+            parseRemLength(spacing[typeof paddingX === "string" ? paddingX : paddingX[platform]]) *
                 2,
-        [clientInfo.screenWidth, isMobile, originalPreviewFileLayoutScreenWidth, paddingX, remPx],
+        [
+            clientInfo.screenWidth,
+            originalPreviewFileLayoutScreenWidth,
+            paddingX,
+            platform,
+            spacingScale,
+        ],
     );
 
     const [tree, setTree] = useState(() => {
@@ -798,10 +797,10 @@ function DocumentCommentThreadListView(
                         : documentCommentThreadHeaderPaddingY;
 
                     const minHeight = addRemLengths(
-                        spacing[index !== 0 ? documentCommentThreadListViewMarginY : paddingTop],
+                        index !== 0 ? documentCommentThreadListViewMarginY : paddingTop,
                         !withoutCommentThreadPreview
                             ? documentCommentThreadHeaderMinHeightWithoutPaddingTop
-                            : spacing[documentCommentThreadActionsHeight],
+                            : documentCommentThreadActionsHeight,
                     );
 
                     const nodeIndex = assertExists(
@@ -878,7 +877,6 @@ function DocumentCommentThreadListView(
                                     })}
                                 >
                                     <DocumentCommentThreadHeader
-                                        withMobileLayout={withMobileLayout}
                                         commentThread={item.commentThread}
                                         unpersistedIsResolved={
                                             unpersistedIsResolvedByCommentThreadId.get(
@@ -918,8 +916,7 @@ function DocumentCommentThreadListView(
                         DocumentCommentRoomKey,
                         DocumentCommentModel
                     >({
-                        isMobile,
-                        withMobileLayout,
+                        platform,
                         messageNoun: "comment",
                         messages: item.comments,
                         groupKey: item.commentThread.id,
@@ -1041,7 +1038,6 @@ function DocumentCommentThreadListView(
                     // `render()` function is called since it's referentially stable.
                     const inputNode = (
                         <DocumentCommentInput
-                            withMobileLayout={withMobileLayout}
                             isStickyPositioned={true}
                             viewRef={viewRef}
                             commentThread={item.commentThread}
@@ -1101,7 +1097,7 @@ function DocumentCommentThreadListView(
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: messageInputMinHeight[isMobile ? "mobile" : "desktop"],
+                        minHeight: messageInputMinHeight[platform],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1183,14 +1179,13 @@ function DocumentCommentThreadListView(
             isSingleCommentThreadWithPinnedCommentInput,
             withSafeAreaInsetTop,
             paddingX,
-            withMobileLayout,
             unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
             previewFileLayoutScreenWidthRem,
             procedures,
-            isMobile,
+            platform,
             messageEditing,
             highlightComment,
             handleJumpToComment,
@@ -1273,7 +1268,6 @@ function DocumentCommentThreadListView(
 
                         return (
                             <DocumentCommentInput
-                                withMobileLayout={withMobileLayout}
                                 isStickyPositioned={false}
                                 inputRef={pinnedCommentInputRef}
                                 viewRef={viewRef}

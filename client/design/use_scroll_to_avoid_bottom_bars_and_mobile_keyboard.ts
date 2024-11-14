@@ -1,5 +1,4 @@
 import {Memo, RefObject, useCallback, useEffect} from "react";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
@@ -27,6 +26,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
@@ -282,7 +282,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // any content yet so it doesn't make sense to scroll them.
             if (wasBottomBarMounted || wasBottomBarUnmounted) return;
 
-            const remPx = getRemPxWithoutListening();
+            const spacingScale = getSpacingScaleWithoutListening();
             const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
@@ -312,7 +312,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
             const scrollableInsetBottomPx =
                 typeof scrollableInsetBottom === "string"
-                    ? convertRemLengthToPx(scrollableInsetBottom, remPx)
+                    ? convertRemLengthToPx(scrollableInsetBottom, spacingScale)
                     : scrollableInsetBottom;
 
             const oldScrollableBottom = oldOriginalScrollableBottom - scrollableInsetBottomPx;
@@ -590,8 +590,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
             let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
 
-            // Hardcoded `spacing["1"]`.
-            const spacing1Px = 0.25 * remPx;
+            const spacing1Px = convertRemLengthToPx("1", spacingScale);
 
             // If this `scrollDelta` would put the top of our anchor outside the visible rect
             // (into navigation bar space) then set the `scrollDelta` so our anchor is just
@@ -983,7 +982,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             const scrollableElement: HTMLElement =
                 "getElement" in scrollable ? scrollable.getElement() : scrollable;
 
-            const remPx = getRemPxWithoutListening();
+            const spacingScale = getSpacingScaleWithoutListening();
             const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
 
             const currentScrollableRect = scrollableElement.getBoundingClientRect();
@@ -994,7 +993,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
             const scrollableInsetBottomPx =
                 typeof scrollableInsetBottom === "string"
-                    ? convertRemLengthToPx(scrollableInsetBottom, remPx)
+                    ? convertRemLengthToPx(scrollableInsetBottom, spacingScale)
                     : scrollableInsetBottom;
 
             const currentScrollableBottom =

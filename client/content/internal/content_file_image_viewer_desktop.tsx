@@ -25,12 +25,12 @@ import {
 } from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -150,7 +150,7 @@ function ContentFileImageDesktopViewerInner({
     maxZoomScale: number;
     extraChildrenForVideo: ReactNode;
 }) {
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -160,14 +160,11 @@ function ContentFileImageDesktopViewerInner({
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;
-    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileViewerDesktopMarginX], remPx);
-    const viewerMarginTopPx = convertRemLengthToPx(
-        spacing[contentFileViewerDesktopMarginTop],
-        remPx,
-    );
+    const viewerMarginXPx = convertRemLengthToPx(contentFileViewerDesktopMarginX, spacingScale);
+    const viewerMarginTopPx = convertRemLengthToPx(contentFileViewerDesktopMarginTop, spacingScale);
     const viewerMarginBottomPx = convertRemLengthToPx(
-        spacing[contentFileViewerDesktopMarginBottom],
-        remPx,
+        contentFileViewerDesktopMarginBottom,
+        spacingScale,
     );
 
     let fileScale: number;

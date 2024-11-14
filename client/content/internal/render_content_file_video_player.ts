@@ -18,6 +18,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -51,7 +52,7 @@ export function renderContentFileVideoPlayer(
         file,
         durationMs,
         layout,
-        isMobile,
+        platform,
         isInitialAppRender,
         withoutInteractivity,
     }: {
@@ -60,7 +61,7 @@ export function renderContentFileVideoPlayer(
         file: FileModel;
         durationMs: number;
         layout: {width: number; height: number} | null;
-        isMobile: boolean;
+        platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
     },
@@ -140,7 +141,7 @@ export function renderContentFileVideoPlayer(
     // the video.
     if (
         withoutInteractivity ||
-        isMobile ||
+        platform === "mobile" ||
         (layout !== null && (layout.width < 250 || layout.height < 150))
     ) {
         return;
