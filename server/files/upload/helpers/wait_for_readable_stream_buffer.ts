@@ -1,4 +1,5 @@
 import {Readable as ReadableStream} from "stream";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {Id, generateId} from "~/shared/id/id.js";
 
@@ -43,6 +44,7 @@ export function waitForReadableStreamBuffer(
                 debugIdByObject.getOrSetDefault(stream),
                 "data",
                 contentLength,
+                encodeBase64(data.subarray(0, 60)),
             );
         };
 
