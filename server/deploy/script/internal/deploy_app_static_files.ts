@@ -11,6 +11,7 @@ import {Context} from "~/shared/context/context.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -68,14 +69,15 @@ export async function uploadAppStaticFilesBeforeDeploy(
 
     const currentTime = new Date();
 
-    const oldFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+    const oldFileByPath = new Map<string, AppStaticBucketManifestFile>();
 
     for (const file of oldManifest.files) {
-        assert(!oldFilesByPath.has(file.path));
-        oldFilesByPath.set(file.path, file);
+        assert(!oldFileByPath.has(file.path));
+        oldFileByPath.set(file.path, file);
     }
 
-    const uploadFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+    const uploadFileByPath = new Map<string, AppStaticBucketManifestFile>();
+    const uploadFileContentByPath = new Map<string, Buffer>();
 
     const traverse = async (relativePath: string, path: string) => {
         const childPathNames = await fs.readdir(path);
@@ -88,9 +90,18 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 if ((await fs.stat(childPath)).isDirectory()) {
                     await traverse(`${childRelativePath}/`, childPath);
                 } else {
-                    uploadFilesByPath.set(childRelativePath, {
+                    const content = await fs.readFile(childPath);
+                    const contentMd5 = crypto.createHash("md5").update(content).digest("base64");
+
+                    // Save the file's contents for later if the hash changed.
+                    const oldFile = oldFileByPath.get(childRelativePath);
+                    if (oldFile?.contentMd5 !== contentMd5) {
+                        uploadFileContentByPath.set(childRelativePath, content);
+                    }
+
+                    uploadFileByPath.set(childRelativePath, {
                         path: childRelativePath,
-                        contentMd5: await getFileMd5Hash(childPath),
+                        contentMd5,
                         uploadTime: currentTime,
                         // Files we upload before a deploy should expire. If the deploy succeeds we
                         // switch this to false. If the deploy fails then the static files will be kept
@@ -112,15 +123,15 @@ export async function uploadAppStaticFilesBeforeDeploy(
     const rootPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
     await traverse("", rootPath);
 
-    const newFilesByPath = new Map(oldFilesByPath);
+    const newFileByPath = new Map(oldFileByPath);
 
-    for (const newFile of uploadFilesByPath.values()) {
-        const oldFile = oldFilesByPath.get(newFile.path);
+    for (const newFile of uploadFileByPath.values()) {
+        const oldFile = oldFileByPath.get(newFile.path);
 
         if (!oldFile) {
-            newFilesByPath.set(newFile.path, newFile);
+            newFileByPath.set(newFile.path, newFile);
         } else {
-            newFilesByPath.set(oldFile.path, {
+            newFileByPath.set(oldFile.path, {
                 path: oldFile.path,
                 contentMd5: newFile.contentMd5,
                 uploadTime: maxDate([oldFile.uploadTime, newFile.uploadTime]),
@@ -129,7 +140,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
         }
     }
 
-    const newManifest: AppStaticBucketManifest = {files: Array.from(newFilesByPath.values())};
+    const newManifest: AppStaticBucketManifest = {files: Array.from(newFileByPath.values())};
 
     // We don't need to worry about multiple scripts trying to write to
     // `manifest.json` at the same time since only one `deploy()` function may be
@@ -142,10 +153,12 @@ export async function uploadAppStaticFilesBeforeDeploy(
     });
 
     await runAllPromises(
-        mapIterable(uploadFilesByPath.values(), async newFile => {
+        mapIterable(uploadFileByPath.values(), async newFile => {
             // If the file content didn't change then don't upload the file again.
-            const oldFile = oldFilesByPath.get(newFile.path);
+            const oldFile = oldFileByPath.get(newFile.path);
             if (oldFile?.contentMd5 === newFile.contentMd5) return;
+
+            const content = assertExists(uploadFileContentByPath.get(newFile.path));
 
             // Use the same logic to determine the `Content-Type` as the `serve-static`
             // module we use in development. Source code here:
@@ -167,25 +180,16 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 Key: `files/${newFile.path}`,
                 ContentMD5: newFile.contentMd5,
                 ContentType: contentType || "application/octet-stream",
-                Body: fs.createReadStream(joinPath(rootPath, newFile.path)),
+                ContentLength: content.byteLength,
+                Body: content,
             });
         }),
     );
 
     return {
         manifest: newManifest,
-        paths: new Set(uploadFilesByPath.keys()),
+        paths: new Set(uploadFileByPath.keys()),
     };
-}
-
-async function getFileMd5Hash(path: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const hash = crypto.createHash("md5");
-        const stream = fs.createReadStream(path);
-        stream.on("error", reject);
-        stream.on("data", chunk => hash.update(chunk));
-        stream.on("end", () => resolve(hash.digest("base64")));
-    });
 }
 
 export async function cleanupAppStaticFilesAfterDeploy(
