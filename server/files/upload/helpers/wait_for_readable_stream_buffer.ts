@@ -15,9 +15,11 @@ export function waitForReadableStreamBuffer(
     stream: ReadableStream,
     signal: AbortSignal,
 ): Promise<Buffer> {
+    const debugId = generateId();
+
     // TODO(calebmer, #files): Remove after debugging.
     // eslint-disable-next-line no-console
-    console.trace("waitForReadableStreamBuffer", debugIdByObject.getOrSetDefault(stream));
+    console.trace("waitForReadableStreamBuffer", debugIdByObject.getOrSetDefault(stream), debugId);
 
     return new Promise<Buffer>((resolve, reject) => {
         if (signal.aborted) {
@@ -42,6 +44,7 @@ export function waitForReadableStreamBuffer(
             console.log(
                 "waitForReadableStreamBuffer",
                 debugIdByObject.getOrSetDefault(stream),
+                debugId,
                 "data",
                 contentLength,
                 encodeBase64(data.subarray(0, 60)),
@@ -54,6 +57,7 @@ export function waitForReadableStreamBuffer(
             console.log(
                 "waitForReadableStreamBuffer",
                 debugIdByObject.getOrSetDefault(stream),
+                debugId,
                 "end",
                 contentLength,
             );
@@ -75,6 +79,7 @@ export function waitForReadableStreamBuffer(
             console.log(
                 "waitForReadableStreamBuffer",
                 debugIdByObject.getOrSetDefault(stream),
+                debugId,
                 "error",
                 contentLength,
             );
@@ -94,6 +99,7 @@ export function waitForReadableStreamBuffer(
             console.log(
                 "waitForReadableStreamBuffer",
                 debugIdByObject.getOrSetDefault(stream),
+                debugId,
                 "abort",
                 contentLength,
             );
