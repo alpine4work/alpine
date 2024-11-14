@@ -1,7 +1,7 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
-import {Readable as ReadableStream} from "stream";
+import {Readable as ReadableStream, Transform as TransformStream} from "stream";
 import {FileUploader, startUploadingAndProcessingFile} from "~/server/files/data/files_table.js";
 import {
     FileUploadServiceActionContext,
@@ -46,6 +46,7 @@ import {
 } from "~/shared/files/upload_file_event.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -365,41 +366,43 @@ async function uploadAndProcessFile(
     // up large file uploads (for files >100 MB). For now, the simplicity of doing
     // all processing in one shot within `FileUploadService` is nice.
     const uploadPromise = (async () => {
-        if (!import.meta.jest) {
-            stream.on("pause", () => {
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pause");
-            });
+        stream.on("pause", () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pause");
+        });
 
-            stream.on("resume", () => {
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "resume");
-            });
+        stream.on("resume", () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "resume");
+        });
 
-            stream.on("readable", () => {
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
-            });
+        // This breaks file uploads.
+        //
+        // stream.on("readable", () => {
+        //     // TODO(calebmer, #files): Remove after debugging.
+        //     // eslint-disable-next-line no-console
+        //     console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
+        // });
 
-            stream.on("end", () => {
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "end");
-            });
+        stream.on("end", () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "end");
+        });
 
-            stream.on("close", () => {
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "close");
-            });
-        }
+        stream.on("close", () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "close");
+        });
 
         // TODO(calebmer, #files): Consider transitioning objects to infrequent access
         // after 1-3 months?
         // https://developers.cloudflare.com/r2/buckets/object-lifecycles
+
+        let streamContentLength = 0;
 
         // NOTE: We don't `Promise.race()` `PutObject()` with
         // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
@@ -414,7 +417,25 @@ async function uploadAndProcessFile(
                 Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
                 ContentLength: contentLength,
-                Body: stream,
+                Body: stream.pipe(
+                    new TransformStream({
+                        transform: (chunk, encoding, callback) => {
+                            streamContentLength += chunk.length;
+
+                            // TODO(calebmer, #files): Remove after debugging.
+                            // eslint-disable-next-line no-console
+                            console.log(
+                                "uploadFile",
+                                debugIdByObject.getOrSetDefault(stream),
+                                "transform",
+                                streamContentLength,
+                                encodeBase64(chunk.subarray(0, 30)),
+                            );
+
+                            callback(null, chunk);
+                        },
+                    }),
+                ),
             },
             {signal},
         );
