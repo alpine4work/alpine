@@ -21,10 +21,16 @@ import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    pulseAnimationClassName,
+    spinAnimationClassName,
+} from "~/client/styles/styles.js";
 import {
     taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
@@ -51,12 +57,12 @@ import {
     TaskGridViewVirtualizedListEvents,
     TaskGridViewVirtualizedListViewRef,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list_types.js";
-import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -231,7 +237,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
 }) {
     return (
         <>
-            <TaskRowShimmer
+            <TaskGridViewRowShimmer
                 capabilities={capabilities}
                 rowMaxWidth={rowMaxWidth}
                 randomSeed="MoreUnloadedTasks"
@@ -240,7 +246,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
                 focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
             />
-            <TaskRowShimmer
+            <TaskGridViewRowShimmer
                 capabilities={capabilities}
                 rowMaxWidth={rowMaxWidth}
                 randomSeed="MoreUnloadedTasks"
@@ -249,7 +255,7 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 focusPreviousTaskTitleEnd={() => focusPreviousTaskTitleEnd("MoreUnloadedTasks")}
                 focusPreviousTaskTitleAll={() => focusPreviousTaskTitleAll("MoreUnloadedTasks")}
             />
-            <TaskRowShimmer
+            <TaskGridViewRowShimmer
                 capabilities={capabilities}
                 rowMaxWidth={rowMaxWidth}
                 randomSeed="MoreUnloadedTasks"
@@ -263,7 +269,13 @@ export const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreU
                 justifyContent="center"
                 color="grey-60"
                 paddingY="4"
-                pointerEvents="none"
+                cursor={!capabilities.isReadOnly ? "text" : undefined}
+                {...useOutOfBoundsClickSelection({
+                    isDisabled: capabilities.isReadOnly,
+                    accept: () => true,
+                    onSelect: () => focusPreviousTaskTitleEnd("MoreUnloadedTasks"),
+                    onSelectAll: () => focusPreviousTaskTitleAll("MoreUnloadedTasks"),
+                })}
             >
                 <SpinnerGap className={spinAnimationClassName} size={spacing["6"]} weight="light" />
             </Box>
@@ -294,7 +306,8 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
 
         return (
             <Box
-                paddingX={screenPaddingX}
+                paddingLeft={!capabilities.hasColumns ? screenPaddingX : undefined}
+                paddingRight={screenPaddingX}
                 maxWidth={rowMaxWidth ?? undefined}
                 marginX="center"
                 // Create an illusion that the text editor extends into the margins by giving
@@ -359,7 +372,7 @@ export const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloa
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
     return (
-        <TaskRowShimmer
+        <TaskGridViewRowShimmer
             capabilities={capabilities}
             rowMaxWidth={rowMaxWidth}
             randomSeed={parentGridKey}
@@ -378,6 +391,120 @@ export const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloa
         />
     );
 });
+
+const taskRowShimmerWidths: Array<Spacing> = [
+    // 2x frequency
+    "32",
+    "32",
+    // 3x frequency
+    "48",
+    "48",
+    "48",
+    // 4x frequency
+    "64",
+    "64",
+    "64",
+    "64",
+    // 6x frequency
+    "96",
+    "96",
+    "96",
+    "96",
+    "96",
+    "96",
+    // 2x frequency
+    "128",
+    "128",
+    // 1x frequency
+    "160",
+];
+
+const taskRowShimmerRagRights: Array<Spacing> = [
+    // 6x frequency
+    "0",
+    "0",
+    "0",
+    "0",
+    "0",
+    "0",
+    // 4x frequency
+    "2",
+    "2",
+    "2",
+    "2",
+    // 2x frequency
+    "4",
+    "4",
+    // 1x frequency
+    "6",
+    // 1x frequency
+    "10",
+];
+
+function TaskGridViewRowShimmer({
+    capabilities,
+    rowMaxWidth,
+    randomSeed,
+    index,
+    indentation,
+    focusPreviousTaskTitleEnd,
+    focusPreviousTaskTitleAll,
+}: {
+    capabilities: TaskGridViewCapabilities;
+    rowMaxWidth: Spacing | null;
+    randomSeed: string;
+    index: number;
+    indentation: number;
+    focusPreviousTaskTitleEnd: () => void;
+    focusPreviousTaskTitleAll: () => void;
+}) {
+    const shimmerRef = useRef<HTMLDivElement>(null);
+    const stableRandom = new StableRandom(`TaskRowShimmer:${randomSeed}`);
+
+    const width =
+        taskRowShimmerWidths[
+            stableRandom.randomInteger("size", index, 0, taskRowShimmerWidths.length)
+        ]!;
+
+    const ragRight =
+        taskRowShimmerRagRights[
+            stableRandom.randomInteger("ragRight", index, 0, taskRowShimmerRagRights.length)
+        ]!;
+
+    // Set shimmer start times to the same value. That way shimmers rendered at
+    // different times (because they entered the virtualization window) will have
+    // the same animation timeline.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const shimmerElement = assertExists(shimmerRef.current);
+        for (const element of shimmerElement.getElementsByClassName(pulseAnimationClassName)) {
+            for (const animation of element.getAnimations()) {
+                animation.startTime = 0;
+            }
+        }
+    }, []);
+
+    return (
+        <Box
+            ref={shimmerRef}
+            maxWidth={rowMaxWidth ?? undefined}
+            marginX="center"
+            cursor={!capabilities.isReadOnly ? "text" : undefined}
+            {...useOutOfBoundsClickSelection({
+                isDisabled: capabilities.isReadOnly,
+                accept: () => true,
+                onSelect: focusPreviousTaskTitleEnd,
+                onSelectAll: focusPreviousTaskTitleAll,
+            })}
+        >
+            <TaskRowShimmer
+                hasColumns={capabilities.hasColumns}
+                width={width}
+                ragRight={ragRight}
+                indentation={indentation}
+            />
+        </Box>
+    );
+}
 
 export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     context,

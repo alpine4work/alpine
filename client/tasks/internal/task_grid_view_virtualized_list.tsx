@@ -2010,7 +2010,9 @@ export function useTaskGridViewVirtualizedList({
                                         }
                                         // If there are no task rows, the padding just makes our ghost row placeholder
                                         // look misaligned. So remove it.
-                                        withoutPaddingLeft={stateItemCount === 0}
+                                        withoutPaddingLeft={
+                                            !capabilities.hasColumns && stateItemCount === 0
+                                        }
                                         withPaddingBottom={itemIndex === itemCount - 1}
                                         mobileKeyboardToolbarPortalRef={
                                             mobileKeyboardToolbarPortalRef
@@ -2104,7 +2106,9 @@ export function useTaskGridViewVirtualizedList({
                                         }
                                         // If there are no task rows, the padding just makes our ghost row placeholder
                                         // look misaligned. So remove it.
-                                        withoutPaddingLeft={stateItemCount === 0}
+                                        withoutPaddingLeft={
+                                            !capabilities.hasColumns && stateItemCount === 0
+                                        }
                                         withPaddingBottom={itemIndex === itemCount - 1}
                                         mobileKeyboardToolbarPortalRef={
                                             mobileKeyboardToolbarPortalRef
