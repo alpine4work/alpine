@@ -1172,7 +1172,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 draggingFileRef,
             }),
-            table: (node, view) => new TableView(node, 100),
+            table: (node, view) => new TableView(node, 100, view),
             // table: (node, view) =>  createTableNodeView(node, 5, view),
         };
 

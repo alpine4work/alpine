@@ -4,7 +4,7 @@ import {Node} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {
     CellSelection,
-    addColumnAfter,
+    addColumnAfter as addColumnAfterFromProsemirrorTables,
     addColumnBefore,
     addRowAfter,
     addRowBefore,
@@ -104,8 +104,8 @@ export const table = {
             return addColumnBefore(state, dispatch);
         },
         addColumnAfter: (): Command => (state, dispatch) => {
-            console.log("addColumnAfter", state);
-            return addColumnAfter(state, dispatch);
+            console.log("Executing addColumnAfter command", state, dispatch);
+            return addColumnAfterFromProsemirrorTables(state, dispatch);
         },
         deleteColumn: (): Command => (state, dispatch) => {
             return deleteColumn(state, dispatch);
@@ -193,6 +193,7 @@ export const table = {
                 return true;
             },
     },
+    copyable: true,
 };
 
 export const table_row = {
@@ -205,6 +206,7 @@ export const table_row = {
     toDOM() {
         return ["tr", 0] as const;
     },
+    copyable: true,
 };
 
 export const table_cell = {
@@ -213,6 +215,7 @@ export const table_cell = {
     content: "block+",
     tableRole: "cell",
     selectable: true,
+    copyable: true,
     draggable: true,
 
     attrs: {
@@ -247,6 +250,7 @@ export const table_cell = {
 export const table_header = {
     name: "table_header",
     content: "block+",
+    selectable: true,
     // attrs: cellAttrs,
     attrs: {
         // Add these attributes
@@ -260,4 +264,5 @@ export const table_header = {
     toDOM() {
         return ["th", 0] as const;
     },
+    copyable: true,
 };

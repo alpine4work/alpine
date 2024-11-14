@@ -2097,3 +2097,34 @@ globalStyle(`${tableClassName} .table-controls button`, {
 globalStyle(`${tableClassName} .table-controls button:hover`, {
     background: colorSchemeVars["grey-10"],
 });
+
+// Add after the table styles
+globalStyle(`${tableClassName} .column-button`, {
+    position: "absolute",
+    width: spacing[2], // 8px
+    height: spacing[2], // 8px
+    padding: 0,
+    background: colorSchemeVars["grey-20"],
+    border: `1px solid ${colorSchemeVars["grey-30"]}`,
+    borderRadius: "50%",
+    cursor: "pointer",
+    left: "-4px", // Half the width to center it on the column border
+    top: "-12px",
+    zIndex: 1000,
+    opacity: 0.7,
+    transition: "opacity 0.2s ease",
+});
+
+globalStyle(`${tableClassName} .column-button:hover`, {
+    opacity: 1,
+    background: colorSchemeVars["grey-30"],
+});
+
+globalStyle(`${tableClassName} .column-buttons-container`, {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 0,
+    zIndex: 999,
+});

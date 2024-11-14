@@ -203,5 +203,5 @@ export function insertContentTable(view: EditorView) {
     // Apply initial table commands after insertion
     const commands = schema.nodes.table?.spec.commands;
     commands?.fixTables?.(view.state, view.dispatch);
-    commands?.setAlignment?.({alignment: "center"})(view.state, view.dispatch);
+    commands?.setAlignment?.({alignment: "left"})(view.state, view.dispatch);
 }
