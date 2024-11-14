@@ -13,6 +13,7 @@ import {
 } from "aws-cdk-lib/aws-ecs";
 import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
+import {Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -276,6 +277,14 @@ export class AwsFileUploadService extends Construct {
             loadBalancerName: "cyberworlds-files",
             internetFacing: true,
         });
+
+        // TODO(calebmer, #files): Maintain access logs for our load balancer while
+        // we're debugging `FileUploadService` issues.
+        loadBalancer.logAccessLogs(
+            new Bucket(this, "LoadBalancerAccessLogsBucket", {
+                encryption: BucketEncryption.S3_MANAGED,
+            }),
+        );
 
         // Make sure the load balancer can make requests against our service.
         autoScalingGroup.connections.allowFrom(loadBalancer, Port.tcp(4000));
