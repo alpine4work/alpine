@@ -22,6 +22,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -148,7 +149,9 @@ export function ChannelView({
                     channelId,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
                         getClientInfo(),
-                        postContentViewMinHeightWithClosedCommentSection,
+                        postContentViewMinHeightWithClosedCommentSection[
+                            getSpacingScaleWithoutListening()
+                        ],
                     ),
                     beforeCursor: null,
                 });

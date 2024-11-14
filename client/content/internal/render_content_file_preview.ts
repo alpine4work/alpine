@@ -54,7 +54,7 @@ import {
     codeBlockWrapperClassName,
     fileClassName,
 } from "~/shared/content/content_styles.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
@@ -822,7 +822,8 @@ function renderContentFileCodePreview(
     );
 
     const initialScale =
-        fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+        fontSizesBySpacingScale["75"].medium.fontSize /
+        fontSizesBySpacingScale["100"].medium.fontSize;
     const scale = Math.min(1, layout.width / fullWidth) * initialScale;
 
     const containerHtml = new HtmlElementGenerator("div");

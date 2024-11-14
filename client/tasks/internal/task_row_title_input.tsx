@@ -41,7 +41,10 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/client/styles/styles.js";
-import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
+import {
+    taskRowTitleInputPaddingY,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
@@ -59,6 +62,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -71,12 +75,6 @@ import {
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 const taskRowTitleInputSingleLineHeightRem = parseRemLength(taskRowTitleInputSingleLineHeight);
-
-export const taskRowTitleInputPaddingY: RemLength = `${
-    (parseRemLength(taskRowViewMinHeight) -
-        parseRemLength(contentStyles.paragraphFontSize.lineHeight)) /
-    2
-}rem`;
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
@@ -103,23 +101,26 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     userSelect: "text",
 })}`;
 
-const taskRowTitleInputSingleLineStyle: CSSProperties = {
-    ...contentStyles.paragraphFontSize,
-    paddingTop: taskRowTitleInputPaddingY,
-    paddingBottom: taskRowTitleInputPaddingY,
-    // Make sure we have room to render the cursor.
-    minWidth: "1ch",
-    // Turn off text wrapping. This component emulates a single-line input.
-    // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
-    whiteSpace: "pre",
-    // `display: inline-block` creates an inline layout which adds extra space
-    // below the element. Adding `vertical-align` stops the space from being added.
-    // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
-    verticalAlign: "top",
-    // Render contextual alternate glyphs. User text may be rendered here. Helpful
-    // for consistency if the user types anything like 2x2 or an @ mention.
-    fontFeatureSettings: '"calt" on',
-};
+const taskRowTitleInputSingleLineStyle = mapObjectValues(
+    contentStyles.paragraphFontSize,
+    (paragraphFontSize, spacingScale): CSSProperties => ({
+        ...paragraphFontSize,
+        paddingTop: taskRowTitleInputPaddingY[spacingScale],
+        paddingBottom: taskRowTitleInputPaddingY[spacingScale],
+        // Make sure we have room to render the cursor.
+        minWidth: "1ch",
+        // Turn off text wrapping. This component emulates a single-line input.
+        // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
+        whiteSpace: "pre",
+        // `display: inline-block` creates an inline layout which adds extra space
+        // below the element. Adding `vertical-align` stops the space from being added.
+        // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+        verticalAlign: "top",
+        // Render contextual alternate glyphs. User text may be rendered here. Helpful
+        // for consistency if the user types anything like 2x2 or an @ mention.
+        fontFeatureSettings: '"calt" on',
+    }),
+);
 
 const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
     // Use an `inline-block` display so the `<div>` width is equal to our content width.
@@ -130,20 +131,23 @@ const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
     userSelect: "text",
 })}`;
 
-const taskRowTitleInputMultilineStyle: CSSProperties = {
-    ...contentStyles.paragraphFontSize,
-    paddingTop: taskRowTitleInputPaddingY,
-    paddingBottom: taskRowTitleInputPaddingY,
-    // Make sure we have room to render the cursor.
-    minWidth: "1ch",
-    // `display: inline-block` creates an inline layout which adds extra space
-    // below the element. Adding `vertical-align` stops the space from being added.
-    // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
-    verticalAlign: "top",
-    // Render contextual alternate glyphs. User text may be rendered here. Helpful
-    // for consistency if the user types anything like 2x2 or an @ mention.
-    fontFeatureSettings: '"calt" on',
-};
+const taskRowTitleInputMultilineStyle = mapObjectValues(
+    contentStyles.paragraphFontSize,
+    (paragraphFontSize, spacingScale): CSSProperties => ({
+        ...paragraphFontSize,
+        paddingTop: taskRowTitleInputPaddingY[spacingScale],
+        paddingBottom: taskRowTitleInputPaddingY[spacingScale],
+        // Make sure we have room to render the cursor.
+        minWidth: "1ch",
+        // `display: inline-block` creates an inline layout which adds extra space
+        // below the element. Adding `vertical-align` stops the space from being added.
+        // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+        verticalAlign: "top",
+        // Render contextual alternate glyphs. User text may be rendered here. Helpful
+        // for consistency if the user types anything like 2x2 or an @ mention.
+        fontFeatureSettings: '"calt" on',
+    }),
+);
 
 const rootClassName = sprinkles({
     display: "flex",
@@ -666,8 +670,8 @@ function TaskRowTitleInput(
             Object.assign(
                 viewElement.style,
                 capabilities.hasMultilineTitle
-                    ? taskRowTitleInputMultilineStyle
-                    : taskRowTitleInputSingleLineStyle,
+                    ? taskRowTitleInputMultilineStyle[spacingScale]
+                    : taskRowTitleInputSingleLineStyle[spacingScale],
             );
 
             // Don't render a scrollbar with our row title input.
@@ -1095,6 +1099,7 @@ function TaskRowTitleInput(
             isInitialAppRender,
             titleYDoc,
             hasMultilineTitleAndShouldShowMarginRightContent,
+            spacingScale,
         ],
     );
 
@@ -1385,8 +1390,8 @@ function TaskRowTitleInput(
                         }
                         style={
                             capabilities.hasMultilineTitle
-                                ? taskRowTitleInputMultilineStyle
-                                : taskRowTitleInputSingleLineStyle
+                                ? taskRowTitleInputMultilineStyle[spacingScale]
+                                : taskRowTitleInputSingleLineStyle[spacingScale]
                         }
                         data-scrollbar="false"
                         aria-label={taskRowTitleInputAriaLabel}
@@ -1418,8 +1423,8 @@ function TaskRowTitleInput(
                     )}
                     style={{
                         ...(capabilities.hasMultilineTitle
-                            ? taskRowTitleInputMultilineStyle
-                            : taskRowTitleInputSingleLineStyle),
+                            ? taskRowTitleInputMultilineStyle[spacingScale]
+                            : taskRowTitleInputSingleLineStyle[spacingScale]),
                         ...inputPlaceholderStyles,
                     }}
                 >

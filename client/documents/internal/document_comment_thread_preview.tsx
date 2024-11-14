@@ -12,7 +12,7 @@ import {
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
@@ -28,7 +28,7 @@ import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 const documentCommentThreadPreviewScale =
-    fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+    fontSizesBySpacingScale["75"].medium.fontSize / fontSizesBySpacingScale["100"].medium.fontSize;
 
 export function DocumentCommentThreadPreview({
     commentThread,

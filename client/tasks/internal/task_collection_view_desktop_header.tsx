@@ -7,7 +7,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {ShareButton} from "~/client/design/share_button.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
@@ -23,7 +23,7 @@ import {
     taskQueryViewCustomizationBarDesktopMarginY,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -78,7 +78,7 @@ function TaskCollectionViewDesktopHeader(
     },
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
-    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
@@ -98,7 +98,7 @@ function TaskCollectionViewDesktopHeader(
     // centered `fontSize="75"` customization bar (filters and sort). Calculate
     // the offset for center aligned `fontSize="200"` using font metrics.
     const nameBaselineAlignmentMarginTop = useMemo(() => {
-        const fontSize75 = fontSizesByPlatform["75"][platform];
+        const fontSize75 = fontSizesBySpacingScale["75"][spacingScale];
 
         const fontSize75Descender =
             fontSize75.fontSize *
@@ -107,7 +107,7 @@ function TaskCollectionViewDesktopHeader(
 
         const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
 
-        const fontSize200 = fontSizesByPlatform["200"][platform];
+        const fontSize200 = fontSizesBySpacingScale["200"][spacingScale];
 
         const fontSize200Descender =
             fontSize200.fontSize *
@@ -117,7 +117,7 @@ function TaskCollectionViewDesktopHeader(
         const fontSize200BottomHalfHeight = fontSize200Descender + fontSize200.fontSize / 2;
 
         return -fontSize200BottomHalfHeight + fontSize75BottomHalfHeight;
-    }, [platform]);
+    }, [spacingScale]);
 
     return (
         <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>

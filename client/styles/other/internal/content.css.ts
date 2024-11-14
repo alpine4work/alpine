@@ -13,6 +13,7 @@ import {
     fontSizes,
     fontStyles,
     inputPlaceholderStyles,
+    largeSpacingScaleSelector,
     lightColorSchemeSelector,
     mobilePlatformSelector,
 } from "~/client/styles/core/styles_core.js";
@@ -70,6 +71,7 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
@@ -202,16 +204,27 @@ const blockStyles = {
     clear: "both",
 } as const;
 
-export const paragraphFontSize: {
-    fontSize: string;
-    letterSpacing: string;
-    lineHeight: RemLength;
-} = {
-    ...fontSizes["100"],
-    lineHeight: "1.375rem",
-};
+export const paragraphFontSize = {
+    medium: {
+        ...fontSizes["100"],
+        lineHeight: "1.375rem",
+    },
+    large: {
+        ...fontSizes["100"],
+        lineHeight: "1.35rem",
+    },
+} as const satisfies Record<
+    SpacingScale,
+    {
+        fontSize: string;
+        letterSpacing: string;
+        lineHeight: RemLength;
+    }
+>;
 
-export const paragraphLineHeightRem = parseRemLength(paragraphFontSize.lineHeight);
+export const paragraphLineHeightRem = mapObjectValues(paragraphFontSize, paragraphFontSize =>
+    parseRemLength(paragraphFontSize.lineHeight),
+);
 
 export const extraCompactParagraphFontSize: {
     fontSize: string;
@@ -227,14 +240,21 @@ export const extraCompactParagraphFontSize: {
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
     ...fontStyles.normal,
-    ...paragraphFontSize,
+    ...paragraphFontSize.medium,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: paragraphFontSize.lineHeight,
+    minHeight: paragraphFontSize.medium.lineHeight,
     marginTop: paragraphMarginVar,
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${paragraphClassName}`, {
+    ...paragraphFontSize.large,
+    // Make sure this node always takes up space even if it is empty. Important
+    // when we are rendering placeholders in `<ContentView>`.
+    minHeight: paragraphFontSize.large.lineHeight,
 });
 
 globalStyle(`${extraCompactDocClassName} ${paragraphClassName}`, {
@@ -437,10 +457,15 @@ globalStyle(listItemClassName, {
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
 
-export const unorderedListItemBulletTop: RemLength = `${
-    parseRemLength(subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize)) /
-    2
-}rem`;
+export const unorderedListItemBulletTop = mapObjectValues(
+    paragraphFontSize,
+    paragraphFontSize =>
+        `${
+            parseRemLength(
+                subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize),
+            ) / 2
+        }rem`,
+);
 
 const extraCompactUnorderedListItemBulletTop: RemLength = `${
     parseRemLength(
@@ -460,8 +485,12 @@ globalStyle(`${unorderedListItemClassName}::before`, {
     pointerEvents: "none",
     width: unorderedListItemBulletSize,
     height: unorderedListItemBulletSize,
-    top: unorderedListItemBulletTop,
+    top: unorderedListItemBulletTop.medium,
     left: unorderedListItemBulletLeft,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${unorderedListItemClassName}::before`, {
+    top: unorderedListItemBulletTop.large,
 });
 
 globalStyle(`${extraCompactDocClassName} ${unorderedListItemClassName}::before`, {
@@ -476,8 +505,12 @@ globalStyle(`${orderedListItemClassName}::before`, {
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
     textAlign: "right",
     transform: "translateX(-100%)",
-    ...paragraphFontSize,
+    ...paragraphFontSize.medium,
     fontVariantNumeric: "tabular-nums",
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${orderedListItemClassName}::before`, {
+    ...paragraphFontSize.large,
 });
 
 globalStyle(`${extraCompactDocClassName} ${orderedListItemClassName}::before`, {
@@ -499,7 +532,7 @@ export const checkListItemContentClassName = style({});
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
     top: `${
-        (parseRemLength(paragraphFontSize.lineHeight) -
+        (parseRemLength(paragraphFontSize.medium.lineHeight) -
             parseRemLength(checkListItemCheckboxDesktopSize)) /
         2
     }rem`,
@@ -515,7 +548,7 @@ export const checkListItemCheckboxContainerClassName = style({
     selectors: {
         [`${mobilePlatformSelector} &`]: {
             top: `${
-                (parseRemLength(paragraphFontSize.lineHeight) -
+                (parseRemLength(paragraphFontSize.medium.lineHeight) -
                     parseRemLength(checkListItemCheckboxMobileSize)) /
                 2
             }rem`,
@@ -523,6 +556,20 @@ export const checkListItemCheckboxContainerClassName = style({
                 parseRemLength(listItemIndentation) / 2 -
                 (parseRemLength(checkListItemCheckboxMobileSize) + parseRemLength("1") * 2) / 2
             }rem + ${listItemOffsetVar})`,
+        },
+        [`${largeSpacingScaleSelector} &`]: {
+            top: `${
+                (parseRemLength(paragraphFontSize.large.lineHeight) -
+                    parseRemLength(checkListItemCheckboxDesktopSize)) /
+                2
+            }rem`,
+        },
+        [`${mobilePlatformSelector}${largeSpacingScaleSelector} &`]: {
+            top: `${
+                (parseRemLength(paragraphFontSize.large.lineHeight) -
+                    parseRemLength(checkListItemCheckboxMobileSize)) /
+                2
+            }rem`,
         },
         [`${desktopPlatformSelector} ${extraCompactDocClassName} &`]: {
             top: `${
@@ -630,9 +677,13 @@ globalStyle(codeBlockWrapperClassName, {
     marginTop: standaloneBlockMarginVar,
     marginBottom: standaloneBlockMarginVar,
     counterReset: "code-block-line-number",
-    ...paragraphFontSize,
+    ...paragraphFontSize.medium,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${codeBlockWrapperClassName}`, {
+    ...paragraphFontSize.large,
 });
 
 // If the code block toolbar is a little taller than a line of code (it is)
@@ -641,10 +692,16 @@ globalStyle(codeBlockWrapperClassName, {
 // with `position: absolute; top: 0`. We can't position the toolbar with a
 // negative `top` since then it would be clipped because `overflowY` is hidden
 // (since `overflowX` is scrollable).
-const codeBlockPaddingY = `${Math.max(
-    0,
-    (parseRemLength(codeBlockToolbarHeight) - parseRemLength(paragraphFontSize.lineHeight)) / 2,
-)}rem`;
+const codeBlockPaddingY = mapObjectValues(
+    paragraphFontSize,
+    paragraphFontSize =>
+        `${Math.max(
+            0,
+            (parseRemLength(codeBlockToolbarHeight) -
+                parseRemLength(paragraphFontSize.lineHeight)) /
+                2,
+        )}rem`,
+);
 
 const extraCompactCodeBlockPaddingY = `${Math.max(
     0,
@@ -660,11 +717,17 @@ globalStyle(codeBlockClassName, {
     // scrollbar renders on top of it.
     zIndex: "-10",
     width: "fit-content",
-    ...paragraphFontSize,
+    ...paragraphFontSize.medium,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
-    paddingTop: codeBlockPaddingY,
-    paddingBottom: codeBlockPaddingY,
+    paddingTop: codeBlockPaddingY.medium,
+    paddingBottom: codeBlockPaddingY.medium,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${codeBlockClassName}`, {
+    ...paragraphFontSize.large,
+    paddingTop: codeBlockPaddingY.large,
+    paddingBottom: codeBlockPaddingY.large,
 });
 
 // The reason use a triple selector is to beat the CSS set by ProseMirror since
@@ -777,8 +840,12 @@ globalStyle(`${codeBlockLineClassName}::after`, {
     // Render in margins to make sure there are no rendering artifacts.
     right: `-${codeBlockPaddingRight}`,
     width: `${parseRemLength(codeBlockPaddingRight) * 2}rem`,
-    height: paragraphFontSize.lineHeight,
+    height: paragraphFontSize.medium.lineHeight,
     background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${codeBlockLineClassName}::after`, {
+    height: paragraphFontSize.large.lineHeight,
 });
 
 // Turn off sticky right edge gradient on file previews and file views. Since
@@ -977,13 +1044,21 @@ export const fileFloatRightMarginXRem = parseRemLength(fileFloatRightMarginX);
 const fileFloatMarginY = spacing["1"];
 export const fileFloatMarginYRem = parseRemLength(fileFloatMarginY);
 
-export const fileFloatMinHeightParagraphLineCount = Math.ceil(
-    fileMinSizeRem / paragraphLineHeightRem,
+export const fileFloatMinHeightParagraphLineCount = mapObjectValues(
+    paragraphLineHeightRem,
+    paragraphLineHeightRem => Math.ceil(fileMinSizeRem / paragraphLineHeightRem),
 );
-export const fileFloatMinHeightRem = fileFloatMinHeightParagraphLineCount * paragraphLineHeightRem;
+export const fileFloatMinHeightRem = mapObjectValues(
+    fileFloatMinHeightParagraphLineCount,
+    (fileFloatMinHeightParagraphLineCount, spacingScale) =>
+        fileFloatMinHeightParagraphLineCount * paragraphLineHeightRem[spacingScale],
+);
 
 export const fileFloatMaxHeightParagraphLineCount = 16;
-export const fileFloatMaxHeightRem = fileFloatMaxHeightParagraphLineCount * paragraphLineHeightRem;
+export const fileFloatMaxHeightRem = mapObjectValues(
+    paragraphLineHeightRem,
+    paragraphLineHeightRem => fileFloatMaxHeightParagraphLineCount * paragraphLineHeightRem,
+);
 
 globalStyle(fileFloatClassName, {
     clear: "both",

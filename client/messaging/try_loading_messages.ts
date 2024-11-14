@@ -64,7 +64,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
     const spacingScale = getSpacingScaleWithoutListening();
     const virtualizationWindowHeightPx = getVirtualizationWindowHeight(viewHeight);
     const messageViewMinHeightPx = convertRemLengthToPx(
-        messageViewMinHeight[getPlatformWithoutListening()],
+        messageViewMinHeight[spacingScale][getPlatformWithoutListening()],
         spacingScale,
     );
 

@@ -39,6 +39,7 @@ import {
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
@@ -85,6 +86,7 @@ export function SearchModal({
 }) {
     const context = useAppContext();
     const reporter = useReporter();
+    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
     const navigate = useNavigate();
 
@@ -377,7 +379,7 @@ export function SearchModal({
                                         <Box
                                             color="grey-50"
                                             padding={searchResultViewPaddingY}
-                                            style={contentStyles.paragraphFontSize}
+                                            style={contentStyles.paragraphFontSize[spacingScale]}
                                         >
                                             {queryText.trim().length === 0 ? (
                                                 <>
@@ -420,6 +422,7 @@ export function SearchModal({
                                 output,
                                 queryText,
                                 selectedPeek,
+                                spacingScale,
                                 switchPeek,
                             ],
                         )}

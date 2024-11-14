@@ -93,6 +93,7 @@ const postContentViewHeaderHeightRem = parseRemLength(postContentViewHeaderHeigh
 const postContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputDesktopWide =
     postContentViewOuterMarginYRem;
 
+// NOCOMMIT:
 // TODO(calebmer, #larger-size-on-desktop): Switch this to large: I think this
 // should be 0 and removed entirely. Also the `useNavigationBar()` option that
 // comes with it. (Do this in separate commit).
@@ -118,36 +119,53 @@ export const postViewNavigationBarSpaceRem = mapObjectValues(
     postViewMarginTopRem => postViewMarginTopRem + postContentViewHeaderHeightRem,
 );
 
-const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
-    postContentViewInnerMarginY,
-    contentStyles.paragraphFontSize.lineHeight,
-    postContentViewInnerMarginY,
-    postContentViewFooterHeight,
+const postContentViewMinHeightWithoutHeaderBase = mapObjectValues(
+    contentStyles.paragraphFontSize,
+    paragraphFontSize =>
+        addRemLengths(
+            postContentViewInnerMarginY,
+            paragraphFontSize.lineHeight,
+            postContentViewInnerMarginY,
+            postContentViewFooterHeight,
+        ),
 );
 
-const postContentViewMinHeightBase = addRemLengths(
-    postContentViewOuterMarginY,
-    postContentViewHeaderHeight,
+const postContentViewMinHeightBase = mapObjectValues(
     postContentViewMinHeightWithoutHeaderBase,
+    postContentViewMinHeightWithoutHeaderBase =>
+        addRemLengths(
+            postContentViewOuterMarginY,
+            postContentViewHeaderHeight,
+            postContentViewMinHeightWithoutHeaderBase,
+        ),
 );
 
-export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
+export const postContentViewMinHeightWithOpenCommentSection = mapObjectValues(
     postContentViewMinHeightBase,
-    postContentViewOuterOpenCommentSectionMarginBottom,
+    postContentViewMinHeightBase =>
+        addRemLengths(
+            postContentViewMinHeightBase,
+            postContentViewOuterOpenCommentSectionMarginBottom,
+        ),
 );
 
-export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
+export const postContentViewMinHeightWithClosedCommentSection = mapObjectValues(
     postContentViewMinHeightBase,
-    postContentViewOuterMarginBottom,
+    postContentViewMinHeightBase =>
+        addRemLengths(postContentViewMinHeightBase, postContentViewOuterMarginBottom),
 );
 
 export const postViewMinHeight = mapObjectValues(
     postViewNavigationBarSpaceRem,
     postViewNavigationBarSpaceRem =>
-        addRemLengths(
-            `${postViewNavigationBarSpaceRem}rem`,
+        mapObjectValues(
             postContentViewMinHeightWithoutHeaderBase,
-            postContentViewOuterMarginBottom,
+            postContentViewMinHeightWithoutHeaderBase =>
+                addRemLengths(
+                    `${postViewNavigationBarSpaceRem}rem`,
+                    postContentViewMinHeightWithoutHeaderBase,
+                    postContentViewOuterMarginBottom,
+                ),
         ),
 );
 

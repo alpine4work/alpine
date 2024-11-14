@@ -1,4 +1,4 @@
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -10,19 +10,19 @@ test("letter spacing matches Inter tracking formula", () => {
 
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
                 fontSizeName,
                 {
-                    desktop: `${Math.round(getTracking(desktop.fontSize) * 1e4) / 1e4}em`,
-                    mobile: `${Math.round(getTracking(mobile.fontSize) * 1e4) / 1e4}em`,
+                    medium: `${Math.round(getTracking(medium.fontSize) * 1e4) / 1e4}em`,
+                    large: `${Math.round(getTracking(large.fontSize) * 1e4) / 1e4}em`,
                 },
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
                 fontSizeName,
-                {desktop: desktop.letterSpacing, mobile: mobile.letterSpacing},
+                {medium: medium.letterSpacing, large: large.letterSpacing},
             ]),
         ),
     );
@@ -31,16 +31,16 @@ test("letter spacing matches Inter tracking formula", () => {
 test("line height is the same across platforms", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium}]) => [
                 fontSizeName,
-                desktop.lineHeight,
+                medium.lineHeight,
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {large}]) => [
                 fontSizeName,
-                mobile.lineHeight,
+                large.lineHeight,
             ]),
         ),
     );
@@ -49,19 +49,19 @@ test("line height is the same across platforms", () => {
 test("line heights are a multiple of 8", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
                 fontSizeName,
                 {
-                    desktop: `${Math.round(parseRemLength(desktop.lineHeight) * 8) / 8}rem`,
-                    mobile: `${Math.round(parseRemLength(mobile.lineHeight) * 8) / 8}rem`,
+                    medium: `${Math.round(parseRemLength(medium.lineHeight) * 8) / 8}rem`,
+                    large: `${Math.round(parseRemLength(large.lineHeight) * 8) / 8}rem`,
                 },
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
                 fontSizeName,
-                {desktop: desktop.lineHeight, mobile: mobile.lineHeight},
+                {medium: medium.lineHeight, large: large.lineHeight},
             ]),
         ),
     );
@@ -77,43 +77,43 @@ test("line heights are determined algorithmically from font sizes", () => {
 
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
                 fontSizeName,
                 {
-                    desktop: Math.round(
-                        (getLineHeight(desktop.fontSize, mobile.fontSize) *
+                    medium: Math.round(
+                        (getLineHeight(medium.fontSize, large.fontSize) *
                             remPxBySpacingScale.medium) /
-                            (parseRemLength(desktop.lineHeight) * remPxBySpacingScale.medium),
+                            (parseRemLength(medium.lineHeight) * remPxBySpacingScale.medium),
                     ),
-                    mobile: Math.round(
-                        (getLineHeight(desktop.fontSize, mobile.fontSize) *
+                    large: Math.round(
+                        (getLineHeight(medium.fontSize, large.fontSize) *
                             remPxBySpacingScale.large) /
-                            (parseRemLength(mobile.lineHeight) * remPxBySpacingScale.large),
+                            (parseRemLength(large.lineHeight) * remPxBySpacingScale.large),
                     ),
                 },
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName]) => [
                 fontSizeName,
-                {desktop: 1, mobile: 1},
+                {medium: 1, large: 1},
             ]),
         ),
     );
 });
 
-test("mobile font sizes are approximately 1.25x desktop font sizes", () => {
+test("large font sizes are approximately 1.25x medium font sizes", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName, {desktop, mobile}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
                 fontSizeName,
-                Math.round((mobile.fontSize / desktop.fontSize) * 4) / 4,
+                Math.round((large.fontSize / medium.fontSize) * 4) / 4,
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesByPlatform).map(([fontSizeName]) => [fontSizeName, 1.25]),
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName]) => [fontSizeName, 1.25]),
         ),
     );
 });

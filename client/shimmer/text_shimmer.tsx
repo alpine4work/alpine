@@ -1,12 +1,12 @@
 import {Box} from "~/client/design/box.js";
 import {Sprinkles, fontSizes, pulseAnimationClassName} from "~/client/styles/styles.js";
-import {FontSize, fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 const textShimmerFontSizePercentage =
     (parseRemLength("3") * remPxBySpacingScale.medium) /
-    fontSizesByPlatform["100"].desktop.fontSize;
+    fontSizesBySpacingScale["100"].medium.fontSize;
 
 export function TextShimmer({
     width,

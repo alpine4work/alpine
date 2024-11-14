@@ -19,7 +19,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -84,8 +84,8 @@ export function ChannelViewFilePreview({
                     // font size of 25.
                     screenWidth:
                         size *
-                            (fontSizesByPlatform["75"].desktop.fontSize /
-                                fontSizesByPlatform["25"].desktop.fontSize) +
+                            (fontSizesBySpacingScale["75"].medium.fontSize /
+                                fontSizesBySpacingScale["25"].medium.fontSize) +
                         screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
                     platform,
                     spacingScale,

@@ -18,7 +18,10 @@ import {
     getPlatformWithoutListening,
     usePlatform,
 } from "~/client/remix/platform_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {
+    getInitialAppRenderSpacingScale,
+    getSpacingScaleWithoutListening,
+} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -90,17 +93,19 @@ export async function loader({params, request, context: unauthenticatedContext}:
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
+    const clientInfo = context.loader.getClientInfo();
+
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
         await runAllPromises([
             getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
                 spaceId,
                 documentId,
                 bucketGeneration,
-                commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                commentLimit: getInitialLoadMessageCount(clientInfo),
                 commentThreadCountAgainstLimit:
                     documentCommentThreadCountAgainstLimit[
-                        getInitialAppRenderPlatform(context.loader.getClientInfo())
-                    ],
+                        getInitialAppRenderSpacingScale(clientInfo)
+                    ][getInitialAppRenderPlatform(clientInfo)],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
@@ -239,13 +244,15 @@ function DocumentNewCommentThreadsRouteInner() {
         const spacingScale = getSpacingScaleWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
         const messageViewMinHeightPx = convertRemLengthToPx(
-            messageViewMinHeight[platform],
+            messageViewMinHeight[spacingScale][platform],
             spacingScale,
         );
 
         const loadCommentCount =
             Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
-            Math.floor(documentCommentThreadCountAgainstLimit[getPlatformWithoutListening()]);
+            Math.floor(
+                documentCommentThreadCountAgainstLimit[spacingScale][getPlatformWithoutListening()],
+            );
 
         if (
             initialCommentThreadResult.comments.length <

@@ -8,6 +8,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto_growing_height.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchResultView} from "~/client/search/internal/search_result_view.js";
@@ -45,6 +46,7 @@ export function SearchMobileView({
     affinityResults: ReadonlyArray<SearchResult>;
 }) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -155,7 +157,7 @@ export function SearchMobileView({
                                     color="grey-50"
                                     paddingX={screenPaddingX}
                                     paddingTop="1"
-                                    style={contentStyles.paragraphFontSize}
+                                    style={contentStyles.paragraphFontSize[spacingScale]}
                                 >
                                     {queryText.trim().length === 0 ? (
                                         <>
@@ -219,6 +221,7 @@ export function SearchMobileView({
             shouldShowLoadingIndicator,
             space.id,
             space.name,
+            spacingScale,
         ],
     );
 

@@ -124,6 +124,9 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 scrollDelta = -0.1;
             }
 
+            const platform = getPlatformWithoutListening();
+            const spacingScale = getSpacingScaleWithoutListening();
+
             const newScrollOffset = view.getScrollOffset() + scrollDelta;
 
             // Only scroll if we're near the bottom. If we'd have to scroll more than ~4
@@ -133,8 +136,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 scrollDelta <=
                 newItemsHeight +
                     convertRemLengthToPx(
-                        messageViewMinHeight[getPlatformWithoutListening()],
-                        getSpacingScaleWithoutListening(),
+                        messageViewMinHeight[spacingScale][platform],
+                        spacingScale,
                     ) *
                         4
             ) {

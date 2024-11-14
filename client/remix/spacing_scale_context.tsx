@@ -41,8 +41,7 @@ export function useSpacingScale(): SpacingScale {
 export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): SpacingScale {
     if (clientInfo.isNativeMobile) return "large";
     if (clientInfo.screenWidth <= mobilePlatformMaxWindowWidth) return "large";
-    // TODO(calebmer, #larger-size-on-desktop): Switch this to large
-    if (clientInfo.screenWidth >= largeSpacingScaleMinWindowWidth) return "medium";
+    if (clientInfo.screenWidth >= largeSpacingScaleMinWindowWidth) return "large";
     return "medium";
 }
 
@@ -54,8 +53,7 @@ export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): Spacing
 export function getSpacingScaleWithoutListening(): SpacingScale {
     if (NativeMobileBridge) return "large";
     if (window.innerWidth <= mobilePlatformMaxWindowWidth) return "large";
-    // TODO(calebmer, #larger-size-on-desktop): Switch this to large
-    if (window.innerWidth >= largeSpacingScaleMinWindowWidth) return "medium";
+    if (window.innerWidth >= largeSpacingScaleMinWindowWidth) return "large";
     return "medium";
 }
 

@@ -9,6 +9,7 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -88,7 +89,9 @@ export async function loader({params, request, context: unauthenticatedContext}:
             bucketGeneration,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
                 context.loader.getClientInfo(),
-                postContentViewMinHeightWithClosedCommentSection,
+                postContentViewMinHeightWithClosedCommentSection[
+                    getInitialAppRenderSpacingScale(context.loader.getClientInfo())
+                ],
             ),
             commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
             afterPostId: null,

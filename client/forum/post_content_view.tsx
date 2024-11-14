@@ -24,6 +24,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -97,6 +98,7 @@ export function PostContentView({
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
     const {currentAccount} = useSpaceContext();
@@ -203,10 +205,10 @@ export function PostContentView({
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
-                    ? postViewMinHeight[platformRouteLayout]
+                    ? postViewMinHeight[platformRouteLayout][spacingScale]
                     : postCommentsState !== "Closed" && !isPostView
-                    ? postContentViewMinHeightWithOpenCommentSection
-                    : postContentViewMinHeightWithClosedCommentSection,
+                    ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
+                    : postContentViewMinHeightWithClosedCommentSection[spacingScale],
                 paddingBottom:
                     postCommentsState !== "Closed" && !isPostView
                         ? postContentViewOuterOpenCommentSectionMarginBottom

@@ -426,9 +426,10 @@ export function TaskDetailView({
 
             const coords = editor.coordsAtPos(editorState.getSelection().from);
 
+            const spacingScale = getSpacingScaleWithoutListening();
             const paragraphLineHeight = convertRemLengthToPx(
-                contentStyles.paragraphFontSize.lineHeight,
-                getSpacingScaleWithoutListening(),
+                contentStyles.paragraphFontSize[spacingScale].lineHeight,
+                spacingScale,
             );
 
             // Add a paragraph line height in either direction as slop. We consider the

@@ -7,6 +7,7 @@ import {Box} from "~/client/design/box.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {taskCardViewMaxWidth, taskCardViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
@@ -55,6 +56,7 @@ function TaskCardViewContent(
     ref: Ref<HTMLDivElement>,
 ) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -235,7 +237,7 @@ function TaskCardViewContent(
                     flexShrink="0"
                     display="flex"
                     alignItems="center"
-                    style={{height: contentStyles.paragraphFontSize.lineHeight}}
+                    style={{height: contentStyles.paragraphFontSize[spacingScale].lineHeight}}
                     // Render status button on top of the press overlay to try and communicate that
                     // it is independently clickable from the rest of the card.
                     position="relative"
@@ -253,7 +255,9 @@ function TaskCardViewContent(
                         overflow: "hidden",
                         ...contentStyles.paragraphFontSize,
                         maxHeight: `${
-                            parseRemLength(contentStyles.paragraphFontSize.lineHeight) * 3
+                            parseRemLength(
+                                contentStyles.paragraphFontSize[spacingScale].lineHeight,
+                            ) * 3
                         }rem`,
                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                         // except IE.

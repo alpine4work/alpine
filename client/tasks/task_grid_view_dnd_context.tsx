@@ -22,6 +22,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
@@ -34,7 +35,7 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -554,7 +555,7 @@ function TaskRowViewDragPortals() {
 }
 
 const taskRowViewDragOverlayScale =
-    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+    fontSizesBySpacingScale["50"].medium.fontSize / fontSizesBySpacingScale["100"].medium.fontSize;
 
 function TaskRowViewDragOverlay({
     dataRef,
@@ -563,6 +564,8 @@ function TaskRowViewDragOverlay({
     dataRef: RefObject<TaskGridViewDraggableData>;
     getActivatorTouchOffset: () => {top: number; left: number} | null;
 }) {
+    const spacingScale = useSpacingScale();
+
     const [data] = useState(assertExists(dataRef.current));
     const [activatorTouchOffset] = useState(getActivatorTouchOffset);
 
@@ -619,7 +622,7 @@ function TaskRowViewDragOverlay({
                             <Box
                                 fontStyle="truncate"
                                 style={{
-                                    ...contentStyles.paragraphFontSize,
+                                    ...contentStyles.paragraphFontSize[spacingScale],
                                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                                     // for consistency if the user types anything like 2x2 or an @ mention.
                                     fontFeatureSettings: '"calt" on',
@@ -640,5 +643,5 @@ function TaskRowViewDragOverlay({
             default:
                 throw exhaustive(data);
         }
-    }, [activatorTouchOffset, data]);
+    }, [activatorTouchOffset, data, spacingScale]);
 }

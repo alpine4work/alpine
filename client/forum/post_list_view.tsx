@@ -55,7 +55,10 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    useSpacingScale,
+} from "~/client/remix/spacing_scale_context.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
     channelViewHeaderMinHeight,
@@ -289,6 +292,7 @@ function PostListView(
 ) {
     const context = useAppContext();
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
@@ -486,6 +490,8 @@ function PostListView(
                                 "Must provided an `onLoadMorePosts` prop when the post list has more posts",
                             );
 
+                            const spacingScale = getSpacingScaleWithoutListening();
+
                             // The limit of items we will load is two views worth of posts. This gives
                             // the user some space to scroll and read before we need to load more posts.
                             const limit = Math.max(
@@ -493,8 +499,10 @@ function PostListView(
                                 Math.ceil(
                                     (view.getHeight() * 2) /
                                         convertRemLengthToPx(
-                                            postContentViewMinHeightWithClosedCommentSection,
-                                            getSpacingScaleWithoutListening(),
+                                            postContentViewMinHeightWithClosedCommentSection[
+                                                spacingScale
+                                            ],
+                                            spacingScale,
                                         ),
                                 ),
                             );
@@ -784,10 +792,10 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
-                            ? postViewMinHeight[platformRouteLayout]
+                            ? postViewMinHeight[platformRouteLayout][spacingScale]
                             : item.postCommentsState !== "Closed" && !isPostView
-                            ? postContentViewMinHeightWithOpenCommentSection
-                            : postContentViewMinHeightWithClosedCommentSection,
+                            ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
+                            : postContentViewMinHeightWithClosedCommentSection[spacingScale],
                         node: (
                             <div
                                 className={sprinkles({
@@ -943,7 +951,7 @@ function PostListView(
                                 : item.type === "OptimisticPostComment"
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
-                        minHeight: messageViewMinHeight[platform],
+                        minHeight: messageViewMinHeight[spacingScale][platform],
                         renderAdditionalItemIndexes: !isPostView
                             ? [item.postCommentInputItemIndex]
                             : [],
@@ -1258,7 +1266,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: messageInputMinHeight[platform],
+                        minHeight: messageInputMinHeight[spacingScale][platform],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1483,6 +1491,7 @@ function PostListView(
             onMergePostContentReferences,
             onTogglePostComments,
             loadInitialPostComments,
+            spacingScale,
             messageEditing,
             highlightPostComment,
             handleJumpToPostComment,
@@ -1563,7 +1572,9 @@ function PostListView(
                             : undefined) ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
-                    bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
+                    bufferedItemHeight={
+                        postContentViewMinHeightWithClosedCommentSection[spacingScale]
+                    }
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
