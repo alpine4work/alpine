@@ -39,16 +39,18 @@ export function waitForReadableStreamBuffer(
             contentLength += data.length;
             chunks.push(data);
 
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                "waitForReadableStreamBuffer",
-                debugIdByObject.getOrSetDefault(stream),
-                debugId,
-                "data",
-                contentLength,
-                encodeBase64(data.subarray(0, 60)),
-            );
+            if (!import.meta.jest) {
+                // TODO(calebmer, #files): Remove after debugging.
+                // eslint-disable-next-line no-console
+                console.log(
+                    "waitForReadableStreamBuffer",
+                    debugIdByObject.getOrSetDefault(stream),
+                    debugId,
+                    "data",
+                    contentLength,
+                    encodeBase64(data.subarray(0, 60)),
+                );
+            }
         };
 
         const handleEnd = () => {

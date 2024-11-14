@@ -365,35 +365,37 @@ async function uploadAndProcessFile(
     // up large file uploads (for files >100 MB). For now, the simplicity of doing
     // all processing in one shot within `FileUploadService` is nice.
     const uploadPromise = (async () => {
-        stream.on("pause", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pause");
-        });
+        if (!import.meta.jest) {
+            stream.on("pause", () => {
+                // TODO(calebmer, #files): Remove after debugging.
+                // eslint-disable-next-line no-console
+                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pause");
+            });
 
-        stream.on("resume", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "resume");
-        });
+            stream.on("resume", () => {
+                // TODO(calebmer, #files): Remove after debugging.
+                // eslint-disable-next-line no-console
+                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "resume");
+            });
 
-        stream.on("readable", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
-        });
+            stream.on("readable", () => {
+                // TODO(calebmer, #files): Remove after debugging.
+                // eslint-disable-next-line no-console
+                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
+            });
 
-        stream.on("end", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "end");
-        });
+            stream.on("end", () => {
+                // TODO(calebmer, #files): Remove after debugging.
+                // eslint-disable-next-line no-console
+                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "end");
+            });
 
-        stream.on("close", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "close");
-        });
+            stream.on("close", () => {
+                // TODO(calebmer, #files): Remove after debugging.
+                // eslint-disable-next-line no-console
+                console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "close");
+            });
+        }
 
         // TODO(calebmer, #files): Consider transitioning objects to infrequent access
         // after 1-3 months?
