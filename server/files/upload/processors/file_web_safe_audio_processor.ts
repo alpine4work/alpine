@@ -20,6 +20,7 @@ import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * To process a safe audio file we only need the file's duration. We'll serve
@@ -71,7 +72,21 @@ export function createFileWebSafeAudioProcessor(
                         },
                     );
 
-                    const metadata: unknown = JSON.parse(metadataString);
+                    let metadata: unknown;
+                    try {
+                        metadata = JSON.parse(metadataString);
+                    } catch (error) {
+                        if (!(error instanceof Error)) throw error;
+
+                        // We're observing some flaky errors in unit tests where `metadataString` fails
+                        // to parse as JSON. So if we're running a unit test log the string to help us
+                        // debug.
+                        throw new InternalError(
+                            !import.meta.jest
+                                ? error.message
+                                : `${error.message}\n\nString: ${quote(metadataString)}`,
+                        );
+                    }
 
                     audioPreviewMetadataPromiseResolver.resolve(
                         getFileAudioPreviewMetadataFromFfprobeMetadata(metadata),
