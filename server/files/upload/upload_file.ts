@@ -8,6 +8,7 @@ import {
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
+import {debugIdByObject} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
@@ -183,6 +184,14 @@ async function actuallyUploadFile(
         throw new InvalidArgumentError('"Content-Length" header must be an integer');
     }
 
+    // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
+    // `FileUploadService`.
+    if (contentLength <= 0) {
+        throw new InvalidArgumentError(
+            `Can't upload file with "Content-Length" of ${prettyBytes(contentLength)}`,
+        );
+    }
+
     // If the client sends more bytes than what they declared in `Content-Length`
     // then Node.js will truncate the data to `Content-Length` bytes. This behavior
     // from Node.js is important to make sure attackers can't upload files bigger
@@ -243,13 +252,25 @@ async function actuallyUploadFile(
         }
     }, uploadFileTimeoutMs);
 
+    // TODO(calebmer, #files): Remove after debugging.
+    // eslint-disable-next-line no-console
+    console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "start", contentLength);
+
     // If the request receives the `close` event before the `end` event then abort
     // the file upload since the client didn't finish sending us data.
     const handleEnd = () => {
+        // TODO(calebmer, #files): Remove after debugging.
+        // eslint-disable-next-line no-console
+        console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "req end");
+
         req.off("end", handleEnd);
         req.off("close", handleClose);
     };
     const handleClose = () => {
+        // TODO(calebmer, #files): Remove after debugging.
+        // eslint-disable-next-line no-console
+        console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "req close");
+
         if (!abortController.signal.aborted) {
             abortController.abort(new CancelledError("Upload file request closed prematurely"));
         }

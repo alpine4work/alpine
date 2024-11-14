@@ -1,4 +1,9 @@
 import {Readable as ReadableStream} from "stream";
+import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {Id, generateId} from "~/shared/id/id.js";
+
+// TODO(calebmer, #files): Remove after debugging.
+export const debugIdByObject = new DefaultWeakMap<object, Id>(generateId);
 
 /**
  * Resolves once the provided `stream` has ended with a `Buffer` representing
@@ -9,12 +14,17 @@ export function waitForReadableStreamBuffer(
     stream: ReadableStream,
     signal: AbortSignal,
 ): Promise<Buffer> {
+    // TODO(calebmer, #files): Remove after debugging.
+    // eslint-disable-next-line no-console
+    console.trace("waitForReadableStreamBuffer", debugIdByObject.getOrSetDefault(stream));
+
     return new Promise<Buffer>((resolve, reject) => {
         if (signal.aborted) {
             reject(signal.reason);
             return;
         }
 
+        let contentLength = 0;
         let chunks: Array<Buffer> = [];
 
         if (stream.readableEnded) {
@@ -23,10 +33,29 @@ export function waitForReadableStreamBuffer(
         }
 
         const handleData = (data: Buffer) => {
+            contentLength += data.length;
             chunks.push(data);
+
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log(
+                "waitForReadableStreamBuffer",
+                debugIdByObject.getOrSetDefault(stream),
+                "data",
+                contentLength,
+            );
         };
 
         const handleEnd = () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log(
+                "waitForReadableStreamBuffer",
+                debugIdByObject.getOrSetDefault(stream),
+                "end",
+                contentLength,
+            );
+
             const data = Buffer.concat(chunks);
 
             chunks = [];
@@ -39,6 +68,15 @@ export function waitForReadableStreamBuffer(
         };
 
         const handleError = (error: unknown) => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log(
+                "waitForReadableStreamBuffer",
+                debugIdByObject.getOrSetDefault(stream),
+                "error",
+                contentLength,
+            );
+
             chunks = [];
             stream.off("data", handleData);
             stream.off("end", handleEnd);
@@ -49,6 +87,15 @@ export function waitForReadableStreamBuffer(
         };
 
         const handleAbort = () => {
+            // TODO(calebmer, #files): Remove after debugging.
+            // eslint-disable-next-line no-console
+            console.log(
+                "waitForReadableStreamBuffer",
+                debugIdByObject.getOrSetDefault(stream),
+                "abort",
+                contentLength,
+            );
+
             chunks = [];
             stream.off("data", handleData);
             stream.off("end", handleEnd);
