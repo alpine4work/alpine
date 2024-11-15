@@ -175,6 +175,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     return (
         <Box
             ref={contentRef}
+            // Override `pointerEvents="none"` of parent in `navigation_bar_internal.tsx`.
+            pointerEvents="auto"
             position="relative"
             zIndex="0"
             width="full"
@@ -197,8 +199,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                               justifyContent="flex-start"
                               alignItems="center"
                               style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
-                              // Gives children `pointer-events: initial` so the user can interact with them.
-                              className={pointerEventsNoneNotInheritedClassName}
                           >
                               {onMobileCancel ? (
                                   <Box
@@ -283,14 +283,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         minWidth: 0,
                     }}
                 >
-                    {!isMobile && desktopControls && (
-                        <Box
-                            // Gives children `pointer-events: initial` so the user can interact with them.
-                            className={pointerEventsNoneNotInheritedClassName}
-                        >
-                            {desktopControls}
-                        </Box>
-                    )}
+                    {!isMobile && desktopControls && <Box>{desktopControls}</Box>}
                     <Box
                         ref={titleRef}
                         overflow="hidden"

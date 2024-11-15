@@ -167,7 +167,6 @@ function PostListView(
         onPostRealtimeEventTransaction,
         aside,
         navigationBar,
-        withStaticNavigationBar,
         withSafeAreaInsetTop = false,
         initialScrollForFirstPost,
     }: {
@@ -269,13 +268,6 @@ function PostListView(
          * be properly configured.
          */
         navigationBar?: NavigationBarResult;
-
-        /**
-         * If we're rendering a static navigation bar on top of this view this is set
-         * to true. A static navigation bar is always fixed to the top of the view and
-         * doesn't show/hide dynamically when the user scrolls.
-         */
-        withStaticNavigationBar?: boolean;
 
         /**
          * Should we make room for top safe area? False by default. If you set the
@@ -740,9 +732,7 @@ function PostListView(
                     return {
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
-                            hasNavigationBar || withStaticNavigationBar
-                                ? navigationBarHeight[routeLayout]
-                                : "0rem",
+                            hasNavigationBar ? navigationBarHeight[routeLayout] : "0rem",
                             !item.channelHeader.isOnlyNavigationBar
                                 ? channelViewHeaderMinHeight
                                 : "0rem",
@@ -765,7 +755,7 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {(hasNavigationBar || withStaticNavigationBar) && (
+                                    {hasNavigationBar && (
                                         <Spacer space={navigationBarHeight[routeLayout]} />
                                     )}
                                     {!item.channelHeader.isOnlyNavigationBar && (
@@ -1476,7 +1466,6 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
-            withStaticNavigationBar,
             routeLayout,
             hasAside,
             isPostView,
@@ -1566,9 +1555,7 @@ function PostListView(
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
-                        (withStaticNavigationBar
-                            ? spacing[navigationBarHeight[routeLayout]]
-                            : undefined) ??
+                        spacing[navigationBarHeight[routeLayout]] ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
                     bufferedItemHeight={
@@ -1730,10 +1717,9 @@ function PostListView(
                                                 ref={asideRef}
                                                 className={sprinkles({
                                                     pointerEvents: "auto",
-                                                    paddingTop:
-                                                        hasNavigationBar || withStaticNavigationBar
-                                                            ? navigationBarHeight[routeLayout]
-                                                            : undefined,
+                                                    paddingTop: hasNavigationBar
+                                                        ? navigationBarHeight[routeLayout]
+                                                        : undefined,
                                                 })}
                                                 style={{minHeight: viewSize ? viewSize.height : 0}}
                                             >

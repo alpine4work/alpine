@@ -90,7 +90,6 @@ import {
     taskDetailViewCommentSidebarWidth,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
-    taskDetailViewNavigationBarSpacerDesktopMarginBottom,
     taskDetailViewSectionGap,
     taskDetailViewStatusButtonMobilePaddingBottom,
     taskDetailViewStatusButtonMobilePaddingTop,
@@ -1465,6 +1464,7 @@ function TaskDetailRouteShimmer() {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
+    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
     return (
         <Box width="full" height="full" overflow="hidden">
@@ -1491,19 +1491,14 @@ function TaskDetailRouteShimmer() {
                         height={navigationBarHeight[routeLayout]}
                         display="flex"
                         alignItems="center"
-                        marginBottom={
-                            platform !== "mobile"
-                                ? taskDetailViewNavigationBarSpacerDesktopMarginBottom
-                                : undefined
-                        }
                     >
                         {platform === "mobile" && <MobileBackButton />}
                         {platform !== "mobile" && (
                             <Box
                                 className={pulseAnimationClassName}
                                 backgroundColor="grey-10"
-                                width={taskDetailViewStatusButtonSize}
-                                height={taskDetailViewStatusButtonSize}
+                                width={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                                height={taskDetailViewStatusButtonSize[platformRouteLayout]}
                                 borderRadius="full"
                             />
                         )}
@@ -1516,8 +1511,8 @@ function TaskDetailRouteShimmer() {
                             <Box
                                 className={pulseAnimationClassName}
                                 backgroundColor="grey-10"
-                                width={taskDetailViewStatusButtonSize}
-                                height={taskDetailViewStatusButtonSize}
+                                width={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                                height={taskDetailViewStatusButtonSize[platformRouteLayout]}
                                 borderRadius="full"
                             />
                         </Box>

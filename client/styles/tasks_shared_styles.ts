@@ -17,10 +17,13 @@ export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
 export const taskDetailViewSubtasksFieldLabelPaddingBottom = "2";
 export const taskCommentsHeaderNavigationBarSpacing = "10";
-export const taskDetailViewStatusButtonSize = {desktop: "6", mobile: "7"} as const;
+export const taskDetailViewStatusButtonSize = {
+    desktopWide: "7",
+    desktopNarrow: "6",
+    mobileNarrow: "7",
+} as const;
 export const taskDetailViewStatusButtonMobilePaddingTop = "3";
 export const taskDetailViewStatusButtonMobilePaddingBottom = "2";
-export const taskDetailViewNavigationBarSpacerDesktopMarginBottom = "-1";
 
 export const taskGridViewColumnHeaderHeight = "5";
 

@@ -1,5 +1,5 @@
 import {keyframes, style} from "@vanilla-extract/css";
-import {easeOutQuart} from "~/shared/design/core/easing.js";
+import {easeInQuart, easeOutQuart} from "~/shared/design/core/easing.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -13,15 +13,6 @@ export const navigationBarHeight = {
 
 export const navigationBarHeightRem = mapObjectValues(navigationBarHeight, parseRemLength);
 
-const navigationBarBackgroundFadeOutKeyframes = keyframes({
-    from: {opacity: 1},
-    to: {opacity: 0},
-});
-
-export const navigationBarBackgroundFadeOutAnimationClassName = style({
-    animation: `${navigationBarBackgroundFadeOutKeyframes} 200ms ease-out forwards`,
-});
-
 const navigationBarTitleFadeOutKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0rem)"},
     to: {opacity: 0, transform: "translateY(-0.25rem)"},
@@ -30,4 +21,14 @@ const navigationBarTitleFadeOutKeyframes = keyframes({
 export const navigationBarTitleFadeOutAnimationClassName = style({
     transformOrigin: "top center",
     animation: `${navigationBarTitleFadeOutKeyframes} 250ms ${easeOutQuart.cubicBezier} forwards`,
+});
+
+const navigationBarTitleFadeInKeyframes = keyframes({
+    from: {opacity: 0, transform: "translateY(-0.25rem)"},
+    to: {opacity: 1, transform: "translateY(0rem)"},
+});
+
+export const navigationBarTitleFadeInAnimationClassName = style({
+    transformOrigin: "top center",
+    animation: `${navigationBarTitleFadeInKeyframes} 250ms ${easeInQuart.cubicBezier} forwards`,
 });

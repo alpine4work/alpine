@@ -3,8 +3,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
-import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
-import {NavigationBarProps} from "~/client/design/navigation_bar_types.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
@@ -30,7 +28,7 @@ import {
     postContentViewMinHeightWithClosedCommentSection,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
@@ -187,7 +185,7 @@ export function ChannelView({
     if (editNameAndDescriptionMobileModalState && platform !== "mobile")
         setEditNameAndDescriptionMobileModalState(null);
 
-    const navigationBarProps: Omit<NavigationBarProps, "ref"> = {
+    const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
             <ChannelViewNameEditor
@@ -284,11 +282,6 @@ export function ChannelView({
                   ]
                 : []),
         ],
-    };
-
-    const navigationBar = useNavigationBar({
-        ...navigationBarProps,
-        isDisabled: routeLayout !== "narrow",
     });
 
     const channelHeader = useMemo(
@@ -323,41 +316,6 @@ export function ChannelView({
             overflow="hidden"
             height="full"
         >
-            {routeLayout !== "narrow" && (
-                <Box
-                    position="absolute"
-                    zIndex="10"
-                    left="0"
-                    right="0"
-                    backgroundColor="grey-0-opacity-80"
-                    style={{
-                        // TODO(calebmer, 2024-11-05): Trying this effect out. Seeing how I feel about
-                        // it. If I like it, will add to more places. Otherwise should remove for
-                        // consistency.
-                        //
-                        // Some quick reasons I like it:
-                        //
-                        // - I'm liking border-less designs. Makes the app feel very spacious and clean
-                        //
-                        // - The problem with no borders is sticky navigation bar UI cutting off
-                        //   content can look a little weird, it can look like the content flows into
-                        //   the navigation bar
-                        //
-                        // - Using a reinforced frosted glass effect brings back a sense of depth to
-                        //   the UI
-                        //
-                        // - Opacity alone doesn't feel right to me, opacity + blur also doesn't feel
-                        //   right, but the reinforced frosted glass effect (of opacity + blur + see
-                        //   through dots) abstracts the background even more and makes the navigation
-                        //   bar feel more solid
-                        backdropFilter: "blur(3px)",
-                        backgroundImage: `radial-gradient(transparent 1px, ${colorSchemeVars["grey-0"]} 1px)`,
-                        backgroundSize: "4px 4px",
-                    }}
-                >
-                    <NavigationBarContent {...navigationBarProps} />
-                </Box>
-            )}
             <PostListView
                 channelHeader={channelHeader}
                 posts={posts}
@@ -402,7 +360,6 @@ export function ChannelView({
                         />
                     )
                 }
-                withStaticNavigationBar={routeLayout !== "narrow"}
                 navigationBar={navigationBar}
             />
             {editNameAndDescriptionMobileModalState && (

@@ -297,6 +297,14 @@ export function PostCreator({
                                         author={currentAccount}
                                         createdTime={displayCreatedTime}
                                         shouldCreatedTimeExcludeTime
+                                        channelSelector={
+                                            <PostCreatorChannelSelectorInput
+                                                ref={channelSelectorRef}
+                                                channel={channel}
+                                                onChannelChange={setChannel}
+                                                width="full"
+                                            />
+                                        }
                                     />
                                 </Box>
                             </Box>

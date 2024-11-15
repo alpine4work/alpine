@@ -12,6 +12,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -42,6 +43,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     ref,
     isDisabled = false,
+    withScrollAway,
     title = null,
     titleBoundaryRef,
     titleBoundaryMarginTop,
@@ -63,9 +65,11 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleLeftSlop,
     withoutMobileBackButton = false,
     onMobileCancel,
-    isAlwaysOpaque = false,
 }: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
+    const platform = usePlatform();
     const routeLayout = useRouteLayout();
+
+    withScrollAway ??= platform === "mobile";
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -77,14 +81,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     const scrollViewRef = useLifecycleRef<HTMLElement>(
         useCallback(
             element => {
-                // We don't do anything to `isAlwaysOpaque` in this useCallback(), however
-                // we want the effect to re-run whenever it changes. The reason is because
-                // we need to re-initialize to make sure the background is properly updated
-                // and opaque, since we only listen for scroll events.
-                //
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                isAlwaysOpaque;
-
                 if (isDisabled) return;
 
                 const handleResize = () => {
@@ -166,7 +162,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                     cleanup?.();
                 };
             },
-            [isDisabled, isAlwaysOpaque],
+            [isDisabled],
         ),
     );
 
@@ -175,6 +171,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             routeLayout={routeLayout}
             handleRef={navigationBarRef}
             navigationBarRef={ref}
+            withScrollAway={withScrollAway}
             title={title}
             titleBoundaryRef={titleBoundaryRef}
             titleBoundaryMarginTop={titleBoundaryMarginTop}
@@ -196,7 +193,6 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             withoutMobileBackButton={withoutMobileBackButton}
             onMobileCancel={onMobileCancel}
-            isAlwaysOpaque={isAlwaysOpaque}
         />
     ) : null;
 

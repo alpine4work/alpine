@@ -1,8 +1,8 @@
-import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 
 export function useInputWithAutoGrowingWidthSafeSpacerElement() {
-    const platform = usePlatform();
-    if (platform !== "mobile") return null;
+    const platform = useSpacingScale();
+    if (platform !== "large") return null;
 
     return (
         <span

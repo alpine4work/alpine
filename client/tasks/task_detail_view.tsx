@@ -36,7 +36,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {PencilSimpleSlashIcon} from "~/client/icons/pencil_simple_slash_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -44,7 +44,6 @@ import {contentStyles, invertSelectionColorsClassName, sprinkles} from "~/client
 import {
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
-    taskDetailViewNavigationBarSpacerDesktopMarginBottom,
     taskDetailViewSectionGap,
     taskDetailViewStatusButtonMobilePaddingBottom,
     taskDetailViewStatusButtonMobilePaddingTop,
@@ -132,6 +131,7 @@ export function TaskDetailView({
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
+    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
     const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone, isAppleDevice} = useClientInfo();
@@ -712,13 +712,14 @@ export function TaskDetailView({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         titleBoundaryRef: titleInputElementRef,
+        titleBoundaryMarginTop: spacing["4"],
         menuActions: contextMenuActions,
         extraIconButton: openTaskCommentsExtraAction,
         desktopMaxWidth: contentStyles.contentMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}
-                size={taskDetailViewStatusButtonSize.desktop}
+                size={taskDetailViewStatusButtonSize[platformRouteLayout]}
                 taskSubscription={taskSubscription}
                 undoManager={undoManager}
                 affinityManager={affinityManager}
@@ -1114,10 +1115,7 @@ function TaskDetailViewMain(
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box paddingBottom={taskDetailViewSectionGap} paddingX={screenPaddingX}>
                         {platform !== "mobile" ? (
-                            <Box
-                                height={navigationBarHeight[routeLayout]}
-                                marginBottom={taskDetailViewNavigationBarSpacerDesktopMarginBottom}
-                            />
+                            <Box height={navigationBarHeight[routeLayout]} />
                         ) : (
                             <Box
                                 // The `paddingTop` of `3` happens to align with the
@@ -1128,7 +1126,7 @@ function TaskDetailViewMain(
                                 {platform === "mobile" && (
                                     <TaskDetailViewStatusButton
                                         elementRef={statusButtonRef}
-                                        size={taskDetailViewStatusButtonSize.mobile}
+                                        size={taskDetailViewStatusButtonSize.mobileNarrow}
                                         taskSubscription={taskSubscription}
                                         undoManager={undoManager}
                                         affinityManager={affinityManager}

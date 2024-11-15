@@ -33,6 +33,28 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     isDisabled?: boolean;
 
     /**
+     * When true, the navigation bar will scroll away when you scroll down and will
+     * scroll back when you scroll up.
+     *
+     * By default this is `true` on mobile and `false` on desktop. Since scrolling
+     * away the navigation bar feels natural on a touch screen and lets the user
+     * see more content. However, on desktop it doesn't feel natural and we have
+     * enough screen space that it doesn't hurt to always show the navigation bar.
+     *
+     * Another argument for allowing scroll away on mobile but not desktop: on
+     * mobile the user is always focused on one task. Hiding the navigation bar
+     * helps them complete their one task. However, on desktop users are frequently
+     * multitasking. If we hide the navigation bar in a peek, for instance, if the
+     * user's attention leaves the peek when they come back to the peek they may
+     * have forgotten what the subject of the peek is.
+     *
+     * Scroll away behavior is the main purpose of our navigation bar hook. Since
+     * it's a complex interaction. Otherwise it would be easy for every route that
+     * needs a navigation bar to render `<NavigationBarContent>` themselves.
+     */
+    withScrollAway?: boolean;
+
+    /**
      * The title to display in the navigation bar. It will be truncated based
      * on how much room is in the navigation bar.
      *
@@ -194,13 +216,6 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * close the modal instead of calling `navigate(-1)`.
      */
     onMobileCancel?: () => void;
-
-    /**
-     * Provide a property to control when the navigation bar stayes
-     * opaque. In some cases we do not want the navigation bar to become
-     * transparent.
-     */
-    isAlwaysOpaque?: boolean;
 };
 
 export type NavigationBarResult = {
