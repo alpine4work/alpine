@@ -6,6 +6,12 @@ import {Id, generateId} from "~/shared/id/id.js";
 // TODO(calebmer, #files): Remove after debugging.
 export const debugIdByObject = new DefaultWeakMap<object, Id>(generateId);
 
+let actualDebugCounter = 0;
+
+export function debugCounter() {
+    return `[${actualDebugCounter++}]`;
+}
+
 /**
  * Resolves once the provided `stream` has ended with a `Buffer` representing
  * all data from the stream. If aborted while waiting on the stream the promise
@@ -19,7 +25,12 @@ export function waitForReadableStreamBuffer(
 
     // TODO(calebmer, #files): Remove after debugging.
     // eslint-disable-next-line no-console
-    console.trace("waitForReadableStreamBuffer", debugIdByObject.getOrSetDefault(stream), debugId);
+    console.trace(
+        debugCounter(),
+        "waitForReadableStreamBuffer",
+        debugIdByObject.getOrSetDefault(stream),
+        debugId,
+    );
 
     return new Promise<Buffer>((resolve, reject) => {
         if (signal.aborted) {
@@ -60,6 +71,7 @@ export function waitForReadableStreamBuffer(
                 // TODO(calebmer, #files): Remove after debugging.
                 // eslint-disable-next-line no-console
                 console.log(
+                    debugCounter(),
                     "waitForReadableStreamBuffer",
                     debugIdByObject.getOrSetDefault(stream),
                     debugId,
@@ -74,6 +86,7 @@ export function waitForReadableStreamBuffer(
                 // TODO(calebmer, #files): Remove after debugging.
                 // eslint-disable-next-line no-console
                 console.log(
+                    debugCounter(),
                     "waitForReadableStreamBuffer",
                     debugIdByObject.getOrSetDefault(stream),
                     debugId,
@@ -97,6 +110,7 @@ export function waitForReadableStreamBuffer(
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
             console.log(
+                debugCounter(),
                 "waitForReadableStreamBuffer",
                 debugIdByObject.getOrSetDefault(stream),
                 debugId,
@@ -118,6 +132,7 @@ export function waitForReadableStreamBuffer(
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
             console.log(
+                debugCounter(),
                 "waitForReadableStreamBuffer",
                 debugIdByObject.getOrSetDefault(stream),
                 debugId,

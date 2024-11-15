@@ -2,13 +2,18 @@ import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
 import {Readable as ReadableStream, Transform as TransformStream} from "stream";
+import {inspect} from "util";
 import {FileUploader, startUploadingAndProcessingFile} from "~/server/files/data/files_table.js";
 import {
     FileUploadServiceActionContext,
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
-import {debugIdByObject} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
+import {
+    debugCounter,
+    debugIdByObject,
+    waitForReadableStreamBuffer,
+} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
@@ -208,7 +213,7 @@ async function actuallyUploadFile(
     if (process.env.NODE_ENV === "production") {
         // TODO(calebmer, #files): Remove once we're done debugging
         // eslint-disable-next-line no-console
-        console.log(req);
+        console.log(debugCounter(), inspect(req));
     }
 
     let stream: ReadableStream = req;
@@ -261,14 +266,20 @@ async function actuallyUploadFile(
 
     // TODO(calebmer, #files): Remove after debugging.
     // eslint-disable-next-line no-console
-    console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "start", contentLength);
+    console.log(
+        debugCounter(),
+        "uploadFile",
+        debugIdByObject.getOrSetDefault(req),
+        "start",
+        contentLength,
+    );
 
     // If the request receives the `close` event before the `end` event then abort
     // the file upload since the client didn't finish sending us data.
     const handleEnd = () => {
         // TODO(calebmer, #files): Remove after debugging.
         // eslint-disable-next-line no-console
-        console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "req end");
+        console.log(debugCounter(), "uploadFile", debugIdByObject.getOrSetDefault(req), "req end");
 
         req.off("end", handleEnd);
         req.off("close", handleClose);
@@ -276,7 +287,12 @@ async function actuallyUploadFile(
     const handleClose = () => {
         // TODO(calebmer, #files): Remove after debugging.
         // eslint-disable-next-line no-console
-        console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "req close");
+        console.log(
+            debugCounter(),
+            "uploadFile",
+            debugIdByObject.getOrSetDefault(req),
+            "req close",
+        );
 
         if (!abortController.signal.aborted) {
             abortController.abort(new CancelledError("Upload file request closed prematurely"));
@@ -375,13 +391,23 @@ async function uploadAndProcessFile(
         stream.on("pause", () => {
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pause");
+            console.log(
+                debugCounter(),
+                "uploadFile",
+                debugIdByObject.getOrSetDefault(stream),
+                "pause",
+            );
         });
 
         stream.on("resume", () => {
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "resume");
+            console.log(
+                debugCounter(),
+                "uploadFile",
+                debugIdByObject.getOrSetDefault(stream),
+                "resume",
+            );
         });
 
         // This breaks file uploads.
@@ -389,25 +415,40 @@ async function uploadAndProcessFile(
         // stream.on("readable", () => {
         //     // TODO(calebmer, #files): Remove after debugging.
         //     // eslint-disable-next-line no-console
-        //     console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
+        //     console.log(debugCounter(), "uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
         // });
 
         stream.on("end", () => {
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "end");
+            console.log(
+                debugCounter(),
+                "uploadFile",
+                debugIdByObject.getOrSetDefault(stream),
+                "end",
+            );
         });
 
         stream.on("close", () => {
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "close");
+            console.log(
+                debugCounter(),
+                "uploadFile",
+                debugIdByObject.getOrSetDefault(stream),
+                "close",
+            );
         });
 
         stream.on("pipe", () => {
             // TODO(calebmer, #files): Remove after debugging.
             // eslint-disable-next-line no-console
-            console.log("uploadFile", debugIdByObject.getOrSetDefault(stream), "pipe");
+            console.log(
+                debugCounter(),
+                "uploadFile",
+                debugIdByObject.getOrSetDefault(stream),
+                "pipe",
+            );
         });
 
         // TODO(calebmer, #files): Consider transitioning objects to infrequent access
@@ -415,6 +456,13 @@ async function uploadAndProcessFile(
         // https://developers.cloudflare.com/r2/buckets/object-lifecycles
 
         let streamContentLength = 0;
+
+        // TODO(calebmer, #files): We really want to use streaming but let's see if
+        // this fixes things.
+        const data =
+            process.env.NODE_ENV === "production"
+                ? await waitForReadableStreamBuffer(stream, signal)
+                : null;
 
         // NOTE: We don't `Promise.race()` `PutObject()` with
         // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
@@ -429,25 +477,28 @@ async function uploadAndProcessFile(
                 Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
                 ContentLength: contentLength,
-                Body: stream.pipe(
-                    new TransformStream({
-                        transform: (chunk, encoding, callback) => {
-                            streamContentLength += chunk.length;
+                Body:
+                    data ??
+                    stream.pipe(
+                        new TransformStream({
+                            transform: (chunk, encoding, callback) => {
+                                streamContentLength += chunk.length;
 
-                            // TODO(calebmer, #files): Remove after debugging.
-                            // eslint-disable-next-line no-console
-                            console.log(
-                                "uploadFile",
-                                debugIdByObject.getOrSetDefault(stream),
-                                "transform",
-                                streamContentLength,
-                                encodeBase64(chunk.subarray(0, 30)),
-                            );
+                                // TODO(calebmer, #files): Remove after debugging.
+                                // eslint-disable-next-line no-console
+                                console.log(
+                                    debugCounter(),
+                                    "uploadFile",
+                                    debugIdByObject.getOrSetDefault(stream),
+                                    "transform",
+                                    streamContentLength,
+                                    encodeBase64(chunk.subarray(0, 30)),
+                                );
 
-                            callback(null, chunk);
-                        },
-                    }),
-                ),
+                                callback(null, chunk);
+                            },
+                        }),
+                    ),
             },
             {signal},
         );
