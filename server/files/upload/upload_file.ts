@@ -205,6 +205,12 @@ async function actuallyUploadFile(
         );
     }
 
+    if (process.env.NODE_ENV === "production") {
+        // TODO(calebmer, #files): Remove once we're done debugging
+        // eslint-disable-next-line no-console
+        console.log(req);
+    }
+
     let stream: ReadableStream = req;
     let fileProcessor: FileProcessor;
 
@@ -455,7 +461,8 @@ async function uploadAndProcessFile(
 
     let processPromise: Promise<void> | null;
 
-    if (!fileProcessor.hasPreview) {
+    // TODO(calebmer, #files): Re-enable processing once we're done debugging.
+    if (process.env.NODE_ENV === "production" || !fileProcessor.hasPreview) {
         processPromise = null;
     } else {
         processPromise = context.tracer.withSpan("Process file", async (context, span) => {
