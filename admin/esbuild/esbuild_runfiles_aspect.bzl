@@ -6,17 +6,19 @@ building with esbuild.
 
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_js//js/private:js_helpers.bzl", "copy_js_file_to_bin_action")
-load("@aspect_rules_js//npm:providers.bzl", "NpmPackageStoreInfo")
 
 EsbuildRunfilesInfo = provider(
     doc = "Runfiles for a \"JsInfo\" provider after its been built with esbuild",
     fields = {
         "runfiles_without_sources": "Runfiles without transpiled JavaScript sources",
-        "runfiles_without_sources_and_npm_linked_packages": "Runfiles without transpiled JavaScript sources or npm package files",
+        "runfiles_without_sources_and_npm_sources": "Runfiles without transpiled JavaScript sources or npm package files",
     },
 )
 
 def _esbuild_runfiles_aspect_impl(target, ctx):
+    if not (JsInfo in target):
+        return []
+
     runfiles_without_sources = _gather_runfiles(
         get_runfiles = _get_runfiles_without_sources,
         ctx = ctx,
@@ -24,50 +26,49 @@ def _esbuild_runfiles_aspect_impl(target, ctx):
         data_files = ctx.rule.files.data if hasattr(ctx.rule.files, "data") else [],
         copy_data_files_to_bin = ctx.rule.attr.copy_data_to_bin if hasattr(ctx.rule.attr, "copy_data_to_bin") else False,
         include_sources = False,
-        include_declarations = False,
-        include_npm_linked_packages = True,
+        include_types = False,
+        include_npm_sources = True,
         include_transitive_sources = False,
         no_copy_to_bin = ctx.rule.files.no_copy_to_bin if hasattr(ctx.rule.files, "no_copy_to_bin") else [],
         sources = target[JsInfo].transitive_sources,
         # The call in `js_library()` includes `srcs` but because we want to exclude
         # sources in this runfiles object we remove it from here.
-        deps = (ctx.rule.attr.declarations if hasattr(ctx.rule.attr, "declarations") else []) + (ctx.rule.attr.deps if hasattr(ctx.rule.attr, "deps") else []),
+        deps = (ctx.rule.attr.types if hasattr(ctx.rule.attr, "types") else []) + (ctx.rule.attr.deps if hasattr(ctx.rule.attr, "deps") else []),
     )
 
-    runfiles_without_sources_and_npm_linked_packages = _gather_runfiles(
-        get_runfiles = _get_runfiles_without_sources_and_npm_linked_packages,
+    runfiles_without_sources_and_npm_sources = _gather_runfiles(
+        get_runfiles = _get_runfiles_without_sources_and_npm_sources,
         ctx = ctx,
         data = ctx.rule.attr.data if hasattr(ctx.rule.attr, "data") else [],
         data_files = ctx.rule.files.data if hasattr(ctx.rule.files, "data") else [],
         copy_data_files_to_bin = ctx.rule.attr.copy_data_to_bin if hasattr(ctx.rule.attr, "copy_data_to_bin") else False,
         include_sources = False,
-        include_declarations = False,
-        include_npm_linked_packages = False,
+        include_types = False,
+        include_npm_sources = False,
         include_transitive_sources = False,
         no_copy_to_bin = ctx.rule.files.no_copy_to_bin if hasattr(ctx.rule.files, "no_copy_to_bin") else [],
         sources = target[JsInfo].transitive_sources,
         # The call in `js_library()` includes `srcs` but because we want to exclude
         # sources in this runfiles object we remove it from here.
-        deps = (ctx.rule.attr.declarations if hasattr(ctx.rule.attr, "declarations") else []) + (ctx.rule.attr.deps if hasattr(ctx.rule.attr, "deps") else []),
+        deps = (ctx.rule.attr.types if hasattr(ctx.rule.attr, "types") else []) + (ctx.rule.attr.deps if hasattr(ctx.rule.attr, "deps") else []),
     )
 
     return EsbuildRunfilesInfo(
         runfiles_without_sources = runfiles_without_sources,
-        runfiles_without_sources_and_npm_linked_packages = runfiles_without_sources_and_npm_linked_packages,
+        runfiles_without_sources_and_npm_sources = runfiles_without_sources_and_npm_sources,
     )
 
 esbuild_runfiles_aspect = aspect(
     _esbuild_runfiles_aspect_impl,
     attr_aspects = ["deps"],
     provides = [EsbuildRunfilesInfo],
-    required_providers = [JsInfo],
 )
 
 def _get_runfiles_without_sources(target):
     return target[EsbuildRunfilesInfo].runfiles_without_sources if EsbuildRunfilesInfo in target else target[DefaultInfo].default_runfiles
 
-def _get_runfiles_without_sources_and_npm_linked_packages(target):
-    return target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_linked_packages if EsbuildRunfilesInfo in target else target[DefaultInfo].default_runfiles
+def _get_runfiles_without_sources_and_npm_sources(target):
+    return target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_sources if EsbuildRunfilesInfo in target else target[DefaultInfo].default_runfiles
 
 # Forked from:
 # https://github.com/aspect-build/rules_js/blob/d0ff155c73e3c7fee5d72485e00775bca1fde10a/js/private/js_helpers.bzl#L177-L260
@@ -88,8 +89,8 @@ def _gather_runfiles(
         no_copy_to_bin = [],
         include_sources = True,
         include_transitive_sources = True,
-        include_declarations = False,
-        include_npm_linked_packages = True):
+        include_types = False,
+        include_npm_sources = True):
     transitive_files_depsets = []
 
     # Includes sources
@@ -107,12 +108,12 @@ def _gather_runfiles(
 
     # Gather the transitive sources & transitive npm linked packages from the JsInfo &
     # NpmPackageStoreInfo providers of data & deps targets.
-    transitive_files_depsets.append(_gather_files_from_js_providers(
+    transitive_files_depsets.append(_gather_files_from_js_info(
         targets = data + deps,
         include_sources = include_sources,
         include_transitive_sources = include_transitive_sources,
-        include_declarations = include_declarations,
-        include_npm_linked_packages = include_npm_linked_packages,
+        include_types = include_types,
+        include_npm_sources = include_npm_sources,
     ))
 
     files_runfiles = []
@@ -137,44 +138,42 @@ def _gather_runfiles(
 # Forked from:
 # https://github.com/aspect-build/rules_js/blob/d0ff155c73e3c7fee5d72485e00775bca1fde10a/js/private/js_helpers.bzl#L297-L341
 #
+# When upgrading to `aspect_rules_js` v2 we ported this patch:
+# https://github.com/aspect-build/rules_js/pull/1663
+#
 # We add the following parameter:
 #
 # - `include_sources`: Set to false to remove sources from runfiles
-def _gather_files_from_js_providers(
+def _gather_files_from_js_info(
         targets,
         include_sources,
         include_transitive_sources,
-        include_declarations,
-        include_npm_linked_packages):
+        include_types,
+        include_npm_sources):
     files_depsets = []
     if include_sources:
         files_depsets.extend([
             target[JsInfo].sources
             for target in targets
-            if JsInfo in target and hasattr(target[JsInfo], "sources")
+            if JsInfo in target
         ])
     if include_transitive_sources:
         files_depsets.extend([
             target[JsInfo].transitive_sources
             for target in targets
-            if JsInfo in target and hasattr(target[JsInfo], "transitive_sources")
+            if JsInfo in target
         ])
-    if include_declarations:
+    if include_types:
         files_depsets.extend([
-            target[JsInfo].transitive_declarations
+            target[JsInfo].transitive_types
             for target in targets
-            if JsInfo in target and hasattr(target[JsInfo], "transitive_declarations")
+            if JsInfo in target
         ])
-    if include_npm_linked_packages:
+    if include_npm_sources:
         files_depsets.extend([
-            target[JsInfo].transitive_npm_linked_package_files
+            target[JsInfo].npm_sources
             for target in targets
-            if JsInfo in target and hasattr(target[JsInfo], "transitive_npm_linked_package_files")
-        ])
-        files_depsets.extend([
-            target[NpmPackageStoreInfo].transitive_files
-            for target in targets
-            if NpmPackageStoreInfo in target and hasattr(target[NpmPackageStoreInfo], "transitive_files")
+            if JsInfo in target
         ])
     return depset([], transitive = files_depsets)
 
@@ -188,11 +187,11 @@ esbuild_runfiles_without_sources = rule(
     },
 )
 
-def _esbuild_runfiles_without_sources_and_npm_linked_packages_impl(ctx):
-    return DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_linked_packages.files)
+def _esbuild_runfiles_without_sources_and_npm_sources_impl(ctx):
+    return DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_sources.files)
 
-esbuild_runfiles_without_sources_and_npm_linked_packages = rule(
-    _esbuild_runfiles_without_sources_and_npm_linked_packages_impl,
+esbuild_runfiles_without_sources_and_npm_sources = rule(
+    _esbuild_runfiles_without_sources_and_npm_sources_impl,
     attrs = {
         "target": attr.label(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
     },

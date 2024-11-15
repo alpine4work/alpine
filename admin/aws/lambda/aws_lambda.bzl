@@ -89,7 +89,7 @@ def _aws_lambda_impl(ctx):
     # individual source files are bundled by esbuild so we only want non-JavaScript
     # source runfiles. `EsbuildRunfilesInfo` provides us with this.
     for target in ctx.attr.srcs:
-        transitive_files.append(target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_linked_packages.files)
+        transitive_files.append(target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_sources.files)
 
     # Anything in `data` is directly added to runfiles without filtering.
     for target in ctx.attr.data:
@@ -99,7 +99,7 @@ def _aws_lambda_impl(ctx):
 
         if JsInfo in target:
             transitive_files.append(target[JsInfo].transitive_sources)
-            transitive_files.append(target[JsInfo].transitive_npm_linked_package_files)
+            transitive_files.append(target[JsInfo].npm_sources)
 
         if NpmPackageStoreInfo in target:
             transitive_files.append(target[NpmPackageStoreInfo].transitive_files)

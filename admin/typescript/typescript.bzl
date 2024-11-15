@@ -368,8 +368,8 @@ def _ts_typings_impl(ctx):
 
     for src in ctx.attr.srcs:
         if JsInfo in src:
-            typings.append(src[JsInfo].transitive_declarations)
-            typings.append(src[JsInfo].transitive_npm_linked_package_files)
+            typings.append(src[JsInfo].transitive_types)
+            typings.append(src[JsInfo].npm_sources)
 
         if NpmPackageStoreInfo in src:
             typings.append(src[NpmPackageStoreInfo].transitive_files)

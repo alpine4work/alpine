@@ -59,10 +59,10 @@ ts_lint_and_format_test(
 alias(
     name = "node",
     actual = select({
-        "@bazel_tools//src/conditions:darwin_arm64": "@node_darwin_arm64//:bin/node",
-        "@bazel_tools//src/conditions:darwin_x86_64": "@node_darwin_amd64//:bin/node",
-        "@bazel_tools//src/conditions:linux_aarch64": "@node_linux_arm64//:bin/node",
-        "@bazel_tools//src/conditions:linux_x86_64": "@node_linux_amd64//:bin/node",
+        "@bazel_tools//src/conditions:darwin_arm64": "@nodejs_darwin_arm64//:bin/node",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@nodejs_darwin_amd64//:bin/node",
+        "@bazel_tools//src/conditions:linux_aarch64": "@nodejs_linux_arm64//:bin/node",
+        "@bazel_tools//src/conditions:linux_x86_64": "@nodejs_linux_amd64//:bin/node",
     }),
     visibility = ["//visibility:public"],
 )
