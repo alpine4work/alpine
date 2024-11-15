@@ -65,8 +65,11 @@ export function waitForReadableStreamBuffer(
         // consistent and use `.pipe()` here too.
         const writableStream = new WritableStream({
             write: (data: Buffer, encoding, callback) => {
+                const lastContentLength = contentLength;
                 contentLength += data.length;
                 chunks.push(data);
+
+                const base64Offset = contentLength % 6;
 
                 // TODO(calebmer, #files): Remove after debugging.
                 // eslint-disable-next-line no-console
@@ -77,7 +80,12 @@ export function waitForReadableStreamBuffer(
                     debugId,
                     "data",
                     contentLength,
-                    encodeBase64(data.subarray(0, 30)),
+                    `(+${contentLength - lastContentLength})`,
+                    base64Offset === 0
+                        ? encodeBase64(data.subarray(0, 30))
+                        : `${encodeBase64(data.subarray(0, base64Offset))} ${encodeBase64(
+                              data.subarray(base64Offset, 30 + base64Offset),
+                          )}`,
                 );
 
                 callback();

@@ -12,7 +12,6 @@ import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {
     debugCounter,
     debugIdByObject,
-    waitForReadableStreamBuffer,
 } from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
@@ -457,13 +456,6 @@ async function uploadAndProcessFile(
 
         let streamContentLength = 0;
 
-        // TODO(calebmer, #files): We really want to use streaming but let's see if
-        // this fixes things.
-        const data =
-            process.env.NODE_ENV === "production"
-                ? await waitForReadableStreamBuffer(stream, signal)
-                : null;
-
         // NOTE: We don't `Promise.race()` `PutObject()` with
         // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
         // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
@@ -477,28 +469,36 @@ async function uploadAndProcessFile(
                 Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
                 ContentLength: contentLength,
-                Body:
-                    data ??
-                    stream.pipe(
-                        new TransformStream({
-                            transform: (chunk, encoding, callback) => {
-                                streamContentLength += chunk.length;
+                Body: stream.pipe(
+                    new TransformStream({
+                        transform: (chunk, encoding, callback) => {
+                            const lastStreamContentLength = streamContentLength;
+                            streamContentLength += chunk.length;
 
-                                // TODO(calebmer, #files): Remove after debugging.
-                                // eslint-disable-next-line no-console
-                                console.log(
-                                    debugCounter(),
-                                    "uploadFile",
-                                    debugIdByObject.getOrSetDefault(stream),
-                                    "transform",
-                                    streamContentLength,
-                                    encodeBase64(chunk.subarray(0, 30)),
-                                );
+                            const base64Offset = streamContentLength % 6;
 
-                                callback(null, chunk);
-                            },
-                        }),
-                    ),
+                            // TODO(calebmer, #files): Remove after debugging.
+                            // eslint-disable-next-line no-console
+                            console.log(
+                                debugCounter(),
+                                "uploadFile",
+                                debugIdByObject.getOrSetDefault(stream),
+                                "transform",
+                                streamContentLength,
+                                `(+${streamContentLength - lastStreamContentLength})`,
+                                base64Offset === 0
+                                    ? encodeBase64(chunk.subarray(0, 30))
+                                    : `${encodeBase64(
+                                          chunk.subarray(0, base64Offset),
+                                      )} ${encodeBase64(
+                                          chunk.subarray(base64Offset, 30 + base64Offset),
+                                      )}`,
+                            );
+
+                            callback(null, chunk);
+                        },
+                    }),
+                ),
             },
             {signal},
         );
