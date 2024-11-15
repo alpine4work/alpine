@@ -1,12 +1,13 @@
-import classNames from "classnames";
-import {ArrowLeft, ArrowRight} from "phosphor-react";
 /* eslint-disable @typescript-eslint/unbound-method */
+import classNames from "classnames";
 import {Node} from "prosemirror-model";
-import {addColumnAfter, addRowAfter} from "prosemirror-tables";
+import {addColumnAfter} from "prosemirror-tables";
 import {EditorView, NodeView} from "prosemirror-view";
-import {colorSchemeVars} from "~/client/styles/styles.js";
-import {tableAlignClassName, tableClassName} from "~/shared/content/content_styles.js";
-import {colors} from "~/shared/design/core/colors.js";
+import {
+    columnContainerClassName,
+    tableAlignClassName,
+    tableClassName,
+} from "~/shared/content/content_styles.js";
 
 export interface CellAttrs {
     colspan: number;
@@ -31,20 +32,11 @@ export class TableView implements NodeView {
         });
         this.dom.style.position = "relative";
 
-        // Set up scrollable container properties
-        this.dom.style.minWidth = "600px";
-        this.dom.style.maxWidth = "1000px";
-        this.dom.style.overflowX = "auto";
-        this.dom.style.display = "block";
-
         // Create column buttons container
         this.columnButtons = document.createElement("div");
         this.dom.appendChild(this.columnButtons);
 
         this.table = this.dom.appendChild(document.createElement("table"));
-        this.table.style.minWidth = "600px";
-        this.table.style.width = "100%";
-        this.table.style.maxWidth = "1000px";
 
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));
 
@@ -94,7 +86,7 @@ function addColumnAfterButton(
 ): void {
     // Create container for the column
     const columnContainer = document.createElement("div");
-    columnContainer.className = "column-container";
+    columnContainer.className = columnContainerClassName;
     columnContainer.style.position = "absolute";
     columnContainer.style.left = `${position - width / 2}px`;
     columnContainer.style.width = `${width}px`;

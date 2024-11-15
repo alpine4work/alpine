@@ -40,6 +40,7 @@ import {
     codeBlockLineContentClassName,
     codeBlockWrapperClassName,
     codeClassName,
+    columnContainerClassName,
     commentClassName,
     dividerClassName,
     fileClassName,
@@ -2272,9 +2273,9 @@ globalStyle(`${tableClassName} .column-after-button`, {
     transition: "opacity 0.2s ease, background-color 0.2s ease",
     pointerEvents: "none",
 });
-
+globalStyle(columnContainerClassName, {});
 // Update hover selector
-globalStyle(`${tableClassName} .column-container:hover .column-after-button`, {
+globalStyle(`${tableClassName} ${columnContainerClassName}:hover .column-after-button`, {
     opacity: 1,
     pointerEvents: "auto",
 });
@@ -2283,7 +2284,7 @@ globalStyle(`${tableClassName} .column-after-button:hover`, {
     background: colorSchemeVars["blue-70"],
 });
 
-globalStyle(`${tableClassName} .column-container:hover::after`, {
+globalStyle(`${tableClassName} ${columnContainerClassName}:hover::after`, {
     content: '""',
     position: "absolute",
     top: 0,
@@ -2296,7 +2297,7 @@ globalStyle(`${tableClassName} .column-container:hover::after`, {
     transition: "opacity 0.2s ease",
 });
 
-globalStyle(`${tableClassName} .column-container:hover .column-after-button`, {
+globalStyle(`${tableClassName} ${columnContainerClassName}:hover .column-after-button`, {
     opacity: 1,
     pointerEvents: "auto",
     background: colorSchemeVars["blue-60"], // Match button color with line

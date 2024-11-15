@@ -110,3 +110,6 @@ export const tableCellToolbarClassName =
 
 export const tableHeaderClassName =
     process.env.NODE_ENV !== "production" ? "content_tableHeader" : "c_th";
+
+export const columnContainerClassName =
+    process.env.NODE_ENV !== "production" ? "content_columnContainer" : "c_cc";
