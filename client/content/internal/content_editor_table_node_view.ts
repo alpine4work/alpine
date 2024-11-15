@@ -1,9 +1,12 @@
+import classNames from "classnames";
 import {ArrowLeft, ArrowRight} from "phosphor-react";
 /* eslint-disable @typescript-eslint/unbound-method */
 import {Node} from "prosemirror-model";
-import {addColumnAfter} from "prosemirror-tables";
+import {addColumnAfter, addRowAfter} from "prosemirror-tables";
 import {EditorView, NodeView} from "prosemirror-view";
-import {tableClassName} from "~/shared/content/content_styles.js";
+import {colorSchemeVars} from "~/client/styles/styles.js";
+import {tableAlignClassName, tableClassName} from "~/shared/content/content_styles.js";
+import {colors} from "~/shared/design/core/colors.js";
 
 export interface CellAttrs {
     colspan: number;
@@ -23,16 +26,26 @@ export class TableView implements NodeView {
 
     constructor(public node: Node, public defaultCellMinWidth: number, public view: EditorView) {
         this.dom = document.createElement("div");
-        this.dom.className = tableClassName;
+        this.dom.className = classNames(tableClassName, {
+            [tableAlignClassName]: node.attrs.alignment !== "center",
+        });
         this.dom.style.position = "relative";
-        this.dom.style.overflow = "visible";
+
+        // Set up scrollable container properties
+        this.dom.style.minWidth = "600px";
+        this.dom.style.maxWidth = "1000px";
+        this.dom.style.overflowX = "auto";
+        this.dom.style.display = "block";
 
         // Create column buttons container
         this.columnButtons = document.createElement("div");
         this.dom.appendChild(this.columnButtons);
 
         this.table = this.dom.appendChild(document.createElement("table"));
-        this.table.style.setProperty("--default-cell-min-width", `${defaultCellMinWidth}px`);
+        this.table.style.minWidth = "600px";
+        this.table.style.width = "100%";
+        this.table.style.maxWidth = "1000px";
+
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));
 
         updateColumnsOnResize(
@@ -96,7 +109,7 @@ function addColumnAfterButton(
     const button = document.createElement("button");
     button.className = "column-after-button";
     button.setAttribute("aria-label", "Add column after");
-    button.style.left = `${width / 2 - 12}px`;
+    button.style.left = "-4px";
 
     const tooltip = document.createElement("span");
     tooltip.className = "column-button-tooltip";
@@ -112,6 +125,7 @@ function addColumnAfterButton(
     button.addEventListener("click", event => {
         event.stopPropagation();
         addColumnAfter(view.state, view.dispatch);
+        // addRowAfter(view.state, view.dispatch);
     });
 
     columnContainer.appendChild(hoverArea);

@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 function getInsertPosOrSelection(selection: Selection): number | Selection {
@@ -195,13 +195,10 @@ export function insertContentFiles(
 export function insertContentTable(view: EditorView) {
     const {schema} = view.state;
     const cell = schema.node("table_cell", {}, [schema.node("paragraph")]);
-    const table_row = schema.node("table_row", {}, [cell, cell]);
-    const table = schema.node("table", {}, [table_row, table_row]);
+    const headerCell = schema.node("table_header", {}, [schema.node("paragraph")]);
+    const headerRow = schema.node("table_row", {}, [headerCell, headerCell]);
+    const bodyRow = schema.node("table_row", {}, [cell, cell]);
+    const table = schema.node("table", {}, [headerRow, bodyRow, bodyRow]);
 
     insertNode(view, table);
-
-    // Apply initial table commands after insertion
-    const commands = schema.nodes.table?.spec.commands;
-    commands?.fixTables?.(view.state, view.dispatch);
-    commands?.setAlignment?.({alignment: "left"})(view.state, view.dispatch);
 }
