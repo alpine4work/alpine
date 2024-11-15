@@ -8,7 +8,10 @@ import {
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
-import {debugIdByObject} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
+import {
+    debugIdByObject,
+    waitForReadableStreamBuffer,
+} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
@@ -323,7 +326,7 @@ async function uploadAndProcessFile(
         contentLength,
         fileProcessor,
         fileUploader,
-        stream,
+        stream: actualStream,
         sendEvent,
         temporaryDirectoryPath,
         signal,
@@ -359,7 +362,14 @@ async function uploadAndProcessFile(
 
     // Make sure the stream hasn't started outputting data yet. See:
     // https://nodejs.org/api/stream.html#three-states
-    assert(stream.readableFlowing === null);
+    assert(actualStream.readableFlowing === null);
+
+    // TODO(calebmer, #files): Delete after debugging. I want to see if I can get
+    // all the data without streaming.
+    const data = await waitForReadableStreamBuffer(actualStream, signal);
+
+    const stream = new ReadableStream();
+    stream.push(data);
 
     // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
     // someday if we want to support users on spotty internet connections or speed
