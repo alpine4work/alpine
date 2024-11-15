@@ -128,15 +128,16 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
         this._client = new S3Client({
             region: "auto",
             endpoint: endpointOverrideForTest ?? `https://${accountId}.r2.cloudflarestorage.com`,
-            endpointProvider:
-                endpointOverrideForTest !== undefined
-                    ? params => ({
+            ...(endpointOverrideForTest !== undefined
+                ? {
+                      endpointProvider: params => ({
                           url: new URL(
                               params.Bucket !== undefined ? `/${params.Bucket}` : "/",
                               endpointOverrideForTest,
                           ),
-                      })
-                    : undefined,
+                      }),
+                  }
+                : {}),
             credentials: {
                 accessKeyId,
                 secretAccessKey,
