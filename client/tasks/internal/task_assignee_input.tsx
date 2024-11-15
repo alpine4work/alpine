@@ -22,6 +22,7 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -128,6 +129,7 @@ function TaskAssigneeInput(
     ref: Ref<TaskAssigneeInputRef>,
 ) {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
@@ -586,7 +588,7 @@ function TaskAssigneeInput(
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
                 overflowBottom={platform === "mobile" ? "18rem" : undefined}
-                overflowTop={navigationBarHeight[platform]}
+                overflowTop={navigationBarHeight[routeLayout]}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskAssigneeInputListBox

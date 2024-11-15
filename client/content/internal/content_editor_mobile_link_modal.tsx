@@ -7,6 +7,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -33,6 +34,8 @@ export function ContentEditorMobileLinkModal({
     initialUrl: string;
     onCloseWithAnimation: () => void;
 }) {
+    const routeLayout = useRouteLayout();
+
     const urlInputRef = useRef<HTMLInputElement>(null);
 
     const hasInitiallyMountedRef = useRef(false);
@@ -119,7 +122,7 @@ export function ContentEditorMobileLinkModal({
         <Box data-testid="ContentEditorMobileLinkModal" width="full">
             <Box paddingTop="safe-area-inset" />
             <Box
-                height={navigationBarHeight}
+                height={navigationBarHeight[routeLayout]}
                 paddingX="3"
                 display="flex"
                 justifyContent="space-between"

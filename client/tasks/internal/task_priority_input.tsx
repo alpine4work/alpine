@@ -19,6 +19,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
@@ -116,6 +117,7 @@ function TaskPriorityInput(
     ref: Ref<TaskPriorityInputRef>,
 ) {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const canPrimaryInputHover = useCanPrimaryInputHover();
 
     const [inputState, setInputState] = useState<TaskPriorityInputState>({
@@ -468,7 +470,7 @@ function TaskPriorityInput(
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
                 overflowBottom={platform === "mobile" ? "18rem" : undefined}
-                overflowTop={navigationBarHeight[platform === "mobile" ? "mobile" : "desktop"]}
+                overflowTop={navigationBarHeight[routeLayout]}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskPriorityInputListBox

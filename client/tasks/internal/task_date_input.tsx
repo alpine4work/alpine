@@ -4,10 +4,7 @@ import {CalendarBlank} from "phosphor-react";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {
-    getNavigationBarHeightPxWithoutListening,
-    navigationBarHeight,
-} from "~/client/design/navigation_bar_helpers.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
@@ -18,6 +15,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
@@ -112,6 +110,7 @@ export function TaskDateInput({
     onArrowRightLeaveKeyDown?: () => void;
 }) {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
 
@@ -202,10 +201,12 @@ export function TaskDateInput({
             const top = Math.min(inputRect.top, overlayRect.top);
             const bottom = Math.max(inputRect.bottom, overlayRect.bottom);
 
+            const spacingScale = getSpacingScaleWithoutListening();
+
             const clearanceTop =
                 getElementSafeAreaInsetTopPx(scrollableElement) +
-                getNavigationBarHeightPxWithoutListening() +
-                convertRemLengthToPx("1", getSpacingScaleWithoutListening());
+                convertRemLengthToPx(navigationBarHeight[routeLayout], spacingScale) +
+                convertRemLengthToPx("1", spacingScale);
 
             if (top < clearanceTop) {
                 const scrollDelta = top - clearanceTop;
@@ -220,7 +221,7 @@ export function TaskDateInput({
             const clearanceBottom =
                 viewportRect.height -
                 getCurrentCoveredHeight() -
-                convertRemLengthToPx("1", getSpacingScaleWithoutListening());
+                convertRemLengthToPx("1", spacingScale);
 
             if (bottom > clearanceBottom) {
                 const scrollDelta = bottom - clearanceBottom;
@@ -247,7 +248,7 @@ export function TaskDateInput({
             timeout.clear();
             run();
         }, perceivedAsInstantLimitMs);
-    }, [getCurrentCoveredHeight, isEditing, platform]);
+    }, [getCurrentCoveredHeight, isEditing, platform, routeLayout]);
 
     const {pressProps: previewPressProps} = usePress({
         // Preview doesn't receive focus.
@@ -418,7 +419,7 @@ export function TaskDateInput({
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
                 overflowBottom={platform === "mobile" ? "18rem" : undefined}
-                overflowTop={navigationBarHeight[platform]}
+                overflowTop={navigationBarHeight[routeLayout]}
                 overlay={
                     <div
                         ref={overlayRef}

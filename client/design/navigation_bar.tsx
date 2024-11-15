@@ -12,7 +12,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -65,7 +65,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     onMobileCancel,
     isAlwaysOpaque = false,
 }: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
-    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
@@ -172,7 +172,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     const navigationBar = !isDisabled ? (
         <NavigationBar
-            platform={platform}
+            routeLayout={routeLayout}
             handleRef={navigationBarRef}
             navigationBarRef={ref}
             title={title}
@@ -206,11 +206,9 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
         scrollbarInsetTop: useMemo(
             () =>
                 !isDisabled
-                    ? platform === "mobile"
-                        ? [spacing[navigationBarHeight.mobile], {withSafeArea: true}]
-                        : [spacing[navigationBarHeight.desktop], {withSafeArea: true}]
+                    ? [spacing[navigationBarHeight[routeLayout]], {withSafeArea: true}]
                     : undefined,
-            [isDisabled, platform],
+            [isDisabled, routeLayout],
         ),
     };
 }

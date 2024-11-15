@@ -5,13 +5,14 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
+import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
-    taskQueryViewCustomizationBarDesktopMarginY,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {
     TaskQueryViewDesktopHeaderName,
@@ -63,6 +64,7 @@ function TaskQueryViewDesktopHeader(
     ref: Ref<TaskQueryViewDesktopHeaderRef>,
 ) {
     const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
 
     const nameRef = useRef<TaskQueryViewDesktopHeaderNameRef>(null);
     const customizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
@@ -105,9 +107,9 @@ function TaskQueryViewDesktopHeader(
     }, [spacingScale]);
 
     return (
-        <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
+        <Box minHeight={navigationBarHeight[routeLayout]} display="flex" paddingX={screenPaddingX}>
             <Box
-                height={navigationBarHeight}
+                height={navigationBarHeight[routeLayout]}
                 display="flex"
                 alignItems="center"
                 maxWidth="1/3"
@@ -132,8 +134,8 @@ function TaskQueryViewDesktopHeader(
             <Box
                 flexGrow="1"
                 style={{
-                    paddingTop: taskQueryViewCustomizationBarDesktopMarginY,
-                    paddingBottom: taskQueryViewCustomizationBarDesktopMarginY,
+                    paddingTop: taskQueryViewCustomizationBarDesktopMarginY[routeLayout],
+                    paddingBottom: taskQueryViewCustomizationBarDesktopMarginY[routeLayout],
                 }}
             >
                 <TaskQueryViewCustomizationBar
@@ -157,7 +159,7 @@ function TaskQueryViewDesktopHeader(
             />
             <Box
                 flexShrink="0"
-                height={navigationBarHeight}
+                height={navigationBarHeight[routeLayout]}
                 display="flex"
                 alignItems="center"
                 gap="2"

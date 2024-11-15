@@ -18,6 +18,7 @@ import {
     getPlatformWithoutListening,
     usePlatform,
 } from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
     getInitialAppRenderSpacingScale,
     getSpacingScaleWithoutListening,
@@ -156,6 +157,7 @@ export default function DocumentNewCommentThreadsRoute() {
 
 function DocumentNewCommentThreadsRouteInner() {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const rootNavigate = useRootNavigate();
 
     const {
@@ -393,7 +395,7 @@ function DocumentNewCommentThreadsRouteInner() {
                 if (platform !== "mobile") return undefined;
 
                 return {
-                    minHeight: spacing[navigationBarHeight[platform]],
+                    minHeight: spacing[navigationBarHeight[routeLayout]],
                     node: (
                         <Box
                             position="relative"
@@ -402,11 +404,11 @@ function DocumentNewCommentThreadsRouteInner() {
                             paddingTop="safe-area-inset"
                             marginX="center"
                         >
-                            <Box height={navigationBarHeight} />
+                            <Box height={navigationBarHeight[routeLayout]} />
                         </Box>
                     ),
                 };
-            }, [platform])}
+            }, [platform, routeLayout])}
         />
     );
 

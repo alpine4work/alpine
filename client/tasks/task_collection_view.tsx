@@ -775,7 +775,7 @@ export function TaskCollectionView({
             if (routeLayout === "narrow") return;
 
             return {
-                minHeight: spacing[navigationBarHeight[platform]],
+                minHeight: spacing[navigationBarHeight[routeLayout]],
                 node: (
                     <>
                         {readOnlyStickyBanner}
@@ -811,7 +811,6 @@ export function TaskCollectionView({
             filters,
             isReadOnly,
             menuActions,
-            platform,
             readOnlyStickyBanner,
             routeLayout,
             setSorts,
@@ -850,10 +849,10 @@ export function TaskCollectionView({
             if (routeLayout === "narrow" && index === 0) {
                 return {
                     key: "CustomizationBar",
-                    minHeight: spacing[navigationBarHeight[platform]],
+                    minHeight: spacing[navigationBarHeight[routeLayout]],
                     node: (
                         <Box paddingTop="safe-area-inset">
-                            <Box height={navigationBarHeight} />
+                            <Box height={navigationBarHeight[routeLayout]} />
                             {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
                             {customizationState &&
                                 (platform === "mobile" ? (

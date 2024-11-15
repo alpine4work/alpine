@@ -1,13 +1,14 @@
 import {useEffect} from "react";
 import {
     flushNavigationBarScrollEventEmitter,
-    getNavigationBarHeightRemWithoutListening,
+    navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -45,6 +46,7 @@ export function maintainTextInputVisibility(targetElement: HTMLElement) {
  *    logic to make sure text is not under the keyboard.
  */
 export function useTextInputVisibilityMaintainer() {
+    const routeLayout = useRouteLayout();
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
 
@@ -149,7 +151,11 @@ export function useTextInputVisibilityMaintainer() {
 
             const visibleTop =
                 getElementSafeAreaInsetTopPx(targetElement) +
-                getNavigationBarHeightRemWithoutListening() * remPx;
+                // TODO(calebmer): Instead of using the `routeLayout` of the component that
+                // mounts this hook, we'd ideally use the `routeLayout` for the
+                // `scrollableElement`. However, we don't have a mechanism to query
+                // `routeLayout` in the DOM at the moment.
+                navigationBarHeightRem[routeLayout] * remPx;
 
             const visibleBottom = viewportHeight - getCurrentCoveredHeight();
 
@@ -233,5 +239,5 @@ export function useTextInputVisibilityMaintainer() {
             document.removeEventListener("input", handleInput, {capture: true});
             unsubscribe();
         };
-    }, [getCurrentCoveredHeight, isBehindMobileFullScreenModal]);
+    }, [getCurrentCoveredHeight, isBehindMobileFullScreenModal, routeLayout]);
 }

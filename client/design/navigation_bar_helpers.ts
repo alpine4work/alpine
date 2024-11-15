@@ -6,8 +6,6 @@
 // `navigation_bar.tsx` but should instead import from
 // `navigation_bar_helpers.tsx`.
 
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {navigationBarStyles} from "~/client/styles/styles.js";
 import {Spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -18,14 +16,6 @@ const {navigationBarHeight, navigationBarHeightRem} = navigationBarStyles;
 
 export {navigationBarHeight, navigationBarHeightRem};
 
-export function getNavigationBarHeightRemWithoutListening(): number {
-    return navigationBarHeightRem[getPlatformWithoutListening()];
-}
-
-export function getNavigationBarHeightPxWithoutListening(): number {
-    return getNavigationBarHeightRemWithoutListening() * getRemPxWithoutListening();
-}
-
 {
     // IMPORTANT: If you change this value, you must also change
     // `navigationBarHeight` in `NavigationBarConstants.swift`.
@@ -35,7 +25,7 @@ export function getNavigationBarHeightPxWithoutListening(): number {
     // to an actual value and applying the rem pixel count.
     const mobileNavigationBarHeight = 70;
 
-    assert(mobileNavigationBarHeight === navigationBarHeightRem.mobile * remPxBySpacingScale.large);
+    assert(mobileNavigationBarHeight === navigationBarHeightRem.narrow * remPxBySpacingScale.large);
 }
 
 export const navigationBarActionsFlexBasis: Spacing = "10";

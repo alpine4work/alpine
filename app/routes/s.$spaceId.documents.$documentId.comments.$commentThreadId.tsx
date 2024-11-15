@@ -9,6 +9,7 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
@@ -109,6 +110,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
 
 export default function DocumentCommentThreadRoute() {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const rootNavigate = useRootNavigate();
 
     const {
@@ -179,7 +181,7 @@ export default function DocumentCommentThreadRoute() {
                 if (platform !== "mobile") return undefined;
 
                 return {
-                    minHeight: spacing[navigationBarHeight[platform]],
+                    minHeight: spacing[navigationBarHeight[routeLayout]],
                     node: (
                         <Box
                             position="relative"
@@ -188,11 +190,11 @@ export default function DocumentCommentThreadRoute() {
                             paddingTop="safe-area-inset"
                             marginX="center"
                         >
-                            <Box height={navigationBarHeight} />
+                            <Box height={navigationBarHeight[routeLayout]} />
                         </Box>
                     ),
                 };
-            }, [platform])}
+            }, [platform, routeLayout])}
         />
     );
 

@@ -406,7 +406,7 @@ export function TaskNotepadView({
             // devices. Instead we render a navigation bar.
             if (platform === "mobile") return;
 
-            const height = spacing[navigationBarHeight[platform]];
+            const height = spacing[navigationBarHeight[routeLayout]];
 
             return {
                 minHeight: height,
@@ -426,7 +426,7 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [paginatorElement, platform]),
+        }, [paginatorElement, platform, routeLayout]),
     });
 
     const {undoEvent, redoEvent} = useEvents({

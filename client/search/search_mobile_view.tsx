@@ -8,6 +8,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto_growing_height.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
@@ -47,6 +48,7 @@ export function SearchMobileView({
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -78,7 +80,7 @@ export function SearchMobileView({
                 return {
                     key: "Header",
                     minHeight: addRemLengths(
-                        navigationBarHeight[platform],
+                        navigationBarHeight[routeLayout],
                         searchMobileInputMarginTop,
                         minSearchMobileInputHeight,
                         searchMobileInputMarginBottom,
@@ -86,7 +88,7 @@ export function SearchMobileView({
                     node: (
                         <>
                             <Box height="safe-area-inset-top" />
-                            <Box height={navigationBarHeight} />
+                            <Box height={navigationBarHeight[routeLayout]} />
                             <Box height={searchMobileInputMarginTop} />
                             <Box
                                 width="full"
@@ -215,9 +217,9 @@ export function SearchMobileView({
             onQueryTextChange,
             output.key,
             output.queryTime,
-            platform,
             queryText,
             results,
+            routeLayout,
             shouldShowLoadingIndicator,
             space.id,
             space.name,

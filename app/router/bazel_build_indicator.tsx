@@ -174,7 +174,9 @@ if (process.env.NODE_ENV !== "development") {
                     // available in every bundle.
                     style={{
                         height: subtractRemLengths(
-                            navigationBarStyles.navigationBarHeight[platform],
+                            navigationBarStyles.navigationBarHeight[
+                                ({mobile: "narrow", desktop: "wide"} as const)[platform]
+                            ],
                             "2",
                         ),
                     }}

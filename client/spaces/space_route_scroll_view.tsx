@@ -6,6 +6,7 @@ import {NavigationBarProps} from "~/client/design/navigation_bar_types.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 
 const SpaceRouteScrollViewForwardRef = forwardRef(SpaceRouteScrollView);
 export {SpaceRouteScrollViewForwardRef as SpaceRouteScrollView};
@@ -27,6 +28,8 @@ function SpaceRouteScrollView(
     } & Omit<NavigationBarProps, "ref">,
     ref: Ref<HTMLDivElement>,
 ) {
+    const routeLayout = useRouteLayout();
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar(navigationBarProps);
 
     return (
@@ -46,7 +49,7 @@ function SpaceRouteScrollView(
                 <OverlayScopeContextProvider>
                     {navigationBar}
                     <Box height="safe-area-inset-top" />
-                    <Box height={navigationBarHeight} />
+                    <Box height={navigationBarHeight[routeLayout]} />
                     {children}
                 </OverlayScopeContextProvider>
             </Box>

@@ -26,6 +26,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -62,6 +63,7 @@ export function PostCreator({
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -278,7 +280,7 @@ export function PostCreator({
                                 marginX="center"
                                 paddingX={screenPaddingX}
                                 marginBottom={postContentViewInnerMarginY}
-                                style={{height: postViewNavigationBarSpace[platform]}}
+                                style={{height: postViewNavigationBarSpace[routeLayout]}}
                             >
                                 <Box
                                     position="absolute"
@@ -286,7 +288,9 @@ export function PostCreator({
                                     display="flex"
                                     alignItems="center"
                                     height={
-                                        platform === "desktop" ? navigationBarHeight : undefined
+                                        platform === "desktop"
+                                            ? navigationBarHeight[routeLayout]
+                                            : undefined
                                     }
                                 >
                                     <PostContentViewHeaderBase
@@ -298,7 +302,7 @@ export function PostCreator({
                             </Box>
                         ) : (
                             <>
-                                <Box height={navigationBarHeight} />
+                                <Box height={navigationBarHeight[routeLayout]} />
                                 <Box
                                     flexShrink="0"
                                     width="full"

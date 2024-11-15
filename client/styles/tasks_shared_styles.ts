@@ -1,4 +1,4 @@
-import {contentStyles, fontSizes} from "~/client/styles/styles.js";
+import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
 import {
     RemLength,
     Spacing,
@@ -155,3 +155,11 @@ export const taskRowViewExpandButtonWidthRem = parseRemLength(taskRowViewExpandB
 
 export const taskRowViewDragHandleWidth = "5";
 export const taskRowViewDragHandleWidthRem = parseRemLength(taskRowViewDragHandleWidth);
+
+export const taskQueryFilterEditorDesktopHeight = "6";
+
+export const taskQueryViewCustomizationBarDesktopMarginY = mapObjectValues(
+    navigationBarStyles.navigationBarHeightRem,
+    (navigationBarHeightRem): RemLength =>
+        `${(navigationBarHeightRem - parseRemLength(taskQueryFilterEditorDesktopHeight)) / 2}rem`,
+);

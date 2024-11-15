@@ -11,7 +11,6 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeightRem} from "~/client/design/navigation_bar_helpers.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,
@@ -20,25 +19,18 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {greyElevated2ClassName} from "~/client/styles/styles.js";
+import {taskQueryFilterEditorDesktopHeight} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryAddFilterMenuButton} from "~/client/tasks/internal/task_query_add_filter_menu_button.js";
 import {TaskQueryAddSortMenuButton} from "~/client/tasks/internal/task_query_add_sort_menu_button.js";
-import {
-    TaskQueryFilterEditor,
-    taskQueryFilterEditorDesktopHeight,
-} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
-import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-
-const taskQueryViewCustomizationBarDesktopMarginYRem =
-    (navigationBarHeightRem.desktop - parseRemLength(taskQueryFilterEditorDesktopHeight)) / 2;
-
-export const taskQueryViewCustomizationBarDesktopMarginY = `${taskQueryViewCustomizationBarDesktopMarginYRem}rem`;
 
 export type TaskQueryViewCustomizationBarRef = {
     openAddFilterMenu(): void;

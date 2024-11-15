@@ -293,9 +293,9 @@ globalStyle(narrowRouteLayoutDocClassName, {
 });
 
 export const titlePaddingTop = {
-    mobileNarrow: addRemLengths("3", navigationBarHeight.mobile),
-    desktopWide: addRemLengths("10", navigationBarHeight.desktop),
-    desktopNarrow: addRemLengths("0", navigationBarHeight.desktop),
+    mobileNarrow: addRemLengths("3", navigationBarHeight.narrow),
+    desktopWide: addRemLengths("10", navigationBarHeight.wide),
+    desktopNarrow: addRemLengths("0", navigationBarHeight.narrow),
 };
 
 const titleLetterSpacingFactor = 0.6;

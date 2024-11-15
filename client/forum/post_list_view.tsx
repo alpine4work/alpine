@@ -741,7 +741,7 @@ function PostListView(
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
                             hasNavigationBar || withStaticNavigationBar
-                                ? navigationBarHeight[platform]
+                                ? navigationBarHeight[routeLayout]
                                 : "0rem",
                             !item.channelHeader.isOnlyNavigationBar
                                 ? channelViewHeaderMinHeight
@@ -766,7 +766,7 @@ function PostListView(
                                     }}
                                 >
                                     {(hasNavigationBar || withStaticNavigationBar) && (
-                                        <Spacer space={navigationBarHeight} />
+                                        <Spacer space={navigationBarHeight[routeLayout]} />
                                     )}
                                     {!item.channelHeader.isOnlyNavigationBar && (
                                         <ChannelViewHeader channelHeader={item.channelHeader} />
@@ -791,7 +791,7 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
-                            ? postViewMinHeight[platform][spacingScale]
+                            ? postViewMinHeight[routeLayout][spacingScale]
                             : item.postCommentsState !== "Closed" && !isPostView
                             ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
                             : postContentViewMinHeightWithClosedCommentSection[spacingScale],
@@ -1477,9 +1477,10 @@ function PostListView(
             posts,
             hasNavigationBar,
             withStaticNavigationBar,
-            platform,
+            routeLayout,
             hasAside,
             isPostView,
+            spacingScale,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
@@ -1489,7 +1490,7 @@ function PostListView(
             onMergePostContentReferences,
             onTogglePostComments,
             loadInitialPostComments,
-            spacingScale,
+            platform,
             messageEditing,
             highlightPostComment,
             handleJumpToPostComment,
@@ -1566,7 +1567,7 @@ function PostListView(
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
                         (withStaticNavigationBar
-                            ? spacing[navigationBarHeight[platform]]
+                            ? spacing[navigationBarHeight[routeLayout]]
                             : undefined) ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
@@ -1731,7 +1732,7 @@ function PostListView(
                                                     pointerEvents: "auto",
                                                     paddingTop:
                                                         hasNavigationBar || withStaticNavigationBar
-                                                            ? navigationBarHeight
+                                                            ? navigationBarHeight[routeLayout]
                                                             : undefined,
                                                 })}
                                                 style={{minHeight: viewSize ? viewSize.height : 0}}

@@ -178,7 +178,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             position="relative"
             zIndex="0"
             width="full"
-            height={navigationBarHeight}
+            height={navigationBarHeight[routeLayout]}
             display="flex"
             gap={!isMobile ? "5" : undefined}
             style={{
@@ -191,7 +191,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     ? (hasLeftActions || hasRightActions) && (
                           <Box
                               flexShrink="0"
-                              height={navigationBarHeight}
+                              height={navigationBarHeight[routeLayout]}
                               paddingLeft={navigationBarMobileGap}
                               display="flex"
                               justifyContent="flex-start"
@@ -262,7 +262,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                 <Box
                     flexGrow="1"
                     flexShrink="1"
-                    height={navigationBarHeight}
+                    height={navigationBarHeight[routeLayout]}
                     paddingX={isMobile ? navigationBarMobileGap : undefined}
                     paddingLeft={
                         desktopTitleMaxWidth === undefined &&
@@ -364,7 +364,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     <Box
                         flexGrow={!isMobile ? "1" : undefined}
                         flexShrink="0"
-                        height={navigationBarHeight}
+                        height={navigationBarHeight[routeLayout]}
                         paddingRight={isMobile ? navigationBarMobileGap : "5"}
                         display="flex"
                         justifyContent="flex-end"

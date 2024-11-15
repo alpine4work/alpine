@@ -204,7 +204,7 @@ export function PostContentView({
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
-                    ? postViewMinHeight[platform][spacingScale]
+                    ? postViewMinHeight[routeLayout][spacingScale]
                     : postCommentsState !== "Closed" && !isPostView
                     ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
                     : postContentViewMinHeightWithClosedCommentSection[spacingScale],
@@ -216,7 +216,7 @@ export function PostContentView({
         >
             {isPostView ? (
                 <Box paddingTop="safe-area-inset">
-                    <Box style={{height: postViewNavigationBarSpace[platform]}} />
+                    <Box style={{height: postViewNavigationBarSpace[routeLayout]}} />
                 </Box>
             ) : (
                 <>

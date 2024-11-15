@@ -962,6 +962,7 @@ function TaskDetailViewMain(
 ) {
     const context = useAppContext();
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
@@ -1108,13 +1109,13 @@ function TaskDetailViewMain(
                 {platform === "mobile" && (
                     // On mobile, create some space for the navigation bar since it's back button
                     // will conflict with the status button.
-                    <Spacer space={navigationBarHeight} />
+                    <Spacer space={navigationBarHeight[routeLayout]} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box paddingBottom={taskDetailViewSectionGap} paddingX={screenPaddingX}>
                         {platform !== "mobile" ? (
                             <Box
-                                height={navigationBarHeight}
+                                height={navigationBarHeight[routeLayout]}
                                 marginBottom={taskDetailViewNavigationBarSpacerDesktopMarginBottom}
                             />
                         ) : (

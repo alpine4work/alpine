@@ -34,7 +34,7 @@ import {
 } from "~/client/design/navigation_bar_content.js";
 import {
     navigationBarHeight,
-    navigationBarHeightRem as navigationBarHeightRemByPlatform,
+    navigationBarHeightRem as navigationBarHeightRemByRouteLayout,
 } from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
@@ -48,7 +48,7 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
     Spacing,
@@ -138,7 +138,7 @@ const initialScrollDirectionState: ScrollDirectionState = {
 };
 
 export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
-    platform,
+    routeLayout,
     handleRef,
     navigationBarRef: externalNavigationBarRef,
     title,
@@ -164,7 +164,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     onMobileCancel,
     isAlwaysOpaque,
 }: {
-    platform: Platform;
+    routeLayout: RouteLayout;
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
@@ -204,7 +204,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         null,
     );
 
-    const navigationBarHeightRem = navigationBarHeightRemByPlatform[platform];
+    const navigationBarHeightRem = navigationBarHeightRemByRouteLayout[routeLayout];
 
     const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
@@ -1061,7 +1061,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             opacity="0"
                             style={{
                                 height: `calc(${
-                                    spacing[navigationBarHeight[platform]]
+                                    spacing[navigationBarHeight[routeLayout]]
                                 } + var(--safe-area-inset-top, 0px))`,
                             }}
                         />

@@ -35,6 +35,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -147,6 +148,7 @@ function TaskCollectionsInput(
     ref: Ref<TaskCollectionsInputRef>,
 ) {
     const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const navigate = useNavigate();
@@ -1153,7 +1155,7 @@ function TaskCollectionsInput(
                     // iOS. We may need to change this constant if the keyboard height for iOS
                     // changes or the Android keyboard height is bigger.
                     overflowBottom={platform === "mobile" ? "18rem" : undefined}
-                    overflowTop={navigationBarHeight[platform]}
+                    overflowTop={navigationBarHeight[routeLayout]}
                     overlay={
                         <Box
                             ref={popoverRef}

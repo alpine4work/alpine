@@ -2,7 +2,7 @@ import {Memo, RefObject, useCallback, useEffect} from "react";
 import {
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
-    getNavigationBarHeightPxWithoutListening,
+    navigationBarHeight as navigationBarHeightByRouteLayout,
 } from "~/client/design/navigation_bar_helpers.js";
 import {
     getElementSafeAreaInsetTopPx,
@@ -26,6 +26,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -188,6 +189,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         scrollableInsetBottom?: RemLength | number;
     },
 ) {
+    const routeLayout = useRouteLayout();
     const getCurrentBottomBarHeight = useGetCurrentBottomBarHeight();
     const subscribeToBottomBarFrameChange = useSubscribeToBottomBarFrameChange();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -283,7 +285,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             if (wasBottomBarMounted || wasBottomBarUnmounted) return;
 
             const spacingScale = getSpacingScaleWithoutListening();
-            const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
+            const navigationBarHeight = convertRemLengthToPx(
+                navigationBarHeightByRouteLayout[routeLayout],
+                spacingScale,
+            );
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
@@ -969,6 +974,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         isDisabled,
         isInert,
         isPinned,
+        routeLayout,
         scrollableInsetBottom,
         scrollableRef,
         subscribeToBottomBarFrameChange,
@@ -983,7 +989,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 "getElement" in scrollable ? scrollable.getElement() : scrollable;
 
             const spacingScale = getSpacingScaleWithoutListening();
-            const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
+            const navigationBarHeight = convertRemLengthToPx(
+                navigationBarHeightByRouteLayout[routeLayout],
+                spacingScale,
+            );
 
             const currentScrollableRect = scrollableElement.getBoundingClientRect();
             const currentBottomBarHeight = getCurrentBottomBarHeight();
@@ -1036,6 +1045,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 ),
                 bottom: Math.min(currentScrollableBottom, currentCoveredBottom),
             };
-        }, [getCurrentBottomBarHeight, scrollableInsetBottom, scrollableRef]),
+        }, [getCurrentBottomBarHeight, routeLayout, scrollableInsetBottom, scrollableRef]),
     };
 }

@@ -5,6 +5,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -17,6 +18,8 @@ export function TaskQueryMobileEditor({
     onNameChange: (name: string) => void;
     onCloseWithAnimation: () => void;
 }) {
+    const routeLayout = useRouteLayout();
+
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     const [{name, hasNameChanged}, setNameState] = useState({
@@ -48,7 +51,7 @@ export function TaskQueryMobileEditor({
         <Box width="full">
             <Box paddingTop="safe-area-inset" />
             <Box
-                height={navigationBarHeight}
+                height={navigationBarHeight[routeLayout]}
                 paddingX="3"
                 display="flex"
                 justifyContent="space-between"

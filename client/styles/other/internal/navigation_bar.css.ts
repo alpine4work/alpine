@@ -1,14 +1,15 @@
 import {keyframes, style} from "@vanilla-extract/css";
 import {easeOutQuart} from "~/shared/design/core/easing.js";
-import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 // These constants are exported from `navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
 export const navigationBarHeight = {
-    mobile: "14",
-    desktop: "14",
-} as const;
+    narrow: "14",
+    wide: "16",
+} as const satisfies Record<RouteLayout, Spacing>;
 
 export const navigationBarHeightRem = mapObjectValues(navigationBarHeight, parseRemLength);
 
