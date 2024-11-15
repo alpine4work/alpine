@@ -213,7 +213,7 @@ async function actuallyUploadFile(
     if (process.env.NODE_ENV === "production") {
         // TODO(calebmer, #files): Remove once we're done debugging
         // eslint-disable-next-line no-console
-        console.log(debugCounter(), inspect(req));
+        console.log(debugCounter(), JSON.stringify(inspect(req)));
     }
 
     let stream: ReadableStream = req;
