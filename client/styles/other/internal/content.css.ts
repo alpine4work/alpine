@@ -61,7 +61,6 @@ import {
     strikeClassName,
     tableCellClassName,
     tableClassName,
-    tableHeaderClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -2026,66 +2025,52 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-globalStyle(tableCellClassName, {
+globalStyle(`${tableCellClassName}`, {
     border: `1px solid ${colors["grey-20"]}`,
-    minWidth: spacing[20],
+    // minWidth: "30px",
 });
 
-globalStyle(tableClassName, {
-    minWidth: "600px",
-    marginTop: paragraphMarginVar,
-    marginBottom: paragraphMarginVar,
+globalStyle(`${tableClassName}`, {
+    ...blockStyles,
+    textAlign: "left",
+    borderCollapse: "collapse",
+    margin: "0 auto",
     width: "fit-content",
-    maxWidth: "1000px",
-    textAlign: "left",
-    borderCollapse: "collapse",
-    marginLeft: "auto",
-    marginRight: "auto",
+    // Allow horizontal scrolling for wide tables
     overflowX: "auto",
+    // Prevent margin collapse
     display: "block",
+    // Add some spacing around the table
+    // Optional: add a subtle border or shadow
     borderRadius: borderRadius[1],
-    scrollbarWidth: "thin",
-    scrollbarColor: `${colors["red-60"]} ${colorSchemeVars["grey-10"]}`,
-});
-
-globalStyle(`${tableClassName} table`, {
-    minWidth: "600px",
-    width: "100%",
-    maxWidth: "1000px",
-    textAlign: "left",
-    borderCollapse: "collapse",
-});
-
-// Add WebKit scrollbar styles
-globalStyle(`${tableClassName}::-webkit-scrollbar`, {
-    height: "8px", // Height of horizontal scrollbar
-});
-
-globalStyle(`${tableClassName}::-webkit-scrollbar-track`, {
-    background: colorSchemeVars["grey-10"],
-    borderRadius: borderRadius[1],
-});
-
-globalStyle(`${tableClassName}::-webkit-scrollbar-thumb`, {
-    background: colors["red-60"],
-    borderRadius: borderRadius[1],
+    // Optional: add a max width to prevent tables from stretching too wide
+    maxWidth: "100%",
 });
 
 globalStyle(`${tableClassName}.resize-cursor`, {
     cursor: "col-resize",
 });
 
-// globalStyle(`${tableClassName}::-webkit-scrollbar`, {
-//     height: spacing[2],
-// });
+globalStyle(`${tableClassName}::-webkit-scrollbar`, {
+    height: spacing[2],
+});
+
+globalStyle(`${tableClassName}::-webkit-scrollbar-track`, {
+    backgroundColor: colorSchemeVars["grey-10"],
+});
+
+globalStyle(`${tableClassName}::-webkit-scrollbar-thumb`, {
+    backgroundColor: colorSchemeVars["grey-20"],
+    borderRadius: borderRadius[1],
+});
 
 globalStyle(`${tableClassName} p`, {
-    padding: [spacing[1.5], spacing[2]],
+    padding: spacing[0],
     margin: spacing[0],
 });
 
 // Add to existing styles
-globalStyle(` .table-controls`, {
+globalStyle(`${tableClassName} .table-controls`, {
     position: "absolute",
     top: `-${spacing[8]}`,
     right: 0,
@@ -2141,7 +2126,7 @@ globalStyle(`${tableClassName} .column-button:hover`, {
 // Column button container styles
 globalStyle(`${tableClassName} .column-buttons-container`, {
     position: "absolute",
-    top: 10,
+    top: 0,
     left: 0,
     right: 0,
     height: 0,
@@ -2149,7 +2134,6 @@ globalStyle(`${tableClassName} .column-buttons-container`, {
 });
 
 globalStyle(`${tableClassName} td::after`, {
-    // background: colorSchemeVars["red-90"],
     content: '""',
     position: "absolute",
     top: 0,
@@ -2157,7 +2141,6 @@ globalStyle(`${tableClassName} td::after`, {
     bottom: 0,
     width: "6px", // Wide enough hit area for resizing
     cursor: "col-resize",
-    zIndex: 1000,
 });
 
 globalStyle(`${tableClassName} td`, {
@@ -2219,13 +2202,12 @@ globalStyle(`${tableClassName} .column-hover-area`, {
     top: "-20px", // Match button position
     bottom: 0,
     width: "100%",
-    zIndex: 1000,
+    zIndex: 998,
 });
 
 // Show button only when hovering over specific column
 globalStyle(`${tableClassName} .column-hover-area:hover + .column-button`, {
     opacity: 1,
-    zIndex: 1000,
 });
 
 globalStyle(`${tableClassName} .column-button:hover`, {
@@ -2254,6 +2236,7 @@ globalStyle(`${tableClassName} .column-button:hover .column-button-tooltip`, {
     opacity: 1,
 });
 
+// Update the button selector to match new class name
 globalStyle(`${tableClassName} .column-after-button`, {
     position: "absolute",
     width: spacing[4],
@@ -2280,37 +2263,5 @@ globalStyle(`${tableClassName} .column-container:hover .column-after-button`, {
 });
 
 globalStyle(`${tableClassName} .column-after-button:hover`, {
-    background: colorSchemeVars["blue-70"],
-});
-
-globalStyle(`${tableClassName} .column-container:hover::after`, {
-    content: '""',
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: "2px", // Width of the blue line
-    background: colorSchemeVars["blue-60"], // Blue color for the line
-    opacity: 0.6,
-    zIndex: 1000,
-    transition: "opacity 0.2s ease",
-});
-
-globalStyle(`${tableClassName} .column-container:hover .column-after-button`, {
-    opacity: 1,
-    pointerEvents: "auto",
-    background: colorSchemeVars["blue-60"], // Match button color with line
-    border: "none", // Remove border for cleaner look
-    color: colorSchemeVars["grey-0"], // White icon
-});
-
-// Optional: Add hover effect for the button
-globalStyle(` .column-after-button:hover`, {
-    background: colorSchemeVars["blue-70"], // Darker blue on hover
-});
-
-globalStyle(tableHeaderClassName, {
-    border: `1px solid ${colors["grey-20"]}`,
-    minWidth: spacing[20],
     background: colorSchemeVars["grey-10"],
 });

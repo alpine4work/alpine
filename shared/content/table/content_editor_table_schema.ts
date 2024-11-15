@@ -1,14 +1,59 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 
+import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {
+    CellSelection,
+    addColumnAfter as addColumnAfterFromProsemirrorTables,
+    addColumnBefore,
+    addRowAfter,
+    addRowBefore,
+    columnResizing,
+    deleteColumn,
+    deleteRow,
+    deleteTable,
+    fixTables as fixTablesFromProsemirrorTables,
+    goToNextCell,
+    mergeCells,
+    setCellAttr,
+    splitCell,
+    tableEditing,
+    toggleHeader,
+    toggleHeaderCell,
+} from "prosemirror-tables";
 import {
     tableAlignClassName,
     tableCellClassName,
     tableClassName,
-    tableHeaderClassName,
 } from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+// table: {
+//     content: "table_row+",
+//     tableRole: "table",
+//     isolating: true,
+//     group: "block",
+//     parseDOM: [{tag: "table"}],
+//     toDOM() {
+//         return ["table", 0];
+//     },
+// },
+// table_row: {
+//     content: "table_cell+",
+//     tableRole: "row",
+//     parseDOM: [{tag: "tr"}],
+//     toDOM() {
+//         return ["tr", 0];
+//     },
+// },
+// table_cell: {
+//     content: "block+",
+//     tableRole: "cell",
+//     parseDOM: [{tag: "td"}],
+//     toDOM() {
+//         return ["td", 0];
+//     },
+// },
 export const table = {
     name: "table",
     content: "table_row+",
@@ -54,6 +99,100 @@ export const table = {
         },
     ],
 
+    commands: {
+        addColumnBefore: (): Command => (state, dispatch) => {
+            return addColumnBefore(state, dispatch);
+        },
+        addColumnAfter: (): Command => (state, dispatch) => {
+            console.log("Executing addColumnAfter command", state, dispatch);
+            return addColumnAfterFromProsemirrorTables(state, dispatch);
+        },
+        deleteColumn: (): Command => (state, dispatch) => {
+            return deleteColumn(state, dispatch);
+        },
+        addRowBefore: (): Command => (state, dispatch) => {
+            return addRowBefore(state, dispatch);
+        },
+        addRowAfter: (): Command => (state, dispatch) => {
+            return addRowAfter(state, dispatch);
+        },
+        deleteRow: (): Command => (state, dispatch) => {
+            return deleteRow(state, dispatch);
+        },
+        deleteTable: (): Command => (state, dispatch) => {
+            return deleteTable(state, dispatch);
+        },
+        mergeCells: (): Command => (state, dispatch) => {
+            return mergeCells(state, dispatch);
+        },
+        splitCell: (): Command => (state, dispatch) => {
+            return splitCell(state, dispatch);
+        },
+        toggleHeaderColumn: (): Command => (state, dispatch) => {
+            return toggleHeader("column")(state, dispatch);
+        },
+        toggleHeaderRow: (): Command => (state, dispatch) => {
+            return toggleHeader("row")(state, dispatch);
+        },
+        toggleHeaderCell: (): Command => (state, dispatch) => {
+            return toggleHeaderCell(state, dispatch);
+        },
+        mergeOrSplit: (): Command => (state, dispatch) => {
+            if (mergeCells(state, dispatch)) {
+                return true;
+            }
+            return splitCell(state, dispatch);
+        },
+        setCellAttribute:
+            (name: string, value: any): Command =>
+            (state, dispatch) => {
+                return setCellAttr(name, value)(state, dispatch);
+            },
+        goToNextCell: (): Command => (state, dispatch) => {
+            return goToNextCell(1)(state, dispatch);
+        },
+        goToPreviousCell: (): Command => (state, dispatch) => {
+            return goToNextCell(-1)(state, dispatch);
+        },
+        fixTables: (): Command => (state, dispatch) => {
+            if (dispatch) {
+                fixTablesFromProsemirrorTables(state);
+            }
+            return true;
+        },
+        setCellSelection:
+            (position: {anchorCell: number; headCell: number}): Command =>
+            (state, dispatch) => {
+                if (dispatch) {
+                    const selection = CellSelection.create(
+                        state.tr.doc,
+                        position.anchorCell,
+                        position.headCell,
+                    );
+                    state.tr.setSelection(selection);
+                }
+                return true;
+            },
+        setAlignment:
+            (attrs: {alignment: "left" | "center" | "right"}): Command =>
+            (state, dispatch) => {
+                if (!dispatch) {
+                    return true;
+                }
+
+                console.log("setAlignment", attrs);
+                const $anchor = state.selection.$anchor;
+                const pos = $anchor.before($anchor.depth);
+
+                dispatch(
+                    state.tr.setNodeMarkup(pos, null, {
+                        ...state.selection.$anchor.parent.attrs,
+                        alignment: attrs.alignment,
+                    }),
+                );
+                return true;
+            },
+    },
     copyable: true,
 };
 
@@ -83,6 +222,7 @@ export const table_cell = {
         colspan: {default: 1, schema: Schema.integer},
         rowspan: {default: 1, schema: Schema.integer},
         colwidth: {default: null, schema: Schema.unknown},
+        // colwidth: {default: null, schema: Schema.array(Schema.integer)},
     },
     parseDOM: [
         {
@@ -122,7 +262,7 @@ export const table_header = {
     isolating: true,
     parseDOM: [{tag: "th"}],
     toDOM() {
-        return ["th", {class: tableHeaderClassName}, 0] as const;
+        return ["th", 0] as const;
     },
     copyable: true,
 };
