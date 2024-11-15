@@ -113,7 +113,6 @@ app_client_optimize_deps_aspect = aspect(
         ),
     },
     provides = [AppClientOptimizeDepsInfo],
-    required_providers = [JsInfo],
 )
 
 def _app_client_optimize_deps_impl(ctx):
