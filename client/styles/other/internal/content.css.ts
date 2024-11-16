@@ -1747,27 +1747,27 @@ for (const [lezerHighlightSelector, color] of Object.entries(colorByLezerHighlig
 }
 
 export const commentActiveDynamicCssTemplate = `\
-#$containerId ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+#$containerId .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId ${commentClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+#$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.light.active
 }}
-${darkColorSchemeSelector} #$containerId ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     commentBackgroundColors.dark.active
 }}
-${darkColorSchemeSelector} #$containerId ${commentClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.dark.active
 }}
-#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
-#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
+#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
+#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}:not([data-comment="$commentThreadId"]):has(${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
+#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
 ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
     .map(
         highlightColor => `\
-#$containerId ${commentClassName}[data-comment="$commentThreadId"] ${
+#$containerId .${commentClassName}[data-comment="$commentThreadId"] ${
             highlightClassNameByColor[highlightColor]
         } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
             colors["grey-0"],
@@ -1775,7 +1775,7 @@ ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameBy
             colors[colorByHighlightColor[highlightColor]],
             highlightOpacity,
         )}}
-${darkColorSchemeSelector} #$containerId ${commentClassName}[data-comment="$commentThreadId"] ${
+${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] ${
             highlightClassNameByColor[highlightColor]
         } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
             invertedColorsWithShade["grey-0"],
