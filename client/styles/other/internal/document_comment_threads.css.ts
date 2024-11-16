@@ -3,6 +3,7 @@ import {
     darkColorSchemeSelector,
     largeSpacingScaleSelector,
     lightColorSchemeSelector,
+    mediumSpacingScaleSelector,
     smallSpacingScaleSelector,
 } from "~/client/styles/core/styles_core.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
@@ -13,44 +14,33 @@ import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url
 export const sawtoothSize = "4";
 export const sawtoothSizeRem = parseRemLength(sawtoothSize);
 
+const remPxBySelector = {
+    [smallSpacingScaleSelector]: remPxBySpacingScale.small,
+    [mediumSpacingScaleSelector]: remPxBySpacingScale.medium,
+    [largeSpacingScaleSelector]: remPxBySpacingScale.large,
+};
+
+const colorBySelector = {
+    [lightColorSchemeSelector]: colorsWithShade["grey-10"],
+    [darkColorSchemeSelector]: invertedColorsWithShade["grey-10"],
+};
+
 export const sawtoothBorderClassName = style({
     width: "100%",
     height: `${sawtoothSizeRem}rem`,
     backgroundRepeat: "repeat-x",
-    selectors: {
-        [`${smallSpacingScaleSelector} ${lightColorSchemeSelector} &`]: {
-            backgroundImage: `url("${convertSvgToDataUrl(
-                createSawtoothSvg(
-                    sawtoothSizeRem * remPxBySpacingScale.small,
-                    colorsWithShade["grey-10"],
-                ),
-            )}")`,
-        },
-        [`${smallSpacingScaleSelector} ${darkColorSchemeSelector} &`]: {
-            backgroundImage: `url("${convertSvgToDataUrl(
-                createSawtoothSvg(
-                    sawtoothSizeRem * remPxBySpacingScale.small,
-                    invertedColorsWithShade["grey-10"],
-                ),
-            )}")`,
-        },
-        [`${largeSpacingScaleSelector} ${lightColorSchemeSelector} &`]: {
-            backgroundImage: `url("${convertSvgToDataUrl(
-                createSawtoothSvg(
-                    sawtoothSizeRem * remPxBySpacingScale.large,
-                    colorsWithShade["grey-10"],
-                ),
-            )}")`,
-        },
-        [`${largeSpacingScaleSelector} ${darkColorSchemeSelector} &`]: {
-            backgroundImage: `url("${convertSvgToDataUrl(
-                createSawtoothSvg(
-                    sawtoothSizeRem * remPxBySpacingScale.large,
-                    invertedColorsWithShade["grey-10"],
-                ),
-            )}")`,
-        },
-    },
+    selectors: Object.fromEntries(
+        Object.entries(remPxBySelector).flatMap(([selector1, remPx]) =>
+            Object.entries(colorBySelector).map(([selector2, color]) => [
+                `${selector1}${selector2} &`,
+                {
+                    backgroundImage: `url("${convertSvgToDataUrl(
+                        createSawtoothSvg(sawtoothSizeRem * remPx, color),
+                    )}")`,
+                },
+            ]),
+        ),
+    ),
 });
 
 function createSawtoothSvg(w: number, color: string) {

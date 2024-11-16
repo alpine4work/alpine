@@ -204,8 +204,14 @@ const blockStyles = {
     clear: "both",
 } as const;
 
+// NOCOMMIT: Don't switch over spacing scale? Ideally one line height for them
+// all.
 export const paragraphFontSize = {
     small: {
+        ...fontSizes["100"],
+        lineHeight: "1.375rem",
+    },
+    medium: {
         ...fontSizes["100"],
         lineHeight: "1.375rem",
     },

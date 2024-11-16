@@ -17,7 +17,10 @@ import {
 } from "~/client/styles/core/internal/color_scheme.css.js";
 import {fontSizes, fontStyles} from "~/client/styles/core/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/client/styles/core/internal/input_placeholder.css.js";
-import {largeSpacingScaleSelector} from "~/client/styles/core/internal/selectors.css.js";
+import {
+    largeSpacingScaleSelector,
+    mediumSpacingScaleSelector,
+} from "~/client/styles/core/internal/selectors.css.js";
 import {backgroundColorVar} from "~/client/styles/core/internal/sprinkles.css.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
@@ -44,6 +47,10 @@ globalStyle(":root", {
     // responsible for implementing their own touch feedback styles.
     WebkitTouchCallout: "none",
     WebkitTapHighlightColor: "rgba(0, 0, 0, 0)",
+});
+
+globalStyle(mediumSpacingScaleSelector, {
+    fontSize: remPxBySpacingScale.medium,
 });
 
 globalStyle(largeSpacingScaleSelector, {

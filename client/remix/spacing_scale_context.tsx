@@ -7,7 +7,7 @@ import {subscribeToPlatformChange} from "~/client/remix/platform_context.js";
 import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {
     SpacingScale,
-    largeSpacingScaleMinWindowWidth,
+    mediumSpacingScaleMinWindowWidth,
     remPxBySpacingScale,
 } from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -41,7 +41,7 @@ export function useSpacingScale(): SpacingScale {
 export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): SpacingScale {
     if (clientInfo.isNativeMobile) return "large";
     if (clientInfo.screenWidth <= mobilePlatformMaxWindowWidth) return "large";
-    if (clientInfo.screenWidth >= largeSpacingScaleMinWindowWidth) return "large";
+    if (clientInfo.screenWidth >= mediumSpacingScaleMinWindowWidth) return "medium";
     return "small";
 }
 
@@ -53,7 +53,7 @@ export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): Spacing
 export function getSpacingScaleWithoutListening(): SpacingScale {
     if (NativeMobileBridge) return "large";
     if (window.innerWidth <= mobilePlatformMaxWindowWidth) return "large";
-    if (window.innerWidth >= largeSpacingScaleMinWindowWidth) return "large";
+    if (window.innerWidth >= mediumSpacingScaleMinWindowWidth) return "medium";
     return "small";
 }
 
@@ -89,7 +89,7 @@ export function subscribeToSpacingScaleChange(listener: () => void): () => void 
         const listeners = new Set<() => void>();
 
         const mediaQuery = window.matchMedia(
-            `screen and (min-width: ${largeSpacingScaleMinWindowWidth}px)`,
+            `screen and (min-width: ${mediumSpacingScaleMinWindowWidth}px)`,
         );
 
         const actualListener = () => {

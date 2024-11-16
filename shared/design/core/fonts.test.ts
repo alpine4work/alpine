@@ -10,20 +10,29 @@ test("letter spacing matches Inter tracking formula", () => {
 
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
-                fontSizeName,
-                {
-                    small: `${Math.round(getTracking(small.fontSize) * 1e4) / 1e4}em`,
-                    large: `${Math.round(getTracking(large.fontSize) * 1e4) / 1e4}em`,
-                },
-            ]),
+            Object.entries(fontSizesBySpacingScale).map(
+                ([fontSizeName, {small, medium, large}]) => [
+                    fontSizeName,
+                    {
+                        small: `${Math.round(getTracking(small.fontSize) * 1e4) / 1e4}em`,
+                        medium: `${Math.round(getTracking(medium.fontSize) * 1e4) / 1e4}em`,
+                        large: `${Math.round(getTracking(large.fontSize) * 1e4) / 1e4}em`,
+                    },
+                ],
+            ),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
-                fontSizeName,
-                {small: small.letterSpacing, large: large.letterSpacing},
-            ]),
+            Object.entries(fontSizesBySpacingScale).map(
+                ([fontSizeName, {small, medium, large}]) => [
+                    fontSizeName,
+                    {
+                        small: small.letterSpacing,
+                        medium: medium.letterSpacing,
+                        large: large.letterSpacing,
+                    },
+                ],
+            ),
         ),
     );
 });
@@ -44,25 +53,50 @@ test("line height is the same across platforms", () => {
             ]),
         ),
     );
+
+    expect(
+        Object.fromEntries(
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small}]) => [
+                fontSizeName,
+                small.lineHeight,
+            ]),
+        ),
+    ).toEqual(
+        Object.fromEntries(
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium}]) => [
+                fontSizeName,
+                medium.lineHeight,
+            ]),
+        ),
+    );
 });
 
 test("line heights are a multiple of 8", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
-                fontSizeName,
-                {
-                    small: `${Math.round(parseRemLength(small.lineHeight) * 8) / 8}rem`,
-                    large: `${Math.round(parseRemLength(large.lineHeight) * 8) / 8}rem`,
-                },
-            ]),
+            Object.entries(fontSizesBySpacingScale).map(
+                ([fontSizeName, {small, medium, large}]) => [
+                    fontSizeName,
+                    {
+                        small: `${Math.round(parseRemLength(small.lineHeight) * 8) / 8}rem`,
+                        medium: `${Math.round(parseRemLength(medium.lineHeight) * 8) / 8}rem`,
+                        large: `${Math.round(parseRemLength(large.lineHeight) * 8) / 8}rem`,
+                    },
+                ],
+            ),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
-                fontSizeName,
-                {small: small.lineHeight, large: large.lineHeight},
-            ]),
+            Object.entries(fontSizesBySpacingScale).map(
+                ([fontSizeName, {small, medium, large}]) => [
+                    fontSizeName,
+                    {
+                        small: small.lineHeight,
+                        medium: medium.lineHeight,
+                        large: large.lineHeight,
+                    },
+                ],
+            ),
         ),
     );
 });
@@ -77,27 +111,34 @@ test("line heights are determined algorithmically from font sizes", () => {
 
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
-                fontSizeName,
-                {
-                    small: Math.round(
-                        (getLineHeight(small.fontSize, large.fontSize) *
-                            remPxBySpacingScale.small) /
-                            (parseRemLength(small.lineHeight) * remPxBySpacingScale.small),
-                    ),
-                    large: Math.round(
-                        (getLineHeight(small.fontSize, large.fontSize) *
-                            remPxBySpacingScale.large) /
-                            (parseRemLength(large.lineHeight) * remPxBySpacingScale.large),
-                    ),
-                },
-            ]),
+            Object.entries(fontSizesBySpacingScale).map(
+                ([fontSizeName, {small, medium, large}]) => [
+                    fontSizeName,
+                    {
+                        small: Math.round(
+                            (getLineHeight(small.fontSize, large.fontSize) *
+                                remPxBySpacingScale.small) /
+                                (parseRemLength(small.lineHeight) * remPxBySpacingScale.small),
+                        ),
+                        medium: Math.round(
+                            (getLineHeight(small.fontSize, medium.fontSize) *
+                                remPxBySpacingScale.medium) /
+                                (parseRemLength(medium.lineHeight) * remPxBySpacingScale.medium),
+                        ),
+                        large: Math.round(
+                            (getLineHeight(small.fontSize, large.fontSize) *
+                                remPxBySpacingScale.large) /
+                                (parseRemLength(large.lineHeight) * remPxBySpacingScale.large),
+                        ),
+                    },
+                ],
+            ),
         ),
     ).toEqual(
         Object.fromEntries(
             Object.entries(fontSizesBySpacingScale).map(([fontSizeName]) => [
                 fontSizeName,
-                {small: 1, large: 1},
+                {small: 1, medium: 1, large: 1},
             ]),
         ),
     );
@@ -114,6 +155,21 @@ test("large font sizes are approximately 1.25x small font sizes", () => {
     ).toEqual(
         Object.fromEntries(
             Object.entries(fontSizesBySpacingScale).map(([fontSizeName]) => [fontSizeName, 1.25]),
+        ),
+    );
+});
+
+test("medium font sizes are approximately 1.125x small font sizes", () => {
+    expect(
+        Object.fromEntries(
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, medium}]) => [
+                fontSizeName,
+                Math.round((medium.fontSize / small.fontSize) * 8) / 8,
+            ]),
+        ),
+    ).toEqual(
+        Object.fromEntries(
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName]) => [fontSizeName, 1.125]),
         ),
     );
 });

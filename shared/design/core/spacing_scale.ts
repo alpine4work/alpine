@@ -15,7 +15,7 @@
  * large monitors we'll switch our spacing scale to `medium` to make better use
  * of the available space.
  */
-export type SpacingScale = "small" | "large";
+export type SpacingScale = "small" | "medium" | "large";
 
 /**
  * The minimum width to start rendering the `medium` spacing scale (inclusive).
@@ -27,12 +27,13 @@ export type SpacingScale = "small" | "large";
  *
  * [1]: https://github.com/tailwindlabs/tailwindcss/blob/dd85aadc2c2904d1e934184d64ab3e1cd28313ae/packages/tailwindcss/theme.css#L280
  */
-export const largeSpacingScaleMinWindowWidth = 1280;
+export const mediumSpacingScaleMinWindowWidth = 1280;
 
 /**
  * The value of 1rem in pixels based on the spacing scale.
  */
 export const remPxBySpacingScale = {
     small: 16,
+    medium: 18,
     large: 20,
 } as const satisfies {[Key in SpacingScale]: number};

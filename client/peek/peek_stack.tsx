@@ -104,7 +104,7 @@ import {
 } from "~/shared/remix/peek_path_helpers.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const peekHeight = "34rem";
+const peekHeight = "38rem";
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];

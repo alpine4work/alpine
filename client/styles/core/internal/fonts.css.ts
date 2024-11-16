@@ -7,7 +7,10 @@
  */
 
 import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
-import {largeSpacingScaleSelector} from "~/client/styles/core/internal/selectors.css.js";
+import {
+    largeSpacingScaleSelector,
+    mediumSpacingScaleSelector,
+} from "~/client/styles/core/internal/selectors.css.js";
 import {
     interFontAscender,
     interFontDescender,
@@ -60,6 +63,18 @@ const fontSizeVars = createGlobalTheme(":root", {
     }),
 });
 
+globalStyle(mediumSpacingScaleSelector, {
+    vars: assignVars(fontSizeVars, {
+        font: mapObjectValues(fontSizesBySpacingScale, ({small, medium}) => {
+            assert(small.lineHeight === medium.lineHeight);
+            return {
+                fontSize: `${medium.fontSize}px`,
+                letterSpacing: medium.letterSpacing,
+            };
+        }),
+    }),
+});
+
 globalStyle(largeSpacingScaleSelector, {
     vars: assignVars(fontSizeVars, {
         font: mapObjectValues(fontSizesBySpacingScale, ({small, large}) => {
@@ -100,7 +115,8 @@ export const fontSizes: {
         letterSpacing: string;
         lineHeight: RemLength;
     };
-} = mapObjectValues(fontSizesBySpacingScale, ({small, large}, fontSizeName) => {
+} = mapObjectValues(fontSizesBySpacingScale, ({small, medium, large}, fontSizeName) => {
+    assert(small.lineHeight === medium.lineHeight);
     assert(small.lineHeight === large.lineHeight);
     return {
         fontSize: fontSizeVars.font[fontSizeName].fontSize,

@@ -190,6 +190,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "0.01em",
             lineHeight: "0.75rem",
         },
+        medium: {
+            fontSize: 11,
+            letterSpacing: "0.0048em",
+            lineHeight: "0.75rem",
+        },
         large: {
             fontSize: 13,
             letterSpacing: "-0.0032em",
@@ -200,6 +205,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 11,
             letterSpacing: "0.0048em",
+            lineHeight: "0.875rem",
+        },
+        medium: {
+            fontSize: 12,
+            letterSpacing: "0.0005em",
             lineHeight: "0.875rem",
         },
         large: {
@@ -214,6 +224,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "0.0005em",
             lineHeight: "1rem",
         },
+        medium: {
+            fontSize: 14,
+            letterSpacing: "-0.0062em",
+            lineHeight: "1rem",
+        },
         large: {
             fontSize: 15,
             letterSpacing: "-0.0088em",
@@ -226,6 +241,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.0032em",
             lineHeight: "1.25rem",
         },
+        medium: {
+            fontSize: 15,
+            letterSpacing: "-0.0088em",
+            lineHeight: "1.25rem",
+        },
         large: {
             fontSize: 16,
             letterSpacing: "-0.011em",
@@ -236,6 +256,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 14,
             letterSpacing: "-0.0062em",
+            lineHeight: "1.25rem",
+        },
+        medium: {
+            fontSize: 16,
+            letterSpacing: "-0.011em",
             lineHeight: "1.25rem",
         },
         large: {
@@ -255,6 +280,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.011em",
             lineHeight: "1.5rem",
         },
+        medium: {
+            fontSize: 18,
+            letterSpacing: "-0.0143em",
+            lineHeight: "1.5rem",
+        },
         large: {
             fontSize: 20,
             letterSpacing: "-0.0167em",
@@ -265,6 +295,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 18,
             letterSpacing: "-0.0143em",
+            lineHeight: "1.625rem",
+        },
+        medium: {
+            fontSize: 20,
+            letterSpacing: "-0.0167em",
             lineHeight: "1.625rem",
         },
         large: {
@@ -282,6 +317,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.0156em",
             lineHeight: "1.625rem",
         },
+        medium: {
+            fontSize: 21,
+            letterSpacing: "-0.0176em",
+            lineHeight: "1.625rem",
+        },
         large: {
             fontSize: 23,
             letterSpacing: "-0.019em",
@@ -292,6 +332,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 20,
             letterSpacing: "-0.0167em",
+            lineHeight: "1.75rem",
+        },
+        medium: {
+            fontSize: 22,
+            letterSpacing: "-0.0183em",
             lineHeight: "1.75rem",
         },
         large: {
@@ -306,6 +351,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.0183em",
             lineHeight: "1.875rem",
         },
+        medium: {
+            fontSize: 25,
+            letterSpacing: "-0.0199em",
+            lineHeight: "1.875rem",
+        },
         large: {
             fontSize: 28,
             letterSpacing: "-0.0209em",
@@ -316,6 +366,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 25,
             letterSpacing: "-0.0199em",
+            lineHeight: "2.125rem",
+        },
+        medium: {
+            fontSize: 28,
+            letterSpacing: "-0.0209em",
             lineHeight: "2.125rem",
         },
         large: {
@@ -330,6 +385,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.0209em",
             lineHeight: "2.25rem",
         },
+        medium: {
+            fontSize: 32,
+            letterSpacing: "-0.0216em",
+            lineHeight: "2.25rem",
+        },
         large: {
             fontSize: 35,
             letterSpacing: "-0.0219em",
@@ -340,6 +400,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 32,
             letterSpacing: "-0.0216em",
+            lineHeight: "2.5rem",
+        },
+        medium: {
+            fontSize: 36,
+            letterSpacing: "-0.022em",
             lineHeight: "2.5rem",
         },
         large: {
@@ -354,6 +419,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.022em",
             lineHeight: "2.75rem",
         },
+        medium: {
+            fontSize: 40,
+            letterSpacing: "-0.0221em",
+            lineHeight: "2.75rem",
+        },
         large: {
             fontSize: 45,
             letterSpacing: "-0.0222em",
@@ -364,6 +434,11 @@ export const fontSizesBySpacingScale = {
         small: {
             fontSize: 40,
             letterSpacing: "-0.0221em",
+            lineHeight: "3rem",
+        },
+        medium: {
+            fontSize: 45,
+            letterSpacing: "-0.0222em",
             lineHeight: "3rem",
         },
         large: {
@@ -378,6 +453,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.0222em",
             lineHeight: "3.375rem",
         },
+        medium: {
+            fontSize: 51,
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.375rem",
+        },
         large: {
             fontSize: 56,
             letterSpacing: "-0.0223em",
@@ -390,6 +470,11 @@ export const fontSizesBySpacingScale = {
             letterSpacing: "-0.0223em",
             lineHeight: "3.75rem",
         },
+        medium: {
+            fontSize: 56,
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.75rem",
+        },
         large: {
             fontSize: 62,
             letterSpacing: "-0.0223em",
@@ -399,6 +484,11 @@ export const fontSizesBySpacingScale = {
     "1300": {
         small: {
             fontSize: 60,
+            letterSpacing: "-0.0223em",
+            lineHeight: "4.5rem",
+        },
+        medium: {
+            fontSize: 68,
             letterSpacing: "-0.0223em",
             lineHeight: "4.5rem",
         },
