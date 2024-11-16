@@ -1834,7 +1834,7 @@ Resources:
                   HealthCheck:
                       Command:
                           - CMD-SHELL
-                          - /var/www/server/tasks/realtime/realtime.runfiles/node_linux_amd64/bin/nodejs/bin/node
+                          - /var/www/server/tasks/realtime/realtime.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node
                             --input-type module --eval "{ const response = await
                             fetch('http://localhost:4001/healthcheck'); if (!response.ok) { throw
                             new Error('Healthcheck failed') } } { const response = await
@@ -1934,7 +1934,7 @@ Resources:
                   HealthCheck:
                       Command:
                           - CMD-SHELL
-                          - /var/www/server/tasks/realtime/gateway/gateway.runfiles/node_linux_amd64/bin/nodejs/bin/node
+                          - /var/www/server/tasks/realtime/gateway/gateway.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node
                             --input-type module --eval "const response = await
                             fetch('http://localhost:80/healthcheck'); if (!response.ok) { throw new
                             Error('Healthcheck failed') }"
@@ -2538,7 +2538,7 @@ Resources:
                   HealthCheck:
                       Command:
                           - CMD-SHELL
-                          - /var/www/app/app_production.runfiles/node_linux_amd64/bin/nodejs/bin/node
+                          - /var/www/app/app_production.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node
                             --input-type module --eval "const response = await
                             fetch('http://localhost:4000/api/internal/healthcheck'); if
                             (!response.ok) { throw new Error('Healthcheck failed') }"
@@ -3307,7 +3307,7 @@ Resources:
                   HealthCheck:
                       Command:
                           - CMD-SHELL
-                          - /var/www/server/jobs/queue/queue.runfiles/node_linux_amd64/bin/nodejs/bin/node
+                          - /var/www/server/jobs/queue/queue.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node
                             --input-type module --eval "import fs from 'fs'; if
                             (fs.readFileSync('/var/www-data/server_jobs_queue_healthcheck.txt',
                             'utf8').trim() !== 'Healthy') { throw new Error('Healthcheck failed') }"
@@ -4186,7 +4186,7 @@ Resources:
                   HealthCheck:
                       Command:
                           - CMD-SHELL
-                          - /var/www/server/files/upload/upload.runfiles/node_linux_amd64/bin/nodejs/bin/node
+                          - /var/www/server/files/upload/upload.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node
                             --input-type module --eval "const response = await
                             fetch('http://localhost:4000/healthcheck'); if (!response.ok) { throw
                             new Error('Healthcheck failed') }"
