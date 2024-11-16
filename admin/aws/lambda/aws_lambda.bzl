@@ -5,11 +5,8 @@ Bundles JavaScript code into a single file and creates a runfiles directory
 with any runtime data the script needs.
 """
 
-load("@aspect_bazel_lib//lib:paths.bzl", "to_rlocation_path")
-load("@aspect_rules_js//js:providers.bzl", "JsInfo")
-load("@aspect_rules_js//npm:providers.bzl", "NpmPackageStoreInfo")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
-load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "EsbuildRunfilesInfo", "esbuild_runfiles_aspect")
+load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "esbuild_runfiles_without_sources_and_npm_sources")
 
 def aws_lambda(
         name,
@@ -56,119 +53,40 @@ def aws_lambda(
         splitting = False,
     )
 
-    _aws_lambda(
-        name = name,
+    esbuild_runfiles_without_sources_and_npm_sources(
+        name = "{}_runfiles".format(name),
         srcs = srcs,
-        data = external_deps,
-        bundle = "{}_bundle".format(name),
+    )
+
+    # Create a `.zip` archive with the same layout as a Bazel executable runfiles
+    # directory. This `.zip` archive will be uploaded to AWS Lambda.
+    native.genrule(
+        name = name,
+        tools = ["//:python"],
+        srcs = [
+            ":{}_bundle".format(name),
+            ":{}_runfiles".format(name),
+        ],
+        outs = ["{}.zip".format(name)],
         visibility = visibility,
-    )
+        cmd = """\
+for path in {paths}; do
+    if [[ "$$path" == "$(BINDIR)/external/"* ]]; then
+        zip_path="$${{path#"$(BINDIR)/external/"}}"
+    elif [[ "$$path" == "$(BINDIR)/"* ]]; then
+        zip_path="cyberworlds/$${{path#"$(BINDIR)/"}}"
+    elif [[ "$$path" == "external/"* ]]; then
+        zip_path="$${{path#"external/"}}"
+    else
+        zip_path="cyberworlds/$$path"
+    fi
 
-def _aws_lambda_impl(ctx):
-    bundle_files = ctx.attr.bundle[DefaultInfo].files.to_list()
 
-    bundle = None
-    bundle_map = None
-
-    for file in bundle_files:
-        if file.basename == "{}.cjs".format(ctx.label.name):
-            bundle = file
-        if file.basename == "{}.cjs.map".format(ctx.label.name):
-            bundle_map = file
-
-    if not bundle or not bundle_map or len(bundle_files) != 2:
-        fail("expected bundle target to only have a `.cjs` file and a `.cjs.map` file")
-
-    files = [bundle, bundle_map]
-    transitive_files = []
-
-    # Get all runfiles from `srcs`.
-    #
-    # Since `srcs` will usually be a `ts_project()` this will include all
-    # individual, unbundled source files and `node_modules`. `node_modules` and
-    # individual source files are bundled by esbuild so we only want non-JavaScript
-    # source runfiles. `EsbuildRunfilesInfo` provides us with this.
-    for target in ctx.attr.srcs:
-        transitive_files.append(target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_sources.files)
-
-    # Anything in `data` is directly added to runfiles without filtering.
-    for target in ctx.attr.data:
-        if DefaultInfo in target:
-            transitive_files.append(target[DefaultInfo].files)
-            transitive_files.append(target[DefaultInfo].default_runfiles.files)
-
-        if JsInfo in target:
-            transitive_files.append(target[JsInfo].transitive_sources)
-            transitive_files.append(target[JsInfo].npm_sources)
-
-        if NpmPackageStoreInfo in target:
-            transitive_files.append(target[NpmPackageStoreInfo].transitive_files)
-
-    inputs = depset(files, transitive = transitive_files)
-    entries = {}
-
-    for input in inputs.to_list():
-        entries[to_rlocation_path(ctx, input)] = {
-            "dest": input.path,
-            "root": input.root.path,
-            "is_external": input.owner.workspace_name != "",
-            "is_source": input.is_source,
-            "is_directory": input.is_directory,
-        }
-
-    entries_json = ctx.actions.declare_file("{}_entries.json".format(ctx.label.name))
-    ctx.actions.write(entries_json, content = json.encode(entries))
-
-    output_tar = ctx.actions.declare_file("{}.tar".format(ctx.label.name))
-
-    args = ctx.actions.args()
-    args.add(entries_json)
-    args.add(output_tar)
-    args.add("none")
-    args.add("0:0")
-
-    # To build an AWS Lambda we create an intermediate `.tar` file then immediately
-    # untar it. We do this since we need to create an AWS Lambda directory that
-    # captures the slice of the Bazel output tree we care about and nothing else.
-    # Using the layer build script from `js_image_layer()` is perfect for this
-    # since it knows how to properly build an isolated file system for JavaScript
-    # code in a Docker container. Complete with the right `node_modules` symlinks.
-    #
-    # We tried using `copy_file_action()` and `copy_directory_bin_action()` instead
-    # of creating an intermediate `.tar` file but found this approach didn't
-    # support `node_modules` symlinks.
-    #
-    # This code is derived from:
-    # https://github.com/aspect-build/rules_js/blob/d0ff155c73e3c7fee5d72485e00775bca1fde10a/js/private/js_image_layer.bzl#L212-L239
-    ctx.actions.run(
-        inputs = depset([entries_json], transitive = [inputs]),
-        outputs = [output_tar],
-        executable = ctx.executable._builder,
-        arguments = [args],
-        env = {"BAZEL_BINDIR": "."},
-    )
-
-    output = ctx.actions.declare_directory(ctx.label.name)
-
-    ctx.actions.run(
-        inputs = [output_tar],
-        outputs = [output],
-        executable = "tar",
-        arguments = ["-C", output.path, "-xf", output_tar.path],
-    )
-
-    return [DefaultInfo(files = depset([output]))]
-
-_aws_lambda = rule(
-    _aws_lambda_impl,
-    attrs = {
-        "srcs": attr.label_list(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
-        "data": attr.label_list(),
-        "bundle": attr.label(),
-        "_builder": attr.label(
-            default = "@aspect_rules_js//js/private:js_image_layer_builder",
-            cfg = "exec",
-            executable = True,
+    $(location //:python) -c 'import zipfile,sys; zipfile.ZipFile(sys.argv[1],"a").write(sys.argv[2],sys.argv[3])' $@ "$$path" "$$zip_path"
+done
+""".format(
+            paths = (
+                "$(locations :{name}_bundle) $(locations :{name}_runfiles)" if len(srcs) > 0 else "$(locations :{name}_bundle)"
+            ).format(name = name),
         ),
-    },
-)
+    )

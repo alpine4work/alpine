@@ -178,21 +178,31 @@ def _gather_files_from_js_info(
     return depset([], transitive = files_depsets)
 
 def _esbuild_runfiles_without_sources_impl(ctx):
-    return DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources.files)
+    return DefaultInfo(
+        files = depset(transitive = [
+            target[EsbuildRunfilesInfo].runfiles_without_sources.files
+            for target in ctx.attr.srcs
+        ]),
+    )
 
 esbuild_runfiles_without_sources = rule(
     _esbuild_runfiles_without_sources_impl,
     attrs = {
-        "target": attr.label(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
+        "srcs": attr.label_list(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
     },
 )
 
 def _esbuild_runfiles_without_sources_and_npm_sources_impl(ctx):
-    return DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_sources.files)
+    return DefaultInfo(
+        files = depset(transitive = [
+            target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_sources.files
+            for target in ctx.attr.srcs
+        ]),
+    )
 
 esbuild_runfiles_without_sources_and_npm_sources = rule(
     _esbuild_runfiles_without_sources_and_npm_sources_impl,
     attrs = {
-        "target": attr.label(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
+        "srcs": attr.label_list(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
     },
 )

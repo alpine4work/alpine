@@ -252,7 +252,7 @@ async function main() {
         const match = packageKey.startsWith("file:")
             ? [packageKey, pnpmLock.packages[packageKey].name, packageKey]
             : packageKey.match(
-                  /^\/((?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*)@(\d+\.\d+\.\d+(?:-[a-z0-9-~][a-z0-9-._~]*)?)(?:$|\()/,
+                  /^((?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*)@(\d+\.\d+\.\d+(?:-[a-z0-9-~][a-z0-9-._~]*)?|file:[^(]*)(?:$|\()/,
               );
         if (!match) {
             throw new Error(`Unexpected package key format: ${JSON.stringify(packageKey)}`);

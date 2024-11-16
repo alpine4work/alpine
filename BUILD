@@ -67,6 +67,17 @@ alias(
     visibility = ["//visibility:public"],
 )
 
+alias(
+    name = "python",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "@python_aarch64-apple-darwin//:bin/python",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@python_x86_64-apple-darwin//:bin/python",
+        "@bazel_tools//src/conditions:linux_aarch64": "@python_aarch64-unknown-linux-gnu//:bin/python",
+        "@bazel_tools//src/conditions:linux_x86_64": "@python_x86_64-unknown-linux-gnu//:bin/python",
+    }),
+    visibility = ["//visibility:public"],
+)
+
 package_light_json(visibility = ["//visibility:public"])
 
 copy_to_bin(

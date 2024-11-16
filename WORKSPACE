@@ -261,6 +261,12 @@ playwright_browsers_repository(
 # =========================================================================== #
 
 http_archive(
+    name = "rules_pkg",
+    sha256 = "d20c951960ed77cb7b341c2a59488534e494d5ad1d30c4818c736d57772a9fef",
+    url = "https://github.com/bazelbuild/rules_pkg/releases/download/1.0.1/rules_pkg-1.0.1.tar.gz",
+)
+
+http_archive(
     name = "rules_oci",
     sha256 = "acbf8f40e062f707f8754e914dcb0013803c6e5e3679d3e05b571a9f5c7e0b43",
     strip_prefix = "rules_oci-2.0.1",
