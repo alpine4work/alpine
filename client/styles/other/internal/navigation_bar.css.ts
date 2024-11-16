@@ -8,7 +8,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 // Generally you'll import from there unless you need this constant in CSS.
 export const navigationBarHeight = {
     narrow: "14",
-    wide: "16",
+    wide: "14",
 } as const satisfies Record<RouteLayout, Spacing>;
 
 export const navigationBarHeightRem = mapObjectValues(navigationBarHeight, parseRemLength);
