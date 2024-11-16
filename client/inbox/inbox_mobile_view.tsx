@@ -105,11 +105,11 @@ export function InboxMobileView({
             if (index === 0) {
                 return {
                     key: "Header",
-                    minHeight: addRemLengths(navigationBarHeight.narrow),
+                    minHeight: addRemLengths(navigationBarHeight),
                     node: (
                         <>
                             <Box height="safe-area-inset-top" />
-                            <Box height={navigationBarHeight.narrow} />
+                            <Box height={navigationBarHeight} />
                             {itemCountWithDeletedItemAnimations === 0 && (
                                 <Box style={{height: "50vh"}}>
                                     <InboxViewEntriesEmpty filter={filter} />

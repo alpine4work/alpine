@@ -25,7 +25,7 @@ export {navigationBarHeight, navigationBarHeightRem};
     // to an actual value and applying the rem pixel count.
     const mobileNavigationBarHeight = 70;
 
-    assert(mobileNavigationBarHeight === navigationBarHeightRem.narrow * remPxBySpacingScale.large);
+    assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxBySpacingScale.large);
 }
 
 export const navigationBarActionsFlexBasis: Spacing = "10";

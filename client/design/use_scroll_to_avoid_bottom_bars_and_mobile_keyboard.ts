@@ -2,7 +2,7 @@ import {Memo, RefObject, useCallback, useEffect} from "react";
 import {
     dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
     flushNavigationBarScrollEventEmitter,
-    navigationBarHeight as navigationBarHeightByRouteLayout,
+    navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
 import {
     getElementSafeAreaInsetTopPx,
@@ -30,6 +30,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -285,10 +286,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             if (wasBottomBarMounted || wasBottomBarUnmounted) return;
 
             const spacingScale = getSpacingScaleWithoutListening();
-            const navigationBarHeight = convertRemLengthToPx(
-                navigationBarHeightByRouteLayout[routeLayout],
-                spacingScale,
-            );
+            const navigationBarHeight = navigationBarHeightRem * remPxBySpacingScale[spacingScale];
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
@@ -989,10 +987,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 "getElement" in scrollable ? scrollable.getElement() : scrollable;
 
             const spacingScale = getSpacingScaleWithoutListening();
-            const navigationBarHeight = convertRemLengthToPx(
-                navigationBarHeightByRouteLayout[routeLayout],
-                spacingScale,
-            );
+            const navigationBarHeight = navigationBarHeightRem * remPxBySpacingScale[spacingScale];
 
             const currentScrollableRect = scrollableElement.getBoundingClientRect();
             const currentBottomBarHeight = getCurrentBottomBarHeight();
@@ -1045,6 +1040,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 ),
                 bottom: Math.min(currentScrollableBottom, currentCoveredBottom),
             };
-        }, [getCurrentBottomBarHeight, routeLayout, scrollableInsetBottom, scrollableRef]),
+        }, [getCurrentBottomBarHeight, scrollableInsetBottom, scrollableRef]),
     };
 }

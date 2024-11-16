@@ -357,7 +357,7 @@ function ChannelRouteShimmer() {
                         display="flex"
                         justifyContent={platform === "mobile" ? "space-between" : undefined}
                         alignItems="center"
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                     >
                         {platform === "mobile" && <MobileBackButton />}
                         <TextShimmer
@@ -442,7 +442,7 @@ function ChannelRouteShimmer() {
                     style={{flex: postListViewAsideFlex}}
                 >
                     <Box height="safe-area-inset-top" />
-                    <Box height={navigationBarHeight[routeLayout]} />
+                    <Box height={navigationBarHeight} />
                     <Box
                         paddingX={screenPaddingX}
                         paddingTop={channelViewAsideMarginTop}
@@ -526,7 +526,6 @@ function ChannelFilesRouteShimmer() {
     const platform = usePlatform();
     const clientInfo = useClientInfo();
     const spacingScale = useSpacingScale();
-    const routeLayout = useRouteLayout();
     const remPx = remPxBySpacingScale[spacingScale];
 
     const [containerRef, containerSize] = useResizeObserver();
@@ -547,7 +546,7 @@ function ChannelFilesRouteShimmer() {
             <Box flexShrink="0" paddingTop="safe-area-inset" width="full" style={{maxWidth}}>
                 <Box
                     position="relative"
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     maxWidth={contentStyles.contentMaxWidth}
                 >
                     <Box
@@ -592,12 +591,11 @@ function ChannelFilesRouteShimmer() {
 
 function ChatRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
-                <Box position="relative" height={navigationBarHeight[routeLayout]}>
+                <Box position="relative" height={navigationBarHeight}>
                     {platform === "mobile" && (
                         <Box
                             position="absolute"
@@ -644,14 +642,13 @@ function ChatRouteShimmer() {
 
 function NewChatRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
                 {platform === "mobile" && (
                     <Box
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                         paddingX={navigationBarMobileGap}
                         display="flex"
                         justifyContent="space-between"
@@ -861,7 +858,6 @@ function MessageInputShimmer({
 // a route like `/create/more` has a back button in its shimmer.
 function CreateRouteShimmer({withBackButton}: {withBackButton?: boolean}) {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     withBackButton &&= platform === "mobile";
 
@@ -872,7 +868,7 @@ function CreateRouteShimmer({withBackButton}: {withBackButton?: boolean}) {
             <Box width="full" maxWidth={maxWidth} paddingTop="safe-area-inset" marginX="center">
                 <Box
                     width="full"
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     paddingX={navigationBarMobileGap}
                     display="flex"
                     justifyContent={withBackButton ? "space-between" : "center"}
@@ -903,7 +899,7 @@ function DocumentRouteShimmer() {
                 <Box position="absolute" top="0" left="0" right="0">
                     <Box height="safe-area-inset-top" />
                     <Box
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                         display="flex"
                         alignItems="center"
                         paddingX={navigationBarMobileGap}
@@ -965,7 +961,6 @@ function DocumentRouteShimmer() {
 
 function DocumentCommentThreadRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
@@ -973,7 +968,7 @@ function DocumentCommentThreadRouteShimmer() {
                 <Box height="safe-area-inset-top" />
                 {platform === "mobile" && (
                     <Box
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
@@ -1046,14 +1041,13 @@ function DocumentCommentThreadRouteShimmer() {
 
 function InboxRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     if (platform === "mobile") {
         return (
             <Box width="full">
                 <Box height="safe-area-inset-top" />
                 <Box
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
@@ -1120,7 +1114,6 @@ function InboxRouteShimmer() {
 
 function MoreRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -1133,7 +1126,7 @@ function MoreRouteShimmer() {
                 paddingTop="safe-area-inset"
                 marginX="center"
             >
-                <Box width="full" height={navigationBarHeight[routeLayout]} />
+                <Box width="full" height={navigationBarHeight} />
                 <Box display="flex" alignItems="stretch">
                     <Box
                         flexShrink="0"
@@ -1186,7 +1179,6 @@ function MoreRouteShimmer() {
 
 function MoreSwitchSpaceRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -1195,7 +1187,7 @@ function MoreSwitchSpaceRouteShimmer() {
             <Box width="full" maxWidth={maxWidth} paddingTop="safe-area-inset" marginX="center">
                 <Box
                     width="full"
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     paddingX={navigationBarMobileGap}
                     display="flex"
                     justifyContent="space-between"
@@ -1253,14 +1245,13 @@ function MoreSwitchSpaceSettingsRowShimmer({
 
 function ChannelPostsNotificationRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box height="safe-area-inset-top" />
             {platform === "mobile" && (
                 <Box
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     display="flex"
                     alignItems="center"
                     paddingX={navigationBarMobileGap}
@@ -1297,16 +1288,15 @@ function ChannelPostsNotificationRouteShimmer() {
 
 function PostRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             <Box flexGrow="1" overflow="hidden">
                 <Box height="safe-area-inset-top" />
                 {platform === "mobile" ? (
-                    <Box style={{height: postViewNavigationBarSpace[routeLayout]}}>
+                    <Box style={{height: postViewNavigationBarSpace}}>
                         <Box
-                            height={navigationBarHeight[routeLayout]}
+                            height={navigationBarHeight}
                             display="flex"
                             alignItems="center"
                             paddingX={navigationBarMobileGap}
@@ -1322,13 +1312,9 @@ function PostRouteShimmer() {
                         width="full"
                         maxWidth={contentStyles.contentMaxWidth}
                         marginX="center"
-                        style={{height: postViewNavigationBarSpace[routeLayout]}}
+                        style={{height: postViewNavigationBarSpace}}
                     >
-                        <Box
-                            height={navigationBarHeight[routeLayout]}
-                            display="flex"
-                            alignItems="center"
-                        >
+                        <Box height={navigationBarHeight} display="flex" alignItems="center">
                             <Box flexGrow="1">
                                 <PostShimmerHeader avatarSize="8" />
                             </Box>
@@ -1358,7 +1344,6 @@ function PostRouteShimmer() {
 
 function NewPostRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden">
@@ -1372,7 +1357,7 @@ function NewPostRouteShimmer() {
                 {platform === "mobile" ? (
                     <>
                         <Box
-                            height={navigationBarHeight[routeLayout]}
+                            height={navigationBarHeight}
                             display="flex"
                             justifyContent="space-between"
                             alignItems="center"
@@ -1386,7 +1371,7 @@ function NewPostRouteShimmer() {
                     </>
                 ) : (
                     <Box
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
@@ -1403,7 +1388,6 @@ function NewPostRouteShimmer() {
 
 function SearchRouteShimmer() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -1412,7 +1396,7 @@ function SearchRouteShimmer() {
             <Box paddingX={screenPaddingX}>
                 <Box height="safe-area-inset-top" />
                 <Box
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
@@ -1486,11 +1470,7 @@ function TaskDetailRouteShimmer() {
                     position="relative"
                 >
                     <Box height="safe-area-inset-top" />
-                    <Box
-                        height={navigationBarHeight[routeLayout]}
-                        display="flex"
-                        alignItems="center"
-                    >
+                    <Box height={navigationBarHeight} display="flex" alignItems="center">
                         {platform === "mobile" && <MobileBackButton />}
                         {platform !== "mobile" && (
                             <Box
@@ -1583,7 +1563,7 @@ export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?
                 <Box flexShrink="0" paddingTop="safe-area-inset">
                     <Box
                         position="relative"
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                         maxWidth={contentStyles.contentMaxWidth}
                     >
                         <Box
@@ -1631,7 +1611,7 @@ function TaskGridRouteShimmer({
             <Box height="safe-area-inset-top" />
             {notepadActiveSection && platform === "mobile" && (
                 <Box
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     display="flex"
                     alignItems="center"
                     justifyContent="space-between"
@@ -1645,7 +1625,7 @@ function TaskGridRouteShimmer({
             {notepadActiveSection}
             {!notepadActiveSection || platform !== "mobile" ? (
                 <Box
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     display="flex"
                     justifyContent={
                         !notepadActiveSection && platform === "mobile" ? "space-between" : undefined

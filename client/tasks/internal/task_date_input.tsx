@@ -205,7 +205,7 @@ export function TaskDateInput({
 
             const clearanceTop =
                 getElementSafeAreaInsetTopPx(scrollableElement) +
-                convertRemLengthToPx(navigationBarHeight[routeLayout], spacingScale) +
+                convertRemLengthToPx(navigationBarHeight, spacingScale) +
                 convertRemLengthToPx("1", spacingScale);
 
             if (top < clearanceTop) {
@@ -419,7 +419,7 @@ export function TaskDateInput({
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
                 overflowBottom={platform === "mobile" ? "18rem" : undefined}
-                overflowTop={navigationBarHeight[routeLayout]}
+                overflowTop={navigationBarHeight}
                 overlay={
                     <div
                         ref={overlayRef}

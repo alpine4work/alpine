@@ -18,7 +18,6 @@ import {TextInput} from "~/client/design/text_input.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -43,7 +42,6 @@ export function ChannelMobileEditor({
     onCloseWithAnimation: (options: {hasSaved: boolean}) => void;
     onSave: (update: {name: string; description: MessageContent}) => Promise<void>;
 }) {
-    const routeLayout = useRouteLayout();
     const isInitialAppRender = useIsInitialAppRender();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -149,7 +147,7 @@ export function ChannelMobileEditor({
             <OverlayScopeContextProvider>
                 <Box position="relative" paddingY="safe-area-inset">
                     {navigationBar}
-                    <Box height={navigationBarHeight[routeLayout]} />
+                    <Box height={navigationBarHeight} />
                     <Box paddingX={screenPaddingX}>
                         <Spacer space="5" />
                         <TextInput

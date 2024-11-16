@@ -12,7 +12,6 @@ import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js"
 import {Spacer} from "~/client/design/spacer.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
@@ -57,7 +56,6 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
     assert(chat.accounts.length > 0);
 
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
     const navigate = useNavigate();
 
@@ -78,7 +76,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             alignItems="center"
         >
             <Box
-                height={navigationBarHeight[routeLayout]}
+                height={navigationBarHeight}
                 width="full"
                 display="flex"
                 justifyContent="center"

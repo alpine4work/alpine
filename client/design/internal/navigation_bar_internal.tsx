@@ -34,7 +34,7 @@ import {
 } from "~/client/design/navigation_bar_content.js";
 import {
     navigationBarHeight,
-    navigationBarHeightRem as navigationBarHeightRemByRouteLayout,
+    navigationBarHeightRem,
 } from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarRef} from "~/client/design/navigation_bar_types.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
@@ -48,7 +48,6 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
     Spacing,
@@ -136,7 +135,6 @@ const initialScrollDirectionState: ScrollDirectionState = {
 };
 
 export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
-    routeLayout,
     handleRef,
     navigationBarRef: externalNavigationBarRef,
     withScrollAway,
@@ -162,7 +160,6 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     withoutMobileBackButton,
     onMobileCancel,
 }: {
-    routeLayout: RouteLayout;
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
@@ -201,8 +198,6 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
         null,
     );
-
-    const navigationBarHeightRem = navigationBarHeightRemByRouteLayout[routeLayout];
 
     const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
@@ -264,7 +259,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 return navigationBarHeight + getElementSafeAreaInsetTopPx(navigationBarElement);
             },
         }),
-        [navigationBarHeightRem],
+        [],
     );
 
     const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
@@ -834,13 +829,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 onPrepareSmoothScrollTo,
             };
         },
-        [
-            navigationBarHeightRem,
-            titleBoundaryMarginTop,
-            titleBoundaryRef,
-            withScrollAway,
-            withoutDisappearingTitle,
-        ],
+        [titleBoundaryMarginTop, titleBoundaryRef, withScrollAway, withoutDisappearingTitle],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -976,9 +965,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             pointerEvents="auto"
                             style={{
                                 backdropFilter: "blur(2px)",
-                                height: `calc(${
-                                    spacing[navigationBarHeight[routeLayout]]
-                                } + var(--safe-area-inset-top, 0px))`,
+                                height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
                         />
                         <NavigationBarContent

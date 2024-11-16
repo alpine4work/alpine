@@ -31,7 +31,6 @@ import {Spacer} from "~/client/design/spacer.js";
 import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     spaceLayoutErrorRendererPaddingX,
@@ -75,7 +74,6 @@ export function ContentFileViewerModalMobile({
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
-    const routeLayout = useRouteLayout();
     const {space} = useSpaceContext();
 
     const [navigationBarRef, navigationBarSize] = useResizeObserver({
@@ -195,7 +193,7 @@ export function ContentFileViewerModalMobile({
                             opacity="80"
                         />
                         <Box
-                            height={navigationBarHeight[routeLayout]}
+                            height={navigationBarHeight}
                             paddingX={navigationBarMobileGap}
                             gap={navigationBarMobileGap}
                             display="flex"
@@ -271,7 +269,7 @@ export function ContentFileViewerModalMobile({
                                     paddingX={spaceLayoutErrorRendererPaddingX}
                                     paddingTop="safe-area-inset"
                                 >
-                                    <Spacer space={navigationBarHeight[routeLayout]} />
+                                    <Spacer space={navigationBarHeight} />
                                     <Spacer space={spaceLayoutErrorRendererPaddingY} />
                                     {error instanceof ErrorBase &&
                                     error.code === ErrorCode.PermissionDenied ? (

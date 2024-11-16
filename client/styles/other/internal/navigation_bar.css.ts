@@ -1,17 +1,11 @@
 import {keyframes, style} from "@vanilla-extract/css";
 import {easeInQuart, easeOutQuart} from "~/shared/design/core/easing.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 // These constants are exported from `navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
-export const navigationBarHeight = {
-    narrow: "14",
-    wide: "14",
-} as const satisfies Record<RouteLayout, Spacing>;
-
-export const navigationBarHeightRem = mapObjectValues(navigationBarHeight, parseRemLength);
+export const navigationBarHeight: Spacing = "14";
+export const navigationBarHeightRem = parseRemLength(navigationBarHeight);
 
 const navigationBarTitleFadeOutKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0rem)"},

@@ -10,7 +10,6 @@ import {
 } from "~/client/design/navigation_bar_helpers.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
@@ -22,7 +21,6 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -46,7 +44,7 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
         <Box width="full" paddingY="safe-area-inset">
             {platform === "mobile" && (
                 <Box
-                    height={navigationBarHeight[routeLayout]}
+                    height={navigationBarHeight}
                     paddingX={navigationBarMobileGap}
                     display="flex"
                     alignItems="center"

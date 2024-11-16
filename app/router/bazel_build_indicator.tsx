@@ -18,7 +18,7 @@ if (process.env.NODE_ENV !== "development") {
         return null;
     };
 } else {
-    BazelBuildIndicator = function BazelBuildIndicator({platform}: {platform: Platform}) {
+    BazelBuildIndicator = function BazelBuildIndicator({}: {platform: Platform}) {
         const messageRef = useRef<HTMLDivElement>(null);
 
         const [messageState, setMessageState] = useState<{
@@ -173,12 +173,7 @@ if (process.env.NODE_ENV !== "development") {
                     // file in this bundle. Instead use `navigationBarStyles` since the CSS is
                     // available in every bundle.
                     style={{
-                        height: subtractRemLengths(
-                            navigationBarStyles.navigationBarHeight[
-                                ({mobile: "narrow", desktop: "wide"} as const)[platform]
-                            ],
-                            "2",
-                        ),
+                        height: subtractRemLengths(navigationBarStyles.navigationBarHeight, "2"),
                     }}
                 >
                     <Box fontStyle="truncate-code">{messageState.message}</Box>

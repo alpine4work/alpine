@@ -7,7 +7,6 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {ShareButton} from "~/client/design/share_button.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
 import {taskQueryViewCustomizationBarDesktopMarginY} from "~/client/styles/tasks_shared_styles.js";
@@ -78,7 +77,6 @@ function TaskCollectionViewDesktopHeader(
     ref: Ref<TaskCollectionViewDesktopHeaderRef>,
 ) {
     const spacingScale = useSpacingScale();
-    const routeLayout = useRouteLayout();
 
     const nameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
 
@@ -120,9 +118,9 @@ function TaskCollectionViewDesktopHeader(
     }, [spacingScale]);
 
     return (
-        <Box minHeight={navigationBarHeight[routeLayout]} display="flex" paddingX={screenPaddingX}>
+        <Box minHeight={navigationBarHeight} display="flex" paddingX={screenPaddingX}>
             <Box
-                height={navigationBarHeight[routeLayout]}
+                height={navigationBarHeight}
                 display="flex"
                 alignItems="center"
                 maxWidth="1/3"
@@ -153,8 +151,8 @@ function TaskCollectionViewDesktopHeader(
             <Box
                 flexGrow="1"
                 style={{
-                    paddingTop: taskQueryViewCustomizationBarDesktopMarginY[routeLayout],
-                    paddingBottom: taskQueryViewCustomizationBarDesktopMarginY[routeLayout],
+                    paddingTop: taskQueryViewCustomizationBarDesktopMarginY,
+                    paddingBottom: taskQueryViewCustomizationBarDesktopMarginY,
                 }}
             >
                 <TaskQueryViewCustomizationBar
@@ -177,7 +175,7 @@ function TaskCollectionViewDesktopHeader(
             />
             <Box
                 flexShrink="0"
-                height={navigationBarHeight[routeLayout]}
+                height={navigationBarHeight}
                 display="flex"
                 alignItems="center"
                 gap="2"

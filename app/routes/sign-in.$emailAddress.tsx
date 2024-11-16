@@ -16,7 +16,6 @@ import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_n
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
@@ -160,7 +159,6 @@ export async function action({request, context, params}: LoaderArgs) {
 
 export default function SignInEmailCodePage() {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const params = useParams();
     const emailAddress = params.emailAddress;
@@ -255,7 +253,7 @@ export default function SignInEmailCodePage() {
             {platform === "mobile" && (
                 <Box position="absolute" top="0" left="0" right="0" paddingTop="safe-area-inset">
                     <Box
-                        height={navigationBarHeight[routeLayout]}
+                        height={navigationBarHeight}
                         paddingX={navigationBarMobileGap}
                         display="flex"
                         alignItems="center"

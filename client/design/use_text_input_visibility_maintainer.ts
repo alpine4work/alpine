@@ -150,12 +150,7 @@ export function useTextInputVisibilityMaintainer() {
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
             const visibleTop =
-                getElementSafeAreaInsetTopPx(targetElement) +
-                // TODO(calebmer): Instead of using the `routeLayout` of the component that
-                // mounts this hook, we'd ideally use the `routeLayout` for the
-                // `scrollableElement`. However, we don't have a mechanism to query
-                // `routeLayout` in the DOM at the moment.
-                navigationBarHeightRem[routeLayout] * remPx;
+                getElementSafeAreaInsetTopPx(targetElement) + navigationBarHeightRem * remPx;
 
             const visibleBottom = viewportHeight - getCurrentCoveredHeight();
 

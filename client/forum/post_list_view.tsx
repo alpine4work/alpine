@@ -726,7 +726,7 @@ function PostListView(
                     return {
                         key: "ChannelHeader",
                         minHeight: addRemLengths(
-                            hasNavigationBar ? navigationBarHeight[routeLayout] : "0rem",
+                            hasNavigationBar ? navigationBarHeight : "0rem",
                             !item.channelHeader.isOnlyNavigationBar
                                 ? channelViewHeaderMinHeight
                                 : "0rem",
@@ -749,9 +749,7 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    {hasNavigationBar && (
-                                        <Spacer space={navigationBarHeight[routeLayout]} />
-                                    )}
+                                    {hasNavigationBar && <Spacer space={navigationBarHeight} />}
                                     {!item.channelHeader.isOnlyNavigationBar && (
                                         <ChannelViewHeader channelHeader={item.channelHeader} />
                                     )}
@@ -775,7 +773,7 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
-                            ? postViewMinHeight[routeLayout]
+                            ? postViewMinHeight
                             : item.postCommentsState !== "Closed" && !isPostView
                             ? postContentViewMinHeightWithOpenCommentSection
                             : postContentViewMinHeightWithClosedCommentSection,
@@ -1460,7 +1458,6 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
-            routeLayout,
             hasAside,
             isPostView,
             withSafeAreaInsetTop,
@@ -1548,7 +1545,7 @@ function PostListView(
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
-                        spacing[navigationBarHeight[routeLayout]] ??
+                        spacing[navigationBarHeight] ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
                     bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
@@ -1709,7 +1706,7 @@ function PostListView(
                                                 className={sprinkles({
                                                     pointerEvents: "auto",
                                                     paddingTop: hasNavigationBar
-                                                        ? navigationBarHeight[routeLayout]
+                                                        ? navigationBarHeight
                                                         : undefined,
                                                 })}
                                                 style={{minHeight: viewSize ? viewSize.height : 0}}

@@ -86,9 +86,9 @@ const postCommentSectionGuidelineStartHeightRem =
 
 export const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
 
-export const postViewNavigationBarSpace = mapObjectValues(
+export const postViewNavigationBarSpace = subtractRemLengths(
     navigationBarStyles.navigationBarHeight,
-    navigationBarHeight => subtractRemLengths(navigationBarHeight, postContentViewInnerMarginY),
+    postContentViewInnerMarginY,
 );
 
 const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
@@ -114,14 +114,10 @@ export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
     postContentViewOuterMarginBottom,
 );
 
-export const postViewMinHeight = mapObjectValues(
+export const postViewMinHeight = addRemLengths(
     postViewNavigationBarSpace,
-    postViewNavigationBarSpace =>
-        addRemLengths(
-            postViewNavigationBarSpace,
-            postContentViewMinHeightWithoutHeaderBase,
-            postContentViewOuterMarginBottom,
-        ),
+    postContentViewMinHeightWithoutHeaderBase,
+    postContentViewOuterMarginBottom,
 );
 
 export const channelViewHeaderMinHeight = addRemLengths(

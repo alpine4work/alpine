@@ -20,7 +20,6 @@ import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_h
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {postContentViewInnerMarginY} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -54,7 +53,6 @@ export function PostMobileEditor({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
     const context = useAppContext();
 
     const [postFromState, setPost] = useState(postFromProps);
@@ -165,7 +163,7 @@ export function PostMobileEditor({
                         paddingTop="safe-area-inset"
                     >
                         {navigationBar}
-                        {platform === "mobile" && <Box height={navigationBarHeight[routeLayout]} />}
+                        {platform === "mobile" && <Box height={navigationBarHeight} />}
                         <Box
                             flexShrink="0"
                             width="full"

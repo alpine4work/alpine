@@ -158,8 +158,8 @@ export const taskRowViewDragHandleWidthRem = parseRemLength(taskRowViewDragHandl
 
 export const taskQueryFilterEditorDesktopHeight = "6";
 
-export const taskQueryViewCustomizationBarDesktopMarginY = mapObjectValues(
-    navigationBarStyles.navigationBarHeightRem,
-    (navigationBarHeightRem): RemLength =>
-        `${(navigationBarHeightRem - parseRemLength(taskQueryFilterEditorDesktopHeight)) / 2}rem`,
-);
+export const taskQueryViewCustomizationBarDesktopMarginY: RemLength = `${
+    (navigationBarStyles.navigationBarHeightRem -
+        parseRemLength(taskQueryFilterEditorDesktopHeight)) /
+    2
+}rem`;

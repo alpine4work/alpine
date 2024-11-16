@@ -182,7 +182,7 @@ function TaskNotepadViewActiveSection({
                 paddingTop: `calc(${addRemLengths(
                     taskNotepadViewActiveSectionMarginTop[platform],
                     // Make room for the navigation bar on mobile.
-                    platform === "mobile" ? navigationBarHeight[routeLayout] : "0",
+                    platform === "mobile" ? navigationBarHeight : "0",
                 )} + var(--safe-area-inset-top, 0px))`,
                 // `columnHeaderControls` rendered for the notepad task grid view adds safe
                 // area inset top as margin for when it acts as a sticky header, remove a
