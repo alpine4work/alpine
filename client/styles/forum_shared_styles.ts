@@ -14,7 +14,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 export const postViewFlex = 6;
 export const postListViewAsideFlex = 4;
 
-export const channelViewMetadataSectionGap = "7";
+export const channelViewAsideSectionGap = "7";
 
 // We've picked `channelViewAsideMarginTop` so that when you edit the channel
 // description the save and cancel buttons aren't covered by the navigation
@@ -22,11 +22,12 @@ export const channelViewMetadataSectionGap = "7";
 // can set `channelViewAsideMarginTop` to 0.
 export const channelViewAsideMarginTop = "2";
 
-export const channelViewHeaderNarrowRouteLayoutMarginTop = "2";
+export const channelViewHeaderNarrowRouteLayoutMarginTop = "1";
+export const channelViewHeaderSectionGap = "6";
 
 export const postFauxInputCreateButtonMarginTop = {
     wide: channelViewAsideMarginTop,
-    narrow: "6",
+    narrow: channelViewHeaderSectionGap,
 } as const;
 
 export const postFauxInputCreateButtonHeight = "12";

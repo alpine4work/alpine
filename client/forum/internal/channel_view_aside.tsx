@@ -26,7 +26,7 @@ import {
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
-    channelViewMetadataSectionGap,
+    channelViewAsideSectionGap,
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
@@ -125,7 +125,7 @@ export function ChannelViewAside({
                 paddingBottom={screenPaddingX}
                 display="flex"
                 flexDirection="column"
-                gap={channelViewMetadataSectionGap}
+                gap={channelViewAsideSectionGap}
             >
                 {(isEditingDescription || !isContentEmpty(channel.description.doc)) && (
                     <Box

@@ -22,24 +22,28 @@ import {Store} from "~/shared/store/store.js";
 export function ChannelViewContributorsSection({
     channel,
     contributors,
+    withoutTitle,
 }: {
     channel: ChannelModel;
     contributors: ChannelContributorsModel | null;
+    withoutTitle?: boolean;
 }) {
     const context = useAppContext();
     const accountsStore = useAccountClientStore();
 
     return (
         <Box>
-            <h3
-                className={sprinkles({
-                    color: channelViewMetadataSectionTitleColor,
-                    fontSize: channelViewMetadataSectionTitleFontSize,
-                    marginBottom: channelViewMetadataSectionTitleMarginBottom,
-                })}
-            >
-                Contributors
-            </h3>
+            {!withoutTitle && (
+                <h3
+                    className={sprinkles({
+                        color: channelViewMetadataSectionTitleColor,
+                        fontSize: channelViewMetadataSectionTitleFontSize,
+                        marginBottom: channelViewMetadataSectionTitleMarginBottom,
+                    })}
+                >
+                    Contributors
+                </h3>
+            )}
             <AccountAvatarPile
                 size="7"
                 topPreviewAccount="First"

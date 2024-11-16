@@ -16,7 +16,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
-    channelViewMetadataSectionGap,
+    channelViewHeaderSectionGap,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonMarginTop,
 } from "~/client/styles/forum_shared_styles.js";
@@ -46,7 +46,7 @@ export function ChannelViewHeader({
                     paddingX={screenPaddingX}
                     display="flex"
                     flexDirection="column"
-                    gap={channelViewMetadataSectionGap}
+                    gap={channelViewHeaderSectionGap}
                 >
                     {(channelHeader.isEditingDescription ||
                         !isContentEmpty(channelHeader.channel.description.doc)) && (
@@ -68,6 +68,7 @@ export function ChannelViewHeader({
                     <ChannelViewContributorsSection
                         channel={channelHeader.channel}
                         contributors={null}
+                        withoutTitle={true}
                     />
                 </Box>
             )}

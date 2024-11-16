@@ -43,8 +43,9 @@ import {
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
+    channelViewAsideSectionGap,
     channelViewHeaderNarrowRouteLayoutMarginTop,
-    channelViewMetadataSectionGap,
+    channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
     postContentViewOuterMarginY,
@@ -370,7 +371,7 @@ function ChannelRouteShimmer() {
                             paddingTop={channelViewHeaderNarrowRouteLayoutMarginTop}
                             display="flex"
                             flexDirection="column"
-                            gap={channelViewMetadataSectionGap}
+                            gap={channelViewHeaderSectionGap}
                         >
                             <Box>
                                 <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
@@ -448,7 +449,7 @@ function ChannelRouteShimmer() {
                         paddingBottom={screenPaddingX}
                         display="flex"
                         flexDirection="column"
-                        gap={channelViewMetadataSectionGap}
+                        gap={channelViewAsideSectionGap}
                     >
                         <Box>
                             <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>

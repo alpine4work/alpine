@@ -23,6 +23,7 @@ export const messageViewBubblePaddingY: {desktop: Spacing; mobile: Spacing} = {
 
 export const messageViewBubbleMinHeight: {
     small: {desktop: RemLength; mobile: RemLength};
+    medium: {desktop: RemLength; mobile: RemLength};
     large: {desktop: RemLength; mobile: RemLength};
 } = mapObjectValues(contentStyles.paragraphFontSize, paragraphFontSize => ({
     desktop: addRemLengths(
