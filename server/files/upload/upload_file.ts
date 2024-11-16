@@ -59,6 +59,24 @@ import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+// TODO(calebmer, #files): Remove after debugging.
+const originalPipe = (ReadableStream as any).prototype.pipe;
+const originalPush = (ReadableStream as any).prototype.push;
+
+(ReadableStream as any).prototype.pipe = function pipeWrapper() {
+    // eslint-disable-next-line no-global-error, no-console
+    console.log(debugCounter(), "Readable.pipe", JSON.stringify(new Error("Trace").stack));
+    // eslint-disable-next-line prefer-rest-params
+    return originalPipe.apply(this, arguments as any);
+};
+
+(ReadableStream as any).prototype.push = function pushWrapper() {
+    // eslint-disable-next-line no-global-error, no-console
+    console.log(debugCounter(), "Readable.push", JSON.stringify(new Error("Trace").stack));
+    // eslint-disable-next-line prefer-rest-params
+    return originalPush.apply(this, arguments as any);
+};
+
 // Make sure we're using our custom `sharp` `libvips` build built from
 // [`cyberworlds/sharp-libvips`][1] by checking that additional modules are
 // available. We put this assertion here so production will loudly fail if
