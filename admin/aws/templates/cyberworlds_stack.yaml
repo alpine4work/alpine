@@ -4181,7 +4181,7 @@ Resources:
                       - Name: NODE_ENV
                         Value: production
                       - Name: NODE_DEBUG
-                        Value: stream,http
+                        Value: stream,http,http2,net
                   Essential: true
                   HealthCheck:
                       Command:

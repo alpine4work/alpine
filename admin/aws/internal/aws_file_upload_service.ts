@@ -202,7 +202,7 @@ export class AwsFileUploadService extends Construct {
             environment: {
                 NODE_ENV: "production",
                 // TODO(calebmer, #files): Remove this when done debugging.
-                NODE_DEBUG: "stream,http",
+                NODE_DEBUG: "stream,http,http2,net",
             },
             command: [
                 // Running using a shell so variables like `$HONEYCOMB_API_KEY` expand to the
