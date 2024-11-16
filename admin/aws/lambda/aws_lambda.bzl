@@ -81,8 +81,9 @@ for path in {paths}; do
         zip_path="cyberworlds/$$path"
     fi
 
-
-    $(location //:python) -c 'import zipfile,sys; zipfile.ZipFile(sys.argv[1],"a").write(sys.argv[2],sys.argv[3])' $@ "$$path" "$$zip_path"
+    # Out script makes sure to to set the `date_time` of all files to a constant.
+    # That way the zip file we create is reproducible across build machines.
+    $(location //:python) -c 'import zipfile, sys, pathlib; zipfile.ZipFile(sys.argv[1], "a").writestr(zipfile.ZipInfo(filename = sys.argv[3], date_time = (2024, 11, 15, 0, 0, 0)), pathlib.Path(sys.argv[2]).read_bytes())' $@ "$$path" "$$zip_path"
 done
 """.format(
             paths = (
