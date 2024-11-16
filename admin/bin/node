@@ -16,7 +16,7 @@ if [[ $PWD/ = $workspace_path/* ]]; then
         arch_name="arm64"
     fi
 
-    node_workspace="node_${platform_name}_${arch_name}"
+    node_workspace="nodejs_${platform_name}_${arch_name}"
     "$workspace_path/admin/bin/bazel" build --ui_event_filters=-info "@$node_workspace//:bin/node"
     $workspace_path/bazel-cyberworlds/external/$node_workspace/bin/node $@
 else

@@ -526,7 +526,7 @@ Resources:
             Code:
                 S3Bucket:
                     Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
-                S3Key: 6c6b258e3cad323fad3efed0cb00b3758bbfbca42da69063503148757b2b1a90.zip
+                S3Key: caebe64a01df3a35781eb90c8304940d9d437c81251de89eb46cdb713fd3d31e.zip
             Environment:
                 Variables:
                     OPENSEARCH_HOST:
@@ -555,7 +555,7 @@ Resources:
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/Resource
-            aws:asset:path: asset.6c6b258e3cad323fad3efed0cb00b3758bbfbca42da69063503148757b2b1a90
+            aws:asset:path: asset.caebe64a01df3a35781eb90c8304940d9d437c81251de89eb46cdb713fd3d31e.zip
             aws:asset:is-bundled: false
             aws:asset:property: Code
     OpensearchDeployScriptLogRetentionD429D165:
@@ -654,7 +654,7 @@ Resources:
                 Fn::GetAtt:
                     - OpensearchDeployScriptProviderframeworkonEvent8257EBC2
                     - Arn
-            deployScriptLambdaIndexHash: ad5a2933a236db312f06d974232689ddca7f3a3465824586a0d649f74f23ae25
+            deployScriptLambdaIndexHash: fff349c5cda4ae32ad015affee19d2ceb3ca9200ebf4cdb2ce5962e10c82b4cf
         DependsOn:
             - OpensearchDomainAppLogs191CCADD
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F

@@ -1,5 +1,5 @@
 import {spawn} from "child_process";
-import addMinutes from "date-fns/addMinutes/index.js";
+import {addMinutes} from "date-fns/addMinutes";
 import fsSync from "fs";
 import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";

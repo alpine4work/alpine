@@ -1,5 +1,5 @@
-import isValidDate from "date-fns/isValid/index.js";
-import parseISO from "date-fns/parseISO/index.js";
+import {isValid as isValidDate} from "date-fns/isValid";
+import {parseISO} from "date-fns/parseISO";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
