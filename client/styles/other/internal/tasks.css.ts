@@ -189,7 +189,7 @@ export const detailNotesContentEditorMinHeight = mapObjectValues(
 
 export const detailNotesContentEditorClassName = style({
     height: "100%",
-    minHeight: detailNotesContentEditorMinHeight.medium,
+    minHeight: detailNotesContentEditorMinHeight.small,
     selectors: {
         [`${largeSpacingScaleSelector} &`]: {
             minHeight: detailNotesContentEditorMinHeight.large,

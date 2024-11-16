@@ -22,7 +22,7 @@ export const truncatedHeight = mapObjectValues(
 // styles to make sure it looks right. Consider adding this when creating the
 // table and code block styles.
 export const truncatedClassName = style({
-    height: truncatedHeight.medium,
+    height: truncatedHeight.small,
     overflow: "hidden",
     selectors: {
         [`${largeSpacingScaleSelector} &`]: {
@@ -32,7 +32,7 @@ export const truncatedClassName = style({
 });
 
 globalStyle(`${truncatedClassName} ${paragraphClassName}`, {
-    height: truncatedHeight.medium,
+    height: truncatedHeight.small,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -51,7 +51,7 @@ export const updatedNoteClassName = style({
 });
 
 export const seeButtonClassName = style({
-    ...paragraphFontSize.medium,
+    ...paragraphFontSize.small,
     ...fontStyles["semi-bold"],
     cursor: "pointer",
     userSelect: "none",

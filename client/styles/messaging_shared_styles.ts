@@ -22,7 +22,7 @@ export const messageViewBubblePaddingY: {desktop: Spacing; mobile: Spacing} = {
 };
 
 export const messageViewBubbleMinHeight: {
-    medium: {desktop: RemLength; mobile: RemLength};
+    small: {desktop: RemLength; mobile: RemLength};
     large: {desktop: RemLength; mobile: RemLength};
 } = mapObjectValues(contentStyles.paragraphFontSize, paragraphFontSize => ({
     desktop: addRemLengths(
@@ -55,7 +55,7 @@ export const messageViewActionsWidth: Spacing = "10";
 export const messageViewActionsWidthWithoutHoveringPrimaryInput: Spacing = "5";
 
 export const messageViewReplyPreviewScale =
-    fontSizesBySpacingScale["50"].medium.fontSize / fontSizesBySpacingScale["100"].medium.fontSize;
+    fontSizesBySpacingScale["50"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
 

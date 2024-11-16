@@ -28,7 +28,7 @@ globalStyle(":root", {
     ...fontStyles.normal,
 
     // Change the size of 1rem based on our spacing scale.
-    fontSize: remPxBySpacingScale.medium,
+    fontSize: remPxBySpacingScale.small,
 
     // By default we don't allow selecting any text. Instead individual elements
     // must opt-into text selection. This makes our UI feel more native. In a

@@ -5,8 +5,8 @@ import {RemLength, Spacing, parseRemLength} from "~/shared/design/core/spacing.j
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 const textShimmerFontSizePercentage =
-    (parseRemLength("3") * remPxBySpacingScale.medium) /
-    fontSizesBySpacingScale["100"].medium.fontSize;
+    (parseRemLength("3") * remPxBySpacingScale.small) /
+    fontSizesBySpacingScale["100"].small.fontSize;
 
 export function TextShimmer({
     width,

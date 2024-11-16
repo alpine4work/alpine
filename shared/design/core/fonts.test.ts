@@ -10,19 +10,19 @@ test("letter spacing matches Inter tracking formula", () => {
 
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
                 fontSizeName,
                 {
-                    medium: `${Math.round(getTracking(medium.fontSize) * 1e4) / 1e4}em`,
+                    small: `${Math.round(getTracking(small.fontSize) * 1e4) / 1e4}em`,
                     large: `${Math.round(getTracking(large.fontSize) * 1e4) / 1e4}em`,
                 },
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
                 fontSizeName,
-                {medium: medium.letterSpacing, large: large.letterSpacing},
+                {small: small.letterSpacing, large: large.letterSpacing},
             ]),
         ),
     );
@@ -31,9 +31,9 @@ test("letter spacing matches Inter tracking formula", () => {
 test("line height is the same across platforms", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small}]) => [
                 fontSizeName,
-                medium.lineHeight,
+                small.lineHeight,
             ]),
         ),
     ).toEqual(
@@ -49,19 +49,19 @@ test("line height is the same across platforms", () => {
 test("line heights are a multiple of 8", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
                 fontSizeName,
                 {
-                    medium: `${Math.round(parseRemLength(medium.lineHeight) * 8) / 8}rem`,
+                    small: `${Math.round(parseRemLength(small.lineHeight) * 8) / 8}rem`,
                     large: `${Math.round(parseRemLength(large.lineHeight) * 8) / 8}rem`,
                 },
             ]),
         ),
     ).toEqual(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
                 fontSizeName,
-                {medium: medium.lineHeight, large: large.lineHeight},
+                {small: small.lineHeight, large: large.lineHeight},
             ]),
         ),
     );
@@ -77,16 +77,16 @@ test("line heights are determined algorithmically from font sizes", () => {
 
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
                 fontSizeName,
                 {
-                    medium: Math.round(
-                        (getLineHeight(medium.fontSize, large.fontSize) *
-                            remPxBySpacingScale.medium) /
-                            (parseRemLength(medium.lineHeight) * remPxBySpacingScale.medium),
+                    small: Math.round(
+                        (getLineHeight(small.fontSize, large.fontSize) *
+                            remPxBySpacingScale.small) /
+                            (parseRemLength(small.lineHeight) * remPxBySpacingScale.small),
                     ),
                     large: Math.round(
-                        (getLineHeight(medium.fontSize, large.fontSize) *
+                        (getLineHeight(small.fontSize, large.fontSize) *
                             remPxBySpacingScale.large) /
                             (parseRemLength(large.lineHeight) * remPxBySpacingScale.large),
                     ),
@@ -97,18 +97,18 @@ test("line heights are determined algorithmically from font sizes", () => {
         Object.fromEntries(
             Object.entries(fontSizesBySpacingScale).map(([fontSizeName]) => [
                 fontSizeName,
-                {medium: 1, large: 1},
+                {small: 1, large: 1},
             ]),
         ),
     );
 });
 
-test("large font sizes are approximately 1.25x medium font sizes", () => {
+test("large font sizes are approximately 1.25x small font sizes", () => {
     expect(
         Object.fromEntries(
-            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {medium, large}]) => [
+            Object.entries(fontSizesBySpacingScale).map(([fontSizeName, {small, large}]) => [
                 fontSizeName,
-                Math.round((large.fontSize / medium.fontSize) * 4) / 4,
+                Math.round((large.fontSize / small.fontSize) * 4) / 4,
             ]),
         ),
     ).toEqual(

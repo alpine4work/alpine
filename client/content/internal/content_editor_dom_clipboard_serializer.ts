@@ -164,10 +164,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const layouts = layoutContentFileParent(this._getContentReferences(), node, {
                 screenWidth: getClientInfo().screenWidth,
                 platform: "desktop",
-                spacingScale: "medium",
+                spacingScale: "small",
             });
 
-            const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.medium;
+            const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.small;
 
             if (node.type.name === "fileRow") {
                 fileRowDom.style.display = "flex";

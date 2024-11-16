@@ -27,13 +27,13 @@ export function EmailText({
         <MjmlText
             fontFamily="Inter, Arial"
             color={colors[color]}
-            fontSize={fontSizesBySpacingScale[fontSize].medium.fontSize}
+            fontSize={fontSizesBySpacingScale[fontSize].small.fontSize}
             letterSpacing={
-                letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].medium.letterSpacing
+                letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].small.letterSpacing
             }
             lineHeight={`${convertRemLengthToPx(
-                fontSizesBySpacingScale[fontSize].medium.lineHeight,
-                "medium",
+                fontSizesBySpacingScale[fontSize].small.lineHeight,
+                "small",
             )}px`}
             fontStyle={emailFontStyles[style].fontStyle}
             fontWeight={emailFontStyles[style].fontWeight}

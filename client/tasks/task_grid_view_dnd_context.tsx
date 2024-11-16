@@ -555,7 +555,7 @@ function TaskRowViewDragPortals() {
 }
 
 const taskRowViewDragOverlayScale =
-    fontSizesBySpacingScale["50"].medium.fontSize / fontSizesBySpacingScale["100"].medium.fontSize;
+    fontSizesBySpacingScale["50"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
 function TaskRowViewDragOverlay({
     dataRef,

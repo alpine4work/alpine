@@ -822,8 +822,8 @@ function renderContentFileCodePreview(
     );
 
     const initialScale =
-        fontSizesBySpacingScale["75"].medium.fontSize /
-        fontSizesBySpacingScale["100"].medium.fontSize;
+        fontSizesBySpacingScale["75"].small.fontSize /
+        fontSizesBySpacingScale["100"].small.fontSize;
     const scale = Math.min(1, layout.width / fullWidth) * initialScale;
 
     const containerHtml = new HtmlElementGenerator("div");

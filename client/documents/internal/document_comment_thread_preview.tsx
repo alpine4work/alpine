@@ -28,7 +28,7 @@ import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 const documentCommentThreadPreviewScale =
-    fontSizesBySpacingScale["75"].medium.fontSize / fontSizesBySpacingScale["100"].medium.fontSize;
+    fontSizesBySpacingScale["75"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
 export function DocumentCommentThreadPreview({
     commentThread,

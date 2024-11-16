@@ -185,7 +185,7 @@ export type FontSize = keyof typeof fontSizesBySpacingScale;
  */
 export const fontSizesBySpacingScale = {
     "25": {
-        medium: {
+        small: {
             fontSize: 10,
             letterSpacing: "0.01em",
             lineHeight: "0.75rem",
@@ -197,7 +197,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "50": {
-        medium: {
+        small: {
             fontSize: 11,
             letterSpacing: "0.0048em",
             lineHeight: "0.875rem",
@@ -209,7 +209,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "75": {
-        medium: {
+        small: {
             fontSize: 12,
             letterSpacing: "0.0005em",
             lineHeight: "1rem",
@@ -221,7 +221,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "100-extra-compact": {
-        medium: {
+        small: {
             fontSize: 13,
             letterSpacing: "-0.0032em",
             lineHeight: "1.25rem",
@@ -233,7 +233,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "100": {
-        medium: {
+        small: {
             fontSize: 14,
             letterSpacing: "-0.0062em",
             lineHeight: "1.25rem",
@@ -250,7 +250,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "200": {
-        medium: {
+        small: {
             fontSize: 16,
             letterSpacing: "-0.011em",
             lineHeight: "1.5rem",
@@ -262,7 +262,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "300": {
-        medium: {
+        small: {
             fontSize: 18,
             letterSpacing: "-0.0143em",
             lineHeight: "1.625rem",
@@ -277,7 +277,7 @@ export const fontSizesBySpacingScale = {
     // Should only be used for mobile headings, not considered a part of our
     // general typography scale.
     "350-narrow-heading": {
-        medium: {
+        small: {
             fontSize: 19,
             letterSpacing: "-0.0156em",
             lineHeight: "1.625rem",
@@ -289,7 +289,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "400": {
-        medium: {
+        small: {
             fontSize: 20,
             letterSpacing: "-0.0167em",
             lineHeight: "1.75rem",
@@ -301,7 +301,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "500": {
-        medium: {
+        small: {
             fontSize: 22,
             letterSpacing: "-0.0183em",
             lineHeight: "1.875rem",
@@ -313,7 +313,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "600": {
-        medium: {
+        small: {
             fontSize: 25,
             letterSpacing: "-0.0199em",
             lineHeight: "2.125rem",
@@ -325,7 +325,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "700": {
-        medium: {
+        small: {
             fontSize: 28,
             letterSpacing: "-0.0209em",
             lineHeight: "2.25rem",
@@ -337,7 +337,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "800": {
-        medium: {
+        small: {
             fontSize: 32,
             letterSpacing: "-0.0216em",
             lineHeight: "2.5rem",
@@ -349,7 +349,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "900": {
-        medium: {
+        small: {
             fontSize: 36,
             letterSpacing: "-0.022em",
             lineHeight: "2.75rem",
@@ -361,7 +361,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "1000": {
-        medium: {
+        small: {
             fontSize: 40,
             letterSpacing: "-0.0221em",
             lineHeight: "3rem",
@@ -373,7 +373,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "1100": {
-        medium: {
+        small: {
             fontSize: 45,
             letterSpacing: "-0.0222em",
             lineHeight: "3.375rem",
@@ -385,7 +385,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "1200": {
-        medium: {
+        small: {
             fontSize: 50,
             letterSpacing: "-0.0223em",
             lineHeight: "3.75rem",
@@ -397,7 +397,7 @@ export const fontSizesBySpacingScale = {
         },
     },
     "1300": {
-        medium: {
+        small: {
             fontSize: 60,
             letterSpacing: "-0.0223em",
             lineHeight: "4.5rem",

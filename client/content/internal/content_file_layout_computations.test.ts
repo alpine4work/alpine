@@ -229,7 +229,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file1], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 449.699, width: 600, widthFr: 1}]);
 
@@ -237,7 +237,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file2], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 450, width: 600, widthFr: 1}]);
 
@@ -245,7 +245,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file3], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
 
@@ -253,7 +253,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file4], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
 
@@ -261,7 +261,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file5], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 252, width: 600, widthFr: 1}]);
 
@@ -269,7 +269,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file6], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
 
@@ -277,7 +277,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file7], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 80, width: 80, widthFr: 0.133333}]);
 
@@ -285,7 +285,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file8], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
 
@@ -293,7 +293,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file9], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 100, width: 238.095, widthFr: 0.396825}]);
 
@@ -301,7 +301,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file10], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
 
@@ -309,7 +309,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file11], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([{height: 252, width: 600, widthFr: 1}]);
 
@@ -317,7 +317,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file1, file2], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 221.176, width: 295.099, widthFr: 0.500167},
@@ -328,7 +328,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file1, file3, file2], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 169.708, width: 226.429, widthFr: 0.390395},
@@ -340,7 +340,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file1, file3], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 283.069, width: 377.678, widthFr: 0.640132},
@@ -351,7 +351,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file3, file1], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 283.069, width: 212.322, widthFr: 0.359868},
@@ -362,7 +362,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file1, file5], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 158.808, width: 211.886, widthFr: 0.359128},
@@ -373,7 +373,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file1, file6], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 336.331, width: 448.741, widthFr: 0.760578},
@@ -384,7 +384,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file4, file4], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 512, width: 236.571, widthFr: 0.400969},
@@ -395,7 +395,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file4, file4, file4], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 418.422, width: 193.333, widthFr: 0.333333},
@@ -407,7 +407,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file7, file1], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
@@ -418,7 +418,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([file7, file3], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
@@ -429,7 +429,7 @@ test("can layout a file row", () => {
         computeContentFileRowLayout([audioFile1, audioFile2], {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual([
         {height: 123.9, width: 295, widthFr: 0.5},
@@ -453,7 +453,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file1, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 205.991,
@@ -465,7 +465,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file2, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 205.867,
@@ -477,7 +477,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file3, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 207.068,
@@ -489,7 +489,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file4, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 216.558,
@@ -501,7 +501,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file5, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 220,
@@ -513,7 +513,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file6, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 217.148,
@@ -525,7 +525,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file7, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 100,
@@ -537,7 +537,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file8, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 115.508,
@@ -549,7 +549,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file9, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 220,
@@ -561,7 +561,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file10, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 217.148,
@@ -573,7 +573,7 @@ test("can layout a file float", () => {
         computeContentFileFloatLayout("left", file11, {
             screenWidth,
             platform: "desktop",
-            spacingScale: "medium",
+            spacingScale: "small",
         }),
     ).toEqual({
         width: 220,

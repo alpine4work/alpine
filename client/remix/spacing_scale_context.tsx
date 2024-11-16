@@ -24,7 +24,7 @@ export function useSpacingScale(): SpacingScale {
 
     if (spacingScale === null) {
         // In unit tests, pretend like we are in desktop mode.
-        if (import.meta.jest) return "medium";
+        if (import.meta.jest) return "small";
 
         throw new InternalError("Must be rendered in an `<SpacingScaleContextProvider>`");
     }
@@ -42,7 +42,7 @@ export function getInitialAppRenderSpacingScale(clientInfo: ClientInfo): Spacing
     if (clientInfo.isNativeMobile) return "large";
     if (clientInfo.screenWidth <= mobilePlatformMaxWindowWidth) return "large";
     if (clientInfo.screenWidth >= largeSpacingScaleMinWindowWidth) return "large";
-    return "medium";
+    return "small";
 }
 
 /**
@@ -54,7 +54,7 @@ export function getSpacingScaleWithoutListening(): SpacingScale {
     if (NativeMobileBridge) return "large";
     if (window.innerWidth <= mobilePlatformMaxWindowWidth) return "large";
     if (window.innerWidth >= largeSpacingScaleMinWindowWidth) return "large";
-    return "medium";
+    return "small";
 }
 
 /**

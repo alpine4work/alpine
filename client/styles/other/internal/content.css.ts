@@ -205,7 +205,7 @@ const blockStyles = {
 } as const;
 
 export const paragraphFontSize = {
-    medium: {
+    small: {
         ...fontSizes["100"],
         lineHeight: "1.375rem",
     },
@@ -240,10 +240,10 @@ export const extraCompactParagraphFontSize: {
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
     ...fontStyles.normal,
-    ...paragraphFontSize.medium,
+    ...paragraphFontSize.small,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: paragraphFontSize.medium.lineHeight,
+    minHeight: paragraphFontSize.small.lineHeight,
     marginTop: paragraphMarginVar,
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
@@ -485,7 +485,7 @@ globalStyle(`${unorderedListItemClassName}::before`, {
     pointerEvents: "none",
     width: unorderedListItemBulletSize,
     height: unorderedListItemBulletSize,
-    top: unorderedListItemBulletTop.medium,
+    top: unorderedListItemBulletTop.small,
     left: unorderedListItemBulletLeft,
 });
 
@@ -505,7 +505,7 @@ globalStyle(`${orderedListItemClassName}::before`, {
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
     textAlign: "right",
     transform: "translateX(-100%)",
-    ...paragraphFontSize.medium,
+    ...paragraphFontSize.small,
     fontVariantNumeric: "tabular-nums",
 });
 
@@ -532,7 +532,7 @@ export const checkListItemContentClassName = style({});
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
     top: `${
-        (parseRemLength(paragraphFontSize.medium.lineHeight) -
+        (parseRemLength(paragraphFontSize.small.lineHeight) -
             parseRemLength(checkListItemCheckboxDesktopSize)) /
         2
     }rem`,
@@ -548,7 +548,7 @@ export const checkListItemCheckboxContainerClassName = style({
     selectors: {
         [`${mobilePlatformSelector} &`]: {
             top: `${
-                (parseRemLength(paragraphFontSize.medium.lineHeight) -
+                (parseRemLength(paragraphFontSize.small.lineHeight) -
                     parseRemLength(checkListItemCheckboxMobileSize)) /
                 2
             }rem`,
@@ -677,7 +677,7 @@ globalStyle(codeBlockWrapperClassName, {
     marginTop: standaloneBlockMarginVar,
     marginBottom: standaloneBlockMarginVar,
     counterReset: "code-block-line-number",
-    ...paragraphFontSize.medium,
+    ...paragraphFontSize.small,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
 });
@@ -717,11 +717,11 @@ globalStyle(codeBlockClassName, {
     // scrollbar renders on top of it.
     zIndex: "-10",
     width: "fit-content",
-    ...paragraphFontSize.medium,
+    ...paragraphFontSize.small,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
-    paddingTop: codeBlockPaddingY.medium,
-    paddingBottom: codeBlockPaddingY.medium,
+    paddingTop: codeBlockPaddingY.small,
+    paddingBottom: codeBlockPaddingY.small,
 });
 
 globalStyle(`${largeSpacingScaleSelector} ${codeBlockClassName}`, {
@@ -840,7 +840,7 @@ globalStyle(`${codeBlockLineClassName}::after`, {
     // Render in margins to make sure there are no rendering artifacts.
     right: `-${codeBlockPaddingRight}`,
     width: `${parseRemLength(codeBlockPaddingRight) * 2}rem`,
-    height: paragraphFontSize.medium.lineHeight,
+    height: paragraphFontSize.small.lineHeight,
     background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
 });
 

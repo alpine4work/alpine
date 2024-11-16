@@ -51,19 +51,19 @@ export const fontStyles = createFontStyles({
 });
 
 const fontSizeVars = createGlobalTheme(":root", {
-    font: mapObjectValues(fontSizesBySpacingScale, ({medium, large}) => {
-        assert(medium.lineHeight === large.lineHeight);
+    font: mapObjectValues(fontSizesBySpacingScale, ({small, large}) => {
+        assert(small.lineHeight === large.lineHeight);
         return {
-            fontSize: `${medium.fontSize}px`,
-            letterSpacing: medium.letterSpacing,
+            fontSize: `${small.fontSize}px`,
+            letterSpacing: small.letterSpacing,
         };
     }),
 });
 
 globalStyle(largeSpacingScaleSelector, {
     vars: assignVars(fontSizeVars, {
-        font: mapObjectValues(fontSizesBySpacingScale, ({medium, large}) => {
-            assert(medium.lineHeight === large.lineHeight);
+        font: mapObjectValues(fontSizesBySpacingScale, ({small, large}) => {
+            assert(small.lineHeight === large.lineHeight);
             return {
                 fontSize: `${large.fontSize}px`,
                 letterSpacing: large.letterSpacing,
@@ -100,11 +100,11 @@ export const fontSizes: {
         letterSpacing: string;
         lineHeight: RemLength;
     };
-} = mapObjectValues(fontSizesBySpacingScale, ({medium, large}, fontSizeName) => {
-    assert(medium.lineHeight === large.lineHeight);
+} = mapObjectValues(fontSizesBySpacingScale, ({small, large}, fontSizeName) => {
+    assert(small.lineHeight === large.lineHeight);
     return {
         fontSize: fontSizeVars.font[fontSizeName].fontSize,
         letterSpacing: fontSizeVars.font[fontSizeName].letterSpacing,
-        lineHeight: medium.lineHeight,
+        lineHeight: small.lineHeight,
     };
 });

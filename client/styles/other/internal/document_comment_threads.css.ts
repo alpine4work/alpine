@@ -3,7 +3,7 @@ import {
     darkColorSchemeSelector,
     largeSpacingScaleSelector,
     lightColorSchemeSelector,
-    mediumSpacingScaleSelector,
+    smallSpacingScaleSelector,
 } from "~/client/styles/core/styles_core.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
@@ -18,18 +18,18 @@ export const sawtoothBorderClassName = style({
     height: `${sawtoothSizeRem}rem`,
     backgroundRepeat: "repeat-x",
     selectors: {
-        [`${mediumSpacingScaleSelector} ${lightColorSchemeSelector} &`]: {
+        [`${smallSpacingScaleSelector} ${lightColorSchemeSelector} &`]: {
             backgroundImage: `url("${convertSvgToDataUrl(
                 createSawtoothSvg(
-                    sawtoothSizeRem * remPxBySpacingScale.medium,
+                    sawtoothSizeRem * remPxBySpacingScale.small,
                     colorsWithShade["grey-10"],
                 ),
             )}")`,
         },
-        [`${mediumSpacingScaleSelector} ${darkColorSchemeSelector} &`]: {
+        [`${smallSpacingScaleSelector} ${darkColorSchemeSelector} &`]: {
             backgroundImage: `url("${convertSvgToDataUrl(
                 createSawtoothSvg(
-                    sawtoothSizeRem * remPxBySpacingScale.medium,
+                    sawtoothSizeRem * remPxBySpacingScale.small,
                     invertedColorsWithShade["grey-10"],
                 ),
             )}")`,
