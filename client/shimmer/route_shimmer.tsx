@@ -807,13 +807,12 @@ function MessageInputShimmer({
     paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
 }) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
 
     return (
         <Box
             flexShrink="0"
             backgroundColor="grey-0"
-            style={{height: messageInputMinHeight[spacingScale][platform]}}
+            style={{height: messageInputMinHeight[platform]}}
         >
             <Box
                 display="flex"
@@ -841,7 +840,7 @@ function MessageInputShimmer({
                     flexGrow="1"
                     border="grey-10"
                     borderRadius={messageViewBubbleBorderRadius}
-                    style={{height: messageViewBubbleMinHeight[spacingScale][platform]}}
+                    style={{height: messageViewBubbleMinHeight[platform]}}
                 />
                 <Box
                     className={pulseAnimationClassName}
@@ -1463,7 +1462,6 @@ function SearchRouteShimmer() {
 
 function TaskDetailRouteShimmer() {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
@@ -1532,11 +1530,7 @@ function TaskDetailRouteShimmer() {
                     <Box height={taskDetailViewSectionGap} />
                     <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
                     <Box height={taskDetailNotesFieldLabelPaddingBottom} />
-                    <Box
-                        style={{
-                            height: tasksStyles.detailNotesContentEditorMinHeight[spacingScale],
-                        }}
-                    />
+                    <Box style={{height: tasksStyles.detailNotesContentEditorMinHeight}} />
                     <Box height={taskDetailViewSectionGap} />
                     <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
                     <Box

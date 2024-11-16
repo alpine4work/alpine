@@ -23,10 +23,7 @@ import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_vi
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {
-    getSpacingScaleWithoutListening,
-    useSpacingScale,
-} from "~/client/remix/spacing_scale_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getMessageBubbleMarginLeft,
@@ -99,7 +96,6 @@ export function MessageViewTouchLightbox<
     onClose: () => void;
 }) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const {space, currentAccount} = useSpaceContext();
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
@@ -276,7 +272,7 @@ export function MessageViewTouchLightbox<
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight[spacingScale]);
+        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
 
         // Remove some vertical padding from the parent message to move it closer to a
         // big emoji message which doesn't render in a bubble.
@@ -354,13 +350,7 @@ export function MessageViewTouchLightbox<
                 </div>
             </Box>
         );
-    }, [
-        messageStartOfSentenceNoun,
-        messageTextForBigEmojiMessage,
-        parentMessage,
-        platform,
-        spacingScale,
-    ]);
+    }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, parentMessage, platform]);
 
     const menuActions: Array<Array<MenuAction>> = [];
 

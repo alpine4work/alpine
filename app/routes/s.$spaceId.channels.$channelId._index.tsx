@@ -10,7 +10,6 @@ import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeho
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -165,9 +164,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             channelId,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
                 context.loader.getClientInfo(),
-                postContentViewMinHeightWithClosedCommentSection[
-                    getInitialAppRenderSpacingScale(context.loader.getClientInfo())
-                ],
+                postContentViewMinHeightWithClosedCommentSection,
             ),
             beforeCursor: null,
         }),

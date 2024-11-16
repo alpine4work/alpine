@@ -10,7 +10,6 @@ import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_me
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -65,9 +64,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 commentThreadIds: [commentThreadId],
                 commentLimit: getInitialLoadMessageCount(clientInfo),
                 commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[
-                        getInitialAppRenderSpacingScale(clientInfo)
-                    ][getInitialAppRenderPlatform(clientInfo)],
+                    documentCommentThreadCountAgainstLimit[getInitialAppRenderPlatform(clientInfo)],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {

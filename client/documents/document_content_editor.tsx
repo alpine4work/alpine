@@ -108,7 +108,6 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -220,7 +219,6 @@ export function DocumentContentEditor({
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
@@ -1733,7 +1731,6 @@ export function DocumentContentEditor({
                                 documentId={documentId}
                                 content={content}
                                 platform={platform}
-                                spacingScale={spacingScale}
                                 routeLayout={routeLayout}
                                 mobileState={sidebarState.mobileState}
                                 onSidebarMobileFullScreenExpand={onSidebarMobileFullScreenExpand}
@@ -1795,7 +1792,7 @@ export function DocumentContentEditor({
                                         display="flex"
                                         gap="2"
                                         style={{
-                                            height: messageInputMinHeight[spacingScale][platform],
+                                            height: messageInputMinHeight[platform],
                                         }}
                                     >
                                         <Box
@@ -1812,9 +1809,7 @@ export function DocumentContentEditor({
                                             // If the user has a mouse, make this feel like a text input.
                                             cursor="text"
                                             style={{
-                                                height: messageViewBubbleMinHeight[spacingScale][
-                                                    platform
-                                                ],
+                                                height: messageViewBubbleMinHeight[platform],
                                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                             }}
                                             onPointerDown={() => {
@@ -1838,13 +1833,9 @@ export function DocumentContentEditor({
                                                 width={messageInputAccountAvatarSize}
                                                 style={{
                                                     paddingTop:
-                                                        messageInputAccountAvatarPaddingY[
-                                                            spacingScale
-                                                        ][platform],
+                                                        messageInputAccountAvatarPaddingY[platform],
                                                     paddingBottom:
-                                                        messageInputAccountAvatarPaddingY[
-                                                            spacingScale
-                                                        ][platform],
+                                                        messageInputAccountAvatarPaddingY[platform],
                                                 }}
                                             >
                                                 <Box
@@ -1898,9 +1889,7 @@ export function DocumentContentEditor({
                                     >
                                         <Box
                                             style={{
-                                                height: messageInputMinHeight[spacingScale][
-                                                    platform
-                                                ],
+                                                height: messageInputMinHeight[platform],
                                             }}
                                         />
                                     </Box>
@@ -2013,7 +2002,6 @@ function DocumentContentEditorSidebar({
     documentId,
     content,
     platform,
-    spacingScale,
     routeLayout,
     mobileState,
     onSidebarMobileFullScreenExpand,
@@ -2035,7 +2023,6 @@ function DocumentContentEditorSidebar({
     documentId: DocumentId;
     content: DocumentContentWithReferences;
     platform: Platform;
-    spacingScale: SpacingScale;
     routeLayout: RouteLayout;
     mobileState: DocumentContentEditorSidebarMobileState;
     onSidebarMobileFullScreenExpand: Memo<(options?: {onAnimationFinished?: () => void}) => void>;
@@ -2293,7 +2280,7 @@ function DocumentContentEditorSidebar({
                                 alignItems="center"
                                 style={{
                                     paddingBottom: addRemLengths(
-                                        messageInputMinHeight[spacingScale][platform],
+                                        messageInputMinHeight[platform],
                                         platform === "mobile" &&
                                             (!mobileState.isFullScreen ||
                                                 mobileState.animationState === "Expanding")
@@ -2392,7 +2379,6 @@ function DocumentContentEditorSidebar({
                         platform,
                         procedures,
                         routeLayout,
-                        spacingScale,
                         subscribeToCommentThreadEvents,
                         unpersistedResolutionStateByCommentThreadId,
                     ],

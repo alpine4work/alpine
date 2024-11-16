@@ -78,14 +78,11 @@ export const taskRowViewIndentation = {
 
 export const taskRowViewIndentationRem = mapObjectValues(taskRowViewIndentation, parseRemLength);
 
-export const taskRowTitleInputPaddingY = mapObjectValues(
-    contentStyles.paragraphFontSize,
-    (paragraphFontSize): RemLength =>
-        `${
-            (parseRemLength(taskRowViewMinHeight) - parseRemLength(paragraphFontSize.lineHeight)) /
-            2
-        }rem`,
-);
+export const taskRowTitleInputPaddingY: RemLength = `${
+    (parseRemLength(taskRowViewMinHeight) -
+        parseRemLength(contentStyles.paragraphFontSize.lineHeight)) /
+    2
+}rem`;
 
 export const taskNotepadViewActiveSectionCardGap: Spacing = "3";
 

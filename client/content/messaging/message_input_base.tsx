@@ -47,7 +47,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -178,7 +178,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     ref: Ref<MessageInputRef>,
 ) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -496,7 +495,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
-    const avatarPaddingY = messageInputAccountAvatarPaddingY[spacingScale][platform];
+    const avatarPaddingY = messageInputAccountAvatarPaddingY[platform];
 
     return (
         <Box
@@ -519,14 +518,14 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 backgroundColor="grey-0"
                 style={{
                     minHeight: !isBottomBar
-                        ? messageInputMinHeight[spacingScale][platform]
+                        ? messageInputMinHeight[platform]
                         : `calc(${
                               platform === "mobile"
                                   ? addRemLengths(
-                                        messageInputMinHeight[spacingScale].mobile,
+                                        messageInputMinHeight.mobile,
                                         mobileBottomBarKeyboardToolbarHeight,
                                     )
-                                  : messageInputMinHeight[spacingScale].desktop
+                                  : messageInputMinHeight.desktop
                           } + var(--window-safe-area-inset-bottom, 0px))`,
                     paddingBottom: isBottomBar
                         ? clientInfo.isNativeMobile
@@ -648,7 +647,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             (() => {
                                 const height = addRemLengths(
                                     "1.5",
-                                    contentViewStyles.truncatedHeight[spacingScale],
+                                    contentViewStyles.truncatedHeight,
                                     "1.5",
                                 );
 
@@ -858,8 +857,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         overflowY="auto"
                                         borderRadius={messageViewBubbleBorderRadius}
                                         style={{
-                                            minHeight:
-                                                messageViewBubbleMinHeight[spacingScale][platform],
+                                            minHeight: messageViewBubbleMinHeight[platform],
                                         }}
                                     >
                                         <ContentEditor

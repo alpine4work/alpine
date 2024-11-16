@@ -16,7 +16,6 @@ import {
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
@@ -33,7 +32,6 @@ export function renderMessageListItem<
     Message extends MessageModel<RoomKey>,
 >({
     platform,
-    spacingScale,
     messageNoun,
     messageStartOfSentenceNoun,
     messages,
@@ -54,7 +52,6 @@ export function renderMessageListItem<
     render: customRender,
 }: {
     platform: Platform;
-    spacingScale: SpacingScale;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     messages: MessageList<Message>;
@@ -165,7 +162,7 @@ export function renderMessageListItem<
                         : item.type === "Loaded" || item.type === "Optimistic"
                         ? `Message:${item.messageIndex}`
                         : `UnloadedMessage:${item.messageIndex}`,
-                minHeight: messageViewMinHeight[spacingScale][platform],
+                minHeight: messageViewMinHeight[platform],
                 withManualLayout: true,
                 render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
                     if (!customRender) {
@@ -173,7 +170,7 @@ export function renderMessageListItem<
                             <div
                                 ref={ref}
                                 style={{
-                                    minHeight: messageViewMinHeight[spacingScale][platform],
+                                    minHeight: messageViewMinHeight[platform],
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {
@@ -220,7 +217,7 @@ export function renderMessageListItem<
                             ref,
                             style: {
                                 ...node.props.style,
-                                minHeight: messageViewMinHeight[spacingScale][platform],
+                                minHeight: messageViewMinHeight[platform],
                                 ...(shouldRenderWithRelativePositioning
                                     ? {position: "relative"}
                                     : {

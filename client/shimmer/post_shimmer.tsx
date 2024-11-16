@@ -1,6 +1,5 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
 import {
@@ -21,8 +20,6 @@ export function PostShimmer({
     children?: ReactNode;
     withoutHeader?: boolean;
 }) {
-    const spacingScale = useSpacingScale();
-
     return (
         <Box
             ref={useCoordinatedShimmerAnimations()}
@@ -31,7 +28,7 @@ export function PostShimmer({
             display="flex"
             flexDirection="column"
             style={{
-                minHeight: postContentViewMinHeightWithClosedCommentSection[spacingScale],
+                minHeight: postContentViewMinHeightWithClosedCommentSection,
                 paddingBottom: postContentViewOuterMarginBottom,
             }}
         >

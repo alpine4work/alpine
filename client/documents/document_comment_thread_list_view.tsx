@@ -917,7 +917,6 @@ function DocumentCommentThreadListView(
                         DocumentCommentModel
                     >({
                         platform,
-                        spacingScale,
                         messageNoun: "comment",
                         messages: item.comments,
                         groupKey: item.commentThread.id,
@@ -1098,7 +1097,7 @@ function DocumentCommentThreadListView(
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: messageInputMinHeight[spacingScale][platform],
+                        minHeight: messageInputMinHeight[platform],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1187,7 +1186,6 @@ function DocumentCommentThreadListView(
             previewFileLayoutScreenWidthRem,
             procedures,
             platform,
-            spacingScale,
             messageEditing,
             highlightComment,
             handleJumpToComment,

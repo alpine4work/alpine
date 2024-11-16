@@ -20,7 +20,6 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageInputAccountAvatarPaddingY,
@@ -41,7 +40,6 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {
@@ -56,23 +54,15 @@ const contentEditorCommentInputFloaterPaddingYDifferenceRem =
     parseRemLength(contentEditorCommentInputFloaterPaddingY) -
     parseRemLength(messageViewBubblePaddingY.desktop);
 
-const contentEditorCommentInputFloaterMinHeight = mapObjectValues(
-    messageViewBubbleMinHeight,
-    (messageViewBubbleMinHeight): RemLength =>
-        `${
-            parseRemLength(messageViewBubbleMinHeight.desktop) +
-            contentEditorCommentInputFloaterPaddingYDifferenceRem * 2
-        }rem`,
-);
+const contentEditorCommentInputFloaterMinHeight = `${
+    parseRemLength(messageViewBubbleMinHeight.desktop) +
+    contentEditorCommentInputFloaterPaddingYDifferenceRem * 2
+}rem`;
 
-const contentEditorCommentInputFloaterAccountAvatarPaddingY = mapObjectValues(
-    messageInputAccountAvatarPaddingY,
-    (messageInputAccountAvatarPaddingY): RemLength =>
-        `${
-            parseRemLength(messageInputAccountAvatarPaddingY.desktop) +
-            contentEditorCommentInputFloaterPaddingYDifferenceRem
-        }rem`,
-);
+const contentEditorCommentInputFloaterAccountAvatarPaddingY: RemLength = `${
+    parseRemLength(messageInputAccountAvatarPaddingY.desktop) +
+    contentEditorCommentInputFloaterPaddingYDifferenceRem
+}rem`;
 
 export function ContentEditorCommentInputFloater({
     state,
@@ -192,7 +182,6 @@ function ContentEditorCommentInput({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
-    const spacingScale = useSpacingScale();
     const {currentAccount} = useSpaceContext();
 
     const [commentState, setCommentState] = useState(() =>
@@ -285,8 +274,7 @@ function ContentEditorCommentInput({
                 boxShadow="elevation-20"
                 className={greyElevated2ClassName}
                 style={{
-                    paddingRight:
-                        contentEditorCommentInputFloaterAccountAvatarPaddingY[spacingScale],
+                    paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY,
                 }}
                 onKeyDown={event => {
                     if (event.key === "Escape") {
@@ -328,18 +316,12 @@ function ContentEditorCommentInput({
                         flexGrow="1"
                         overflow="hidden"
                         borderLeftRadius={messageViewBubbleBorderRadius}
-                        style={{minHeight: contentEditorCommentInputFloaterMinHeight[spacingScale]}}
+                        style={{minHeight: contentEditorCommentInputFloaterMinHeight}}
                     >
                         <Box
                             ref={useScrollbar({
-                                insetTop:
-                                    contentEditorCommentInputFloaterAccountAvatarPaddingY[
-                                        spacingScale
-                                    ],
-                                insetBottom:
-                                    contentEditorCommentInputFloaterAccountAvatarPaddingY[
-                                        spacingScale
-                                    ],
+                                insetTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                                insetBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
                             })}
                             maxHeight="96"
                             position="relative"
@@ -383,12 +365,9 @@ function ContentEditorCommentInput({
                     // visual separation.
                     flexShrink="0"
                     style={{
-                        paddingTop:
-                            contentEditorCommentInputFloaterAccountAvatarPaddingY[spacingScale],
-                        paddingBottom:
-                            contentEditorCommentInputFloaterAccountAvatarPaddingY[spacingScale],
-                        paddingRight:
-                            contentEditorCommentInputFloaterAccountAvatarPaddingY[spacingScale],
+                        paddingTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                        paddingBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                        paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY,
                     }}
                 >
                     <Box height="full" borderLeft="grey-5" />
@@ -397,10 +376,8 @@ function ContentEditorCommentInput({
                     <Box
                         width={messageInputAccountAvatarSize}
                         style={{
-                            paddingTop:
-                                contentEditorCommentInputFloaterAccountAvatarPaddingY[spacingScale],
-                            paddingBottom:
-                                contentEditorCommentInputFloaterAccountAvatarPaddingY[spacingScale],
+                            paddingTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                            paddingBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
                         }}
                     >
                         <IconButton

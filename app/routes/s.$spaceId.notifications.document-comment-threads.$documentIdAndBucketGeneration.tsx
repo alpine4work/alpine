@@ -19,10 +19,7 @@ import {
     usePlatform,
 } from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {
-    getInitialAppRenderSpacingScale,
-    getSpacingScaleWithoutListening,
-} from "~/client/remix/spacing_scale_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -104,9 +101,7 @@ export async function loader({params, request, context: unauthenticatedContext}:
                 bucketGeneration,
                 commentLimit: getInitialLoadMessageCount(clientInfo),
                 commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[
-                        getInitialAppRenderSpacingScale(clientInfo)
-                    ][getInitialAppRenderPlatform(clientInfo)],
+                    documentCommentThreadCountAgainstLimit[getInitialAppRenderPlatform(clientInfo)],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
@@ -246,15 +241,13 @@ function DocumentNewCommentThreadsRouteInner() {
         const spacingScale = getSpacingScaleWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
         const messageViewMinHeightPx = convertRemLengthToPx(
-            messageViewMinHeight[spacingScale][platform],
+            messageViewMinHeight[platform],
             spacingScale,
         );
 
         const loadCommentCount =
             Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
-            Math.floor(
-                documentCommentThreadCountAgainstLimit[spacingScale][getPlatformWithoutListening()],
-            );
+            Math.floor(documentCommentThreadCountAgainstLimit[getPlatformWithoutListening()]);
 
         if (
             initialCommentThreadResult.comments.length <

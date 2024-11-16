@@ -27,7 +27,7 @@ import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_li
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
     getMessageBubbleMarginLeft,
@@ -160,7 +160,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     centeringMarginRight?: Spacing;
 }) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -851,7 +850,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         lineHeight:
                             platform === "mobile"
                                 ? contentStyles.extraCompactParagraphFontSize.lineHeight
-                                : contentStyles.paragraphFontSize[spacingScale].lineHeight,
+                                : contentStyles.paragraphFontSize.lineHeight,
                     }}
                 >
                     {`${messageStartOfSentenceNoun} deleted`}
@@ -865,13 +864,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         platform,
         shouldMergeWithNextMessage,
         shouldMergeWithPreviousMessage,
-        spacingScale,
     ]);
 
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight[spacingScale]);
+        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
 
         // Remove some vertical padding from the parent message to move it closer to a
         // big emoji message which doesn't render in a bubble.
@@ -1002,7 +1000,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         paddingX,
         parentMessage,
         platform,
-        spacingScale,
         touchLightboxState,
     ]);
 

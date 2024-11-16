@@ -91,53 +91,36 @@ export const postViewNavigationBarSpace = mapObjectValues(
     navigationBarHeight => subtractRemLengths(navigationBarHeight, postContentViewInnerMarginY),
 );
 
-const postContentViewMinHeightWithoutHeaderBase = mapObjectValues(
-    contentStyles.paragraphFontSize,
-    paragraphFontSize =>
-        addRemLengths(
-            postContentViewInnerMarginY,
-            paragraphFontSize.lineHeight,
-            postContentViewInnerMarginY,
-            postContentViewFooterHeight,
-        ),
+const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
+    postContentViewInnerMarginY,
+    contentStyles.paragraphFontSize.lineHeight,
+    postContentViewInnerMarginY,
+    postContentViewFooterHeight,
 );
 
-const postContentViewMinHeightBase = mapObjectValues(
+const postContentViewMinHeightBase = addRemLengths(
+    postContentViewOuterMarginY,
+    postContentViewHeaderHeight,
     postContentViewMinHeightWithoutHeaderBase,
-    postContentViewMinHeightWithoutHeaderBase =>
-        addRemLengths(
-            postContentViewOuterMarginY,
-            postContentViewHeaderHeight,
-            postContentViewMinHeightWithoutHeaderBase,
-        ),
 );
 
-export const postContentViewMinHeightWithOpenCommentSection = mapObjectValues(
+export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
     postContentViewMinHeightBase,
-    postContentViewMinHeightBase =>
-        addRemLengths(
-            postContentViewMinHeightBase,
-            postContentViewOuterOpenCommentSectionMarginBottom,
-        ),
+    postContentViewOuterOpenCommentSectionMarginBottom,
 );
 
-export const postContentViewMinHeightWithClosedCommentSection = mapObjectValues(
+export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
     postContentViewMinHeightBase,
-    postContentViewMinHeightBase =>
-        addRemLengths(postContentViewMinHeightBase, postContentViewOuterMarginBottom),
+    postContentViewOuterMarginBottom,
 );
 
 export const postViewMinHeight = mapObjectValues(
     postViewNavigationBarSpace,
     postViewNavigationBarSpace =>
-        mapObjectValues(
+        addRemLengths(
+            postViewNavigationBarSpace,
             postContentViewMinHeightWithoutHeaderBase,
-            postContentViewMinHeightWithoutHeaderBase =>
-                addRemLengths(
-                    postViewNavigationBarSpace,
-                    postContentViewMinHeightWithoutHeaderBase,
-                    postContentViewOuterMarginBottom,
-                ),
+            postContentViewOuterMarginBottom,
         ),
 );
 

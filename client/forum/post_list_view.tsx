@@ -55,10 +55,7 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {
-    getSpacingScaleWithoutListening,
-    useSpacingScale,
-} from "~/client/remix/spacing_scale_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
     channelViewHeaderMinHeight,
@@ -284,7 +281,6 @@ function PostListView(
 ) {
     const context = useAppContext();
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -490,9 +486,7 @@ function PostListView(
                                 Math.ceil(
                                     (view.getHeight() * 2) /
                                         convertRemLengthToPx(
-                                            postContentViewMinHeightWithClosedCommentSection[
-                                                spacingScale
-                                            ],
+                                            postContentViewMinHeightWithClosedCommentSection,
                                             spacingScale,
                                         ),
                                 ),
@@ -781,10 +775,10 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
-                            ? postViewMinHeight[routeLayout][spacingScale]
+                            ? postViewMinHeight[routeLayout]
                             : item.postCommentsState !== "Closed" && !isPostView
-                            ? postContentViewMinHeightWithOpenCommentSection[spacingScale]
-                            : postContentViewMinHeightWithClosedCommentSection[spacingScale],
+                            ? postContentViewMinHeightWithOpenCommentSection
+                            : postContentViewMinHeightWithClosedCommentSection,
                         node: (
                             <div
                                 className={sprinkles({
@@ -940,7 +934,7 @@ function PostListView(
                                 : item.type === "OptimisticPostComment"
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
-                        minHeight: messageViewMinHeight[spacingScale][platform],
+                        minHeight: messageViewMinHeight[platform],
                         renderAdditionalItemIndexes: !isPostView
                             ? [item.postCommentInputItemIndex]
                             : [],
@@ -1255,7 +1249,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: messageInputMinHeight[spacingScale][platform],
+                        minHeight: messageInputMinHeight[platform],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1469,7 +1463,6 @@ function PostListView(
             routeLayout,
             hasAside,
             isPostView,
-            spacingScale,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
@@ -1558,9 +1551,7 @@ function PostListView(
                         spacing[navigationBarHeight[routeLayout]] ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
-                    bufferedItemHeight={
-                        postContentViewMinHeightWithClosedCommentSection[spacingScale]
-                    }
+                    bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.

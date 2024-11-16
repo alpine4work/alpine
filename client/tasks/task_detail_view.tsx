@@ -428,7 +428,7 @@ export function TaskDetailView({
 
             const spacingScale = getSpacingScaleWithoutListening();
             const paragraphLineHeight = convertRemLengthToPx(
-                contentStyles.paragraphFontSize[spacingScale].lineHeight,
+                contentStyles.paragraphFontSize.lineHeight,
                 spacingScale,
             );
 

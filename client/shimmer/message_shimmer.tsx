@@ -1,7 +1,6 @@
 import classNames from "classnames";
 import {Ref, forwardRef} from "react";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
@@ -61,7 +60,6 @@ function MessageShimmer(
     ref: Ref<HTMLDivElement>,
 ) {
     const platform = usePlatform();
-    const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
 
     return (
@@ -171,8 +169,7 @@ function MessageShimmer(
                                     parseRemLength(
                                         platform === "mobile"
                                             ? contentStyles.extraCompactParagraphFontSize.lineHeight
-                                            : contentStyles.paragraphFontSize[spacingScale]
-                                                  .lineHeight,
+                                            : contentStyles.paragraphFontSize.lineHeight,
                                     )
                                 }rem`,
                             }}

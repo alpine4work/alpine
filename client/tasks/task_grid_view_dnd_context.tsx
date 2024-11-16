@@ -22,7 +22,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
@@ -564,8 +563,6 @@ function TaskRowViewDragOverlay({
     dataRef: RefObject<TaskGridViewDraggableData>;
     getActivatorTouchOffset: () => {top: number; left: number} | null;
 }) {
-    const spacingScale = useSpacingScale();
-
     const [data] = useState(assertExists(dataRef.current));
     const [activatorTouchOffset] = useState(getActivatorTouchOffset);
 
@@ -622,7 +619,7 @@ function TaskRowViewDragOverlay({
                             <Box
                                 fontStyle="truncate"
                                 style={{
-                                    ...contentStyles.paragraphFontSize[spacingScale],
+                                    ...contentStyles.paragraphFontSize,
                                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                                     // for consistency if the user types anything like 2x2 or an @ mention.
                                     fontFeatureSettings: '"calt" on',
@@ -643,5 +640,5 @@ function TaskRowViewDragOverlay({
             default:
                 throw exhaustive(data);
         }
-    }, [activatorTouchOffset, data, spacingScale]);
+    }, [activatorTouchOffset, data]);
 }
