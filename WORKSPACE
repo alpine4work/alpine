@@ -114,7 +114,7 @@ rules_js_dependencies()
 load("@aspect_rules_js//js:toolchains.bzl", "rules_js_register_toolchains")
 
 rules_js_register_toolchains(
-    node_version = "20.9.0",
+    node_version = "22.11.0",
 )
 
 # =========================================================================== #
