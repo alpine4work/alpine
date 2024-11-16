@@ -272,7 +272,9 @@ async function actuallyUploadFile(
 
         req.off("end", handleEnd);
         req.off("close", handleClose);
+        req.off("error", handleError);
     };
+
     const handleClose = () => {
         // TODO(calebmer, #files): Remove after debugging.
         // eslint-disable-next-line no-console
@@ -282,8 +284,20 @@ async function actuallyUploadFile(
             abortController.abort(new CancelledError("Upload file request closed prematurely"));
         }
     };
+
+    const handleError = (error: unknown) => {
+        // TODO(calebmer, #files): Remove after debugging.
+        // eslint-disable-next-line no-console
+        console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "req error", error);
+
+        if (!abortController.signal.aborted) {
+            abortController.abort(new CancelledError("HTTP request error", {cause: error}));
+        }
+    };
+
     req.on("end", handleEnd);
     req.on("close", handleClose);
+    req.on("error", handleError);
 
     try {
         const fileUploader = await startUploadingAndProcessingFile(context, {
@@ -318,6 +332,7 @@ async function actuallyUploadFile(
         abortTimeout.clear();
         req.off("end", handleEnd);
         req.off("close", handleClose);
+        req.off("error", handleError);
     }
 }
 

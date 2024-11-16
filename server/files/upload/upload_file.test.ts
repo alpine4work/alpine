@@ -183,9 +183,9 @@ const testCases: Array<{
 ];
 
 for (const testCase of testCases) {
-    const describeFn = testCase.only
-        ? describe.only
-        : testCases.some(otherTestCase => !!otherTestCase.only && otherTestCase !== testCase)
+    const describeFn = testCase
+        ? describe
+        : testCases.some(otherTestCase => !!otherTestCase && otherTestCase !== testCase)
         ? describe.skip
         : describe;
 
@@ -591,7 +591,16 @@ Content-Length: 33002\r\n\
                 );
             });
 
-            fsSync.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
+            const fileContent = await fs.readFile(jpegTestFixturePath);
+
+            socket.write(fileContent.subarray(0, 20000));
+
+            const fileId = await waitForExpect(() => {
+                const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
+                return assertId<FileId>(match[1]!);
+            });
+
+            socket.write(fileContent.subarray(20000));
 
             await socketClosePromise;
 
@@ -612,18 +621,9 @@ Transfer-Encoding: chunked\r\n\
 chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"signedUrlSearch":""}\n\
 \r\n\
-chunk\r\n\
-{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1,"hasAlpha":false}}\n\
-\r\n\
-chunk\r\n\
-{"type":"Error","error":{...}}\n\
-\r\n\
-chunk\r\n\
-\r\n\
 `);
 
-            const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
-            const fileId = assertId<FileId>(match[1]!);
+            await ProcessContextModule.waitForTestTasks();
 
             await expect(getFileAsUploader(space.systemAction(), space.id, fileId)).rejects.toThrow(
                 NotFoundError,
