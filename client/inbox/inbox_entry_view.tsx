@@ -1,5 +1,5 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
-import differenceInHours from "date-fns/differenceInHours/index.js";
+import {differenceInHours} from "date-fns/differenceInHours";
 import {AnimationControls, animate, timeline} from "motion";
 import {Check, DotsThree, IconContext} from "phosphor-react";
 import {useEffect, useMemo, useRef, useState} from "react";

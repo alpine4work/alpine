@@ -1,4 +1,4 @@
-import areDatesEqual from "date-fns/isEqual/index.js";
+import {isEqual as areDatesEqual} from "date-fns/isEqual";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
