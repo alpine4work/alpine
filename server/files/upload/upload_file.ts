@@ -1,18 +1,13 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
-import {Readable as ReadableStream, Transform as TransformStream} from "stream";
-import {inspect} from "util";
+import {Readable as ReadableStream} from "stream";
 import {FileUploader, startUploadingAndProcessingFile} from "~/server/files/data/files_table.js";
 import {
     FileUploadServiceActionContext,
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
-import {
-    debugCounter,
-    debugIdByObject,
-} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
@@ -50,7 +45,6 @@ import {
 } from "~/shared/files/upload_file_event.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -58,26 +52,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-if (process.env.NODE_ENV === "production") {
-    // TODO(calebmer, #files): Remove after debugging.
-    const originalPipe = (ReadableStream as any).prototype.pipe;
-    const originalPush = (ReadableStream as any).prototype.push;
-
-    (ReadableStream as any).prototype.pipe = function pipeWrapper() {
-        // eslint-disable-next-line no-global-error, no-console
-        console.log(debugCounter(), "Readable.pipe", JSON.stringify(new Error("Trace").stack));
-        // eslint-disable-next-line prefer-rest-params
-        return originalPipe.apply(this, arguments as any);
-    };
-
-    (ReadableStream as any).prototype.push = function pushWrapper() {
-        // eslint-disable-next-line no-global-error, no-console
-        console.log(debugCounter(), "Readable.push", JSON.stringify(new Error("Trace").stack));
-        // eslint-disable-next-line prefer-rest-params
-        return originalPush.apply(this, arguments as any);
-    };
-}
 
 // Make sure we're using our custom `sharp` `libvips` build built from
 // [`cyberworlds/sharp-libvips`][1] by checking that additional modules are
@@ -229,12 +203,6 @@ async function actuallyUploadFile(
         );
     }
 
-    if (process.env.NODE_ENV === "production") {
-        // TODO(calebmer, #files): Remove once we're done debugging
-        // eslint-disable-next-line no-console
-        console.log(debugCounter(), JSON.stringify(inspect(req)));
-    }
-
     let stream: ReadableStream = req;
     let fileProcessor: FileProcessor;
 
@@ -283,48 +251,21 @@ async function actuallyUploadFile(
         }
     }, uploadFileTimeoutMs);
 
-    // TODO(calebmer, #files): Remove after debugging.
-    // eslint-disable-next-line no-console
-    console.log(
-        debugCounter(),
-        "uploadFile",
-        debugIdByObject.getOrSetDefault(req),
-        "start",
-        contentLength,
-    );
-
     // If the request receives the `close` event before the `end` event then abort
     // the file upload since the client didn't finish sending us data.
     const handleEnd = () => {
-        // TODO(calebmer, #files): Remove after debugging.
-        // eslint-disable-next-line no-console
-        console.log(debugCounter(), "uploadFile", debugIdByObject.getOrSetDefault(req), "req end");
-
         req.off("end", handleEnd);
         req.off("close", handleClose);
         req.off("error", handleError);
     };
 
     const handleClose = () => {
-        // TODO(calebmer, #files): Remove after debugging.
-        // eslint-disable-next-line no-console
-        console.log(
-            debugCounter(),
-            "uploadFile",
-            debugIdByObject.getOrSetDefault(req),
-            "req close",
-        );
-
         if (!abortController.signal.aborted) {
             abortController.abort(new CancelledError("Upload file request closed prematurely"));
         }
     };
 
     const handleError = (error: unknown) => {
-        // TODO(calebmer, #files): Remove after debugging.
-        // eslint-disable-next-line no-console
-        console.log("uploadFile", debugIdByObject.getOrSetDefault(req), "req error", error);
-
         if (!abortController.signal.aborted) {
             abortController.abort(new CancelledError("HTTP request error", {cause: error}));
         }
@@ -422,74 +363,9 @@ async function uploadAndProcessFile(
     // up large file uploads (for files >100 MB). For now, the simplicity of doing
     // all processing in one shot within `FileUploadService` is nice.
     const uploadPromise = (async () => {
-        stream.on("pause", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "uploadFile",
-                debugIdByObject.getOrSetDefault(stream),
-                "pause",
-            );
-        });
-
-        stream.on("resume", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "uploadFile",
-                debugIdByObject.getOrSetDefault(stream),
-                "resume",
-            );
-        });
-
-        // This breaks file uploads.
-        //
-        // stream.on("readable", () => {
-        //     // TODO(calebmer, #files): Remove after debugging.
-        //     // eslint-disable-next-line no-console
-        //     console.log(debugCounter(), "uploadFile", debugIdByObject.getOrSetDefault(stream), "readable");
-        // });
-
-        stream.on("end", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "uploadFile",
-                debugIdByObject.getOrSetDefault(stream),
-                "end",
-            );
-        });
-
-        stream.on("close", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "uploadFile",
-                debugIdByObject.getOrSetDefault(stream),
-                "close",
-            );
-        });
-
-        stream.on("pipe", () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "uploadFile",
-                debugIdByObject.getOrSetDefault(stream),
-                "pipe",
-            );
-        });
-
         // TODO(calebmer, #files): Consider transitioning objects to infrequent access
         // after 1-3 months?
         // https://developers.cloudflare.com/r2/buckets/object-lifecycles
-
-        let streamContentLength = 0;
 
         // NOTE: We don't `Promise.race()` `PutObject()` with
         // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
@@ -504,36 +380,7 @@ async function uploadAndProcessFile(
                 Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
                 ContentLength: contentLength,
-                Body: stream.pipe(
-                    new TransformStream({
-                        transform: (chunk, encoding, callback) => {
-                            const lastStreamContentLength = streamContentLength;
-                            streamContentLength += chunk.length;
-
-                            const base64Offset = streamContentLength % 6;
-
-                            // TODO(calebmer, #files): Remove after debugging.
-                            // eslint-disable-next-line no-console
-                            console.log(
-                                debugCounter(),
-                                "uploadFile",
-                                debugIdByObject.getOrSetDefault(stream),
-                                "transform",
-                                streamContentLength,
-                                `(+${streamContentLength - lastStreamContentLength})`,
-                                base64Offset === 0
-                                    ? encodeBase64(chunk.subarray(0, 30))
-                                    : `${encodeBase64(
-                                          chunk.subarray(0, base64Offset),
-                                      )} ${encodeBase64(
-                                          chunk.subarray(base64Offset, 30 + base64Offset),
-                                      )}`,
-                            );
-
-                            callback(null, chunk);
-                        },
-                    }),
-                ),
+                Body: stream,
             },
             {signal},
         );
@@ -547,8 +394,7 @@ async function uploadAndProcessFile(
 
     let processPromise: Promise<void> | null;
 
-    // TODO(calebmer, #files): Re-enable processing once we're done debugging.
-    if (process.env.NODE_ENV === "production" || !fileProcessor.hasPreview) {
+    if (!fileProcessor.hasPreview) {
         processPromise = null;
     } else {
         processPromise = context.tracer.withSpan("Process file", async (context, span) => {

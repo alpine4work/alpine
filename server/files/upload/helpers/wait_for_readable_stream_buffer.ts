@@ -1,16 +1,4 @@
 import {Readable as ReadableStream, Writable as WritableStream} from "stream";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
-import {Id, generateId} from "~/shared/id/id.js";
-
-// TODO(calebmer, #files): Remove after debugging.
-export const debugIdByObject = new DefaultWeakMap<object, Id>(generateId);
-
-let actualDebugCounter = 0;
-
-export function debugCounter() {
-    return `[${actualDebugCounter++}]`;
-}
 
 /**
  * Resolves once the provided `stream` has ended with a `Buffer` representing
@@ -21,24 +9,12 @@ export function waitForReadableStreamBuffer(
     stream: ReadableStream,
     signal: AbortSignal,
 ): Promise<Buffer> {
-    const debugId = generateId();
-
-    // TODO(calebmer, #files): Remove after debugging.
-    // eslint-disable-next-line no-console
-    console.trace(
-        debugCounter(),
-        "waitForReadableStreamBuffer",
-        debugIdByObject.getOrSetDefault(stream),
-        debugId,
-    );
-
     return new Promise<Buffer>((resolve, reject) => {
         if (signal.aborted) {
             reject(signal.reason);
             return;
         }
 
-        let contentLength = 0;
         let chunks: Array<Buffer> = [];
 
         if (stream.readableEnded) {
@@ -65,43 +41,11 @@ export function waitForReadableStreamBuffer(
         // consistent and use `.pipe()` here too.
         const writableStream = new WritableStream({
             write: (data: Buffer, encoding, callback) => {
-                const lastContentLength = contentLength;
-                contentLength += data.length;
                 chunks.push(data);
-
-                const base64Offset = contentLength % 6;
-
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log(
-                    debugCounter(),
-                    "waitForReadableStreamBuffer",
-                    debugIdByObject.getOrSetDefault(stream),
-                    debugId,
-                    "data",
-                    contentLength,
-                    `(+${contentLength - lastContentLength})`,
-                    base64Offset === 0
-                        ? encodeBase64(data.subarray(0, 30))
-                        : `${encodeBase64(data.subarray(0, base64Offset))} ${encodeBase64(
-                              data.subarray(base64Offset, 30 + base64Offset),
-                          )}`,
-                );
 
                 callback();
             },
             final: callback => {
-                // TODO(calebmer, #files): Remove after debugging.
-                // eslint-disable-next-line no-console
-                console.log(
-                    debugCounter(),
-                    "waitForReadableStreamBuffer",
-                    debugIdByObject.getOrSetDefault(stream),
-                    debugId,
-                    "end",
-                    contentLength,
-                );
-
                 const data = Buffer.concat(chunks);
 
                 chunks = [];
@@ -115,17 +59,6 @@ export function waitForReadableStreamBuffer(
         });
 
         const handleError = (error: unknown) => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "waitForReadableStreamBuffer",
-                debugIdByObject.getOrSetDefault(stream),
-                debugId,
-                "error",
-                contentLength,
-            );
-
             chunks = [];
             writableStream.off("error", handleError);
             signal.removeEventListener("abort", handleAbort);
@@ -137,17 +70,6 @@ export function waitForReadableStreamBuffer(
         };
 
         const handleAbort = () => {
-            // TODO(calebmer, #files): Remove after debugging.
-            // eslint-disable-next-line no-console
-            console.log(
-                debugCounter(),
-                "waitForReadableStreamBuffer",
-                debugIdByObject.getOrSetDefault(stream),
-                debugId,
-                "abort",
-                contentLength,
-            );
-
             chunks = [];
             writableStream.off("error", handleError);
             signal.removeEventListener("abort", handleAbort);
