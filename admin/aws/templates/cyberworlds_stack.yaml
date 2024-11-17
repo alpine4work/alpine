@@ -4180,8 +4180,6 @@ Resources:
                   Environment:
                       - Name: NODE_ENV
                         Value: production
-                      - Name: NODE_DEBUG
-                        Value: stream,http,http2,net
                   Essential: true
                   HealthCheck:
                       Command:
@@ -4399,13 +4397,6 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
-                - Key: access_logs.s3.enabled
-                  Value: "true"
-                - Key: access_logs.s3.bucket
-                  Value:
-                      Ref: FileUploadServiceLoadBalancerAccessLogsBucket0534D885
-                - Key: access_logs.s3.prefix
-                  Value: ""
             Name: cyberworlds-files
             Scheme: internet-facing
             SecurityGroups:
@@ -4417,7 +4408,6 @@ Resources:
                 - Ref: VpcPublicSubnet2Subnet691E08A3
             Type: application
         DependsOn:
-            - FileUploadServiceLoadBalancerAccessLogsBucketPolicyD7356CCA
             - VpcPublicSubnet1DefaultRoute3DA9E72A
             - VpcPublicSubnet1RouteTableAssociation97140677
             - VpcPublicSubnet2DefaultRoute97F91067
@@ -4493,64 +4483,6 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancer/Listener/TargetGroupGroup/Resource
-    FileUploadServiceLoadBalancerAccessLogsBucket0534D885:
-        Type: AWS::S3::Bucket
-        Properties:
-            BucketEncryption:
-                ServerSideEncryptionConfiguration:
-                    - ServerSideEncryptionByDefault:
-                          SSEAlgorithm: AES256
-        UpdateReplacePolicy: Retain
-        DeletionPolicy: Retain
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancerAccessLogsBucket/Resource
-    FileUploadServiceLoadBalancerAccessLogsBucketPolicyD7356CCA:
-        Type: AWS::S3::BucketPolicy
-        Properties:
-            Bucket:
-                Ref: FileUploadServiceLoadBalancerAccessLogsBucket0534D885
-            PolicyDocument:
-                Statement:
-                    - Action: s3:PutObject
-                      Effect: Allow
-                      Principal:
-                          AWS: arn:aws:iam::127311923021:root
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - FileUploadServiceLoadBalancerAccessLogsBucket0534D885
-                                      - Arn
-                                - /AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                    - Action: s3:PutObject
-                      Condition:
-                          StringEquals:
-                              s3:x-amz-acl: bucket-owner-full-control
-                      Effect: Allow
-                      Principal:
-                          Service: delivery.logs.amazonaws.com
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - FileUploadServiceLoadBalancerAccessLogsBucket0534D885
-                                      - Arn
-                                - /AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                    - Action: s3:GetBucketAcl
-                      Effect: Allow
-                      Principal:
-                          Service: delivery.logs.amazonaws.com
-                      Resource:
-                          Fn::GetAtt:
-                              - FileUploadServiceLoadBalancerAccessLogsBucket0534D885
-                              - Arn
-                Version: 2012-10-17
-        Metadata:
-            aws:cdk:path: CyberworldsStack/FileUploadService/LoadBalancerAccessLogsBucket/Policy/Resource
     FileUploadServiceCertificateA257B11D:
         Type: AWS::CertificateManager::Certificate
         Properties:
