@@ -59,9 +59,9 @@ export const table = {
     name: "table",
     content: "table_row+",
     group: "block",
-    isolating: true,
+    copyable: true,
     selectable: true,
-    draggable: true,
+    isolating: true,
     tableRole: "table",
     attrs: {
         alignment: {
@@ -193,15 +193,14 @@ export const table = {
                 return true;
             },
     },
-    copyable: true,
 };
 
 export const table_row = {
     name: "table_row",
     content: "(table_cell | table_header)+",
     tableRole: "row",
+    isolating: true,
     selectable: true,
-    draggable: true,
     parseDOM: [{tag: "tr"}],
     toDOM() {
         return ["tr", 0] as const;
@@ -215,8 +214,8 @@ export const table_cell = {
     content: "block+",
     tableRole: "cell",
     selectable: true,
+    isolating: true,
     copyable: true,
-    draggable: true,
 
     attrs: {
         colspan: {default: 1, schema: Schema.integer},
@@ -251,6 +250,9 @@ export const table_header = {
     name: "table_header",
     content: "block+",
     selectable: true,
+    isolating: true,
+    copyable: true,
+
     // attrs: cellAttrs,
     attrs: {
         // Add these attributes
@@ -259,10 +261,8 @@ export const table_header = {
         colwidth: {default: null, schema: Schema.unknown},
     },
     tableRole: "header_cell",
-    isolating: true,
     parseDOM: [{tag: "th"}],
     toDOM() {
         return ["th", {class: tableHeaderClassName}, 0] as const;
     },
-    copyable: true,
 };

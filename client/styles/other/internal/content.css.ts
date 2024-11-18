@@ -2045,8 +2045,8 @@ globalStyle(tableClassName, {
     overflowX: "auto",
     display: "block",
     borderRadius: borderRadius[1],
-    scrollbarWidth: "thin",
-    scrollbarColor: `${colors["red-60"]} ${colorSchemeVars["grey-10"]}`,
+    // scrollbarWidth: "thin",
+    // scrollbarColor: `${colors["red-60"]} ${colorSchemeVars["grey-10"]}`,
 });
 
 globalStyle(`${tableClassName} table`, {
@@ -2058,19 +2058,19 @@ globalStyle(`${tableClassName} table`, {
 });
 
 // Add WebKit scrollbar styles
-globalStyle(`${tableClassName}::-webkit-scrollbar`, {
-    height: "8px", // Height of horizontal scrollbar
-});
+// globalStyle(`${tableClassName}::-webkit-scrollbar`, {
+//     height: "8px", // Height of horizontal scrollbar
+// });
 
-globalStyle(`${tableClassName}::-webkit-scrollbar-track`, {
-    background: colorSchemeVars["grey-10"],
-    borderRadius: borderRadius[1],
-});
+// globalStyle(`${tableClassName}::-webkit-scrollbar-track`, {
+//     background: colorSchemeVars["grey-10"],
+//     borderRadius: borderRadius[1],
+// });
 
-globalStyle(`${tableClassName}::-webkit-scrollbar-thumb`, {
-    background: colors["red-60"],
-    borderRadius: borderRadius[1],
-});
+// globalStyle(`${tableClassName}::-webkit-scrollbar-thumb`, {
+//     background: colors["red-60"],
+//     borderRadius: borderRadius[1],
+// });
 
 globalStyle(`${tableClassName}.resize-cursor`, {
     cursor: "col-resize",

@@ -76,8 +76,6 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         toolbarOverflowGradientElement.className =
             contentStyles.codeBlockToolbarOverflowGradientClassName;
 
-        console.log("toolbarElement", toolbarElement);
-
         {
             // language picker combobox button:
             // we just add it to the toolbarFlexElement and then

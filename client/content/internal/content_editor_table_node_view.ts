@@ -32,6 +32,7 @@ export class TableView implements NodeView {
         });
         this.dom.style.position = "relative";
 
+        this.dom.setAttribute("data-scrollbar", "false");
         // Create column buttons container
         this.columnButtons = document.createElement("div");
         this.dom.appendChild(this.columnButtons);
