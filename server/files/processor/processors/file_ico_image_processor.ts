@@ -5,8 +5,8 @@ import {
     processFileImagePreviewPlaceholder,
     rethrowClassifiedSharpError,
     sharpTimeoutSeconds,
-} from "~/server/files/upload/processors/file_image_processor_base.js";
-import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
+} from "~/server/files/processor/processors/file_image_processor_base.js";
+import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

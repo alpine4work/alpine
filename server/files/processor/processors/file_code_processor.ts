@@ -1,7 +1,7 @@
 import {NodeType, Tree} from "@lezer/common";
 import {highlightCode} from "@lezer/highlight";
 import {Writable as WritableStream} from "stream";
-import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
+import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {

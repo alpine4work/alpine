@@ -16,7 +16,7 @@ import {createFileUploadService} from "~/server/files/upload/file_upload_service
 import {
     ffmpegExecutablePath,
     ffprobeExecutablePath,
-} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+} from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
 import {
     filesBindingName,
     filesBucketName,

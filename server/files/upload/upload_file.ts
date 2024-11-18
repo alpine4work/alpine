@@ -8,18 +8,21 @@ import {
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
-import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
-import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
-import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
-import {createFilePdfDocumentProcessor} from "~/server/files/upload/processors/file_pdf_document_processor.js";
-import {FileProcessor, fileNoopProcessor} from "~/server/files/upload/processors/file_processor.js";
-import {ffprobeExecutablePath} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
-import {createFileWebSafeAudioProcessor} from "~/server/files/upload/processors/file_web_safe_audio_processor.js";
-import {createFileWebSafeImageProcessor} from "~/server/files/upload/processors/file_web_safe_image_processor.js";
-import {createFileWebSafeVideoProcessor} from "~/server/files/upload/processors/file_web_safe_video_processor.js";
-import {createFileWebUnsafeAudioProcessor} from "~/server/files/upload/processors/file_web_unsafe_audio_processor.js";
-import {createFileWebUnsafeImageProcessor} from "~/server/files/upload/processors/file_web_unsafe_image_processor.js";
-import {createFileWebUnsafeVideoProcessor} from "~/server/files/upload/processors/file_web_unsafe_video_processor.js";
+import {createFileCodeProcessor} from "~/server/files/processor/processors/file_code_processor.js";
+import {createFileIcoImageProcessor} from "~/server/files/processor/processors/file_ico_image_processor.js";
+import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/processor/processors/file_microsoft_office_document_file_processor.js";
+import {createFilePdfDocumentProcessor} from "~/server/files/processor/processors/file_pdf_document_processor.js";
+import {
+    FileProcessor,
+    fileNoopProcessor,
+} from "~/server/files/processor/processors/file_processor.js";
+import {ffprobeExecutablePath} from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
+import {createFileWebSafeAudioProcessor} from "~/server/files/processor/processors/file_web_safe_audio_processor.js";
+import {createFileWebSafeImageProcessor} from "~/server/files/processor/processors/file_web_safe_image_processor.js";
+import {createFileWebSafeVideoProcessor} from "~/server/files/processor/processors/file_web_safe_video_processor.js";
+import {createFileWebUnsafeAudioProcessor} from "~/server/files/processor/processors/file_web_unsafe_audio_processor.js";
+import {createFileWebUnsafeImageProcessor} from "~/server/files/processor/processors/file_web_unsafe_image_processor.js";
+import {createFileWebUnsafeVideoProcessor} from "~/server/files/processor/processors/file_web_unsafe_video_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";

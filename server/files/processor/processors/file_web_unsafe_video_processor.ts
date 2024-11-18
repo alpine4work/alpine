@@ -5,8 +5,8 @@ import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
-import {processFileImagePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
-import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
+import {processFileImagePreviewPlaceholder} from "~/server/files/processor/processors/file_image_processor_base.js";
+import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
     ffmpegImagePreviewContentOutputContentType,
@@ -15,7 +15,7 @@ import {
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
-} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+} from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
