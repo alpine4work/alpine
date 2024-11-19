@@ -4,10 +4,18 @@ import prettyBytes from "pretty-bytes";
 import {Node} from "prosemirror-model";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
+    addContentFileAudioPlayerBehavior,
+    renderContentFileAudioPlayer,
+} from "~/client/content/internal/content_file_audio_player.js";
+import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {
+    addContentFileVideoPlayerBehavior,
+    renderContentFileVideoPlayer,
+} from "~/client/content/internal/content_file_video_player.js";
 import {handoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
@@ -15,14 +23,6 @@ import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {
-    addContentFileAudioPlayerBehavior,
-    renderContentFileAudioPlayer,
-} from "~/client/content/internal/render_content_file_audio_player.js";
-import {
-    addContentFileVideoPlayerBehavior,
-    renderContentFileVideoPlayer,
-} from "~/client/content/internal/render_content_file_video_player.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {Reporter} from "~/client/design/reporter.js";

@@ -84,6 +84,7 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
 import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     ContentEditorFileDropTarget,
@@ -94,7 +95,6 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
-import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,

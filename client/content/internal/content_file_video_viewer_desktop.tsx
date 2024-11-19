@@ -2,11 +2,11 @@ import classNames from "classnames";
 import {useMemo, useRef} from "react";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
-import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {
     addContentFileVideoPlayerBehavior,
     renderContentFileVideoPlayer,
-} from "~/client/content/internal/render_content_file_video_player.js";
+} from "~/client/content/internal/content_file_video_player.js";
+import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

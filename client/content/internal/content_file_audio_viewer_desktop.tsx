@@ -2,6 +2,10 @@ import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {useMemo, useRef} from "react";
 import {
+    addContentFileAudioPlayerBehavior,
+    renderContentFileAudioPlayer,
+} from "~/client/content/internal/content_file_audio_player.js";
+import {
     contentFileViewerDesktopMarginX,
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -10,10 +14,6 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    addContentFileAudioPlayerBehavior,
-    renderContentFileAudioPlayer,
-} from "~/client/content/internal/render_content_file_audio_player.js";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useReporter} from "~/client/design/reporter.js";

@@ -10,11 +10,11 @@ import {
 import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {layoutContentFile} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
-} from "~/client/content/internal/render_content_file_preview.js";
+} from "~/client/content/internal/content_file_preview.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";

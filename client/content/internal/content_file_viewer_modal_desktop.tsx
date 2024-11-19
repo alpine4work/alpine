@@ -13,6 +13,7 @@ import {ContentFileAudioViewerDesktop} from "~/client/content/internal/content_f
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {handleDownloadContentFile} from "~/client/content/internal/content_file_preview.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileVideoViewerDesktop} from "~/client/content/internal/content_file_video_viewer_desktop.js";
 import {
@@ -27,7 +28,6 @@ import {
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {handleDownloadContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";

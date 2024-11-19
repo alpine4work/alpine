@@ -2,7 +2,7 @@ import prettyBytes from "pretty-bytes";
 import {
     addContentFileVideoAndAudioPlayerControlsBehavior,
     renderContentFileVideoAndAudioPlayerControls,
-} from "~/client/content/internal/render_content_file_video_and_audio_player_controls.js";
+} from "~/client/content/internal/content_file_video_and_audio_player_controls.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileAudioIconSvg} from "~/client/icons/file_audio_icon_svg.js";
