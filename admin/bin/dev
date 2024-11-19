@@ -40,7 +40,7 @@ fi
 case "$1" in
     check)
         if has_arg "--all" "${@:2}"; then
-            ./admin/bin/bazel test //... --test_tag_filters=dev-check
+            ./admin/bin/bazel test //... --test_tag_filters=dev-check,-adhoc
         elif [ -z "$2" ]; then
             # - `git diff --name-only main`: Finds all the files which are different from
             #   the `main` branch.
@@ -58,7 +58,12 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No changed files"
             else
-                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
+                query_base="tests(//...)"
+                query="attr(tags, '\bdev-check\b', $query_base)"
+                query="$query except attr(tags, '\badhoc\b', $query_base)"
+                query="tests(rdeps($query, $files))"
+
+                ./admin/bin/bazel query --noshow_progress "$query" | xargs ./admin/bin/bazel test
             fi
         else
             # - `echo "${@:2}"`: Use files from the command line.
@@ -68,9 +73,14 @@ case "$1" in
             files="$(echo "${@:2}" | xargs | sed "s/ / union /g")"
 
             if [ -z "$files" ]; then
-                echo "No changed files"
+                echo "No tests for sources"
             else
-                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
+                query_base="tests(//...)"
+                query="attr(tags, '\bdev-check\b', $query_base)"
+                query="$query except attr(tags, '\badhoc\b', $query_base)"
+                query="tests(rdeps($query, $files))"
+
+                ./admin/bin/bazel query --noshow_progress "$query" | xargs ./admin/bin/bazel test
             fi
         fi
         ;;
@@ -96,7 +106,7 @@ case "$1" in
         fi
 
         if has_arg "--all" "${@:2}"; then
-            test_tag_filters=dev-test
+            test_tag_filters=dev-test,-adhoc
             if [[ "$has_libreoffice" == "false" ]]; then
                 test_tag_filters="$test_tag_filters,-libreoffice"
             fi
@@ -121,6 +131,7 @@ case "$1" in
             else
                 query_base="tests(//...)"
                 query="attr(tags, '\bdev-test\b', $query_base)"
+                query="$query except attr(tags, '\badhoc\b', $query_base)"
                 if [[ "$has_libreoffice" == "false" ]]; then
                     query="$query except attr(tags, '\blibreoffice\b', $query_base)"
                 fi
@@ -140,6 +151,7 @@ case "$1" in
             else
                 query_base="tests(//...)"
                 query="attr(tags, '\bdev-test\b', $query_base)"
+                query="$query except attr(tags, '\badhoc\b', $query_base)"
                 if [[ "$has_libreoffice" == "false" ]]; then
                     query="$query except attr(tags, '\blibreoffice\b', $query_base)"
                 fi
