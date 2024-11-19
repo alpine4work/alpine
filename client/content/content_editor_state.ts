@@ -106,6 +106,7 @@ function buildPlugins<Content extends ContentWithReferences>({
             try {
                 plugins.push(
                     columnResizing({
+                        cellMinWidth: 50,
                         // defaultCellMinWidth: 100,
                         View: TableView,
                         lastColumnResizable: true,

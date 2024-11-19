@@ -146,10 +146,10 @@ export function updateColumnsOnResize(
     if (!row) return;
 
     // Clear existing column buttons before adding new ones
-    if (columnButtons) {
-        columnButtons.innerHTML = "";
-        columnButtons.className = "column-buttons-container";
-    }
+    // if (columnButtons) {
+    //     columnButtons.innerHTML = "";
+    //     columnButtons.className = "column-buttons-container";
+    // }
 
     for (let i = 0, col = 0; i < row.childCount; i++) {
         const {colspan, colwidth} = row.child(i).attrs as CellAttrs;
@@ -159,11 +159,11 @@ export function updateColumnsOnResize(
             totalWidth += hasWidth || defaultCellMinWidth;
             if (!hasWidth) fixedWidth = false;
 
-            if (columnButtons) {
-                const buttonPosition = totalWidth - (hasWidth || defaultCellMinWidth) / 2;
-                const columnWidth = hasWidth || defaultCellMinWidth;
-                addColumnAfterButton(columnButtons, col, buttonPosition, columnWidth, view);
-            }
+            // if (columnButtons) {
+            //     const buttonPosition = totalWidth - (hasWidth || defaultCellMinWidth) / 2;
+            //     const columnWidth = hasWidth || defaultCellMinWidth;
+            //     addColumnAfterButton(columnButtons, col, buttonPosition, columnWidth, view);
+            // }
 
             if (!nextDOM) {
                 const col = document.createElement("col");

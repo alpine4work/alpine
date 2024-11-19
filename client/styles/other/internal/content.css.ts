@@ -2027,6 +2027,11 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
+globalStyle(tableHeaderClassName, {
+    border: `1px solid ${colors["grey-20"]}`,
+    minWidth: spacing[20],
+    background: colorSchemeVars["grey-10"],
+});
 globalStyle(tableCellClassName, {
     border: `1px solid ${colors["grey-20"]}`,
     minWidth: spacing[20],
@@ -2034,284 +2039,70 @@ globalStyle(tableCellClassName, {
 
 globalStyle(tableClassName, {
     minWidth: "600px",
-    marginTop: paragraphMarginVar,
-    marginBottom: paragraphMarginVar,
+    margin: `${paragraphMarginVar} auto`,
+    padding: spacing[5],
+    background: colors["grey-90"],
     width: "fit-content",
-    maxWidth: "1000px",
+    maxWidth: "95%",
     textAlign: "left",
     borderCollapse: "collapse",
-    marginLeft: "auto",
-    marginRight: "auto",
     overflowX: "auto",
     display: "block",
-    borderRadius: borderRadius[1],
-    // scrollbarWidth: "thin",
-    // scrollbarColor: `${colors["red-60"]} ${colorSchemeVars["grey-10"]}`,
+    borderRadius: borderRadius[2],
+    // tableLayout: "fixed",
 });
 
 globalStyle(`${tableClassName} table`, {
     minWidth: "600px",
-    width: "100%",
+    width: "600px",
     maxWidth: "1000px",
     textAlign: "left",
     borderCollapse: "collapse",
+    tableLayout: "fixed",
 });
-
-// Add WebKit scrollbar styles
-// globalStyle(`${tableClassName}::-webkit-scrollbar`, {
-//     height: "8px", // Height of horizontal scrollbar
-// });
-
-// globalStyle(`${tableClassName}::-webkit-scrollbar-track`, {
-//     background: colorSchemeVars["grey-10"],
-//     borderRadius: borderRadius[1],
-// });
-
-// globalStyle(`${tableClassName}::-webkit-scrollbar-thumb`, {
-//     background: colors["red-60"],
-//     borderRadius: borderRadius[1],
-// });
-
-globalStyle(`${tableClassName}.resize-cursor`, {
-    cursor: "col-resize",
-});
-
-// globalStyle(`${tableClassName}::-webkit-scrollbar`, {
-//     height: spacing[2],
-// });
 
 globalStyle(`${tableClassName} p`, {
     padding: [spacing[1.5], spacing[2]],
     margin: spacing[0],
 });
 
-// Add to existing styles
-globalStyle(` .table-controls`, {
-    position: "absolute",
-    top: `-${spacing[8]}`,
-    right: 0,
-    display: "none",
-    gap: spacing[2],
-    padding: spacing[2],
-    background: colorSchemeVars["grey-10"],
-    borderRadius: borderRadius[1],
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    zIndex: 1,
-});
+////////////////////////////////////////////////////////////
 
-globalStyle(`${tableClassName} .table-controls button`, {
-    padding: `${spacing[1]} ${spacing[2]}`,
-    background: colorSchemeVars["grey-0"],
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    borderRadius: borderRadius[1],
-    cursor: "pointer",
-    color: colorSchemeVars["grey-90"],
-    fontSize: fontSizes["50"].fontSize,
-    lineHeight: fontSizes["50"].lineHeight,
-});
-
-globalStyle(`${tableClassName} .table-controls button:hover`, {
-    background: colorSchemeVars["grey-10"],
-});
-
-// Add after the table styles
-globalStyle(`${tableClassName} .column-button`, {
-    position: "absolute",
-    width: spacing[4], // 16px for icon
-    height: spacing[4], // 16px for icon
-    padding: spacing[1],
-    background: colorSchemeVars["grey-0"],
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    borderRadius: "50%",
-    cursor: "pointer",
-    left: "-12px", // Half the width to center it
-    top: "-20px",
-    zIndex: 1000,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0,
-    transition: "opacity 0.2s ease, background-color 0.2s ease",
-});
-
-globalStyle(`${tableClassName} .column-button:hover`, {
-    opacity: 1,
-    background: colorSchemeVars["grey-10"],
-});
-
-// Column button container styles
-globalStyle(`${tableClassName} .column-buttons-container`, {
-    position: "absolute",
-    top: 10,
-    left: 0,
-    right: 0,
-    height: 0,
-    zIndex: 999,
-});
-
-globalStyle(`${tableClassName} td::after`, {
-    // background: colorSchemeVars["red-90"],
-    content: '""',
-    position: "absolute",
-    top: 0,
-    right: "-3px", // Slightly offset to make it easier to grab
-    bottom: 0,
-    width: "6px", // Wide enough hit area for resizing
+globalStyle(".resize-cursor", {
     cursor: "col-resize",
-    zIndex: 1000,
 });
 
-globalStyle(`${tableClassName} td`, {
+globalStyle(".ProseMirror table td, .ProseMirror table th", {
+    border: "2px solid #ced4da",
+    padding: "3px 5px",
+    verticalAlign: "top",
+    boxSizing: "border-box",
     position: "relative",
 });
 
-// Show buttons on table hover
-globalStyle(`${tableClassName}:hover .column-button`, {
-    opacity: 1,
+globalStyle(".ProseMirror table > *", {
+    marginBottom: "0",
 });
 
-globalStyle(`${tableClassName} .column-button:hover`, {
-    background: colorSchemeVars["grey-10"],
-});
-
-// Tooltip styles
-globalStyle(`${tableClassName} .column-button-tooltip`, {
+globalStyle(".ProseMirror table .selectedCell:after", {
+    zIndex: 2,
     position: "absolute",
-    top: "-24px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: colorSchemeVars["grey-90"],
-    color: colorSchemeVars["grey-0"],
-    padding: `${spacing[1]} ${spacing[2]}`,
-    borderRadius: borderRadius[1],
-    fontSize: fontSizes["50"].fontSize,
-    whiteSpace: "nowrap",
-    opacity: 0,
-    transition: "opacity 0.2s ease",
-    pointerEvents: "none",
-});
-
-globalStyle(`${tableClassName} .column-button:hover .column-button-tooltip`, {
-    opacity: 1,
-});
-
-// Column button styles
-globalStyle(`${tableClassName} .column-button`, {
-    position: "absolute",
-    width: spacing[4],
-    height: spacing[4],
-    padding: spacing[1],
-    background: colorSchemeVars["grey-0"],
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    borderRadius: "50%",
-    cursor: "pointer",
-    top: "-20px",
-    zIndex: 1000,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0,
-    transition: "opacity 0.2s ease, background-color 0.2s ease",
-});
-
-// Column hover area
-globalStyle(`${tableClassName} .column-hover-area`, {
-    position: "absolute",
-    top: "-20px", // Match button position
-    bottom: 0,
-    width: "100%",
-    zIndex: 1000,
-});
-
-// Show button only when hovering over specific column
-globalStyle(`${tableClassName} .column-hover-area:hover + .column-button`, {
-    opacity: 1,
-    zIndex: 1000,
-});
-
-globalStyle(`${tableClassName} .column-button:hover`, {
-    opacity: 1,
-    background: colorSchemeVars["grey-10"],
-});
-
-// Tooltip styles remain the same
-globalStyle(`${tableClassName} .column-button-tooltip`, {
-    position: "absolute",
-    top: "-24px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: colorSchemeVars["grey-90"],
-    color: colorSchemeVars["grey-0"],
-    padding: `${spacing[1]} ${spacing[2]}`,
-    borderRadius: borderRadius[1],
-    fontSize: fontSizes["50"].fontSize,
-    whiteSpace: "nowrap",
-    opacity: 0,
-    transition: "opacity 0.2s ease",
-    pointerEvents: "none",
-});
-
-globalStyle(`${tableClassName} .column-button:hover .column-button-tooltip`, {
-    opacity: 1,
-});
-
-globalStyle(`${tableClassName} .column-after-button`, {
-    position: "absolute",
-    width: spacing[4],
-    height: spacing[4],
-    padding: spacing[1],
-    background: colorSchemeVars["grey-0"],
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    borderRadius: "50%",
-    cursor: "pointer",
-    top: "-20px",
-    zIndex: 1000,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0,
-    transition: "opacity 0.2s ease, background-color 0.2s ease",
-    pointerEvents: "none",
-});
-globalStyle(columnContainerClassName, {});
-// Update hover selector
-globalStyle(`${tableClassName} ${columnContainerClassName}:hover .column-after-button`, {
-    opacity: 1,
-    pointerEvents: "auto",
-});
-
-globalStyle(`${tableClassName} .column-after-button:hover`, {
-    background: colorSchemeVars["blue-70"],
-});
-
-globalStyle(`${tableClassName} ${columnContainerClassName}:hover::after`, {
     content: '""',
-    position: "absolute",
+    left: 0,
+    right: 0,
     top: 0,
     bottom: 0,
-    right: 0,
-    width: "2px", // Width of the blue line
-    background: colorSchemeVars["blue-60"], // Blue color for the line
-    opacity: 0.6,
-    zIndex: 1000,
-    transition: "opacity 0.2s ease",
+    background: "rgba(200, 200, 255, 0.4)",
+    pointerEvents: "none",
 });
 
-globalStyle(`${tableClassName} ${columnContainerClassName}:hover .column-after-button`, {
-    opacity: 1,
+globalStyle(".ProseMirror table .column-resize-handle", {
+    position: "absolute",
+    right: "-2px",
+    top: 0,
+    bottom: "-2px",
+    width: "4px",
+    backgroundColor: "#adf",
     pointerEvents: "auto",
-    background: colorSchemeVars["blue-60"], // Match button color with line
-    border: "none", // Remove border for cleaner look
-    color: colorSchemeVars["grey-0"], // White icon
-});
-
-// Optional: Add hover effect for the button
-globalStyle(` .column-after-button:hover`, {
-    background: colorSchemeVars["blue-70"], // Darker blue on hover
-});
-
-globalStyle(tableHeaderClassName, {
-    border: `1px solid ${colors["grey-20"]}`,
-    minWidth: spacing[20],
-    background: colorSchemeVars["grey-10"],
+    cursor: "col-resize",
 });
