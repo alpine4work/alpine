@@ -1,10 +1,7 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {createAggregateError, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -83,9 +80,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
 
         if (!this._waitForTestTasksPromise) {
             this._waitForTestTasksPromise = (async () => {
-                let hasError = false;
-                let errorPriority = 0;
-                let error: unknown;
+                const errors: Array<unknown> = [];
 
                 // Wait for all promises to resolve. If there's an error, don't throw it until
                 // all promises have resolved.
@@ -107,24 +102,14 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
 
                     try {
                         await runAllPromises(promises);
-                    } catch (newError) {
-                        const newErrorPriority = getAggregateErrorPriority(newError);
-
-                        if (!hasError) {
-                            hasError = true;
-                            errorPriority = newErrorPriority;
-                            error = newError;
-                        }
-                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                        // just the first one. Probably by using an `AggregateError`.
-                        else if (newErrorPriority > errorPriority) {
-                            errorPriority = newErrorPriority;
-                            error = newError;
-                        }
+                    } catch (error) {
+                        errors.push(error);
                     }
                 }
 
-                if (hasError) throw error;
+                if (errors.length > 0) {
+                    throw createAggregateError(errors);
+                }
             })().finally(() => {
                 this._waitForTestTasksPromise = undefined;
             });

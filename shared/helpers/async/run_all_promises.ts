@@ -1,4 +1,4 @@
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 
@@ -31,43 +31,28 @@ export async function runAllPromises<Value>(
 ): Promise<Array<Awaited<Value>>> {
     const results = await Promise.allSettled(promises);
 
-    let hasError = false;
-    let errorPriority = 0;
-    let error;
+    const errors: Array<unknown> = [];
     const values: Array<Awaited<Value>> = [];
 
     for (const result of results) {
-        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-        // just the first one. Probably by using an `AggregateError`.
-        //
-        // `retryWithExponentialBackoff()` and `context.dynamo.retryTransaction()`
-        // should maybe still be able to detect retries from a `runAllPromises()`
-        // `AggregateError`.
         if (result.status === "rejected") {
-            const newError = result.reason;
-            const newErrorPriority = getAggregateErrorPriority(newError);
-
-            if (!hasError) {
-                hasError = true;
-                errorPriority = newErrorPriority;
-                error = newError;
-            } else if (newErrorPriority > errorPriority) {
-                errorPriority = newErrorPriority;
-                error = newError;
-            }
+            errors.push(result.reason);
             continue;
         }
 
-        if (!hasError) values.push(result.value);
+        if (errors.length === 0) values.push(result.value);
     }
 
-    // Throw the first error with the highest priority we saw.
-    if (hasError) throw error;
+    if (errors.length > 0) throw createAggregateError(errors);
 
     return values;
 }
 
-export function getAggregateErrorPriority(error: unknown) {
+export function getAggregateErrorPriority(error: unknown): number {
+    if (error instanceof AggregateError && error.errors.length > 0) {
+        return error.errors.map(getAggregateErrorPriority).reduce((a, b) => Math.max(a, b), 0);
+    }
+
     const isErrorBase = error instanceof ErrorBase;
 
     let priority = 2;
@@ -88,6 +73,66 @@ export function getAggregateErrorPriority(error: unknown) {
     if (!isErrorBase || isSystemErrorCode(error.code)) priority += 4;
 
     return priority;
+}
+
+/**
+ * Create an `AggregateError` instance from multiple errors. We pick the error
+ * with the highest priority (according to `getAggregateErrorPriority()`) to be
+ * the message of the aggregate error.
+ *
+ * If there's only one error then we return that error. If there are zero errors
+ * we return an `InternalError`. If `AggregateError`s are provided then we
+ * flatten them in the resulting `AggregateError`s result list.
+ */
+export function createAggregateError(errors: Iterable<unknown>): unknown {
+    const errorsArray: Array<unknown> = [];
+
+    const pushError = (error: unknown) => {
+        if (!(error instanceof AggregateError) || error.errors.length === 0) {
+            errorsArray.push(error);
+        } else {
+            for (const subError of error.errors) {
+                pushError(subError);
+            }
+        }
+    };
+
+    for (const error of errors) {
+        pushError(error);
+    }
+
+    if (errorsArray.length === 1) return errorsArray[0]!;
+
+    let highestPriority: number | null = null;
+    let highestPriorityError: unknown;
+
+    for (const error of errorsArray) {
+        const priority = getAggregateErrorPriority(error);
+
+        if (highestPriority === null || highestPriority < priority) {
+            highestPriority = priority;
+            highestPriorityError = error;
+        }
+    }
+
+    if (highestPriority === null) {
+        return new InternalError("Tried to create an `AggregateError` with no errors");
+    } else {
+        const otherErrorCount = errorsArray.length - 1;
+
+        const error = new AggregateError(
+            errorsArray,
+            `${
+                highestPriorityError instanceof Error
+                    ? highestPriorityError.message
+                    : String(highestPriorityError)
+            } (and ${otherErrorCount} other ${otherErrorCount === 1 ? "error" : "errors"})`,
+        );
+
+        (error as any).code = getErrorCode(highestPriorityError);
+
+        return error;
+    }
 }
 
 /**

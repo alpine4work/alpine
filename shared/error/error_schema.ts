@@ -1,4 +1,4 @@
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode, isErrorCode} from "~/shared/error/error_code.js";
 import {
     getErrorOriginalTracerSpan,
@@ -10,6 +10,7 @@ import {
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
 } from "~/shared/error/types/error_display_message_type.js";
+import {getAggregateErrorPriority} from "~/shared/helpers/async/run_all_promises.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -32,44 +33,92 @@ export const ErrorDisplayMessageSegmentSchema: Schema<ErrorDisplayMessageSegment
     Link: ErrorDisplayMessageLinkSegmentSchema,
 });
 
-const _ErrorDisplayMessageSchema = Schema.array(ErrorDisplayMessageSegmentSchema);
+export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> = Schema.array(
+    ErrorDisplayMessageSegmentSchema,
+) as Schema<any>;
 
-export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> =
-    _ErrorDisplayMessageSchema as Schema<any>;
-
-const ErrorBaseRecursiveSchema = Schema.declare<{
+type ErrorBaseWithCause = {
     readonly message: string;
     readonly code?: number | undefined;
     readonly displayMessage?: ErrorDisplayMessage | undefined;
     readonly name?: string | undefined;
     readonly stack?: string | undefined;
-}>();
+    readonly cause?: ErrorBaseWithCause | undefined;
+};
 
-const ErrorBaseSchema = Schema.object({
+const ErrorBaseWithCauseRecursiveSchema = Schema.declare<ErrorBaseWithCause>();
+
+const ErrorBaseWithCauseSchema = Schema.object({
     code: Schema.integer.optional(),
     message: Schema.string,
     displayMessage: ErrorDisplayMessageSchema.optional(),
     name: Schema.string.optional(),
     stack: Schema.string.optional(),
-    cause: ErrorBaseRecursiveSchema.optional(),
+    cause: ErrorBaseWithCauseRecursiveSchema.optional(),
 });
 
-ErrorBaseRecursiveSchema.define(ErrorBaseSchema);
+ErrorBaseWithCauseRecursiveSchema.define(ErrorBaseWithCauseSchema);
 
-const ErrorSchemaWithoutTransform = ErrorBaseSchema.merge(
+const maxAggregateErrorCount = 5;
+
+const ErrorSchemaWithoutTransform = ErrorBaseWithCauseSchema.merge(
     Schema.object({
         original: Schema.object({
             time: Schema.date,
             traceId: Schema.id<TraceId>(),
             spanId: Schema.id<TraceSpanId>(),
         }).optional(),
+        aggregated: Schema.array(ErrorBaseWithCauseRecursiveSchema)
+            .minLength(1)
+            .maxLength(maxAggregateErrorCount)
+            .optional(),
     }),
 );
 
 export const ErrorSchema = ErrorSchemaWithoutTransform.transform<unknown>({
-    serialize: error => ({
-        ...serializeErrorBase(error),
+    serialize: serializeError,
+    deserialize: deserializeError,
+});
+
+function serializeError(error: unknown) {
+    const aggregateErrors: Array<unknown> = [];
+
+    const pushAggregateError = (error: unknown) => {
+        if (!(error instanceof AggregateError)) {
+            aggregateErrors.push(error);
+        } else {
+            for (const subError of error.errors) {
+                pushAggregateError(subError);
+            }
+        }
+    };
+
+    if (error instanceof AggregateError) {
+        for (const subError of error.errors) {
+            pushAggregateError(subError);
+        }
+    }
+
+    // Rank the highest priority errors first. So when we select the first N errors
+    // to serialize we have the worst errors.
+    aggregateErrors.sort(
+        (error1, error2) => getAggregateErrorPriority(error2) - getAggregateErrorPriority(error1),
+    );
+
+    return {
+        ...serializeErrorBaseWithCause(error),
         original: getErrorOriginalTracerSpan(error),
+
+        aggregated:
+            aggregateErrors.length > 0
+                ? aggregateErrors.slice(0, maxAggregateErrorCount).map(serializeErrorBaseWithCause)
+                : undefined,
+    };
+}
+
+function serializeErrorBaseWithCause(error: unknown): ErrorBaseWithCause {
+    return {
+        ...serializeErrorBase(error),
 
         // Only include causes that, themselves, are instances of `Error`. Only
         // serialize causes 3 deep. (Same as `getTracerEventExceptionData()`.)
@@ -82,13 +131,12 @@ export const ErrorSchema = ErrorSchemaWithoutTransform.transform<unknown>({
                       }
                     : serializeErrorBase(error.cause)
                 : undefined,
-    }),
-    deserialize: deserializeError,
-});
+    };
+}
 
 function serializeErrorBase(error: unknown) {
     return {
-        code: error instanceof ErrorBase ? error.code : ErrorCode.Unknown,
+        code: getErrorCode(error),
         message: error instanceof Error ? error.message : "",
         displayMessage: error instanceof ErrorBase ? error.displayMessage : undefined,
         // In development include the stack trace of the error so we can show it to
@@ -106,12 +154,24 @@ function deserializeError(
         serializedError.code !== undefined && isErrorCode(serializedError.code)
             ? serializedError.code
             : ErrorCode.Unknown;
-    const ErrorConstructor = getErrorConstructorForCode(code);
 
-    const error = new ErrorConstructor(serializedError.message, {
-        displayMessage: serializedError.displayMessage,
-        cause: serializedError.cause ? deserializeError(serializedError.cause) : undefined,
-    });
+    let error: Error;
+    if (serializedError.aggregated && serializedError.aggregated.length > 0) {
+        const errors = serializedError.aggregated.map(deserializeError);
+
+        error = new AggregateError(errors, serializedError.message, {
+            cause: serializedError.cause ? deserializeError(serializedError.cause) : undefined,
+        });
+
+        (error as any).code = code;
+    } else {
+        const ErrorConstructor = getErrorConstructorForCode(code);
+
+        error = new ErrorConstructor(serializedError.message, {
+            displayMessage: serializedError.displayMessage,
+            cause: serializedError.cause ? deserializeError(serializedError.cause) : undefined,
+        });
+    }
 
     // If a stack trace was serialized with the error (in development we include a
     // stack trace) then assign it to the error.

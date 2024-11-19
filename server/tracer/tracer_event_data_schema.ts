@@ -57,6 +57,14 @@ const TracerEventExceptionDataBaseSchema = {
     displayMessage: Schema.string,
 };
 
+const TracerEventExceptionDataBaseWithCauseSchema = {
+    ...TracerEventExceptionDataBaseSchema,
+    cause: {
+        ...TracerEventExceptionDataBaseSchema,
+        cause: TracerEventExceptionDataBaseSchema,
+    },
+};
+
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
  * since we don't want it to eat into client bundle size. Likewise
@@ -148,17 +156,18 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         fetchDurationMs: Schema.float,
     },
     exception: {
-        ...TracerEventExceptionDataBaseSchema,
+        ...TracerEventExceptionDataBaseWithCauseSchema,
         isOriginal: Schema.enum([true]),
         original: {
             time: DateStringSchema,
             traceId: Schema.id<TraceId>(),
             spanId: Schema.id<TraceSpanId>(),
         },
-        cause: {
-            ...TracerEventExceptionDataBaseSchema,
-            cause: TracerEventExceptionDataBaseSchema,
-        },
+        aggregated1: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated2: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated3: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated4: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated5: TracerEventExceptionDataBaseWithCauseSchema,
     },
     common: {
         type: IdentifierStringSchema,

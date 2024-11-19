@@ -1,4 +1,4 @@
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**
@@ -49,6 +49,6 @@ export function isSystemErrorCode(code: ErrorCode): boolean {
  * as a system error.
  */
 export function isSystemError(error: unknown): boolean {
-    const code = error instanceof ErrorBase ? error.code : ErrorCode.Unknown;
+    const code = getErrorCode(error);
     return isSystemErrorCode(code);
 }

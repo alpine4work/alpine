@@ -146,6 +146,16 @@ export type TracerEventExceptionDataBase = {
     readonly displayMessage?: string;
 };
 
+export type TracerEventExceptionDataBaseWithCause = TracerEventExceptionDataBase & {
+    /**
+     * If this error was caused by another error, we'll include the cause's
+     * information here nested underneath. Can include up to two causes.
+     */
+    readonly cause?: TracerEventExceptionDataBase & {
+        readonly cause?: TracerEventExceptionDataBase;
+    };
+};
+
 /**
  * The data present in an event logged by our tracer.
  */
@@ -339,7 +349,7 @@ export type TracerEventData = {
      *
      * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
-    readonly exception?: TracerEventExceptionDataBase & {
+    readonly exception?: TracerEventExceptionDataBaseWithCause & {
         /**
          * Is this an original exception? True if this is the first span we're adding
          * this exception to and undefined if this exception has been propagated.
@@ -366,12 +376,34 @@ export type TracerEventData = {
         };
 
         /**
-         * If this error was caused by another error, we'll include the cause's
-         * information here nested underneath. Can include up to two causes.
+         * If this is an aggregate error then this is the first of five errors
+         * included in tracing.
          */
-        readonly cause?: TracerEventExceptionDataBase & {
-            readonly cause?: TracerEventExceptionDataBase;
-        };
+        readonly aggregated1?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the second of five errors
+         * included in tracing.
+         */
+        readonly aggregated2?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the third of five errors
+         * included in tracing.
+         */
+        readonly aggregated3?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the fourth of five errors
+         * included in tracing.
+         */
+        readonly aggregated4?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the fifth of five errors
+         * included in tracing.
+         */
+        readonly aggregated5?: TracerEventExceptionDataBaseWithCause;
     };
 
     /**

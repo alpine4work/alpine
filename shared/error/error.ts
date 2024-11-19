@@ -1,5 +1,19 @@
-import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code.js";
+import {ErrorCode, getErrorCodeName, isErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+
+export function getErrorCode(error: unknown) {
+    if (error instanceof ErrorBase) return error.code;
+
+    if (
+        error instanceof AggregateError &&
+        typeof (error as any).code === "number" &&
+        isErrorCode((error as any).code)
+    ) {
+        return (error as any).code;
+    }
+
+    return ErrorCode.Unknown;
+}
 
 /**
  * An exception in our codebase that interrupts the normal flow of execution.

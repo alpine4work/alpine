@@ -19,10 +19,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {createAggregateError, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -360,13 +357,8 @@ export class DynamoClient {
         },
     ): Promise<void> {
         // Run all before transaction callbacks even if one of them has an error.
-        //
-        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-        // just the first one. Probably by using an `AggregateError`.
         {
-            let hasError = false;
-            let errorPriority = 0;
-            let error: unknown = null;
+            const errors: Array<unknown> = [];
             const promises: Array<Promise<void>> = [];
 
             for (const entry of entries) {
@@ -376,38 +368,22 @@ export class DynamoClient {
                     if (isPromiseLike(maybePromise)) {
                         promises.push(maybePromise);
                     }
-                } catch (entryError) {
-                    const entryErrorPriority = getAggregateErrorPriority(entryError);
-
-                    if (!hasError) {
-                        hasError = true;
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    } else if (entryErrorPriority > errorPriority) {
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    }
+                } catch (error) {
+                    errors.push(error);
                 }
             }
 
             if (promises.length > 0) {
                 try {
                     await runAllPromises(promises);
-                } catch (entryError) {
-                    const entryErrorPriority = getAggregateErrorPriority(entryError);
-
-                    if (!hasError) {
-                        hasError = true;
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    } else if (entryErrorPriority > errorPriority) {
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    }
+                } catch (error) {
+                    errors.push(error);
                 }
             }
 
-            if (hasError) throw error;
+            if (errors.length > 0) {
+                throw createAggregateError(errors);
+            }
         }
 
         try {
@@ -445,13 +421,8 @@ export class DynamoClient {
         }
 
         // Run all after transaction callbacks even if one of them has an error.
-        //
-        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-        // just the first one. Probably by using an `AggregateError`.
         {
-            let hasError = false;
-            let errorPriority = 0;
-            let error: unknown = null;
+            const errors: Array<unknown> = [];
             const promises: Array<Promise<void>> = [];
 
             for (const entry of entries) {
@@ -464,38 +435,22 @@ export class DynamoClient {
                     if (isPromiseLike(maybePromise)) {
                         promises.push(maybePromise);
                     }
-                } catch (entryError) {
-                    const entryErrorPriority = getAggregateErrorPriority(entryError);
-
-                    if (!hasError) {
-                        hasError = true;
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    } else if (entryErrorPriority > errorPriority) {
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    }
+                } catch (error) {
+                    errors.push(error);
                 }
             }
 
             if (promises.length > 0) {
                 try {
                     await runAllPromises(promises);
-                } catch (entryError) {
-                    const entryErrorPriority = getAggregateErrorPriority(entryError);
-
-                    if (!hasError) {
-                        hasError = true;
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    } else if (entryErrorPriority > errorPriority) {
-                        errorPriority = entryErrorPriority;
-                        error = entryError;
-                    }
+                } catch (error) {
+                    errors.push(error);
                 }
             }
 
-            if (hasError) throw error;
+            if (errors.length > 0) {
+                throw createAggregateError(errors);
+            }
         }
     }
 

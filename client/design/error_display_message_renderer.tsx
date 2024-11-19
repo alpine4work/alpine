@@ -9,8 +9,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {Color} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -199,8 +198,7 @@ export function ErrorDisplayMessageRenderer({
                             backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
                         }}
                     >
-                        {isSingleLine && "("}Error code:{" "}
-                        {error instanceof ErrorBase ? error.code : ErrorCode.Unknown}
+                        {isSingleLine && "("}Error code: {getErrorCode(error)}
                         {isSingleLine && ")"}
                     </Box>
                 </>
