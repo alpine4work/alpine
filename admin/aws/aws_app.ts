@@ -89,13 +89,17 @@ async function addAwsResources(
         sqs,
     });
 
-    new AwsFileProcessorService(stack, {
-        vpc,
-        ecsCluster,
-        cloudflareAccountId,
-        dynamo,
-        sqs,
-    });
+    // TODO(calebmer, #files): First we want to delete `FileUploadService` entirely
+    // and then we'll recreate it in another deploy.
+    if (false) {
+        new AwsFileProcessorService(stack, {
+            vpc,
+            ecsCluster,
+            cloudflareAccountId,
+            dynamo,
+            sqs,
+        });
+    }
 
     // Manually export resources through CloudFormation instead of using the CDK's
     // auto export capabilities. We were finding ourselves running into issues when
