@@ -3291,6 +3291,26 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3338,6 +3358,26 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3385,6 +3425,26 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3432,6 +3492,26 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3479,6 +3559,26 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3525,6 +3625,26 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
