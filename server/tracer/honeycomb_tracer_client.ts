@@ -1,5 +1,4 @@
 import {DataLossError, UnknownError} from "~/shared/error/error.js";
-import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -47,6 +46,9 @@ export class HoneycombTracerClient {
      * Sends a single event to Honeycomb. Will group together events which
      * ocurred in a short window of time and send them together in a batch.
      */
+    // TODO(calebmer, #files): Could we detect `sig` from URLs in strings and
+    // sanitize it? We don't want developers to be able to access user files from
+    // looking at logs.
     public sendEvent(event: TracerEvent) {
         // If no event batch is scheduled, then schedule one now.
         if (this._scheduledEventBatch === null) {
@@ -64,25 +66,6 @@ export class HoneycombTracerClient {
 
                 await retryWithExponentialBackoff(async retry => {
                     try {
-                        let bodyString = JSON.stringify(
-                            eventBatch.map(event => ({
-                                time: new Date(event.time).toISOString(),
-                                data: event.getFlatData(),
-                            })),
-                        );
-
-                        // Detect `?sig=` URL search params and redact them before sending events to
-                        // Honeycomb. `?sig=` parameters would allow a developer to look at any users
-                        // files without their permission just by looking at logs. The value of `?sig=`
-                        // is a detached JWS (see `dangerouslySignShortLivedUrl()`). So look for any
-                        // base64 characters or `.`.
-                        //
-                        // TODO(calebmer, #files): Make sure this works.
-                        bodyString = bodyString.replaceAll(
-                            /([?&]sig=)[A-Za-z0-9+/\-_=.]+/,
-                            `$1${debugRedactedString}`,
-                        );
-
                         // eslint-disable-next-line no-global-fetch
                         const response = await fetch("https://api.honeycomb.io/1/batch/tracer", {
                             method: "POST",
@@ -90,7 +73,12 @@ export class HoneycombTracerClient {
                                 "x-honeycomb-team": this._apiKey,
                                 "content-type": "application/json",
                             },
-                            body: bodyString,
+                            body: JSON.stringify(
+                                eventBatch.map(event => ({
+                                    time: new Date(event.time).toISOString(),
+                                    data: event.getFlatData(),
+                                })),
+                            ),
                         });
 
                         if (response.status >= 400) {
