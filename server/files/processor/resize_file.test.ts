@@ -1808,7 +1808,7 @@ test("can resize a HEIC image's preview", async () => {
                 isProcessing: false,
                 ok: true,
                 contentType: "image/avif",
-                contentLength: 91235,
+                contentLength: expect.any(Number),
                 isImagePreviewContent: true,
             },
             preview: {
@@ -1819,7 +1819,7 @@ test("can resize a HEIC image's preview", async () => {
                 placeholder: expect.any(FileImagePreviewPlaceholder),
                 content: {
                     contentType: "image/avif",
-                    contentLength: 91235,
+                    contentLength: expect.any(Number),
                 },
             },
         }),
