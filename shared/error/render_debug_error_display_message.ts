@@ -1,6 +1,8 @@
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+export const debugRedactedString = "████████████";
+
 /**
  * Render the error display message with any sensitive text redacted (with [box
  * drawing unicode block characters][1]).
@@ -16,7 +18,7 @@ export function renderDebugErrorDisplayMessage(displayMessage: ErrorDisplayMessa
                 debugDisplayMessage += segment.text;
                 break;
             case "SensitiveText":
-                debugDisplayMessage += "████████████";
+                debugDisplayMessage += debugRedactedString;
                 break;
             case "Link":
                 debugDisplayMessage += `[${segment.text}](${segment.url})`;
