@@ -2,9 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {
     FileProcessorContentTypeTestCase,
     testFileProcessorContentTypes,
-} from "~/server/files/upload/test_helpers/test_file_processor_content_types.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/server/files/processor/test_helpers/test_file_processor_content_types.js";
 import {
     FileAudioContentType,
     FileCodeContentType,
@@ -24,7 +22,7 @@ const testCases: {
         | FileMicrosoftOfficeDocumentContentType
         | FileVideoContentType
         | FileAudioContentType
-        | Exclude<FileCodeContentType, "text/plain" | "text/x-haskell">
+        | Exclude<FileCodeContentType, "text/plain" | "text/x-haskell" | "text/x-java">
     >]: FileProcessorContentTypeTestCase;
 } = {
     "application/octet-stream": [
@@ -380,8 +378,7 @@ const testCases: {
         {
             path: "py_pdf_sample_libreoffice_write_password.pdf",
             previewError: {
-                code: ErrorCode.PermissionDenied,
-                displayMessage: errorDisplayMessage`A password is required to open this file. Try opening the file and entering the password.`,
+                type: "PasswordProtected",
             },
         },
         {
@@ -539,6 +536,30 @@ month m startDay maxDay = show m ++ &quot; 2015\\n&quot; ++ week ++ spaces Sunda
                    <span class="tok-variableName">|</span> <span class="tok-variableName">otherwise</span>           <span class="tok-keyword">=</span> <span class="tok-string">&quot;   &quot;</span> <span class="tok-variableName">++</span> <span class="tok-variableName">spaces</span> (<span class="tok-variableName">next</span> <span class="tok-variableName">currDay</span>)
 
     <span class="tok-variableName">days</span> <span class="tok-typeName">Sunday</span>    <span class="tok-variableName">n</span> <span class="tok-variableName">|</span> <span class="tok-variableName">n</span> <span class="tok-variableName">&gt;</span> <span class="tok-variableName">maxDay</span> <span class="tok-keyword">=</span> <span class="tok-string">&quot;\\n&quot;</span>
+`,
+        },
+    ],
+    "text/x-java": [
+        {
+            path: "lacuna_bifurcan_directed_acyclic_graph.java",
+            codePreviewContentLength: 588,
+            codePreviewContent: `\
+<span class="tok-comment">// From: https://github.com/lacuna/bifurcan</span>
+<span class="tok-comment">// License: https://github.com/lacuna/bifurcan/blob/master/LICENSE</span>
+
+<span class="tok-keyword tok-moduleKeyword">package</span> <span class="tok-variableName">io</span><span class="tok-operator">.</span><span class="tok-variableName">lacuna</span><span class="tok-operator">.</span><span class="tok-variableName">bifurcan</span><span class="tok-punctuation">;</span>
+
+<span class="tok-keyword tok-moduleKeyword">import</span> <span class="tok-variableName">java</span><span class="tok-operator">.</span><span class="tok-variableName">util</span><span class="tok-operator">.</span><span class="tok-variableName">Iterator</span><span class="tok-punctuation">;</span>
+<span class="tok-keyword tok-moduleKeyword">import</span> <span class="tok-variableName">java</span><span class="tok-operator">.</span><span class="tok-variableName">util</span><span class="tok-operator">.</span><span class="tok-variableName">function</span><span class="tok-operator">.</span><span class="tok-punctuation">*</span><span class="tok-punctuation">;</span>
+
+<span class="tok-keyword tok-moduleKeyword">import</span> <span class="tok-keyword">static</span> <span class="tok-variableName">io</span><span class="tok-operator">.</span><span class="tok-variableName">lacuna</span><span class="tok-operator">.</span><span class="tok-variableName">bifurcan</span><span class="tok-operator">.</span><span class="tok-variableName">Graphs</span><span class="tok-operator">.</span><span class="tok-variableName">MERGE_LAST_WRITE_WINS</span><span class="tok-punctuation">;</span>
+
+<span class="tok-comment">/**</span>
+<span class="tok-comment"> * A directed graph which will throw a {@link DirectedAcyclicGraph.CycleException} if</span>
+<span class="tok-comment"> *</span>
+<span class="tok-comment"> * @author ztellman</span>
+<span class="tok-comment"> */</span>
+<span class="tok-keyword">public</span> <span class="tok-keyword">class</span> <span class="tok-variableName tok-definition">DirectedAcyclicGraph</span>&lt;<span class="tok-variableName tok-definition">V</span><span class="tok-punctuation">,</span> <span class="tok-variableName tok-definition">E</span>&gt; <span class="tok-keyword">implements</span> <span class="tok-typeName">IGraph</span>&lt;<span class="tok-typeName">V</span><span class="tok-punctuation">,</span> <span class="tok-typeName">E</span>&gt; <span class="tok-punctuation">{</span>
 `,
         },
     ],

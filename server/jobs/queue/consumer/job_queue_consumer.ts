@@ -9,19 +9,26 @@ import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_con
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
+import {
+    JobQueueName,
+    JobTypeByQueueName,
+    jobQueueNameByType,
+} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {CancelledError, UnknownError} from "~/shared/error/error.js";
+import {CancelledError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -57,17 +64,6 @@ const receiveMessagesWaitTimeSeconds = 20;
 // run in reasonable time.
 const receiveMessagesVisibilityTimeoutSeconds = !import.meta.jest ? 30 : 3;
 
-/**
- * The maximum number of parallel `_consume()` calls we allow. After receiving
- * some messages we immediately want to receive more while we process our current
- * batch of messages.
- *
- * Given we can consume 10 messages at a time and we can only have 10 parallel
- * `_consume()` calls at once, that means the maximum number of jobs our
- * consumer will process at once is 100 (10 * 10).
- */
-const maxRunningConsumeCallCount = 10;
-
 const stopError = new CancelledError("Job queue consumer stopped");
 
 /**
@@ -88,91 +84,171 @@ const stopError = new CancelledError("Job queue consumer stopped");
  *
  * [1]: https://go.dev/tour/concurrency/1
  */
-export class JobQueueConsumer<ProcessContextModules extends ServerProcessContextModules> {
+export class JobQueueConsumer<
+    QueueName extends JobQueueName,
+    ProcessContextModules extends ServerProcessContextModules,
+> {
     private readonly _processContext: Context<ProcessContextModules>;
+    private readonly _queueName: JobQueueName;
+    private readonly _serviceName: ActorServiceName;
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
+
     private readonly _processJob: (
         context: Context<ProcessContextModules & ServerSystemActionContextModules>,
-        job: JobDescription,
-        jobStartTime: Date,
-        span: TracerSpan,
-    ) => Promise<void>;
-    private readonly _processMaintenanceJob: (
-        context: Context<ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">>,
-        job: MaintenanceJobDescription,
+        job: JobDescription & {type: JobTypeByQueueName[QueueName]},
         jobStartTime: Date,
         span: TracerSpan,
     ) => Promise<void>;
 
+    private readonly _processMaintenanceJob: (
+        context: Context<ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">>,
+        job: QueueName extends "Default" ? MaintenanceJobDescription : never,
+        jobStartTime: Date,
+        span: TracerSpan,
+    ) => Promise<void>;
+
+    private _isStarted = false;
     private _isStopped = false;
     private _abortController = new AbortController();
     private _runningConsumeCallCount = 0;
     private _hasPendingConsumeCall = false;
     private readonly _processPromises = new Set<Promise<void>>();
 
+    /**
+     * What is the maximum number of messages to return from one `_consume()` call?
+     * Same as the `MaxNumberOfMessages` parameter in the [SQS `ReceiveMessage`
+     * action][1]. Can't be greater than 10.
+     *
+     * This and `maxRunningConsumeCallCount` determine the maximum number of jobs
+     * our consumer can process in one JavaScript thread at once. For example, if
+     * this value is 10 and `maxRunningConsumeCallCount` is 10, then the maximum
+     * number of jobs our consumer can process at once is 100 (10 * 10). If we're
+     * running on a machine with 3 cores then each core will run a different
+     * Node.js worker process with its own queue consumer so we end up being able
+     * to process 300 messages at once.
+     *
+     * [1]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html
+     */
+    private readonly _maxConsumeCallMessageCount: number;
+
+    /**
+     * The maximum number of parallel `_consume()` calls we allow. After receiving
+     * some messages we immediately want to receive more while we process our current
+     * batch of messages.
+     *
+     * This and `maxConsumeCallMessageCount` determine the maximum number of jobs
+     * our consumer can process in one JavaScript thread at once. For example, if
+     * this value is 10 and `maxConsumeCallMessageCount` is 10, then the maximum
+     * number of jobs our consumer can process at once is 100 (10 * 10). If we're
+     * running on a machine with 3 cores then each core will run a different
+     * Node.js worker process with its own queue consumer so we end up being able
+     * to process 300 messages at once.
+     */
+    private readonly _maxRunningConsumeCallCount: number;
+
     private constructor(
         context: Context<ProcessContextModules>,
         {
             region,
+            queueName,
             queueUrl,
+            maxConsumeCallMessageCount,
+            maxRunningConsumeCallCount,
             processJob,
             processMaintenanceJob,
         }: {
             region: string;
+            queueName: JobQueueName;
             queueUrl: string;
+            maxConsumeCallMessageCount: number;
+            maxRunningConsumeCallCount: number;
             processJob: (
                 context: Context<ProcessContextModules & ServerSystemActionContextModules>,
-                job: JobDescription,
+                job: JobDescription & {type: JobTypeByQueueName[QueueName]},
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
-            processMaintenanceJob: (
+            processMaintenanceJob?: (
                 context: Context<
                     ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">
                 >,
-                job: MaintenanceJobDescription,
+                job: QueueName extends "Default" ? MaintenanceJobDescription : never,
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
         },
     ) {
         this._processContext = context;
+        this._queueName = queueName;
+        switch (this._queueName) {
+            case "Default":
+                this._serviceName = "JobQueueService";
+                break;
+            case "FileProcessor":
+                this._serviceName = "FileProcessorService";
+                break;
+            default:
+                throw exhaustive(this._queueName);
+        }
         this._queueUrl = queueUrl;
         this._sqsClient = new SQSClient({
             region,
             endpoint: new URL("/", queueUrl).toString(),
         });
+        this._maxConsumeCallMessageCount = maxConsumeCallMessageCount;
+        this._maxRunningConsumeCallCount = maxRunningConsumeCallCount;
         this._processJob = processJob;
-        this._processMaintenanceJob = processMaintenanceJob;
+
+        // Require `processMaintenanceJob` to exist for the `Default` queue.
+        if (this._queueName === "Default") {
+            this._processMaintenanceJob = assertExists(processMaintenanceJob);
+        } else {
+            assert(!processMaintenanceJob);
+            this._processMaintenanceJob = (context, job) => {
+                throw exhaustive(job as never);
+            };
+        }
     }
 
-    public static start<ProcessContextModules extends ServerProcessContextModules>(
+    public static start<
+        QueueName extends JobQueueName,
+        ProcessContextModules extends ServerProcessContextModules,
+    >(
         context: Context<ProcessContextModules>,
         options: {
             region: string;
+            queueName: QueueName;
             queueUrl: string;
+            maxConsumeCallMessageCount: number;
+            maxRunningConsumeCallCount: number;
             processJob: (
                 context: Context<ProcessContextModules & ServerSystemActionContextModules>,
-                job: JobDescription,
+                job: JobDescription & {type: JobTypeByQueueName[QueueName]},
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
-            processMaintenanceJob: (
+            processMaintenanceJob?: (
                 context: Context<
                     ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">
                 >,
-                job: MaintenanceJobDescription,
+                job: QueueName extends "Default" ? MaintenanceJobDescription : never,
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
         },
     ) {
         const consumer = new JobQueueConsumer(context, options);
-
-        consumer._processContext.process.waitUntil(consumer._consume());
-
+        consumer._start();
         return consumer;
+    }
+
+    private _start() {
+        assert(!this._isStopped);
+        assert(!this._isStarted);
+        this._isStarted = true;
+
+        this._processContext.process.waitUntil(this._consume());
     }
 
     public async stop() {
@@ -200,7 +276,7 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
                     VisibilityTimeout: receiveMessagesVisibilityTimeoutSeconds,
                     WaitTimeSeconds: receiveMessagesWaitTimeSeconds,
                     // SQS will not let us receive more than 10 messages at a time.
-                    MaxNumberOfMessages: 10,
+                    MaxNumberOfMessages: this._maxConsumeCallMessageCount,
                 }),
                 {abortSignal: this._abortController.signal},
             );
@@ -211,7 +287,7 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
             // consume more messages concurrently. Keep consuming messages until we reach
             // a max number of consume calls.
             if (!this._isStopped && messages.length > 0) {
-                if (this._runningConsumeCallCount < maxRunningConsumeCallCount) {
+                if (this._runningConsumeCallCount < this._maxRunningConsumeCallCount) {
                     this._processContext.process.waitUntil(this._consume());
                 } else {
                     // The next consume call to finish will start a new consume call.
@@ -443,6 +519,10 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
                     handleSpanName += ` (${messageBody.job.update.type})`;
                     break;
                 }
+                case "ProcessFile": {
+                    handleSpanName += ` (${messageBody.job.contentType})`;
+                    break;
+                }
             }
 
             const spanName = `Handle: ${handleSpanName}`;
@@ -492,6 +572,13 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
 
                 span.addPropagatedData({context: {spaceId}});
 
+                const jobQueueName = jobQueueNameByType[messageBody.job.type];
+                if (jobQueueName !== this._queueName) {
+                    throw new InternalError(
+                        quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${jobQueueName} but we're consuming the queue ${this._queueName}`,
+                    );
+                }
+
                 await this._processContext.with<
                     Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
                         tracer: TracerContextModule;
@@ -510,7 +597,7 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
                         // those we need to be more careful and make sure we include a signed token to
                         // correctly identify our services.
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            "JobQueueService",
+                            this._serviceName,
                             spaceId,
                         ),
                     },
@@ -519,12 +606,22 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
                             actionContext as Context<
                                 ProcessContextModules & ServerSystemActionContextModules
                             >,
-                            messageBody.job,
+                            messageBody.job as JobDescription & {
+                                type: JobTypeByQueueName[QueueName];
+                            },
                             jobStartTime,
                             span!,
                         ),
                 );
             } else {
+                // All maintenance jobs are in the default queue.
+                const jobQueueName = "Default";
+                if (jobQueueName !== this._queueName) {
+                    throw new InternalError(
+                        quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${jobQueueName} but we're consuming the queue ${this._queueName}`,
+                    );
+                }
+
                 await this._processContext.with<
                     Omit<
                         ServerSystemActionContextModules,
@@ -545,7 +642,9 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
                                 ProcessContextModules &
                                     Omit<ServerSystemActionContextModules, "actor">
                             >,
-                            messageBody.job,
+                            messageBody.job as JobQueueName extends "Default"
+                                ? MaintenanceJobDescription
+                                : never,
                             jobStartTime,
                             span!,
                         ),
@@ -555,7 +654,7 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
             finishSpan();
         } catch (error) {
             // When there's an error processing a job in development, log an error so the
-            // user can see it in the console since they might not see it in the UI.
+            // developer can see it in the console since they might not see it in the UI.
             if (process.env.NODE_ENV !== "production") {
                 if (messageBodyForError === undefined) {
                     // eslint-disable-next-line no-console
@@ -577,6 +676,7 @@ export class JobQueueConsumer<ProcessContextModules extends ServerProcessContext
 
             if (span) {
                 assert(finishSpan);
+                span.addData({jobs: {willRetry: true}});
                 span.addException(error);
                 finishSpan();
             } else {

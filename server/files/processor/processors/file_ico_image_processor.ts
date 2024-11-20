@@ -1,15 +1,17 @@
 import decodeIco from "decode-ico";
 import sharp from "sharp";
-import {waitForReadableStreamBuffer} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
+import {Readable as ReadableStream, Writable as WritableStream} from "stream";
+import {finished} from "stream/promises";
 import {
     processFileImagePreviewPlaceholder,
     rethrowClassifiedSharpError,
     sharpTimeoutSeconds,
 } from "~/server/files/processor/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
+import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
@@ -29,11 +31,35 @@ export function createFileIcoImageProcessor(
             hasContent: true,
             hasVideoDuration: false,
         },
-        process: (stream, signal) => {
-            const dataPromise = waitForReadableStreamBuffer(stream, signal);
+        process: (context, {spaceId, fileId, signal}) => {
+            // We load the file into memory since `decodeIco()` needs the full file. This
+            // is acceptable for `image/ico` files since they're usually quite small.
+            const bestImagePromise = (async () => {
+                const object = await context.r2.GetObject(
+                    {
+                        Bucket: filesBucketName,
+                        Key: `${spaceId}/${fileId}`,
+                    },
+                    {signal},
+                );
+                const stream = object.Body;
+                assert(stream instanceof ReadableStream);
 
-            const promise = (async () => {
-                const data = await dataPromise;
+                const chunks: Array<Buffer> = [];
+
+                const writableStream = new WritableStream({
+                    write: (data: Buffer, encoding, callback) => {
+                        chunks.push(data);
+                        callback();
+                    },
+                    final: callback => {
+                        callback();
+                    },
+                });
+
+                await finished(stream.pipe(writableStream));
+
+                const data = Buffer.concat(chunks);
 
                 const bestImage = decodeIco(data).sort(
                     (image1, image2) => image2.width * image2.height - image1.width * image1.height,
@@ -42,81 +68,93 @@ export function createFileIcoImageProcessor(
                     throw new InvalidArgumentError('No images in ".ico" file');
                 }
 
-                const bestImageData = Buffer.from(bestImage.data);
+                return bestImage;
+            })();
 
-                const previewSizePromise = Promise.resolve({
-                    width: bestImage.width,
-                    height: bestImage.height,
-                    scale: 1,
-                    hasAlpha: true,
-                });
+            return {
+                imagePreviewSizePromise: (async () => {
+                    const bestImage = await bestImagePromise;
 
-                let previewPlaceholderPromise: Promise<FileImagePreviewPlaceholder>;
-                let previewContentPromise: Promise<{
-                    contentType: FileContentType;
-                    contentLength: number;
-                    data: Buffer;
-                }>;
-                switch (bestImage.type) {
-                    case "png": {
-                        previewPlaceholderPromise =
-                            processFileImagePreviewPlaceholder(bestImageData);
+                    return {
+                        width: bestImage.width,
+                        height: bestImage.height,
+                        scale: 1,
+                        hasAlpha: true,
+                    };
+                })(),
+                imagePreviewPlaceholderPromise: (async () => {
+                    const bestImage = await bestImagePromise;
 
-                        previewContentPromise = Promise.resolve({
-                            contentType: "image/png",
-                            contentLength: bestImageData.length,
-                            data: bestImageData,
-                        });
-                        break;
+                    switch (bestImage.type) {
+                        case "png": {
+                            return processFileImagePreviewPlaceholder(context, bestImage.data, {
+                                contentType: "image/png",
+                                contentLength: bestImage.data.length,
+                            });
+                        }
+                        case "bmp": {
+                            return processFileImagePreviewPlaceholder(context, bestImage.data, {
+                                contentType: "image/bmp",
+                                contentLength: bestImage.data.length,
+                                raw: {
+                                    width: bestImage.width,
+                                    height: bestImage.height,
+                                    channels: 4,
+                                },
+                            });
+                        }
+                        default:
+                            throw exhaustive(bestImage);
                     }
-                    case "bmp": {
-                        previewPlaceholderPromise = processFileImagePreviewPlaceholder(
-                            bestImageData,
-                            {
-                                raw: {
-                                    width: bestImage.width,
-                                    height: bestImage.height,
-                                    channels: 4,
-                                },
-                            },
-                        );
+                })(),
+                imagePreviewContentPromise: (async () => {
+                    const bestImage = await bestImagePromise;
 
-                        previewContentPromise = (async () => {
-                            const data = await sharp(bestImage.data, {
-                                raw: {
-                                    width: bestImage.width,
-                                    height: bestImage.height,
-                                    channels: 4,
+                    switch (bestImage.type) {
+                        case "png": {
+                            return {
+                                contentType: "image/png",
+                                contentLength: bestImage.data.length,
+                                data: Buffer.from(bestImage.data),
+                            };
+                        }
+                        case "bmp": {
+                            const data = await context.tracer.withSpan(
+                                `sharp reformat ${getFileContentTypeName(
+                                    "image/bmp",
+                                )} to ${getFileContentTypeName("image/png")}`,
+                                (context, span) => {
+                                    span.addData({
+                                        file: {
+                                            contentType: "image/bmp",
+                                            contentLength: bestImage.data.length,
+                                        },
+                                    });
+
+                                    return sharp(bestImage.data, {
+                                        raw: {
+                                            width: bestImage.width,
+                                            height: bestImage.height,
+                                            channels: 4,
+                                        },
+                                    })
+                                        .timeout({seconds: sharpTimeoutSeconds})
+                                        .toFormat("png")
+                                        .toBuffer()
+                                        .catch(rethrowClassifiedSharpError);
                                 },
-                            })
-                                .timeout({seconds: sharpTimeoutSeconds})
-                                .toFormat("png")
-                                .toBuffer()
-                                .catch(rethrowClassifiedSharpError);
+                            );
 
                             return {
                                 contentType: "image/png",
                                 contentLength: data.length,
                                 data,
                             };
-                        })();
-                        break;
+                        }
+                        default:
+                            throw exhaustive(bestImage);
                     }
-                    default:
-                        throw exhaustive(bestImage);
-                }
-
-                return {previewSizePromise, previewPlaceholderPromise, previewContentPromise};
-            })();
-
-            return {
-                imagePreviewSizePromise: promise.then(({previewSizePromise}) => previewSizePromise),
-                imagePreviewPlaceholderPromise: promise.then(
-                    ({previewPlaceholderPromise}) => previewPlaceholderPromise,
-                ),
-                imagePreviewContentPromise: promise.then(
-                    ({previewContentPromise}) => previewContentPromise,
-                ),
+                })(),
             };
         },
     };

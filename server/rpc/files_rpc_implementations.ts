@@ -4,7 +4,9 @@ import {
     FileAuthorizer,
     attachFileAsUploader,
     attachFileFromAttachment,
+    finishUploadingAndStartProcessingFile,
     getFileFromAttachment,
+    startUploadingFile,
 } from "~/server/files/data/files_table.js";
 import {FileChannelAuthorizer, FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
@@ -35,6 +37,46 @@ export function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget):
 }
 
 export default implementRpcs(definitions, {
+    startUploadingFile: {
+        visibility: ["EdgeService"],
+        execute: async (context, input) => {
+            const {fileId} = await startUploadingFile(context.actor.authorizeSession(), {
+                spaceId: input.spaceId,
+                fileId: input.fileId,
+                contentType: input.contentType,
+                contentLength: input.contentLength,
+                attachTargetAuthorizer: input.attachTarget
+                    ? getFileAttachmentTargetAuthorizer(input.attachTarget)
+                    : null,
+            });
+
+            return {fileId};
+        },
+    },
+
+    finishUploadingAndStartProcessingFile: {
+        visibility: ["EdgeService"],
+        execute: async (context, input) => {
+            const file = await finishUploadingAndStartProcessingFile(
+                context.actor.authorizeSession(),
+                input,
+            );
+
+            // It's ok to generate a signed URL here since
+            // `finishUploadingAndStartProcessingFile()` authorizes that the actor has
+            // access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {
+                signedUrlSearch: signedUrl.search,
+                file,
+            };
+        },
+    },
+
     getFileFromAttachment: {
         visibility: ["AppClient"],
         execute: async (context, input) => {

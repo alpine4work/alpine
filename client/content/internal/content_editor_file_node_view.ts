@@ -58,7 +58,6 @@ export function createContentEditorFileNodeViewConstructor({
     getAttachmentTarget,
     getExpirationTimers,
     subscribeToReferencesUpdate,
-    isOurEditorUploading,
     draggingFileRef,
 }: {
     rootNavigate: NavigateFunction;
@@ -69,7 +68,6 @@ export function createContentEditorFileNodeViewConstructor({
     getAttachmentTarget: () => FileAttachmentTarget;
     getExpirationTimers: () => ContentFilePreviewExpirationTimers;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
-    isOurEditorUploading: (fileId: FileId) => boolean;
     draggingFileRef: MutableRefObject<{getPos: () => number | null} | null>;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
@@ -149,9 +147,6 @@ export function createContentEditorFileNodeViewConstructor({
                     attachmentTarget: getAttachmentTarget(),
                     expirationTimers: getExpirationTimers(),
                     isInitialAppRender: false,
-                    // If we're currently uploading this `FileId` then disable polling.
-                    // `FileUploadService` will push us updates immediately when they're available.
-                    isOurEditorUploading,
                     rootNavigate,
                     getReporter,
                     onUpdate: (file, signedUrlSearch) => {

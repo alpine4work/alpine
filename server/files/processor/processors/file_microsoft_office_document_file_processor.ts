@@ -2,23 +2,20 @@ import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
-import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
-import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
-import {processPdfDocumentFile} from "~/server/files/upload/processors/file_pdf_document_processor.js";
-import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
+import {finished} from "stream/promises";
+import {processPdfDocumentFile} from "~/server/files/processor/processors/file_pdf_document_processor.js";
+import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
+import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {InternalError} from "~/shared/error/error.js";
 import {
-    FileContentType,
     FileMicrosoftOfficeDocumentContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -70,7 +67,7 @@ const libreofficeExecutablePath = new Lazy(async () => {
     throw new InternalError(
         "Couldn't find LibreOffice executable. For features that require LibreOffice to " +
             "work (e.g. converting Microsoft Word documents to PDF) you need to install " +
-            "LibreOffice on the machine running `FileUploadService`: " +
+            "LibreOffice on the machine running `FileProcessorService`: " +
             "https://www.libreoffice.org/download/download-libreoffice",
         {cause: errors},
     );
@@ -79,200 +76,159 @@ const libreofficeExecutablePath = new Lazy(async () => {
 export function createFileMicrosoftOfficeDocumentProcessor(
     contentType: FileMicrosoftOfficeDocumentContentType,
 ): FileProcessor {
-    const processorType = "MicrosoftOfficeDocument";
-
     return {
-        type: processorType,
+        type: "MicrosoftOfficeDocument",
         hasAlternative: true,
         hasPreview: {
             type: "Image",
             hasContent: true,
             hasVideoDuration: false,
         },
-        process: (
-            inputStream,
-            signal,
-            {span, fileId, contentLength, temporaryDirectoryPath: parentTemporaryDirectoryPath},
-        ) => {
-            const alternativePromiseResolver = createPromiseResolver<{
-                contentType: FileContentType;
-                contentLength: number;
-                data: ReadableStream;
-            }>();
-
-            const previewSizePromiseResolver = createPromiseResolver<FileImagePreviewSize>();
-
-            const previewPlaceholderPromiseResolver =
-                createPromiseResolver<FileImagePreviewPlaceholder>();
-
-            // Create a replay stream which will replay any chunks written while we create
-            // our temporary directory. This won't block the Cloudflare R2 upload which is
-            // also consuming the stream in parallel.
-            const inputReplayStream = inputStream.pipe(new ReplayStream());
-
-            const previewContentPromise: Promise<{
-                contentType: FileContentType;
-                contentLength: number;
-                data: Buffer | ReadableStream;
-            }> = withTemporaryDirectory(
+        process: async (
+            context,
+            {
+                spaceId,
+                fileId,
+                signal,
+                contentLength,
                 parentTemporaryDirectoryPath,
-                `${fileId}_`,
-                async temporaryDirectoryPath => {
-                    const userInstallationPath = joinPath(temporaryDirectoryPath, "user");
+                withTemporaryDirectory,
+            },
+        ) => {
+            const [temporaryDirectoryPath, object] = await runAllPromises([
+                withTemporaryDirectory(),
+                context.r2.GetObject(
+                    {
+                        Bucket: filesBucketName,
+                        Key: `${spaceId}/${fileId}`,
+                    },
+                    {signal},
+                ),
+            ]);
+            assert(object.Body instanceof ReadableStream);
 
-                    const inputPath = joinPath(
-                        temporaryDirectoryPath,
-                        `file.${getFileContentTypePreferredExtension(contentType)}`,
-                    );
-                    const inputWriteStream = fsSync.createWriteStream(inputPath);
+            const userInstallationPath = joinPath(temporaryDirectoryPath, "user");
 
-                    // See the LibreOffice documentation for more information on filters:
-                    // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
-                    let outputFilter: string;
-                    let shouldCropPreviewImage: boolean;
-                    switch (contentType) {
-                        case "application/msword":
-                        case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                            outputFilter = "writer_pdf_Export";
-                            shouldCropPreviewImage = false;
-                            break;
-                        case "application/vnd.ms-excel":
-                        case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-                            // Output the Excel sheet onto a single page. See:
-                            // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
-                            outputFilter =
-                                'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
+            const inputPath = joinPath(
+                temporaryDirectoryPath,
+                `file.${getFileContentTypePreferredExtension(contentType)}`,
+            );
 
-                            // Spreadsheets are an infinite canvas and aren't typically restricted by any
-                            // page size. So we want to crop our preview image to the top-left corner of
-                            // the sheet. Otherwise the preview image could be so large as to not be
-                            // particularly useful.
-                            shouldCropPreviewImage = true;
-                            break;
-                        case "application/vnd.ms-powerpoint":
-                        case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-                            outputFilter = "impress_pdf_Export";
-                            shouldCropPreviewImage = false;
-                            break;
-                        default:
-                            throw exhaustive(contentType);
-                    }
+            const inputWriteStream = fsSync.createWriteStream(inputPath);
+            await finished(object.Body.pipe(inputWriteStream));
 
-                    try {
-                        await span.withSpan("LibreOffice convert to PDF", async span => {
-                            span.addData({
-                                file: {contentType, contentLength, processorType},
-                                libreoffice: {outputFilter},
-                            });
+            // See the LibreOffice documentation for more information on filters:
+            // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
+            let outputFilter: string;
+            let shouldCropPreviewImage: boolean;
+            switch (contentType) {
+                case "application/msword":
+                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    outputFilter = "writer_pdf_Export";
+                    shouldCropPreviewImage = false;
+                    break;
+                case "application/vnd.ms-excel":
+                case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                    // Output the Excel sheet onto a single page. See:
+                    // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
+                    outputFilter =
+                        'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
 
-                            inputReplayStream.ready();
-                            inputReplayStream.pipe(inputWriteStream);
+                    // Spreadsheets are an infinite canvas and aren't typically restricted by any
+                    // page size. So we want to crop our preview image to the top-left corner of
+                    // the sheet. Otherwise the preview image could be so large as to not be
+                    // particularly useful.
+                    shouldCropPreviewImage = true;
+                    break;
+                case "application/vnd.ms-powerpoint":
+                case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                    outputFilter = "impress_pdf_Export";
+                    shouldCropPreviewImage = false;
+                    break;
+                default:
+                    throw exhaustive(contentType);
+            }
 
-                            // Wait for us to finish writing to our file. Also listen to the abort
-                            // signal. If we abort before finishing the stream we shouldn't continue.
-                            await waitForWritableStreamClose(inputWriteStream, signal);
-
-                            const executablePath = await libreofficeExecutablePath.get();
-
-                            const startTime = span.clock.now();
-
-                            // Pass all the same flags as `unoserver` and `libreoffice-convert`:
-                            //
-                            // - https://github.com/unoconv/unoserver/blob/dc4c0168d2bfa7b055fd0937071dcab5952da22e/src/unoserver/server.py#L73-L79
-                            // - https://github.com/elwerene/libreoffice-convert/blob/c47f41de41910fcec077dabaae6f8ed7925605b5/index.js#L53-L59
-                            await runProcess(
-                                executablePath,
-                                [
-                                    "--headless",
-                                    "--invisible",
-                                    "--nocrashreport",
-                                    "--nodefault",
-                                    "--nologo",
-                                    "--nofirststartwizard",
-                                    "--norestore",
-                                    `-env:UserInstallation=file://${userInstallationPath}`,
-                                    ["--convert-to", `pdf:${outputFilter}`],
-                                    ["--outdir", temporaryDirectoryPath],
-                                    inputPath,
-                                ],
-                                {
-                                    cwd: runfilesPath,
-                                    signal,
-                                    env: {
-                                        // In production, the `www-data` user's `$HOME` (`/var/www`) won't be writable.
-                                        // So `dconf` logs a warning telling us the cache directory can't be created.
-                                        // Set `XDG_CACHE_HOME` to a writable directory so `dconf` can work.
-                                        XDG_CACHE_HOME: joinPath(
-                                            parentTemporaryDirectoryPath,
-                                            ".cache",
-                                        ),
-                                    },
-                                },
-                            );
-
-                            const processDurationMs = span.clock.now() - startTime;
-
-                            // Record just the process duration since waiting on the input stream depends
-                            // on client network performance.
-                            span.addData({common: {processDurationMs}});
-                        });
-                    } finally {
-                        inputWriteStream.destroy();
-                    }
-
-                    const outputPath = joinPath(temporaryDirectoryPath, "file.pdf");
-                    const outputReadStream = fsSync.createReadStream(outputPath);
-
-                    alternativePromiseResolver.resolve({
-                        contentType: "application/pdf",
-                        contentLength: (await fs.stat(outputPath)).size,
-                        data: outputReadStream,
+            await context.tracer.withSpan(
+                `LibreOffice convert ${getFileContentTypeName(
+                    contentType,
+                )} to ${getFileContentTypeName("application/pdf")}`,
+                async (context, span) => {
+                    span.addData({
+                        file: {contentType, contentLength},
+                        libreoffice: {outputFilter},
                     });
 
-                    const {
-                        imagePreviewSizePromise: previewSizePromise,
-                        imagePreviewPlaceholderPromise: previewPlaceholderPromise,
-                        imagePreviewContentPromise: previewContentPromise,
-                    } = processPdfDocumentFile(outputReadStream, signal, {
-                        extractPreview: shouldCropPreviewImage
-                            ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
-                              {left: 0, top: 0, width: 720, height: 540}
-                            : undefined,
-                    });
+                    const executablePath = await libreofficeExecutablePath.get();
 
-                    previewSizePromise.then(
-                        previewSizePromiseResolver.resolve,
-                        previewSizePromiseResolver.reject,
+                    const startTime = span.clock.now();
+
+                    // Pass all the same flags as `unoserver` and `libreoffice-convert`:
+                    //
+                    // - https://github.com/unoconv/unoserver/blob/dc4c0168d2bfa7b055fd0937071dcab5952da22e/src/unoserver/server.py#L73-L79
+                    // - https://github.com/elwerene/libreoffice-convert/blob/c47f41de41910fcec077dabaae6f8ed7925605b5/index.js#L53-L59
+                    await runProcess(
+                        executablePath,
+                        [
+                            "--headless",
+                            "--invisible",
+                            "--nocrashreport",
+                            "--nodefault",
+                            "--nologo",
+                            "--nofirststartwizard",
+                            "--norestore",
+                            `-env:UserInstallation=file://${userInstallationPath}`,
+                            ["--convert-to", `pdf:${outputFilter}`],
+                            ["--outdir", temporaryDirectoryPath],
+                            inputPath,
+                        ],
+                        {
+                            cwd: runfilesPath,
+                            signal,
+                            env: {
+                                // In production, the `www-data` user's `$HOME` (`/var/www`) won't be writable.
+                                // So `dconf` logs a warning telling us the cache directory can't be created.
+                                // Set `XDG_CACHE_HOME` to a writable directory so `dconf` can work.
+                                XDG_CACHE_HOME: joinPath(parentTemporaryDirectoryPath, ".cache"),
+                            },
+                        },
                     );
 
-                    previewPlaceholderPromise.then(
-                        previewPlaceholderPromiseResolver.resolve,
-                        previewPlaceholderPromiseResolver.reject,
-                    );
+                    const processDurationMs = span.clock.now() - startTime;
 
-                    const [content] = await runAllPromises([
-                        previewContentPromise,
-                        // Wait for these promises before returning even though we don't use their data
-                        // so we only cleanup our temporary directory after all promises have been
-                        // resolved.
-                        previewSizePromise,
-                        previewPlaceholderPromise,
-                    ]);
-
-                    return content;
+                    // Record just the process duration since waiting on the input stream depends
+                    // on client network performance.
+                    span.addData({common: {processDurationMs}});
                 },
-            ).catch(error => {
-                alternativePromiseResolver.reject(error);
-                previewSizePromiseResolver.reject(error);
-                previewPlaceholderPromiseResolver.reject(error);
-                throw error;
+            );
+
+            const outputPath = joinPath(temporaryDirectoryPath, "file.pdf");
+            const outputContentLength = (await fs.stat(outputPath)).size;
+            const outputReadStream = fsSync.createReadStream(outputPath);
+
+            const {
+                imagePreviewSizePromise,
+                imagePreviewPlaceholderPromise,
+                imagePreviewContentPromise,
+            } = processPdfDocumentFile(context, outputPath, {
+                signal,
+                contentLength: outputContentLength,
+                temporaryDirectoryPath,
+                extractPreview: shouldCropPreviewImage
+                    ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
+                      {left: 0, top: 0, width: 720, height: 540}
+                    : undefined,
             });
 
             return {
-                alternativePromise: alternativePromiseResolver.promise,
-                imagePreviewSizePromise: previewSizePromiseResolver.promise,
-                imagePreviewPlaceholderPromise: previewPlaceholderPromiseResolver.promise,
-                imagePreviewContentPromise: previewContentPromise,
+                alternativePromise: Promise.resolve({
+                    contentType: "application/pdf",
+                    contentLength: outputContentLength,
+                    data: outputReadStream,
+                }),
+                imagePreviewSizePromise,
+                imagePreviewPlaceholderPromise,
+                imagePreviewContentPromise,
             };
         },
     };

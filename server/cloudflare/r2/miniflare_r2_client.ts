@@ -34,21 +34,21 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * tests.
  */
 export class MiniflareR2Client implements CloudflareR2ClientBase {
-    private readonly _fileUploadServiceUrl: string;
+    private readonly _fileProcessorServiceUrl: string;
     private readonly _bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
 
     constructor({
-        fileUploadServiceUrl,
+        fileProcessorServiceUrl,
         bucketByName,
     }: {
-        fileUploadServiceUrl: string;
+        fileProcessorServiceUrl: string;
         bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
     }) {
         // Miniflare should not be used in production! It's only used to store files in
         // development.
         assert(process.env.NODE_ENV !== "production");
 
-        this._fileUploadServiceUrl = fileUploadServiceUrl;
+        this._fileProcessorServiceUrl = fileProcessorServiceUrl;
         this._bucketByName = bucketByName;
     }
 
@@ -256,6 +256,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             ContentDisposition: contentDisposition,
             ContentEncoding: contentEncoding,
             CacheControl: cacheControl,
+            IfNoneMatch: ifNoneMatch,
             ...unrecognizedInputs
         }: PutObjectCommandInput,
         {signal}: {signal?: AbortSignal} = {},
@@ -326,6 +327,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 assertExists(key),
                 body instanceof ReadableStream ? ReadableStream.toWeb(body) : body,
                 {
+                    onlyIf: ifNoneMatch ? new Headers([["If-None-Match", "*"]]) : undefined,
                     httpMetadata: {
                         contentType,
                         contentLanguage,
@@ -436,10 +438,10 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
 
             const expirationTimeString = serializeDateString(expirationTime);
 
-            // `FileUploadService` has an internal route for mocking signed URLs in
+            // `FileProcessorService` has an internal route for mocking signed URLs in
             // development. This route is completely insecure and must not work in
             // production. In production we'll generate actual S3 compatible signed URLs.
-            return `${this._fileUploadServiceUrl}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
+            return `${this._fileProcessorServiceUrl}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
         });
     }
 }

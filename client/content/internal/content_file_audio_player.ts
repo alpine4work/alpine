@@ -96,7 +96,7 @@ export function renderContentFileAudioPlayer(
         layout,
     }: {
         file: FileModel;
-        filePreview: FileAudioPreview & {isProcessing: false};
+        filePreview: FileAudioPreview & {isProcessing: false; ok: true};
         audioSrc: string;
         isMobile: boolean;
         isInitialAppRender: boolean;
@@ -372,7 +372,7 @@ export function addContentFileAudioPlayerBehavior(
         getReporter,
         onOpenViewer,
     }: {
-        filePreview: FileAudioPreview & {isProcessing: false};
+        filePreview: FileAudioPreview & {isProcessing: false; ok: true};
         isInitialAppRender: boolean;
         getReporter: () => Reporter;
         onOpenViewer?: () => void;

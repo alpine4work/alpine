@@ -1163,7 +1163,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
-                isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 draggingFileRef,
             }),
         };
@@ -1294,8 +1293,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         /* ========================================================================== *\
          *                                 Copy/paste                                 *
         \* ========================================================================== */
-
-        let uploadingFileIds: Set<FileId> | undefined;
 
         let temporaryPastedFileInfoById:
             | Map<
@@ -1590,7 +1587,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         }) {
             // If we're dropping or pasting an empty slice that means ProseMirror couldn't
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
-            // use `FileUploadService` to attach the file to our content.
+            // use `FileProcessorService` to attach the file to our content.
             if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
@@ -1773,7 +1770,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 );
 
                             const promise = (async () => {
-                                let uploadingFileId: FileId | undefined;
                                 let unsubscribeFromFileStore: (() => void) | undefined;
 
                                 try {
@@ -1786,10 +1782,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         input: temporaryPastedFileInfo.input,
                                         progressStores,
                                         onAttach: ({signedUrlSearch, fileStore}) => {
-                                            const initialFile = fileStore.getSnapshot();
-                                            uploadingFileId = initialFile.id;
-                                            (uploadingFileIds ??= new Set()).add(initialFile.id);
-
                                             // Whenever the file changes during the upload, make sure to update it in
                                             // our content references. We unsubscribe once the upload has finished since
                                             // after that the file should be immutable.
@@ -1818,7 +1810,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
                                 } finally {
-                                    if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
                                     unsubscribeFromFileStore?.();
                                 }
                             })();

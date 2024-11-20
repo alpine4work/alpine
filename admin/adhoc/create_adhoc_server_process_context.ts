@@ -111,6 +111,18 @@ export async function createAdhocServerProcessContext({
                               ),
                               10,
                           )}/local/JobQueue`,
+                fileProcessorQueueUrl:
+                    awsProfile !== "local"
+                        ? ((): never => {
+                              throw new UnimplementedError("Production job queue URL");
+                          })()
+                        : `http://localhost:${parseInt(
+                              assertExists(
+                                  env.SQS_LOCAL_PORT,
+                                  "SQS local port must be provided when running SQS locally",
+                              ),
+                              10,
+                          )}/local/FileProcessorJobQueue`,
             }),
         ),
     });

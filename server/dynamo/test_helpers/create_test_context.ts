@@ -111,6 +111,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     readonly isOpensearchEnabled: boolean;
     getSqsLocalPort(): number;
     getSqsLocalJobQueueUrl(): string;
+    getSqsLocalFileProcessorJobQueueUrl(): string;
     restartSqsLocal(): Promise<void>;
 
     /**
@@ -123,8 +124,8 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
      */
     action(
         session:
-            | {id: SessionId; account: {id: AccountId}; createdTime: Date}
-            | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+            | {id: SessionId; account: {id: AccountId}}
+            | {sessionId: SessionId; accountId: AccountId},
         options?: {serviceName: ActorServiceName},
     ): TestSessionActionContext;
 
@@ -167,6 +168,19 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     cloneWithHelpers<NewModules extends {[key: string]: ContextModuleBase}>(
         newModules: NewModules,
     ): TestContextWithDestroy<Replace<Modules, NewModules>>;
+
+    /**
+     * Set the job processing function for this context. Throws an error if the
+     * job processing function has already been set.
+     */
+    setProcessJob(
+        processJob: (
+            context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+            job: JobDescription,
+            jobStartTime: Date,
+            span: TracerSpan,
+        ) => Promise<void>,
+    ): void;
 };
 
 /**
@@ -188,7 +202,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
 export function createTestContext({
     shouldStartOpensearch = false,
     shouldSendJobsToSqs = false,
-    processJob = async () => {},
+    processJob,
 }: {
     shouldStartOpensearch?: boolean;
 } & (
@@ -261,6 +275,10 @@ export function createTestContext({
         return `http://localhost:${getSqsLocalPort()}/local/JobQueue`;
     };
 
+    const getSqsLocalFileProcessorJobQueueUrl = () => {
+        return `http://localhost:${getSqsLocalPort()}/local/FileProcessorJobQueue`;
+    };
+
     const restartSqsLocal = async () => {
         assert(sqsLocal, "SQS local must have been started before");
 
@@ -322,8 +340,8 @@ export function createTestContext({
 
     const createSessionContext = (
         session:
-            | {id: SessionId; account: {id: AccountId}; createdTime: Date}
-            | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+            | {id: SessionId; account: {id: AccountId}}
+            | {sessionId: SessionId; accountId: AccountId},
         {
             // Dangerously allow pretending to be from any context in tests.
             serviceName = "Test",
@@ -387,6 +405,7 @@ export function createTestContext({
         isOpensearchEnabled: shouldStartOpensearch,
         getSqsLocalPort,
         getSqsLocalJobQueueUrl,
+        getSqsLocalFileProcessorJobQueueUrl,
         restartSqsLocal,
         unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
@@ -395,6 +414,10 @@ export function createTestContext({
         escalateToSystemContext,
         cloneWithHelpers(modules) {
             return Object.assign((this as any).clone(modules), helpers);
+        },
+        setProcessJob: newProcessJob => {
+            assert(processJob === undefined);
+            processJob = newProcessJob;
         },
     };
 
@@ -468,7 +491,9 @@ export function createTestContext({
         if (!sqsLocal) {
             jobsContextModule.initialize(
                 new TestLocalJobSender({
-                    processJob,
+                    processJob: async (context, job, jobStartTime, span) => {
+                        await processJob?.(context, job, jobStartTime, span);
+                    },
                     createSystemContext,
                 }),
             );
@@ -477,6 +502,7 @@ export function createTestContext({
                 new JobSender({
                     region: "us-east-1",
                     queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`,
+                    fileProcessorQueueUrl: `http://localhost:${sqsLocal.port}/local/FileProcessorJobQueue`,
                 }),
             );
         }

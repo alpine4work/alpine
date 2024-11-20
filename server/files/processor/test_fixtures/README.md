@@ -1,7 +1,7 @@
 Files we use for testing our image processing in
-`server/files/upload/file_upload_service_content_types.test.ts`. File format is roughly
-`${source}_${name}.${extension}`. Many files we've converted from their original format to another
-format using some image editor program (e.g. `.jpeg` to `.avif` conversion).
+`server/files/processor/processors/file_processor_service_content_types.test.ts`. File format is
+roughly `${source}_${name}.${extension}`. Many files we've converted from their original format to
+another format using some image editor program (e.g. `.jpeg` to `.avif` conversion).
 
 Ideally, all examples in this folder are under 100 KB or even better under 50 KB. We take source
 images from the internet and shrink them down before making them a test fixture.

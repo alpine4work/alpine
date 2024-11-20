@@ -6,14 +6,15 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 exports_files(glob(["test_fixtures/*"]))
 
 ts_project(
-    name = "upload_lib",
+    name = "processor_lib",
     data = ["@ffmpeg"],
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
         "//:node_modules/get-port",
         "//:node_modules/looks-same",
         "//server/dynamo/test_helpers",
-        "//server/files/upload/test_helpers",
+        "//server/edge:upload_file_testonly",
+        "//server/files/processor/test_helpers",
         "//server/spaces/test_helpers",
     ],
     tests = {
@@ -21,16 +22,14 @@ ts_project(
             "size": "medium",
         },
         "processors/file_processor_content_types_microsoft_office_test": {
-            "size": "medium",
+            "size": "large",
             "tags": ["libreoffice"],
         },
         "processors/file_processor_content_types_video_and_audio_test": {
             "size": "medium",
-            # FFmpeg needs 2 threads.
-            "tags": ["cpu:2"],
         },
     },
-    visibility = ["//server/files/upload/test_helpers:__pkg__"],
+    visibility = ["//server/files/processor/test_helpers:__pkg__"],
     deps = [
         "//:node_modules/@lezer/highlight",
         "//:node_modules/@miniflare/r2",
@@ -44,6 +43,8 @@ ts_project(
         "//server/cloudflare/r2",
         "//server/files/data",
         "//server/helpers",
+        "//server/jobs/core",
+        "//server/jobs/queue/consumer",
         "//server/node",
         "//server/spaces",
         "//server/tracer",
@@ -58,24 +59,24 @@ ts_project(
 )
 
 js_binary(
-    name = "upload",
-    data = [":upload_lib"],
-    entry_point = "file_upload_service_main.js",
+    name = "processor",
+    data = [":processor_lib"],
+    entry_point = "file_processor_service_main.js",
     visibility = ["//app/integration_tests:__pkg__"],
 )
 
 js_image_layer(
-    name = "upload_image_layer",
-    binary = ":upload",
+    name = "processor_image_layer",
+    binary = ":processor",
     root = "/var/www",
 )
 
 oci_image(
-    name = "upload_image",
+    name = "processor_image",
     base = "@ubuntu_libreoffice_image",
     tars = [
         "//admin/aws:www_data_directory_layer",
-        ":upload_image_layer",
+        ":processor_image_layer",
     ],
     # For security, use the `www-data` user which exists on our Linux image. It
     # only has read access and execute access to files on our system.
@@ -83,30 +84,30 @@ oci_image(
 )
 
 oci_load(
-    name = "upload_image_tarball_load",
-    image = ":upload_image",
+    name = "processor_image_tarball_load",
+    image = ":processor_image",
     repo_tags = ["cyberworlds-job-queue-service:latest"],
 )
 
 filegroup(
-    name = "upload_image_tarball",
-    srcs = [":upload_image_tarball_load"],
+    name = "processor_image_tarball",
+    srcs = [":processor_image_tarball_load"],
     output_group = "tarball",
 )
 
 # Convenience target for running:
 #
 # ```
-# bazel run //server/files/upload:upload_image_tarball_load_production
+# bazel run //server/files/processor:processor_image_tarball_load_production
 # docker run -it cyberworlds-job-queue-service:latest /bin/bash
 # ```
 production_transition_executable(
-    name = "upload_image_tarball_load_production",
-    target = ":upload_image_tarball_load",
+    name = "processor_image_tarball_load_production",
+    target = ":processor_image_tarball_load",
 )
 
 production_transition(
-    name = "upload_image_tarball_production",
-    target = ":upload_image_tarball",
+    name = "processor_image_tarball_production",
+    target = ":processor_image_tarball",
     visibility = ["//admin/aws:__pkg__"],
 )

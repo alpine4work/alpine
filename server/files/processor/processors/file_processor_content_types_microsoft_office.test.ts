@@ -2,7 +2,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {
     FileProcessorContentTypeTestCase,
     testFileProcessorContentTypes,
-} from "~/server/files/upload/test_helpers/test_file_processor_content_types.js";
+} from "~/server/files/processor/test_helpers/test_file_processor_content_types.js";
 import {FileMicrosoftOfficeDocumentContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 

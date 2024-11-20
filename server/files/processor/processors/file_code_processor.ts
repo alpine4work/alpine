@@ -1,7 +1,8 @@
 import {NodeType, Tree} from "@lezer/common";
 import {highlightCode} from "@lezer/highlight";
-import {Writable as WritableStream} from "stream";
+import {Readable as ReadableStream} from "stream";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
@@ -13,8 +14,8 @@ import {
     FileCodeContentType,
     getFileContentTypeContentCodeBlockLanguageId,
 } from "~/shared/files/file_content_type.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const fileCodePreviewWaitForLineCount = 128;
 
@@ -26,94 +27,79 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
         type: "Code",
         hasAlternative: false,
         hasPreview: {type: "Code"},
-        process: (stream, signal) => {
-            const codePreviewContentPromise = (async () => {
+        process: (context, {spaceId, fileId, signal}) => ({
+            codePreviewContentPromise: (async () => {
+                const object = await context.r2.GetObject(
+                    {
+                        Bucket: filesBucketName,
+                        Key: `${spaceId}/${fileId}`,
+                    },
+                    {signal},
+                );
+                assert(object.Body instanceof ReadableStream);
+                const stream = object.Body;
+
                 const parserPromise = language.getParser()?.promise;
 
-                let string = "";
-                const promiseResolver = createPromiseResolver();
+                // Receive data from stream until we've received a certain number of lines.
+                // Then stop waiting for data. Next we'll parse the data we've received...
+                const stringPromise = new Promise<string>((resolve, reject) => {
+                    if (stream.readableEnded) {
+                        resolve("");
+                        return;
+                    }
 
-                {
-                    let streamLineCount = 1;
+                    if (signal.aborted) {
+                        reject(signal.reason);
+                        return;
+                    }
 
-                    // This code is a little simpler if we attach `stream.on("data")` and
-                    // `stream.on("end")` listeners. However, according to the Node.js
-                    // documentation this may cause problems:
-                    //
-                    // > ##### Choose one API style
-                    // >
-                    // > The `Readable` stream API evolved across multiple Node.js versions and
-                    // > provides multiple methods of consuming stream data. In general,
-                    // > developers should choose one of the methods of consuming data and
-                    // > should never use multiple methods to consume data from a single
-                    // > stream. Specifically, using a combination of `on('data')`,
-                    // > `on('readable')`, `pipe()`, or async iterators could lead to
-                    // > unintuitive behavior.
-                    //
-                    // Given we use this to consume data from a stream we also consume with
-                    // `.pipe()` (the `req` body in an `uploadFile()` HTTP request) let's be
-                    // consistent and use `.pipe()` here too.
-                    const writableStream = new WritableStream({
-                        write: (chunk: Buffer, encoding, callback) => {
-                            const chunkString = chunk.toString("utf8");
-                            string += chunkString;
+                    let string = "";
+                    let lineCount = 1;
 
-                            let offset = 0;
-                            while (true) {
-                                const index = chunkString.indexOf("\n", offset);
-                                if (index === -1) break;
-                                streamLineCount += 1;
-                                offset = index + 1;
-                            }
+                    const handleData = (chunk: Buffer) => {
+                        const chunkString = chunk.toString("utf8");
+                        string += chunkString;
 
-                            if (streamLineCount >= fileCodePreviewWaitForLineCount) {
-                                writableStream.off("error", handleError);
-                                signal.removeEventListener("abort", handleAbort);
-                                promiseResolver.resolve();
+                        let offset = 0;
+                        while (true) {
+                            const index = chunkString.indexOf("\n", offset);
+                            if (index === -1) break;
+                            lineCount += 1;
+                            offset = index + 1;
+                        }
 
-                                // Unpipe the stream so we don't receive any more data.
-                                stream.unpipe(writableStream);
-                            }
+                        if (lineCount >= fileCodePreviewWaitForLineCount) {
+                            stream.off("data", handleData);
+                            stream.off("end", handleEnd);
+                            stream.off("error", handleError);
+                            stream.destroy();
+                            resolve(string);
+                        }
+                    };
 
-                            callback();
-                        },
-                        final: callback => {
-                            writableStream.off("error", handleError);
-                            signal.removeEventListener("abort", handleAbort);
-
-                            promiseResolver.resolve();
-
-                            callback();
-                        },
-                    });
+                    const handleEnd = () => {
+                        stream.off("data", handleData);
+                        stream.off("end", handleEnd);
+                        stream.off("error", handleError);
+                        stream.destroy();
+                        resolve(string);
+                    };
 
                     const handleError = (error: unknown) => {
-                        writableStream.off("error", handleError);
-                        signal.removeEventListener("abort", handleAbort);
-
-                        promiseResolver.reject(error);
-
-                        // Unpipe the stream so we don't receive any more data.
-                        stream.unpipe(writableStream);
+                        stream.off("data", handleData);
+                        stream.off("end", handleEnd);
+                        stream.off("error", handleError);
+                        stream.destroy();
+                        reject(error);
                     };
 
-                    const handleAbort = () => {
-                        writableStream.off("error", handleError);
-                        signal.removeEventListener("abort", handleAbort);
+                    stream.on("data", handleData);
+                    stream.on("end", handleEnd);
+                    stream.on("error", handleError);
+                });
 
-                        promiseResolver.reject(signal.reason);
-
-                        // Unpipe the stream so we don't receive any more data.
-                        stream.unpipe(writableStream);
-                    };
-
-                    writableStream.on("error", handleError);
-                    signal.addEventListener("abort", handleAbort);
-
-                    stream.pipe(writableStream);
-                }
-
-                const [parser] = await runAllPromises([parserPromise, promiseResolver.promise]);
+                const [parser, string] = await runAllPromises([parserPromise, stringPromise]);
 
                 const content: Array<
                     {type: "Newline"} | {type: "String"; classes: string; string: string}
@@ -160,11 +146,7 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
                 );
 
                 return new FileCodePreviewContent(content);
-            })();
-
-            return {
-                codePreviewContentPromise,
-            };
-        },
+            })(),
+        }),
     };
 }

@@ -74,7 +74,11 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      * Wait for all the promises passed into the `waitUntil()` function of
      * `ProcessContextModule.test()`s to resolve.
      */
-    public static async waitForTestTasks() {
+    public static async waitForTestTasks({
+        withoutDeadlineExceededLog = false,
+    }: {
+        withoutDeadlineExceededLog?: boolean;
+    } = {}) {
         assert(process.env.NODE_ENV === "test");
         assert(afterEachPromisesForTest);
 
@@ -88,16 +92,18 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
                     const promises = afterEachPromisesForTest;
                     afterEachPromisesForTest = [];
 
-                    // Log a warning when we've been waiting on a promise for too long. We construct
-                    // the error in the `waitUntil()` call so we can trace the source of the
-                    // promise.
-                    for (const promise of promises) {
-                        const timeoutId = originalSetTimeout(() => {
-                            // eslint-disable-next-line no-console
-                            console.error(promise.deadlineExceededError);
-                        }, 5000);
+                    if (!withoutDeadlineExceededLog) {
+                        // Log a warning when we've been waiting on a promise for too long. We construct
+                        // the error in the `waitUntil()` call so we can trace the source of the
+                        // promise.
+                        for (const promise of promises) {
+                            const timeoutId = originalSetTimeout(() => {
+                                // eslint-disable-next-line no-console
+                                console.error(promise.deadlineExceededError);
+                            }, 5000);
 
-                        void promise.finally(() => clearTimeout(timeoutId));
+                            void promise.catch(() => {}).finally(() => clearTimeout(timeoutId));
+                        }
                     }
 
                     try {

@@ -11,7 +11,7 @@ test("`sharp` dependency can process bmp files", async () => {
     const metadata = await sharp(
         joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.bmp",
+            "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.bmp",
         ),
     ).metadata();
 
@@ -23,7 +23,7 @@ test("`sharp` dependency can process pdf files", async () => {
     const metadata = await sharp(
         joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/iup_pdf_testpage.pdf",
+            "cyberworlds/server/files/processor/test_fixtures/iup_pdf_testpage.pdf",
         ),
     ).metadata();
 
@@ -36,13 +36,13 @@ test("`looks-same` dependency works", async () => {
             fs.readFile(
                 joinPath(
                     runfilesPath,
-                    "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.png",
+                    "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.png",
                 ),
             ),
             fs.readFile(
                 joinPath(
                     runfilesPath,
-                    "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.png",
+                    "cyberworlds/server/files/processor/test_fixtures/wikimedia_png_transparency_demonstration.png",
                 ),
             ),
         ])),
@@ -60,7 +60,7 @@ test("`decode-ico` dependency can parse ico files with png and with bmp", async 
         await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/stackoverflow_favicon.ico",
+                "cyberworlds/server/files/processor/test_fixtures/stackoverflow_favicon.ico",
             ),
         ),
     );
@@ -76,7 +76,7 @@ test("`decode-ico` dependency can parse ico files with png and with bmp", async 
         await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/stackoverflow_favicon.png.ico",
+                "cyberworlds/server/files/processor/test_fixtures/stackoverflow_favicon.png.ico",
             ),
         ),
     );
@@ -92,7 +92,7 @@ test("`decode-ico` dependency can parse ico files with png and with bmp", async 
         await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/alpine_favicon_old.ico",
+                "cyberworlds/server/files/processor/test_fixtures/alpine_favicon_old.ico",
             ),
         ),
     );

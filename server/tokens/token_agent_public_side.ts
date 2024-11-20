@@ -37,8 +37,8 @@ export class TokenAgentPublicSide {
     private readonly _taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
     private readonly _jobQueueServicePublicKeyForRs256: KeyLike;
     private readonly _jobQueueServicePublicKeyForRsaOaep: KeyLike;
-    private readonly _fileUploadServicePublicKeyForRs256: KeyLike;
-    private readonly _fileUploadServicePublicKeyForRsaOaep: KeyLike;
+    private readonly _fileProcessorServicePublicKeyForRs256: KeyLike;
+    private readonly _fileProcessorServicePublicKeyForRsaOaep: KeyLike;
     private readonly _secretForHs256: Uint8Array;
 
     private constructor({
@@ -51,8 +51,8 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKeyForRsaOaep,
         jobQueueServicePublicKeyForRs256,
         jobQueueServicePublicKeyForRsaOaep,
-        fileUploadServicePublicKeyForRs256,
-        fileUploadServicePublicKeyForRsaOaep,
+        fileProcessorServicePublicKeyForRs256,
+        fileProcessorServicePublicKeyForRsaOaep,
         secretForHs256,
     }: {
         serviceName: TokenServiceName;
@@ -64,8 +64,8 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
         jobQueueServicePublicKeyForRs256: KeyLike;
         jobQueueServicePublicKeyForRsaOaep: KeyLike;
-        fileUploadServicePublicKeyForRs256: KeyLike;
-        fileUploadServicePublicKeyForRsaOaep: KeyLike;
+        fileProcessorServicePublicKeyForRs256: KeyLike;
+        fileProcessorServicePublicKeyForRsaOaep: KeyLike;
         secretForHs256: Uint8Array;
     }) {
         this._serviceName = serviceName;
@@ -77,8 +77,8 @@ export class TokenAgentPublicSide {
         this._taskRealtimeServicePublicKeyForRsaOaep = taskRealtimeServicePublicKeyForRsaOaep;
         this._jobQueueServicePublicKeyForRs256 = jobQueueServicePublicKeyForRs256;
         this._jobQueueServicePublicKeyForRsaOaep = jobQueueServicePublicKeyForRsaOaep;
-        this._fileUploadServicePublicKeyForRs256 = fileUploadServicePublicKeyForRs256;
-        this._fileUploadServicePublicKeyForRsaOaep = fileUploadServicePublicKeyForRsaOaep;
+        this._fileProcessorServicePublicKeyForRs256 = fileProcessorServicePublicKeyForRs256;
+        this._fileProcessorServicePublicKeyForRsaOaep = fileProcessorServicePublicKeyForRsaOaep;
         this._secretForHs256 = secretForHs256;
     }
 
@@ -88,7 +88,7 @@ export class TokenAgentPublicSide {
         edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyString,
         taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
         jobQueueServicePublicKey: jobQueueServicePublicKeyString,
-        fileUploadServicePublicKey: fileUploadServicePublicKeyString,
+        fileProcessorServicePublicKey: fileProcessorServicePublicKeyString,
         secret: secretString,
     }: {
         serviceName: TokenServiceName;
@@ -96,7 +96,7 @@ export class TokenAgentPublicSide {
         edgeServiceFamilyPublicKey: string;
         taskRealtimeServicePublicKey: string;
         jobQueueServicePublicKey: string;
-        fileUploadServicePublicKey: string;
+        fileProcessorServicePublicKey: string;
         secret: string;
     }) {
         const [
@@ -108,8 +108,8 @@ export class TokenAgentPublicSide {
             taskRealtimeServicePublicKeyForRsaOaep,
             jobQueueServicePublicKeyForRs256,
             jobQueueServicePublicKeyForRsaOaep,
-            fileUploadServicePublicKeyForRs256,
-            fileUploadServicePublicKeyForRsaOaep,
+            fileProcessorServicePublicKeyForRs256,
+            fileProcessorServicePublicKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
             importSPKI(appServicePublicKeyString, "RSA-OAEP"),
@@ -119,8 +119,8 @@ export class TokenAgentPublicSide {
             importSPKI(taskRealtimeServicePublicKeyString, "RSA-OAEP"),
             importSPKI(jobQueueServicePublicKeyString, "RS256"),
             importSPKI(jobQueueServicePublicKeyString, "RSA-OAEP"),
-            importSPKI(fileUploadServicePublicKeyString, "RS256"),
-            importSPKI(fileUploadServicePublicKeyString, "RSA-OAEP"),
+            importSPKI(fileProcessorServicePublicKeyString, "RS256"),
+            importSPKI(fileProcessorServicePublicKeyString, "RSA-OAEP"),
         ]);
 
         const secretForHs256 = decodeBase64(secretString.trim());
@@ -136,8 +136,8 @@ export class TokenAgentPublicSide {
             taskRealtimeServicePublicKeyForRsaOaep,
             jobQueueServicePublicKeyForRs256,
             jobQueueServicePublicKeyForRsaOaep,
-            fileUploadServicePublicKeyForRs256,
-            fileUploadServicePublicKeyForRsaOaep,
+            fileProcessorServicePublicKeyForRs256,
+            fileProcessorServicePublicKeyForRsaOaep,
             secretForHs256,
         });
     }
@@ -158,8 +158,8 @@ export class TokenAgentPublicSide {
                 return this._taskRealtimeServicePublicKeyForRs256;
             case "JobQueueService":
                 return this._jobQueueServicePublicKeyForRs256;
-            case "FileUploadService":
-                return this._fileUploadServicePublicKeyForRs256;
+            case "FileProcessorService":
+                return this._fileProcessorServicePublicKeyForRs256;
             default:
                 throw exhaustive(serviceName);
         }
@@ -181,8 +181,8 @@ export class TokenAgentPublicSide {
                 return this._taskRealtimeServicePublicKeyForRsaOaep;
             case "JobQueueService":
                 return this._jobQueueServicePublicKeyForRsaOaep;
-            case "FileUploadService":
-                return this._fileUploadServicePublicKeyForRsaOaep;
+            case "FileProcessorService":
+                return this._fileProcessorServicePublicKeyForRsaOaep;
             default:
                 throw exhaustive(serviceName);
         }

@@ -203,8 +203,9 @@ const audioFile1 = new FileModel({
     isUploading: false,
     alternative: null,
     preview: {
-        isProcessing: false,
         type: "Audio",
+        isProcessing: false,
+        ok: true,
         duration: 1000,
         metadata: {title: null, artist: null, album: null},
     },
@@ -217,8 +218,9 @@ const audioFile2 = new FileModel({
     isUploading: false,
     alternative: null,
     preview: {
-        isProcessing: false,
         type: "Audio",
+        isProcessing: false,
+        ok: true,
         duration: 1000,
         metadata: {title: null, artist: null, album: null},
     },

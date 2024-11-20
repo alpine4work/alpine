@@ -11,7 +11,9 @@ import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
+import {ContentFilePollerContext} from "~/client/content/internal/content_file_poller.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     addContentFileVideoPlayerBehavior,
     renderContentFileVideoPlayer,
@@ -28,6 +30,7 @@ import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {getGlobalContext} from "~/client/helpers/global_context.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
 import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
@@ -59,13 +62,15 @@ import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {getFileContentTypePreferredExtension} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {
     FileImagePreviewPlaceholder,
     fileImagePreviewPlaceholderBaseSize,
@@ -76,6 +81,7 @@ import {
     FileImagePreview,
     FileImagePreviewSize,
 } from "~/shared/files/file_preview.js";
+import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {
@@ -105,10 +111,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {
-    getFileSignedUrlFromAttachment,
-    getFileWithoutSignedUrlFromAttachment,
-} from "~/shared/rpc/files_rpc_definitions.js";
+import {getFileSignedUrlFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {Store} from "~/shared/store/store.js";
 
 let isContentFilePreviewSignedUrlRefreshDisabledForTest = false;
@@ -258,6 +261,12 @@ export function renderContentFilePreview(
 
                 if (reference.file.preview.isProcessing || audioSrc === null) {
                     renderContentFileProcessingPreview(html, {file: reference.file, layout});
+                } else if (!reference.file.preview.ok) {
+                    renderContentFileProcessorErrorPreview(html, {
+                        contentType: reference.file.contentType,
+                        error: reference.file.preview.error,
+                        layout,
+                    });
                 } else {
                     const containerHtml = new HtmlElementGenerator("div");
                     html.appendChild(containerHtml);
@@ -396,6 +405,143 @@ function renderContentFileProcessingPreview(
     );
 }
 
+function renderContentFileProcessorErrorPreview(
+    html: HtmlElementGenerator,
+    {
+        contentType,
+        error,
+        layout,
+    }: {
+        contentType: FileContentType;
+        error: FileProcessorError;
+        layout: {width: number; height: number};
+    },
+) {
+    const containerHtml = new HtmlElementGenerator("div");
+    html.appendChild(containerHtml);
+
+    containerHtml.setAttribute(
+        "class",
+        sprinkles({
+            position: "absolute",
+            inset: "0",
+            backgroundColor: "grey-0",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+        }),
+    );
+
+    // Width at which we need to shrinking the error message so that it's still
+    // readable.
+    const minWidth = 250;
+
+    const errorHtml = new HtmlElementGenerator("div");
+    containerHtml.appendChild(errorHtml);
+
+    errorHtml.setAttribute(
+        "style",
+        `min-width: ${minWidth}px; transform: scale(${Math.min(1, layout.width / minWidth)})`,
+    );
+
+    errorHtml.setAttribute(
+        "class",
+        sprinkles({
+            zIndex: "20",
+            position: "relative",
+            maxWidth: "64",
+            paddingX: "8",
+            paddingTop: "5",
+            paddingBottom: "4",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1.5",
+        }),
+    );
+
+    const errorTitleHtml = new HtmlElementGenerator("div");
+    errorHtml.appendChild(errorTitleHtml);
+
+    errorTitleHtml.setAttribute(
+        "class",
+        sprinkles({
+            display: "flex",
+            alignItems: "center",
+            gap: "1.5",
+            fontSize: "200",
+            fontStyle: "semi-bold",
+            color: "grey-70",
+        }),
+    );
+
+    const {title, displayMessage} = new ContentFileProcessorError(contentType, error);
+
+    switch (error.type) {
+        case "Unknown": {
+            errorTitleHtml.appendChild(
+                createSvgHtmlGenerator(
+                    warningIconSvg({
+                        weight: "bold",
+                        className: sprinkles({
+                            width: "4",
+                            height: "4",
+                        }),
+                    }),
+                ),
+            );
+            break;
+        }
+        case "PasswordProtected": {
+            errorTitleHtml.appendChild(
+                createSvgHtmlGenerator(
+                    lockIconSvg({
+                        weight: "bold",
+                        className: sprinkles({
+                            width: "4",
+                            height: "4",
+                        }),
+                    }),
+                ),
+            );
+            break;
+        }
+        default:
+            throw exhaustive(error);
+    }
+
+    errorTitleHtml.appendChild(new HtmlElementGenerator(title));
+
+    const errorMessageHtml = new HtmlElementGenerator("div");
+    errorHtml.appendChild(errorMessageHtml);
+
+    errorMessageHtml.setAttribute(
+        "class",
+        sprinkles({
+            fontSize: "75",
+            color: "grey-50",
+        }),
+    );
+
+    for (const displayMessageSegment of displayMessage) {
+        switch (displayMessageSegment.type) {
+            case "Text":
+            case "SensitiveText": {
+                errorMessageHtml.appendChild(new HtmlTextGenerator(displayMessageSegment.text));
+                break;
+            }
+            case "Link": {
+                // We don't currently support links in content file previews. Since we can't
+                // render a full `<Link>` component (like we do in
+                // `<ErrorDisplayMessageRenderer>`) with all the navigation bells and whistles.
+                errorMessageHtml.appendChild(new HtmlTextGenerator(displayMessageSegment.text));
+                break;
+            }
+            default:
+                throw exhaustive(displayMessageSegment);
+        }
+    }
+}
+
 function renderContentFileImagePreview(
     get: <Value>(store: Store<Value>) => Value,
     html: HtmlElementGenerator,
@@ -429,127 +575,11 @@ function renderContentFileImagePreview(
         if (filePreview.isProcessing || filePreview.ok) {
             renderContentFileProcessingPreview(html, {file, layout});
         } else {
-            const containerHtml = new HtmlElementGenerator("div");
-            html.appendChild(containerHtml);
-
-            containerHtml.setAttribute(
-                "class",
-                sprinkles({
-                    position: "absolute",
-                    inset: "0",
-                    backgroundColor: "grey-0",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                }),
-            );
-
-            // Width at which we need to shrinking the error message so that it's still
-            // readable.
-            const minWidth = 250;
-
-            const errorHtml = new HtmlElementGenerator("div");
-            containerHtml.appendChild(errorHtml);
-
-            errorHtml.setAttribute(
-                "style",
-                `min-width: ${minWidth}px; transform: scale(${Math.min(
-                    1,
-                    layout.width / minWidth,
-                )})`,
-            );
-
-            errorHtml.setAttribute(
-                "class",
-                sprinkles({
-                    zIndex: "20",
-                    position: "relative",
-                    maxWidth: "64",
-                    paddingX: "8",
-                    paddingTop: "5",
-                    paddingBottom: "4",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "1.5",
-                }),
-            );
-
-            const errorTitleHtml = new HtmlElementGenerator("div");
-            errorHtml.appendChild(errorTitleHtml);
-
-            errorTitleHtml.setAttribute(
-                "class",
-                sprinkles({
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "1.5",
-                    fontSize: "200",
-                    fontStyle: "semi-bold",
-                    color: "grey-70",
-                }),
-            );
-
-            if (filePreview.error.code === ErrorCode.PermissionDenied) {
-                errorTitleHtml.appendChild(
-                    createSvgHtmlGenerator(
-                        lockIconSvg({
-                            weight: "bold",
-                            className: sprinkles({
-                                width: "4",
-                                height: "4",
-                            }),
-                        }),
-                    ),
-                );
-                errorTitleHtml.appendChild(new HtmlTextGenerator("Protected file"));
-            } else {
-                errorTitleHtml.appendChild(
-                    createSvgHtmlGenerator(
-                        warningIconSvg({
-                            weight: "bold",
-                            className: sprinkles({
-                                width: "4",
-                                height: "4",
-                            }),
-                        }),
-                    ),
-                );
-                errorTitleHtml.appendChild(new HtmlTextGenerator("Couldn’t open file"));
-            }
-
-            const errorMessageHtml = new HtmlElementGenerator("div");
-            errorHtml.appendChild(errorMessageHtml);
-
-            errorMessageHtml.setAttribute(
-                "class",
-                sprinkles({
-                    fontSize: "75",
-                    color: "grey-50",
-                }),
-            );
-
-            for (const displayMessageSegment of filePreview.error.displayMessage) {
-                switch (displayMessageSegment.type) {
-                    case "Text":
-                    case "SensitiveText": {
-                        errorMessageHtml.appendChild(
-                            new HtmlTextGenerator(displayMessageSegment.text),
-                        );
-                        break;
-                    }
-                    case "Link": {
-                        // We don't currently support links in content file previews. Since we can't
-                        // render a full `<Link>` component (like we do in
-                        // `<ErrorDisplayMessageRenderer>`) with all the navigation bells and whistles.
-                        errorMessageHtml.appendChild(
-                            new HtmlTextGenerator(displayMessageSegment.text),
-                        );
-                        break;
-                    }
-                    default:
-                        throw exhaustive(displayMessageSegment);
-                }
-            }
+            renderContentFileProcessorErrorPreview(html, {
+                contentType: file.contentType,
+                error: filePreview.error,
+                layout,
+            });
         }
         return;
     }
@@ -804,8 +834,16 @@ function renderContentFileCodePreview(
 
     appendImageHtmlForSelection(html, isMobile);
 
-    if (filePreview.content === "Processing") {
-        renderContentFileProcessingPreview(html, {file, layout});
+    if (filePreview.content === "Processing" || (!filePreview.isProcessing && !filePreview.ok)) {
+        if (!filePreview.isProcessing && !filePreview.ok) {
+            renderContentFileProcessorErrorPreview(html, {
+                contentType: file.contentType,
+                error: filePreview.error,
+                layout,
+            });
+        } else {
+            renderContentFileProcessingPreview(html, {file, layout});
+        }
         return;
     }
 
@@ -1267,7 +1305,6 @@ export function addContentFilePreviewBehavior(
         expirationTimers,
         isInert = false,
         isInitialAppRender,
-        isOurEditorUploading = false,
         isEditorInitialAppRender = false,
         rootNavigate,
         getReporter,
@@ -1285,7 +1322,6 @@ export function addContentFilePreviewBehavior(
         expirationTimers: ContentFilePreviewExpirationTimers;
         isInert?: boolean;
         isInitialAppRender: boolean;
-        isOurEditorUploading?: ((fileId: FileId) => boolean) | false;
         isEditorInitialAppRender?: boolean;
         rootNavigate: NavigateFunction;
         getReporter: () => Reporter;
@@ -1307,61 +1343,17 @@ export function addContentFilePreviewBehavior(
      *                             Poll loading file                              *
     \* ========================================================================== */
 
+    let cleanupPoll: (() => void) | undefined;
+
     if (reference?.file && reference.file.isLoading()) {
-        let pollCount = 0;
-        let pollErrorCount = 0;
-
-        const schedulePoll = () => {
-            assert(pollTimeout === null);
-
-            // Increase the poll duration exponentially until we're polling every ~5s.
-            pollTimeout = createTimeout(poll, 500 + 2 ** Math.min(pollCount, 12));
-        };
-
-        const poll = () => {
-            pollTimeout = null;
-            pollCount++;
-
-            // Don't poll if our editor is the one uploading the file. Then we'll have a
-            // connection to `FileUploadService` which will push update events as different
-            // parts of the file finish uploading. We still want the poll timers to run so
-            // that if our editor stops uploading the file (e.g. if the HTTP request times
-            // out) then polling will kick in to update the file.
-            if (isOurEditorUploading !== false && isOurEditorUploading(reference.file.id)) {
-                schedulePoll();
-                return;
-            }
-
-            getFileWithoutSignedUrlFromAttachment(getContext(), {
-                spaceId,
-                fileId: reference.file.id,
-                target: attachmentTarget,
-            }).then(
-                ({file: newFile}) => {
-                    onUpdate(newFile, reference.signedUrlSearch);
-
-                    if (newFile.isLoading()) {
-                        schedulePoll();
-                    }
-                },
-                error => {
-                    pollErrorCount++;
-
-                    if (pollErrorCount < 3) {
-                        schedulePoll();
-                    } else {
-                        getContext()
-                            .tracer.getRoot()
-                            .logUncaughtException(
-                                "Polling for file that hasn't finished loading failed",
-                                error,
-                            );
-                    }
-                },
-            );
-        };
-
-        schedulePoll();
+        cleanupPoll = getGlobalContext(ContentFilePollerContext).startPolling(getContext, {
+            spaceId,
+            fileId: reference.file.id,
+            target: attachmentTarget,
+            onPoll: ({file: newFile, signedUrlSearch}) => {
+                onUpdate(newFile, signedUrlSearch);
+            },
+        });
     }
 
     /* ========================================================================== *\
@@ -1795,7 +1787,11 @@ export function addContentFilePreviewBehavior(
         onPress: () => {preventDefault: boolean} | void;
         cleanup: () => void;
     } | null = null;
-    if (reference?.file.preview?.type === "Audio" && !reference.file.preview.isProcessing) {
+    if (
+        reference?.file.preview?.type === "Audio" &&
+        !reference.file.preview.isProcessing &&
+        reference.file.preview.ok
+    ) {
         const containerElement = element.getElementsByClassName(
             contentFileAudioPlayerStyles.containerClassName,
         )[0];
@@ -1818,6 +1814,8 @@ export function addContentFilePreviewBehavior(
         expirationTimers.release();
 
         hasCleanedUp = true;
+
+        cleanupPoll?.();
 
         videoPlayerBehavior?.cleanup();
         audioPlayerBehavior?.cleanup();

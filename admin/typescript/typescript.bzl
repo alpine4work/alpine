@@ -93,6 +93,7 @@ def ts_project(
         name = name,
         srcs = lint_and_format_srcs,
         deps = deps,
+        tags = tags,
     )
 
     if len(test_srcs) > 0:
@@ -105,6 +106,7 @@ def ts_project(
                 "//:node_modules/@types/testing-library__jest-dom",
                 "//:node_modules/@testing-library/jest-dom",
             ] + test_deps,
+            tags = tags,
         )
 
         for test_src in test_srcs:
@@ -180,7 +182,7 @@ def ts_project(
                 # generating conflicting `test_data` copies.
                 no_copy_to_bin = test_data,
                 size = extra_kwargs.pop("size", default = "small"),
-                tags = ["jest", "dev-test"] + extra_tags,
+                tags = ["jest", "dev-test"] + extra_tags + tags,
                 **extra_kwargs
             )
 
@@ -201,7 +203,8 @@ def swc_compile(**kwargs):
 def ts_lint_and_format_test(
         name,
         srcs = None,
-        deps = []):
+        deps = [],
+        tags = []):
     """
     Macro that creates tests that will lint and format the provided sources.
 
@@ -210,6 +213,7 @@ def ts_lint_and_format_test(
         srcs: The files to lint and check formatting of.
         deps: Any dependencies of these source files. Needed since linting also
         performs type checking.
+        tags: Additional tags to add to the tests.
     """
 
     if srcs == None:
@@ -238,7 +242,7 @@ def ts_lint_and_format_test(
             "//:.prettierignore",
         ]),
         size = "small",
-        tags = ["prettier", "dev-check"],
+        tags = ["prettier", "dev-check"] + tags,
     )
 
     _ts_typings(
@@ -291,13 +295,14 @@ def ts_lint_and_format_test(
                 "//admin/eslint:eslint_custom_rules",
             ]),
             size = "small",
-            tags = ["eslint", "dev-check"],
+            tags = ["eslint", "dev-check"] + tags,
         )
 
 def ts_typecheck_test(
         name,
         srcs,
-        deps):
+        deps,
+        tags = []):
     """
     A test that runs type checking for the provided sources.
 
@@ -305,6 +310,7 @@ def ts_typecheck_test(
         name: The name of the test. Should end with `_test`.
         srcs: The TypeScript source files we're type checking.
         deps: Dependencies of the TypeScript files we're type checking.
+        tags: Additional tags to add to the test
     """
 
     if not name.endswith("_test"):
@@ -348,7 +354,7 @@ EOF
             ":{}_deps_typings".format(name),
         ],
         size = "small",
-        tags = ["typescript", "dev-check"],
+        tags = ["typescript", "dev-check"] + tags,
     )
 
 def _dedupe_labels(labels):

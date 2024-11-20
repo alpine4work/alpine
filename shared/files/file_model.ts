@@ -1,3 +1,5 @@
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileHasPreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
@@ -6,18 +8,17 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-export const FileAlternativeSchema = Schema.booleanUnion(
-    "isProcessing",
-    Schema.object({
-        isProcessing: Schema.value(true),
-    }),
-    Schema.object({
-        isProcessing: Schema.value(false),
-        contentType: FileContentTypeSchema,
-        contentLength: Schema.integer,
-        isImagePreviewContent: Schema.boolean,
-    }),
-);
+/**
+ * Maximum size for a file uploaded to our service: 1 GB. This is the same
+ * maximum file size as Slack.
+ */
+export const maxFileContentLength = 1e9;
+
+/**
+ * If a file processor doesn't finish processing within this amount of time, we
+ * abort the file processor.
+ */
+export const fileProcessorTimeoutMs = 1000 * 60 * 5;
 
 /**
  * The representation of a file in our system. Files are immutable after
@@ -244,3 +245,15 @@ export class FileModel extends Model(
         }
     }
 }
+
+export const UploadFileResponseSchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        signedUrlSearch: Schema.string,
+        file: FileModel.schema(),
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);

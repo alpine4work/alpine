@@ -33,10 +33,6 @@ export function createTraceServerResponseHandleSpanName(
  *
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
- *
- * `FileUploadService` reimplements the same tracer span data we add here
- * because it doesn't use `createStandardizedServer()`. So if you make a change
- * here, you may also need to update `FileUploadService`.
  */
 export async function traceServerResponse(
     tracer: TracerRoot,

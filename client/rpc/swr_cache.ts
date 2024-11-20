@@ -179,19 +179,17 @@ export class SwrCache {
     }
 
     /**
-     * Force revalidation of an entry with the provided fetcher function if the
-     * entry is retained. If the entry is not retained then this is a noop.
+     * Force revalidate an entry with the provided fetcher function ignoring the
+     * previous `dedupingInterval`.
      */
-    public forceRevalidateEntryAndRetainIfNeeded(
+    public forceRevalidateEntry(
         key: string,
         fetcher: (key: string) => PromiseLike<object>,
         options: {dedupingInterval: number},
-    ): PromiseLike<object> {
+    ) {
         const referenceState = this._referenceStateByKey.get(key);
-
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
-            this.retainEntry(key);
-            this.releaseEntry(key);
+            throw new FailedPreconditionError("Must retain entry before it can be referenced");
         }
 
         const currentTime = Date.now();

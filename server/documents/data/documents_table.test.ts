@@ -45,10 +45,7 @@ import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {
-    attachFileAsUploader,
-    startUploadingAndProcessingFile,
-} from "~/server/files/data/files_table.js";
+import {attachFileAsUploader} from "~/server/files/data/files_table.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -2867,47 +2864,30 @@ test("can not add a newline character with a new `codeBlockLine` node in a docum
 });
 
 test("can't add comment mark to `fileRow` node in a document", async () => {
-    const {id} = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
-    const fileUploader1 = await startUploadingAndProcessingFile(context.action(session1), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
-    });
+    const document = await TestDocument.create(session1);
 
-    await fileUploader1.finishUploading(context.action(session1));
-
-    const fileUploader2 = await startUploadingAndProcessingFile(context.action(session1), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
-    });
-
-    await fileUploader2.finishUploading(context.action(session1));
+    const file1 = await TestFile.create(session1);
+    const file2 = await TestFile.create(session1);
 
     await attachFileAsUploader(
         context.action(session1),
         space.id,
-        fileUploader1.fileId,
-        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+        file1.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
     await attachFileAsUploader(
         context.action(session1),
         space.id,
-        fileUploader2.fileId,
-        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+        file2.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
     await updateDocumentContent(context.action(session1), {
-        id,
+        id: document.id,
         version: 0,
         steps: [
             new ReplaceStep(
@@ -2916,8 +2896,8 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
                 new Slice(
                     Fragment.from(
                         schema.node("fileRow", {}, [
-                            schema.node("file", {fileId: fileUploader1.fileId}),
-                            schema.node("file", {fileId: fileUploader2.fileId}),
+                            schema.node("file", {fileId: file1.id}),
+                            schema.node("file", {fileId: file2.id}),
                         ]),
                     ),
                     0,
@@ -2932,7 +2912,7 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
 
     await expect(
         updateDocumentContent(context.action(session1), {
-            id,
+            id: document.id,
             version: 1,
             steps: [new AddNodeMarkStep(2, schema.marks.comment.create({commentThreadId}))],
             createCommentThreads: [
@@ -2949,14 +2929,14 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
         ),
     );
 
-    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
                 schema.node("title", {}),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {fileId: fileUploader1.fileId}),
-                    schema.node("file", {fileId: fileUploader2.fileId}),
+                    schema.node("file", {fileId: file1.id}),
+                    schema.node("file", {fileId: file2.id}),
                 ]),
             ])
             .toJSON(),
@@ -2964,47 +2944,30 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
 });
 
 test("can add comment mark to `file` node in a document", async () => {
-    const {id} = await createDocument(context.action(session1), {
-        spaceId: space.id,
-        content: emptyDocumentContent,
-    });
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
 
-    const fileUploader1 = await startUploadingAndProcessingFile(context.action(session1), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
-    });
+    const document = await TestDocument.create(session1);
 
-    await fileUploader1.finishUploading(context.action(session1));
-
-    const fileUploader2 = await startUploadingAndProcessingFile(context.action(session1), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
-    });
-
-    await fileUploader2.finishUploading(context.action(session1));
+    const file1 = await TestFile.create(session1);
+    const file2 = await TestFile.create(session1);
 
     await attachFileAsUploader(
         context.action(session1),
         space.id,
-        fileUploader1.fileId,
-        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+        file1.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
     await attachFileAsUploader(
         context.action(session1),
         space.id,
-        fileUploader2.fileId,
-        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+        file2.id,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
     );
 
     await updateDocumentContent(context.action(session1), {
-        id,
+        id: document.id,
         version: 0,
         steps: [
             new ReplaceStep(
@@ -3013,8 +2976,8 @@ test("can add comment mark to `file` node in a document", async () => {
                 new Slice(
                     Fragment.from(
                         schema.node("fileRow", {}, [
-                            schema.node("file", {fileId: fileUploader1.fileId}),
-                            schema.node("file", {fileId: fileUploader2.fileId}),
+                            schema.node("file", {fileId: file1.id}),
+                            schema.node("file", {fileId: file2.id}),
                         ]),
                     ),
                     0,
@@ -3028,7 +2991,7 @@ test("can add comment mark to `file` node in a document", async () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     await updateDocumentContent(context.action(session1), {
-        id,
+        id: document.id,
         version: 1,
         steps: [new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId}))],
         createCommentThreads: [
@@ -3040,7 +3003,7 @@ test("can add comment mark to `file` node in a document", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -3048,11 +3011,11 @@ test("can add comment mark to `file` node in a document", async () => {
                 schema.node("fileRow", {}, [
                     schema.node(
                         "file",
-                        {fileId: fileUploader1.fileId},
+                        {fileId: file1.id},
                         [],
                         [schema.mark("comment", {commentThreadId})],
                     ),
-                    schema.node("file", {fileId: fileUploader2.fileId}),
+                    schema.node("file", {fileId: file2.id}),
                 ]),
             ])
             .toJSON(),

@@ -2,50 +2,77 @@ import {R2Bucket} from "@miniflare/r2";
 import {FileStorage} from "@miniflare/storage-file";
 import fs from "fs/promises";
 import getPort from "get-port";
-import {Server} from "http";
 import looksSame from "looks-same";
 import {join as joinPath} from "path";
 import sharp from "sharp";
+import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
-import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
+import {uploadFile} from "~/server/edge/upload_file.js";
+import {getFileAsUploader} from "~/server/files/data/files_table.js";
+import {createFileProcessorServiceServer} from "~/server/files/processor/file_processor_service_server.js";
+import {processFile} from "~/server/files/processor/process_file.js";
 import {ffprobeExecutablePath} from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
+import {TestUploadFileRpcContextModule} from "~/server/files/processor/test_helpers/test_upload_file_rpc_context_module.js";
 import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
+import {FileContentType, FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
+import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const jpegTestFixturePath = joinPath(
     runfilesPath,
-    "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+    "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
 );
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR));
 
-let serverTokenAgent: TokenAgent;
-let tokenAgent: TokenAgent;
-let port: number;
-let server: Server;
+const {shutdownManager, shutdown} = ShutdownManager.new({
+    tracer: testTracer,
+    isClusterPrimary: true,
+});
 
-const context = createTestContext();
+let r2Bucket: R2Bucket;
+let r2Client: CloudflareR2ClientBase;
+let appTokenAgent: TokenAgent;
+let edgeTokenAgent: TokenAgent;
+let fileProcessorTokenAgent: TokenAgent;
+let port: number;
+
+const context = createTestContext({
+    processJob: async (actionContext, job, jobStartTime, span) => {
+        if (job.type === "ProcessFile") {
+            await processFile(
+                actionContext.clone({r2: new CloudflareR2ContextModule(r2Client)}),
+                span,
+                {
+                    spaceId: job.spaceId,
+                    fileId: job.fileId,
+                    contentType: job.contentType,
+                    temporaryDirectoryPath: context.getTemporaryDirectoryPath(),
+                },
+            );
+        }
+    },
+});
 
 beforeAll(async () => {
     port = await getPort();
@@ -53,20 +80,21 @@ beforeAll(async () => {
     const r2Storage = new FileStorage(
         joinPath(context.getTemporaryDirectoryPath(), "r2", filesBindingName),
     );
-    const r2Bucket = new R2Bucket(r2Storage);
-    const r2ContextModule = new CloudflareR2ContextModule(
-        new MiniflareR2Client({
-            fileUploadServiceUrl: `http://localhost:${port}`,
-            bucketByName: new Map([[filesBucketName, r2Bucket]]),
-        }),
+    r2Bucket = new R2Bucket(r2Storage);
+    r2Client = new MiniflareR2Client({
+        fileProcessorServiceUrl: `http://localhost:${port}`,
+        bucketByName: new Map([[filesBucketName, r2Bucket]]),
+    });
+    const r2ContextModule = new CloudflareR2ContextModule(r2Client);
+
+    [appTokenAgent, edgeTokenAgent, fileProcessorTokenAgent] = await createTestTokenAgents(
+        context,
+        ["AppService", "EdgeService", "FileProcessorService"],
     );
 
-    [serverTokenAgent, tokenAgent] = await createTestTokenAgents(context, [
-        "FileUploadService",
-        "EdgeService",
-    ]);
-    server = createFileUploadService(context.clone({r2: r2ContextModule}), {
-        tokenAgent: serverTokenAgent,
+    const server = createFileProcessorServiceServer(context.clone({r2: r2ContextModule}), {
+        shutdownManager,
+        tokenAgent: fileProcessorTokenAgent,
         temporaryDirectoryPath: joinPath(context.getTemporaryDirectoryPath(), "files"),
     });
 
@@ -76,88 +104,98 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    await new Promise<void>((resolve, reject) => {
-        server.close(error => {
-            if (error) reject(error);
-            else resolve();
-        });
-    });
+    await shutdown({type: "Signal", signal: "SIGINT"}, null);
 });
 
 async function authorization(
     session: TestSession | TestSpace,
-    authorizationTokenAgent: TokenAgent = tokenAgent,
+    authorizationTokenAgent: TokenAgent = edgeTokenAgent,
 ) {
     const token = await authorizationTokenAgent.privateSide.dangerouslySignShortLivedToken(
-        "FileUploadService",
+        "FileProcessorService",
         session.getTokenPayload(),
     );
 
     return `Bearer ${token}`;
 }
 
-function massageHeaders(headers: Headers) {
-    return omitObject(Object.fromEntries(headers), [
-        "connection",
-        "date",
-        "keep-alive",
-        "transfer-encoding",
-    ]);
-}
+async function uploadFileForTest(
+    session: TestSpaceSession,
+    {contentType, body}: {contentType: FileContentType | "image/heic"; body: Buffer},
+) {
+    const fileId = await context.tracer.getRoot().withSpan("Upload file for test", async span => {
+        const token = await appTokenAgent.privateSide.dangerouslySignShortLivedToken(
+            "EdgeService",
+            session.getTokenPayload(),
+        );
 
-function parseJsonEvents(responseText: string) {
-    return responseText
-        .trim()
-        .split("\n")
-        .map(eventString => UploadFileEventSchema.deserialize(JSON.parse(eventString)));
+        const request = new Request(`http://localhost/${session.space.id}/upload`, {
+            method: "POST",
+            headers: {
+                cookie: `session=${token}`,
+                "content-type": contentType,
+                "content-length": String(body.length),
+            },
+            body,
+        });
+
+        const url = new URL(request.url);
+
+        const response = await uploadFile(
+            ({sessionId, accountId}) =>
+                context.action({sessionId, accountId}).clone({
+                    tracer: new TracerContextModule(span),
+                    rpc: new TestUploadFileRpcContextModule(),
+                }),
+            {},
+            {FilesBucket: r2Bucket as any},
+            edgeTokenAgent,
+            request,
+            url,
+            span,
+            {spaceId: session.space.id},
+        );
+
+        const responseBody = UploadFileResponseSchema.deserialize(await response.json());
+        if (!responseBody.ok) throw responseBody.error;
+
+        return responseBody.file.id;
+    });
+
+    // Wait for the file to be processed...
+    await ProcessContextModule.waitForTestTasks();
+
+    return getFileAsUploader(session.action(), session.space.id, fileId);
 }
 
 test("can't resize an image with a session actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-        method: "POST",
-        headers: {
-            authorization: await authorization(session),
-            "content-type": "image/jpeg",
-        },
+    const file = await uploadFileForTest(session, {
+        contentType: "image/jpeg",
         body: await fs.readFile(jpegTestFixturePath),
     });
-    const uploadResponseText = await uploadResponse.text();
 
-    expect(uploadResponse.status).toEqual(200);
-    expect(massageHeaders(uploadResponse.headers)).toEqual({
-        "content-type": "application/x-ndjson",
-    });
-    const uploadEvents = parseJsonEvents(uploadResponseText);
-    expect(uploadEvents).toEqual([
-        {
-            type: "Start",
-            hasAlternative: false,
-            hasPreview: {
+    expect(file).toEqual(
+        new FileModel({
+            id: file.id,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            alternative: null,
+            preview: {
                 type: "Image",
-                hasContent: false,
-                hasVideoDuration: false,
+                isProcessing: false,
+                ok: true,
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
-            fileId: expect.any(String),
-            signedUrlSearch: "",
-        },
-        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
-        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
-        {type: "Finish"},
-    ]);
-
-    const fileId = assertExists(
-        iterableFirst(
-            filterMapIterable(uploadEvents, event =>
-                event.type === "Start" ? event.fileId : undefined,
-            ),
-        ),
+        }),
     );
 
     const resizeResponse = await fetch(
-        `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+        `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
         {
             method: "GET",
             headers: {authorization: await authorization(session)},
@@ -166,64 +204,50 @@ test("can't resize an image with a session actor", async () => {
 
     expect(resizeResponse.status).toEqual(400);
     expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
-    expect(await resizeResponse.text()).toEqual("400 Bad Request");
+    expect(await resizeResponse.text()).toMatch(
+        /^400 Bad Request\n\nPermissionDeniedError: Session actor is not a system actor\n/,
+    );
 });
 
 test("can't resize an image with a token that's not from edge service", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-        method: "POST",
-        headers: {
-            authorization: await authorization(session),
-            "content-type": "image/jpeg",
-        },
+    const file = await uploadFileForTest(session, {
+        contentType: "image/jpeg",
         body: await fs.readFile(jpegTestFixturePath),
     });
-    const uploadResponseText = await uploadResponse.text();
 
-    expect(uploadResponse.status).toEqual(200);
-    expect(massageHeaders(uploadResponse.headers)).toEqual({
-        "content-type": "application/x-ndjson",
-    });
-    const uploadEvents = parseJsonEvents(uploadResponseText);
-    expect(uploadEvents).toEqual([
-        {
-            type: "Start",
-            hasAlternative: false,
-            hasPreview: {
+    expect(file).toEqual(
+        new FileModel({
+            id: file.id,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            alternative: null,
+            preview: {
                 type: "Image",
-                hasContent: false,
-                hasVideoDuration: false,
+                isProcessing: false,
+                ok: true,
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
-            fileId: expect.any(String),
-            signedUrlSearch: "",
-        },
-        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
-        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
-        {type: "Finish"},
-    ]);
-
-    const fileId = assertExists(
-        iterableFirst(
-            filterMapIterable(uploadEvents, event =>
-                event.type === "Start" ? event.fileId : undefined,
-            ),
-        ),
+        }),
     );
 
     const resizeResponse = await fetch(
-        `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+        `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
         {
             method: "GET",
-            headers: {authorization: await authorization(space, serverTokenAgent)},
+            headers: {authorization: await authorization(space, fileProcessorTokenAgent)},
         },
     );
 
     expect(resizeResponse.status).toEqual(400);
     expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
-    expect(await resizeResponse.text()).toEqual("400 Bad Request");
+    expect(await resizeResponse.text()).toMatch(
+        /^400 Bad Request\n\nPermissionDeniedError: Only `EdgeService` can resize a file\n/,
+    );
 });
 
 test("can't resize an image that doesn't exist", async () => {
@@ -251,54 +275,31 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/jpeg",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/jpeg",
                 body: await fs.readFile(jpegTestFixturePath),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/jpeg",
+                    contentLength: 33102,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 500, height: 375, scale: 1, hasAlpha: false},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -328,7 +329,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -358,7 +359,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -392,59 +393,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/png",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/png",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.png",
+                        "cyberworlds/server/files/processor/test_fixtures/wikimedia_png_transparency_demonstration.png",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/png",
+                    contentLength: 76547,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 336, height: 252, scale: 1, hasAlpha: true},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 336, height: 252, scale: 1, hasAlpha: true},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -474,7 +452,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -507,59 +485,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/png",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/png",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.png",
+                        "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.png",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/png",
+                    contentLength: 103683,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 500, height: 375, scale: 1, hasAlpha: false},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -589,7 +544,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -625,59 +580,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 const space = await TestSpace.create(context);
                 const session = await space.createSession();
 
-                const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                    method: "POST",
-                    headers: {
-                        authorization: await authorization(session),
-                        "content-type": "image/gif",
-                    },
+                const file = await uploadFileForTest(session, {
+                    contentType: "image/gif",
                     body: await fs.readFile(
                         joinPath(
                             runfilesPath,
-                            "cyberworlds/server/files/upload/test_fixtures/wikimedia_rotating_earth.gif",
+                            "cyberworlds/server/files/processor/test_fixtures/wikimedia_rotating_earth.gif",
                         ),
                     ),
                 });
-                const uploadResponseText = await uploadResponse.text();
 
-                expect(uploadResponse.status).toEqual(200);
-                expect(massageHeaders(uploadResponse.headers)).toEqual({
-                    "content-type": "application/x-ndjson",
-                });
-                const uploadEvents = parseJsonEvents(uploadResponseText);
-                expect(
-                    uploadEvents.filter(
-                        event => event.type === "Start" || event.type === "ImagePreviewSize",
-                    ),
-                ).toEqual([
-                    {
-                        type: "Start",
-                        hasAlternative: false,
-                        hasPreview: {
+                expect(file).toEqual(
+                    new FileModel({
+                        id: file.id,
+                        contentType: "image/gif",
+                        contentLength: 118405,
+                        isUploading: false,
+                        alternative: null,
+                        preview: {
                             type: "Image",
-                            hasContent: false,
-                            hasVideoDuration: false,
+                            isProcessing: false,
+                            ok: true,
+                            size: {width: 400, height: 400, scale: 1, hasAlpha: true},
+                            placeholder: expect.any(FileImagePreviewPlaceholder),
                         },
-                        fileId: expect.any(String),
-                        signedUrlSearch: "",
-                    },
-                    {
-                        type: "ImagePreviewSize",
-                        size: {width: 400, height: 400, scale: 1, hasAlpha: true},
-                    },
-                ]);
-
-                const fileId = assertExists(
-                    iterableFirst(
-                        filterMapIterable(uploadEvents, event =>
-                            event.type === "Start" ? event.fileId : undefined,
-                        ),
-                    ),
+                    }),
                 );
 
                 {
                     const resizeResponse = await fetch(
-                        `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                        `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                         {
                             method: "GET",
                             headers: {authorization: await authorization(space)},
@@ -751,7 +683,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
                 {
                     const resizeResponse = await fetch(
-                        `http://localhost:${port}/${space.id}/resize/${fileId}?width=300`,
+                        `http://localhost:${port}/${space.id}/resize/${file.id}?width=300`,
                         {
                             method: "GET",
                             headers: {authorization: await authorization(space)},
@@ -825,7 +757,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
                 {
                     const resizeResponse = await fetch(
-                        `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                        `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                         {
                             method: "GET",
                             headers: {authorization: await authorization(space)},
@@ -906,59 +838,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/gif",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/gif",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.gif",
+                        "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.gif",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/gif",
+                    contentLength: 64718,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 500, height: 375, scale: 1, hasAlpha: true},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 500, height: 375, scale: 1, hasAlpha: true},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1029,7 +938,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1104,59 +1013,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/apng",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/apng",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_bouncing_beach_ball.png",
+                        "cyberworlds/server/files/processor/test_fixtures/wikimedia_bouncing_beach_ball.png",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/apng",
+                    contentLength: 61968,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 100, height: 100, scale: 1, hasAlpha: true},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 100, height: 100, scale: 1, hasAlpha: true},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=40`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=40`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1230,7 +1116,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=80`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=80`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1304,7 +1190,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=120`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=120`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1382,59 +1268,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/avif",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/avif",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/filesampleshub_heif_sample1.avif",
+                        "cyberworlds/server/files/processor/test_fixtures/filesampleshub_heif_sample1.avif",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/avif",
+                    contentLength: 74432,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 640, height: 426, scale: 1, hasAlpha: false},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 640, height: 426, scale: 1, hasAlpha: false},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1464,7 +1327,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1494,7 +1357,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=700`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=700`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1527,59 +1390,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/avif",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/avif",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.avif",
+                        "cyberworlds/server/files/processor/test_fixtures/wikimedia_png_transparency_demonstration.avif",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/avif",
+                    contentLength: 24923,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 336, height: 252, scale: 1, hasAlpha: true},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 336, height: 252, scale: 1, hasAlpha: true},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1609,7 +1449,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1642,35 +1482,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/avif",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/avif",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_bouncing_beach_ball.avif",
+                        "cyberworlds/server/files/processor/test_fixtures/wikimedia_bouncing_beach_ball.avif",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
-
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
 
             // TODO(calebmer): Support animated `.avif` files. `sharp` doesn't support
             // animated `.avif` files. So we'll need a separate image processor
             // implementation that uses FFmpeg.
-            expect(
-                findMapIterable(uploadEvents, event =>
-                    event.type === "Error" ? event.error : undefined,
-                ),
-            ).toEqual(new InvalidArgumentError("Input buffer contains unsupported image format"));
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/avif",
+                    contentLength: 10448,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
+                        type: "Image",
+                        isProcessing: false,
+                        ok: false,
+                        error: {type: "Unknown"},
+                        size: "Error",
+                        placeholder: "Error",
+                    },
+                }),
+            );
         });
     },
     "image/webp": () => {
@@ -1678,59 +1519,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/webp",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/webp",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.webp",
+                        "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.webp",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/webp",
+                    contentLength: 60260,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 500, height: 375, scale: 1, hasAlpha: false},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1760,7 +1578,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1790,7 +1608,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1823,59 +1641,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/webp",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/webp",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.webp",
+                        "cyberworlds/server/files/processor/test_fixtures/wikimedia_png_transparency_demonstration.webp",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/webp",
+                    contentLength: 22500,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 336, height: 252, scale: 1, hasAlpha: true},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 336, height: 252, scale: 1, hasAlpha: true},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1905,7 +1700,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -1939,59 +1734,36 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
-            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                method: "POST",
-                headers: {
-                    authorization: await authorization(session),
-                    "content-type": "image/svg+xml",
-                },
+            const file = await uploadFileForTest(session, {
+                contentType: "image/svg+xml",
                 body: await fs.readFile(
                     joinPath(
                         runfilesPath,
-                        "cyberworlds/server/files/upload/test_fixtures/undraw_landscape_photographer.svg",
+                        "cyberworlds/server/files/processor/test_fixtures/undraw_landscape_photographer.svg",
                     ),
                 ),
             });
-            const uploadResponseText = await uploadResponse.text();
 
-            expect(uploadResponse.status).toEqual(200);
-            expect(massageHeaders(uploadResponse.headers)).toEqual({
-                "content-type": "application/x-ndjson",
-            });
-            const uploadEvents = parseJsonEvents(uploadResponseText);
-            expect(
-                uploadEvents.filter(
-                    event => event.type === "Start" || event.type === "ImagePreviewSize",
-                ),
-            ).toEqual([
-                {
-                    type: "Start",
-                    hasAlternative: false,
-                    hasPreview: {
+            expect(file).toEqual(
+                new FileModel({
+                    id: file.id,
+                    contentType: "image/svg+xml",
+                    contentLength: 4701,
+                    isUploading: false,
+                    alternative: null,
+                    preview: {
                         type: "Image",
-                        hasContent: false,
-                        hasVideoDuration: false,
+                        isProcessing: false,
+                        ok: true,
+                        size: {width: 732, height: 619, scale: 1, hasAlpha: true},
+                        placeholder: expect.any(FileImagePreviewPlaceholder),
                     },
-                    fileId: expect.any(String),
-                    signedUrlSearch: "",
-                },
-                {
-                    type: "ImagePreviewSize",
-                    size: {width: 732, height: 619, scale: 1, hasAlpha: true},
-                },
-            ]);
-
-            const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(uploadEvents, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                ),
+                }),
             );
 
             {
                 const resizeResponse = await fetch(
-                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
                         headers: {authorization: await authorization(space)},
@@ -2000,7 +1772,9 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
 
                 expect(resizeResponse.status).toEqual(400);
                 expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
-                expect(await resizeResponse.text()).toEqual("400 Bad Request");
+                expect(await resizeResponse.text()).toMatch(
+                    /^400 Bad Request\n\nFailedPreconditionError: Content type "image\/svg\+xml" is a vector format, resizing is pointless/,
+                );
             }
         });
     },
@@ -2014,54 +1788,46 @@ test("can resize a HEIC image's preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-        method: "POST",
-        headers: {
-            authorization: await authorization(session),
-            "content-type": "image/heic",
-        },
+    const file = await uploadFileForTest(session, {
+        contentType: "image/heic",
         body: await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/iphone_calebmer_colorado_twin_lakes.heic",
+                "cyberworlds/server/files/processor/test_fixtures/iphone_calebmer_colorado_twin_lakes.heic",
             ),
         ),
     });
-    const uploadResponseText = await uploadResponse.text();
 
-    expect(uploadResponse.status).toEqual(200);
-    expect(massageHeaders(uploadResponse.headers)).toEqual({
-        "content-type": "application/x-ndjson",
-    });
-    const uploadEvents = parseJsonEvents(uploadResponseText);
-    expect(
-        uploadEvents.filter(event => event.type === "Start" || event.type === "ImagePreviewSize"),
-    ).toEqual([
-        {
-            type: "Start",
-            hasAlternative: true,
-            hasPreview: {
-                type: "Image",
-                hasContent: true,
-                hasVideoDuration: false,
+    expect(file).toEqual(
+        new FileModel({
+            id: file.id,
+            contentType: "image/heif",
+            contentLength: 88109,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: true,
+                contentType: "image/avif",
+                contentLength: 91235,
+                isImagePreviewContent: true,
             },
-            fileId: expect.any(String),
-            signedUrlSearch: "",
-        },
-        {type: "ImagePreviewSize", size: {width: 480, height: 640, scale: 1, hasAlpha: false}},
-    ]);
-
-    const fileId = assertExists(
-        iterableFirst(
-            filterMapIterable(uploadEvents, event =>
-                event.type === "Start" ? event.fileId : undefined,
-            ),
-        ),
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 480, height: 640, scale: 1, hasAlpha: false},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
+                content: {
+                    contentType: "image/avif",
+                    contentLength: 91235,
+                },
+            },
+        }),
     );
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2070,12 +1836,14 @@ test("can resize a HEIC image's preview", async () => {
 
         expect(resizeResponse.status).toEqual(400);
         expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
-        expect(await resizeResponse.text()).toEqual("400 Bad Request");
+        expect(await resizeResponse.text()).toMatch(
+            /^400 Bad Request\n\nFailedPreconditionError: Can only resize web safe image but instead got content type "image\/heif"\n/,
+        );
     }
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=200&variant=preview`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=200&variant=preview`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2105,7 +1873,7 @@ test("can resize a HEIC image's preview", async () => {
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=400&variant=preview`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=400&variant=preview`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2135,7 +1903,7 @@ test("can resize a HEIC image's preview", async () => {
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=600&variant=preview`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=600&variant=preview`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2168,54 +1936,36 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-        method: "POST",
-        headers: {
-            authorization: await authorization(session),
-            "content-type": "image/avif",
-        },
+    const file = await uploadFileForTest(session, {
+        contentType: "image/avif",
         body: await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying.avif",
+                "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying.avif",
             ),
         ),
     });
-    const uploadResponseText = await uploadResponse.text();
 
-    expect(uploadResponse.status).toEqual(200);
-    expect(massageHeaders(uploadResponse.headers)).toEqual({
-        "content-type": "application/x-ndjson",
-    });
-    const uploadEvents = parseJsonEvents(uploadResponseText);
-    expect(
-        uploadEvents.filter(event => event.type === "Start" || event.type === "ImagePreviewSize"),
-    ).toEqual([
-        {
-            type: "Start",
-            hasAlternative: false,
-            hasPreview: {
+    expect(file).toEqual(
+        new FileModel({
+            id: file.id,
+            contentType: "image/avif",
+            contentLength: 108552,
+            isUploading: false,
+            alternative: null,
+            preview: {
                 type: "Image",
-                hasContent: false,
-                hasVideoDuration: false,
+                isProcessing: false,
+                ok: true,
+                size: {width: 400, height: 4778, scale: 1, hasAlpha: true},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
-            fileId: expect.any(String),
-            signedUrlSearch: "",
-        },
-        {type: "ImagePreviewSize", size: {width: 400, height: 4778, scale: 1, hasAlpha: true}},
-    ]);
-
-    const fileId = assertExists(
-        iterableFirst(
-            filterMapIterable(uploadEvents, event =>
-                event.type === "Start" ? event.fileId : undefined,
-            ),
-        ),
+        }),
     );
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=100`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=100`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2245,7 +1995,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=300`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=300`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2261,7 +2011,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
 
         const expectedPath = joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying_cropped.avif",
+            "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_cropped.avif",
         );
 
         const result = await looksSame(actualContents, expectedPath, {
@@ -2291,7 +2041,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=500`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=500`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2324,54 +2074,36 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-        method: "POST",
-        headers: {
-            authorization: await authorization(session),
-            "content-type": "image/avif",
-        },
+    const file = await uploadFileForTest(session, {
+        contentType: "image/avif",
         body: await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying_rotated.avif",
+                "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_rotated.avif",
             ),
         ),
     });
-    const uploadResponseText = await uploadResponse.text();
 
-    expect(uploadResponse.status).toEqual(200);
-    expect(massageHeaders(uploadResponse.headers)).toEqual({
-        "content-type": "application/x-ndjson",
-    });
-    const uploadEvents = parseJsonEvents(uploadResponseText);
-    expect(
-        uploadEvents.filter(event => event.type === "Start" || event.type === "ImagePreviewSize"),
-    ).toEqual([
-        {
-            type: "Start",
-            hasAlternative: false,
-            hasPreview: {
+    expect(file).toEqual(
+        new FileModel({
+            id: file.id,
+            contentType: "image/avif",
+            contentLength: 140556,
+            isUploading: false,
+            alternative: null,
+            preview: {
                 type: "Image",
-                hasContent: false,
-                hasVideoDuration: false,
+                isProcessing: false,
+                ok: true,
+                size: {width: 4778, height: 400, scale: 1, hasAlpha: true},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
-            fileId: expect.any(String),
-            signedUrlSearch: "",
-        },
-        {type: "ImagePreviewSize", size: {width: 4778, height: 400, scale: 1, hasAlpha: true}},
-    ]);
-
-    const fileId = assertExists(
-        iterableFirst(
-            filterMapIterable(uploadEvents, event =>
-                event.type === "Start" ? event.fileId : undefined,
-            ),
-        ),
+        }),
     );
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2402,7 +2134,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
 
         const expectedPath = joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying_rotated_cropped.avif",
+            "cyberworlds/server/files/processor/test_fixtures/cooksmarts_guide_to_stir_frying_rotated_cropped.avif",
         );
 
         const result = await looksSame(actualContents, expectedPath, {
@@ -2432,7 +2164,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=800`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=800`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},
@@ -2462,7 +2194,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
 
     {
         const resizeResponse = await fetch(
-            `http://localhost:${port}/${space.id}/resize/${fileId}?width=1200`,
+            `http://localhost:${port}/${space.id}/resize/${file.id}?width=1200`,
             {
                 method: "GET",
                 headers: {authorization: await authorization(space)},

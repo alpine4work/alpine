@@ -5,6 +5,7 @@ import {
     addContentFileAudioPlayerBehavior,
     renderContentFileAudioPlayer,
 } from "~/client/content/internal/content_file_audio_player.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerDesktopMarginX,
     contentFileViewerLargeProcessingIndicatorColor,
@@ -100,6 +101,13 @@ function ContentFileAudioViewerDesktopInner({
     audioSrc: string;
     viewerSize: {width: number; height: number};
 }) {
+    if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
+        throw new ContentFileProcessorError(file.contentType, file.alternative.error);
+    }
+    if (!filePreview.ok) {
+        throw new ContentFileProcessorError(file.contentType, filePreview.error);
+    }
+
     const reporter = useReporter();
     const remPx = useRemPx();
 

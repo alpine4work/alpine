@@ -1,5 +1,5 @@
 import {Duration} from "aws-cdk-lib";
-import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
+import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
@@ -21,10 +21,13 @@ import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {uploadFileTimeoutMs} from "~/shared/files/upload_file_event.js";
+import {InternalError} from "~/shared/error/error.js";
+import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_model.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
-// IMPORTANT: `FileUploadService` has a pretty broad attack surface given all
-// the libraries it uses to process dependencies. `FileUploadService` uses:
+// IMPORTANT: `FileProcessorService` has a pretty broad attack surface given
+// all the libraries it uses to process dependencies. `FileProcessorService`
+// uses (among other things):
 //
 // - [`sharp`][1] which itself has a bunch of dependencies including
 //   [GraphicsMagick and PDFium][2]
@@ -34,31 +37,30 @@ import {uploadFileTimeoutMs} from "~/shared/files/upload_file_event.js";
 // These libraries are massive and have many opportunities to be exploited. One
 // possible simple exploit that comes to mind is using one of these libraries
 // to process a file with an embedded URL that points to an image. If the file
-// format goes to fetch the URL then the attack now knows `FileUploadService`'s
-// IP address and can try to perform more attacks. (Knowing the IP alone
-// shouldn't give the attacker much but it does mean we have to be very careful
-// about what ports we expose to the network.)
+// format goes to fetch the URL then the attack now knows
+// `FileProcessorService`'s IP address and can try to perform more attacks.
+// (Knowing the IP alone shouldn't give the attacker much but it does mean we
+// have to be very careful about what ports we expose to the network.)
 //
 // As such we're very strict about what permissions we grant to
-// `FileUploadService` as an extra layer of security. If we grant the absolute
-// minimum set of permissions `FileUploadService` needs then even if an
-// attacker is able to compromise a `FileUploadService` EC2 instance they won't
-// be able to do much with it. As of 2024-11-12 we only give
-// `FileUploadService` the ability to read from the `Accounts`/`Spaces` table
-// and read/write to the `Files` table. We do not give access to the DynamoDB
-// `Scan` action. An attacker can't do too much harm with this set of
-// permissions.
+// `FileProcessorService` as an extra layer of security. If we grant the
+// absolute minimum set of permissions `FileProcessorService` needs then even
+// if an attacker is able to compromise a `FileProcessorService` EC2 instance
+// they won't be able to do much with it. As of 2024-11-12 we only give
+// `FileProcessorService` read/write to the `Files` table and no other tables.
+// We do not give access to the DynamoDB `Scan` action. An attacker can't do
+// too much harm with this set of permissions.
 //
 // To be clear, we don't know of any vulnerabilities that allow attackers to
-// compromise `FileUploadService` and if we discover any vulnerabilities we
-// should fix them immediately. The permissions we grant `FileUploadService` is
-// an additional precaution.
+// compromise `FileProcessorService` and if we discover any vulnerabilities we
+// should fix them immediately. The permissions we grant `FileProcessorService`
+// is an additional precaution.
 //
 // [1]: https://www.npmjs.com/package/sharp
 // [2]: https://github.com/cyberworlds/sharp-libvips/blob/174959af63c6f3dd25b1339b8d3fc2bfc289a176/THIRD-PARTY-NOTICES.md
 // [3]: https://www.ffmpeg.org
 // [4]: https://www.libreoffice.org
-export class AwsFileUploadService extends Construct {
+export class AwsFileProcessorService extends Construct {
     constructor(
         parentConstruct: Construct,
         {
@@ -75,13 +77,25 @@ export class AwsFileUploadService extends Construct {
             sqs: AwsSqs;
         },
     ) {
-        super(parentConstruct, "FileUploadService");
+        super(parentConstruct, "FileProcessorService");
+
+        // First 750 hours per month of this instance type are free. That effectively
+        // translates to 1 free capacity of this instance type across our AWS account.
+        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO);
+        const vCpuCount = getInstanceTypeVCpuCount(instanceType);
+
+        // Make sure we have enough storage to process one maximum size file per vCPU.
+        // `FileUploadService` only processes a max of one file per vCPU at a time. We
+        // add an extra 10% overhead to be safe.
+        //
+        // 30 GiB is the default size for an EBS volume so use that as our minimum
+        // volume size.
+        const maxFileContentLengthGib = maxFileContentLength / (1024 ^ 3);
+        const volumeSize = Math.max(30, Math.ceil(maxFileContentLengthGib * 1.1 * vCpuCount));
 
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
-            // First 750 hours per month of this instance type are free. That effectively
-            // translates to 1 free capacity of this instance type across our AWS account.
-            instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
+            instanceType,
             machineImage: EcsOptimizedImage.amazonLinux2(),
 
             minCapacity: 1,
@@ -93,6 +107,13 @@ export class AwsFileUploadService extends Construct {
             // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
             // API calls through a NAT gateway can get expensive.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
+
+            blockDevices: [
+                {
+                    deviceName: "/dev/xvda",
+                    volume: BlockDeviceVolume.ebs(volumeSize),
+                },
+            ],
         });
 
         // Add the ability to connect to our EC2 instances with Session Manager.
@@ -110,7 +131,11 @@ export class AwsFileUploadService extends Construct {
         ecsCluster.cluster.addAsgCapacityProvider(autoScalingGroupCapacityProvider);
 
         const port = 4000;
-        const secrets = Secret.fromSecretNameV2(this, "SecretsImport", "FileUploadServiceSecrets");
+        const secrets = Secret.fromSecretNameV2(
+            this,
+            "SecretsImport",
+            "FileProcessorServiceSecrets",
+        );
 
         const taskDefinition = new Ec2TaskDefinition(this, "TaskDefinition", {
             // According to the docs:
@@ -137,7 +162,7 @@ export class AwsFileUploadService extends Construct {
                     runfilesPath,
                     process.env.CDK_LITE === "true"
                         ? "cyberworlds/admin/aws/empty_image_tarball_load/tarball.tar"
-                        : "cyberworlds/server/files/upload/upload_image_tarball_load/tarball.tar",
+                        : "cyberworlds/server/files/processor/processor_image_tarball_load/tarball.tar",
                 ),
             ),
             // This appears to be the available memory for our containers. Unclear how we
@@ -147,17 +172,15 @@ export class AwsFileUploadService extends Construct {
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to one minute longer than the file upload timeout.
-            // Right now the file upload timeout is 5min (videos which need to transcode
-            // may take a while to process) which makes this timeout 6min. That's very
-            // long! It'll mean our deploys take longer to finish.
+            // Increase stop timeout to half a minute longer than the file processing
+            // timeout. Right now the file processing timeout is 5min (videos which need to
+            // transcode may take a while to process) which makes this timeout 5:30min.
+            // That's very long! It'll mean our deploys take longer to finish.
             //
-            // I (@calebmer) think eventually we should move some file processing (e.g.
-            // video transcoding) to an SQS queue to improve reliability (we'll be able to
-            // retry file processing). Doing this also means we can lower this stop
-            // timeout. If our video transcoder is, say, an AWS Lambda with no dependencies
-            // on our JavaScript code then it won't need to restart during a deploy.
-            stopTimeout: Duration.millis(uploadFileTimeoutMs + 1000 * 60),
+            // Consider taking long running processing actions (e.g. video transcoding) and
+            // putting them in AWS Lambdas with minimal dependencies that will very rarely
+            // change on deploy to speed up deploys.
+            stopTimeout: Duration.millis(fileProcessorTimeoutMs + 1000 * 30),
             // For security, use the `www-data` user which exists on our Linux image. It
             // only has read access and execute access to files on our system.
             user: "www-data",
@@ -179,13 +202,13 @@ export class AwsFileUploadService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
-                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                FILE_PROCESSOR_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                     secrets,
-                    "fileUploadServicePublicKey",
+                    "fileProcessorServicePublicKey",
                 ),
-                FILE_UPLOAD_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
+                FILE_PROCESSOR_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
-                    "fileUploadServicePrivateKey",
+                    "fileProcessorServicePrivateKey",
                 ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
@@ -206,15 +229,11 @@ export class AwsFileUploadService extends Construct {
                 // proper value.
                 "sh",
                 "-c",
-                `/var/www/server/files/upload/upload ${[
+                `/var/www/server/files/processor/processor ${[
                     `--port=${port}`,
                     "--temporaryDirectoryPath=/var/www-data/files",
-                    // IMPORTANT: Even though we provide a URL to SQS we don't grant
-                    // `FileUploadService` the ability to send events to this queue. This reduces
-                    // what an attacker can do with a compromised `FileUploadService`. Queued jobs
-                    // escalate permissions to a space system actor. It's dangerous to give access
-                    // to this capability.
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     `--cloudflareAccountId=${cloudflareAccountId}`,
                     `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
@@ -227,8 +246,8 @@ export class AwsFileUploadService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
-                    "--servicePrivateKey=\\$FILE_UPLOAD_SERVICE_PRIVATE_KEY",
+                    "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
+                    "--servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                 ].join(" ")}`,
             ],
@@ -237,24 +256,23 @@ export class AwsFileUploadService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/files/upload/upload.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/files/processor/processor.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });
 
-        // IMPORTANT: Only grant `FileUploadService` access to the tables it uses. This
-        // reduces what an attacker can do with a compromised `FileUploadService`. They
-        // won't be able to create new account sessions and won't be able to use `Scan`
-        // to search for a `SessionId` to identify as. Even if an attacker is able to
-        // correctly guess a `SessionId` they won't be able to generate a token to
-        // log in as the compromised account since they don't have the required
-        // `AppService` private key.
+        // IMPORTANT: Only grant `FileProcessorService` the ability to send/receive
+        // messages on the file processor job queue. Being able to send messages to the
+        // default queue is dangerous since jobs are executed with a system context
+        // which is a privilege escalation.
+        sqs.grantSendAndReceiveJobQueueMessagesForOnlyFileProcessorQueue(taskDefinition.taskRole);
+
+        // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses.
+        // This reduces what an attacker can do with a compromised
+        // `FileProcessorService`.
         //
-        // Disallow queries so you can't read all sessions for an account or all
-        // accounts in a space.
-        dynamo.grantReadDataForTable(taskDefinition.taskRole, "Accounts", {disallowQuery: true});
-        dynamo.grantReadDataForTable(taskDefinition.taskRole, "Spaces", {disallowQuery: true});
-        dynamo.grantReadWriteDataForTable(taskDefinition.taskRole, "Files");
+        // Disallow queries so you can't read all files for a space.
+        dynamo.grantReadWriteDataForTable(taskDefinition.taskRole, "Files", {disallowQuery: true});
 
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
@@ -308,7 +326,26 @@ export class AwsFileUploadService extends Construct {
             // See our comment on `stopTimeout`. File upload processing is potentially quite
             // slow so we need to increase the deregistration delay to make sure we don't
             // close connections that are still uploading during a deploy.
-            deregistrationDelay: Duration.millis(uploadFileTimeoutMs),
+            deregistrationDelay: Duration.millis(fileProcessorTimeoutMs),
         });
+    }
+}
+
+/**
+ * Return the vCPU count for the given AWS EC2 instance type. Unfortunately
+ * this information isn't available in the AWS CDK so we have to hard code it
+ * based on the [documentation][1].
+ *
+ * [1]: https://aws.amazon.com/ec2/instance-types/
+ */
+function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
+    const instanceTypeString = instanceType.toString();
+
+    switch (instanceTypeString) {
+        default: {
+            throw new InternalError(
+                quote`Unknown vCPU count for instance type ${instanceTypeString}, please update \`getInstanceTypeVCpuCount()\` to handle this instance type`,
+            );
+        }
     }
 }

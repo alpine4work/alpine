@@ -11,6 +11,42 @@ export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/
 export const ffmpegImagePreviewContentOutputExtension = "avif";
 export const ffmpegImagePreviewContentOutputContentType: FileContentType = "image/avif";
 
+/**
+ * The maximum number of threads for FFmpeg to use. We set this limit to avoid
+ * resource contention. In unit tests we only use 2 threads since we'll be
+ * running many tests in parallel.
+ */
+export const ffmpegThreadCount = import.meta.jest ? 1 : 4;
+
+/**
+ * What FFmpeg video codecs supported by MP4 files are web safe? We don't have
+ * to transcode an alternative video file if an MP4 is only comprised of these
+ * codecs.
+ */
+export const ffmpegWebSafeMp4VideoCodecNames = new Set([
+    "av1",
+    "libaom-av1",
+    "h264",
+    "vp9",
+    "libx-vp9",
+]);
+
+/**
+ * What FFmpeg audio codecs supported by MP4 files are web safe? We don't have
+ * to transcode an alternative video file if an MP4 is only comprised of these
+ * codecs.
+ */
+export const ffmpegWebSafeMp4AudioCodecNames = new Set([
+    "flac",
+    "mp3",
+    "mp3float",
+    "opus",
+    "libopus",
+    "aac",
+    "aac_fixed",
+    "aac_at",
+]);
+
 const ffmpegImagePreviewContentOutputOptionsBase = [
     // Only get one frame from the video.
     "-frames:v",

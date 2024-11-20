@@ -87,15 +87,15 @@ function serializeError(error: unknown) {
         if (!(error instanceof AggregateError)) {
             aggregateErrors.push(error);
         } else {
-            for (const subError of error.errors) {
-                pushAggregateError(subError);
+            for (const childError of error.errors) {
+                pushAggregateError(childError);
             }
         }
     };
 
     if (error instanceof AggregateError) {
-        for (const subError of error.errors) {
-            pushAggregateError(subError);
+        for (const childError of error.errors) {
+            pushAggregateError(childError);
         }
     }
 

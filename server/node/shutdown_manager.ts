@@ -1,7 +1,4 @@
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {createAggregateError, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
@@ -33,7 +30,7 @@ export interface ShutdownManagerBase {
 export class ShutdownManager implements ShutdownManagerBase {
     private readonly _tracer: TracerRoot;
     private readonly _isClusterPrimary: boolean;
-    private _isShuttingDown = false;
+    private _shutdownPromise: Promise<void> | null = null;
     private _ingressTrafficListeners = new Set<
         (reason: ShutdownReason, span: TracerSpan) => Promise<void>
     >();
@@ -62,7 +59,7 @@ export class ShutdownManager implements ShutdownManagerBase {
         shutdown: (
             reason: ShutdownReason,
             propagationContext: TracerSpanPropagationContext | null,
-        ) => void;
+        ) => Promise<void>;
     } {
         const shutdownManager = new ShutdownManager({tracer, isClusterPrimary});
 
@@ -74,16 +71,22 @@ export class ShutdownManager implements ShutdownManagerBase {
     }
 
     public isShuttingDown() {
-        return this._isShuttingDown;
+        return this._shutdownPromise !== null;
     }
 
     private _handleShutdown(
         reason: ShutdownReason,
         propagationContext: TracerSpanPropagationContext | null,
-    ) {
-        if (this._isShuttingDown) return;
-        this._isShuttingDown = true;
+    ): Promise<void> {
+        if (this._shutdownPromise !== null) return this._shutdownPromise;
+        this._shutdownPromise = this._actuallyHandleShutdown(reason, propagationContext);
+        return this._shutdownPromise;
+    }
 
+    private async _actuallyHandleShutdown(
+        reason: ShutdownReason,
+        propagationContext: TracerSpanPropagationContext | null,
+    ): Promise<void> {
         const handleSpanName = `Shutdown ${this._tracer.serviceName}${
             !this._isClusterPrimary ? " (worker)" : ""
         }`;
@@ -134,7 +137,11 @@ export class ShutdownManager implements ShutdownManagerBase {
             }
 
             finishSpan();
-            process.exit(reason.type === "Error" ? 1 : 0);
+
+            // Don't actually exit the process in unit tests.
+            if (!import.meta.jest) {
+                process.exit(reason.type === "Error" ? 1 : 0);
+            }
         } else {
             const ingressTrafficShutdownPromise = runAllPromises(
                 Array.from(this._ingressTrafficListeners, listener => listener(reason, span)),
@@ -163,9 +170,7 @@ export class ShutdownManager implements ShutdownManagerBase {
                     }
                 })
                 .then(async () => {
-                    let hasError = false;
-                    let errorPriority = 0;
-                    let error: unknown;
+                    const errors: Array<unknown> = [];
 
                     // Wait for all promises to resolve. If there's an error, don't throw it until
                     // all promises have resolved.
@@ -173,23 +178,14 @@ export class ShutdownManager implements ShutdownManagerBase {
                         while (this._waitUntilPromises.size > 0) {
                             try {
                                 await runAllPromises(this._waitUntilPromises);
-                            } catch (newError) {
-                                const newErrorPriority = getAggregateErrorPriority(newError);
-
-                                if (!hasError) {
-                                    hasError = true;
-                                    errorPriority = newErrorPriority;
-                                    error = newError;
-                                }
-                                // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                                // just the first one. Probably by using an `AggregateError`.
-                                else if (newErrorPriority > errorPriority) {
-                                    errorPriority = newErrorPriority;
-                                    error = newError;
-                                }
+                            } catch (error) {
+                                errors.push(error);
                             }
                         }
                     };
+
+                    const hasError = errors.length > 0;
+                    const error = hasError ? createAggregateError(errors) : null;
 
                     await span.withSpan(
                         "Waiting for remaining process promises",
@@ -221,7 +217,7 @@ export class ShutdownManager implements ShutdownManagerBase {
                 waitUntilShutdownPromise,
             ]);
 
-            fullShutdownPromise.then(
+            await fullShutdownPromise.then(
                 () => {
                     // It's helpful to see service lifecycle events in production logs. All logging
                     // in response to user actions should go to Honeycomb.
@@ -230,7 +226,10 @@ export class ShutdownManager implements ShutdownManagerBase {
                         console.log(`Shutdown finished (pid: ${process.pid})`);
                     }
 
-                    process.exit(reason.type === "Error" ? 1 : 0);
+                    // Don't actually exit the process in unit tests.
+                    if (!import.meta.jest) {
+                        process.exit(reason.type === "Error" ? 1 : 0);
+                    }
                 },
                 error => {
                     // It's helpful to see service lifecycle events in production logs. All logging
@@ -240,12 +239,17 @@ export class ShutdownManager implements ShutdownManagerBase {
                         console.log(`Shutdown finished (pid: ${process.pid})`);
                     }
 
-                    // eslint-disable-next-line no-console
-                    console.error("Shutdown finished with exception:");
-                    // eslint-disable-next-line no-console
-                    console.error(error);
+                    // Don't actually exit the process in unit tests.
+                    if (import.meta.jest) {
+                        throw error;
+                    } else {
+                        // eslint-disable-next-line no-console
+                        console.error("Shutdown finished with exception:");
+                        // eslint-disable-next-line no-console
+                        console.error(error);
 
-                    process.exit(1);
+                        process.exit(1);
+                    }
                 },
             );
         }
@@ -266,7 +270,7 @@ export class ShutdownManager implements ShutdownManagerBase {
         name: string,
         listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void {
-        assert(!this._isShuttingDown);
+        assert(this._shutdownPromise === null);
 
         const actualListener: typeof listener = (reason, parentSpan) => {
             return parentSpan.withSpan(name, span => listener(reason, span));
@@ -291,7 +295,7 @@ export class ShutdownManager implements ShutdownManagerBase {
         name: string,
         listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void {
-        assert(!this._isShuttingDown);
+        assert(this._shutdownPromise === null);
 
         const actualListener: typeof listener = (reason, parentSpan) => {
             return parentSpan.withSpan(name, span => listener(reason, span));

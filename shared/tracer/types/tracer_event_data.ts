@@ -1016,6 +1016,15 @@ export type TracerEventData = {
          * of time the job spent in the queue is `queueDurationMs` + `delaySeconds`.
          */
         readonly queueDurationMs?: number;
+
+        /**
+         * Will we retry this job? True if the job threw an error. You can't look at
+         * whether our span has an `exception.type` attribute to know if the job will
+         * retry. Since sometimes we add an exception to jobs that are considered
+         * completed (e.g. if we fail to process a corrupt file in the `ProcessFile`
+         * job we'll add the processing error to the job span but won't retry the job.)
+         */
+        readonly willRetry?: boolean;
     };
 
     /**
@@ -1221,6 +1230,21 @@ export type TracerEventData = {
 
             /** If this is code, how long is the `FileCodePreviewContent` binary data? */
             readonly codeContentLength?: number;
+        };
+
+        /**
+         * Information from `FileProcessorService` typically concerning processing
+         * state.
+         */
+        readonly processing?: {
+            readonly alternativeDurationMs?: number;
+            readonly imagePreviewSizeDurationMs?: number;
+            readonly imagePreviewPlaceholderDurationMs?: number;
+            readonly imagePreviewContentDurationMs?: number;
+            readonly imagePreviewVideoDurationDurationMs?: number;
+            readonly audioPreviewDurationDurationMs?: number;
+            readonly audioPreviewMetadataDurationMs?: number;
+            readonly codePreviewContentDurationMs?: number;
         };
     };
 

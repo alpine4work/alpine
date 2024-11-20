@@ -1,7 +1,13 @@
-import {waitForReadableStreamBuffer} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
-import {processImageFile} from "~/server/files/upload/processors/file_image_processor_base.js";
-import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
+import fsSync from "fs";
+import {join as joinPath} from "path";
+import {Readable as ReadableStream} from "stream";
+import {finished} from "stream/promises";
+import {processImageFile} from "~/server/files/processor/processors/file_image_processor_base.js";
+import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createFileWebSafeImageProcessor(
     contentType: FileWebSafeImageContentType,
@@ -14,13 +20,29 @@ export function createFileWebSafeImageProcessor(
             hasContent: false,
             hasVideoDuration: false,
         },
-        process: (stream, signal) => {
-            // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-            // more efficient to await `dataPromise` than to use `stream`. See our comment
-            // on `FileProcessor`.
-            const dataPromise = waitForReadableStreamBuffer(stream, signal);
+        process: async (
+            context,
+            {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
+        ) => {
+            const [temporaryDirectoryPath, object] = await runAllPromises([
+                withTemporaryDirectory(),
+                context.r2.GetObject(
+                    {
+                        Bucket: filesBucketName,
+                        Key: `${spaceId}/${fileId}`,
+                    },
+                    {signal},
+                ),
+            ]);
 
-            return processImageFile(contentType, dataPromise);
+            assert(object.Body instanceof ReadableStream);
+
+            const inputPath = joinPath(temporaryDirectoryPath, "input.pdf");
+            const inputWriteStream = fsSync.createWriteStream(inputPath);
+
+            await finished(object.Body.pipe(inputWriteStream));
+
+            return processImageFile(context, inputPath, {signal, contentType, contentLength});
         },
     };
 }

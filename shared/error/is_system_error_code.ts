@@ -1,4 +1,4 @@
-import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
+import {InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**

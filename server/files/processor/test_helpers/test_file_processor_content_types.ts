@@ -3,53 +3,57 @@ import {FileStorage} from "@miniflare/storage-file";
 import escapeHtml from "escape-html";
 import fs from "fs/promises";
 import getPort from "get-port";
-import {Server} from "http";
 import looksSame from "looks-same";
 import {extname, join as joinPath} from "path";
 import sharp from "sharp";
+import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
+import {uploadFile} from "~/server/edge/upload_file.js";
 import {getFileAsUploader} from "~/server/files/data/files_table.js";
-import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
+import {createFileProcessorServiceServer} from "~/server/files/processor/file_processor_service_server.js";
+import {processFile} from "~/server/files/processor/process_file.js";
 import {
     ffmpegExecutablePath,
+    ffmpegThreadCount,
     ffprobeExecutablePath,
 } from "~/server/files/processor/processors/file_video_and_audio_processor_base.js";
+import {TestUploadFileRpcContextModule} from "~/server/files/processor/test_helpers/test_upload_file_rpc_context_module.js";
 import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
 } from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel} from "~/shared/files/file_model.js";
-import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
+import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
+import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
@@ -81,10 +85,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     audioPreviewMetadata?: {title?: string; artist?: string; album?: string};
     codePreviewContentLength?: number;
     codePreviewContent?: string;
-    previewError?: {
-        code: ErrorCode;
-        displayMessage: ErrorDisplayMessage;
-    };
+    previewError?: FileProcessorError;
     looksSameTolerance?: number;
 }>;
 
@@ -94,11 +95,60 @@ export function testFileProcessorContentTypes(
         [key: string]: FileProcessorContentTypeTestCase;
     },
 ) {
+    const {shutdownManager, shutdown} = ShutdownManager.new({
+        tracer: context.tracer.getRoot(),
+        isClusterPrimary: true,
+    });
+
     let r2Bucket: R2Bucket;
-    let serverTokenAgent: TokenAgent;
-    let tokenAgent: TokenAgent;
+    let r2Client: CloudflareR2ClientBase;
+    let appTokenAgent: TokenAgent;
+    let edgeTokenAgent: TokenAgent;
+    let fileProcessorTokenAgent: TokenAgent;
     let port: number;
-    let server: Server;
+
+    let processingType: "Once" | "TwiceConcurrently" = "Once";
+
+    afterEach(() => {
+        processingType = "Once";
+    });
+
+    context.setProcessJob(async (actionContext, job, jobStartTime, span) => {
+        if (job.type === "ProcessFile") {
+            const process = () =>
+                processFile(
+                    actionContext.clone({r2: new CloudflareR2ContextModule(r2Client)}),
+                    span,
+                    {
+                        spaceId: job.spaceId,
+                        fileId: job.fileId,
+                        contentType: job.contentType,
+                        temporaryDirectoryPath: context.getTemporaryDirectoryPath(),
+                    },
+                );
+
+            switch (processingType) {
+                case "Once": {
+                    await process();
+                    break;
+                }
+                case "TwiceConcurrently": {
+                    // 5% of the time run processing twice serially instead of twice concurrently.
+                    // Just to make sure we exercise both code paths. Running processing twice
+                    // serially can be expensive for some formats.
+                    if (Math.random() < 0.05) {
+                        await process();
+                        await process();
+                    } else {
+                        await runAllPromises([process(), process()]);
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(processingType);
+            }
+        }
+    });
 
     beforeAll(async () => {
         port = await getPort();
@@ -107,19 +157,20 @@ export function testFileProcessorContentTypes(
             joinPath(context.getTemporaryDirectoryPath(), "r2", filesBindingName),
         );
         r2Bucket = new R2Bucket(r2Storage);
-        const r2ContextModule = new CloudflareR2ContextModule(
-            new MiniflareR2Client({
-                fileUploadServiceUrl: `http://localhost:${port}`,
-                bucketByName: new Map([[filesBucketName, r2Bucket]]),
-            }),
+        r2Client = new MiniflareR2Client({
+            fileProcessorServiceUrl: `http://localhost:${port}`,
+            bucketByName: new Map([[filesBucketName, r2Bucket]]),
+        });
+        const r2ContextModule = new CloudflareR2ContextModule(r2Client);
+
+        [appTokenAgent, edgeTokenAgent, fileProcessorTokenAgent] = await createTestTokenAgents(
+            context,
+            ["AppService", "EdgeService", "FileProcessorService"],
         );
 
-        [serverTokenAgent, tokenAgent] = await createTestTokenAgents(context, [
-            "FileUploadService",
-            "EdgeService",
-        ]);
-        server = createFileUploadService(context.clone({r2: r2ContextModule}), {
-            tokenAgent: serverTokenAgent,
+        const server = createFileProcessorServiceServer(context.clone({r2: r2ContextModule}), {
+            shutdownManager,
+            tokenAgent: fileProcessorTokenAgent,
             temporaryDirectoryPath: joinPath(context.getTemporaryDirectoryPath(), "files"),
         });
 
@@ -129,405 +180,296 @@ export function testFileProcessorContentTypes(
     });
 
     afterAll(async () => {
-        await new Promise<void>((resolve, reject) => {
-            server.close(error => {
-                if (error) reject(error);
-                else resolve();
-            });
-        });
+        await shutdown({type: "Signal", signal: "SIGINT"}, null);
     });
 
-    async function authorization(session: TestSession) {
-        const token = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-            "FileUploadService",
-            session.getTokenPayload(),
-        );
+    async function uploadFileForTest(
+        session: TestSpaceSession,
+        {contentType, body}: {contentType: string; body: Buffer},
+    ) {
+        const fileId = await context.tracer
+            .getRoot()
+            .withSpan("Upload file for test", async span => {
+                const token = await appTokenAgent.privateSide.dangerouslySignShortLivedToken(
+                    "EdgeService",
+                    session.getTokenPayload(),
+                );
 
-        return `Bearer ${token}`;
-    }
+                const request = new Request(`http://localhost/${session.space.id}/upload`, {
+                    method: "POST",
+                    headers: {
+                        cookie: `session=${token}`,
+                        "content-type": contentType,
+                        "content-length": String(body.length),
+                    },
+                    body,
+                });
 
-    function massageHeaders(headers: Headers) {
-        return omitObject(Object.fromEntries(headers), [
-            "connection",
-            "date",
-            "keep-alive",
-            "transfer-encoding",
-        ]);
-    }
+                const url = new URL(request.url);
 
-    function parseJsonEvents(responseText: string) {
-        return responseText
-            .trim()
-            .split("\n")
-            .map(eventString => UploadFileEventSchema.deserialize(JSON.parse(eventString)));
-    }
-
-    for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
-        for (const {
-            only,
-            path,
-            alternative: expectedAlternative,
-            imagePreviewVideoDuration: expectedImagePreviewVideoDuration,
-            imagePreviewSize: expectedImagePreviewSize,
-            imagePreviewPlaceholder: expectedImagePreviewPlaceholder,
-            isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
-            imagePreviewContent: expectedImagePreviewContent,
-            audioPreviewDuration: expectedAudioPreviewDuration,
-            audioPreviewMetadata: expectedAudioPreviewMetadata,
-            codePreviewContentLength: expectedCodePreviewContentLength,
-            codePreviewContent: expectedCodePreviewContent,
-            previewError: expectedPreviewError,
-            looksSameTolerance = 35,
-        } of contentTypeTestCases) {
-            const testFn = only ? test.only : test;
-
-            testFn(
-                quote`can upload ${contentType} file ${path}`,
-                async () => {
-                    const space = await TestSpace.create(context);
-                    const session = await space.createSession();
-
-                    const contents = await fs.readFile(
-                        joinPath(
-                            runfilesPath,
-                            "cyberworlds/server/files/upload/test_fixtures",
-                            path,
-                        ),
-                    );
-
-                    // eslint-disable-next-line no-global-fetch
-                    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                        method: "POST",
-                        headers: {
-                            authorization: await authorization(session),
-                            "content-type": contentType,
-                        },
-                        body: contents,
-                    });
-                    const responseText = await response.text();
-
-                    expect(massageHeaders(response.headers)).toEqual({
-                        "content-type": "application/x-ndjson",
-                    });
-
-                    const eventOrder = [
-                        "Start",
-                        "ImagePreviewSize",
-                        "ImagePreviewPlaceholder",
-                        "ImagePreviewContent",
-                        "ImagePreviewVideoDuration",
-                        "AudioPreviewDuration",
-                        "AudioPreviewMetadata",
-                        "CodePreviewContent",
-                        "PreviewError",
-                        "Alternative",
-                        "Finish",
-                    ];
-                    const events = parseJsonEvents(responseText).sort(
-                        (event1, event2) =>
-                            eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
-                    );
-
-                    expect(
-                        findMapIterable(events, event =>
-                            event.type === "Error" ? event.error : undefined,
-                        ),
-                    ).toEqual(undefined);
-
-                    const fileId = assertExists(
-                        findMapIterable(events, event =>
-                            event.type === "Start" ? event.fileId : undefined,
-                        ),
-                    );
-
-                    const file = await getFileAsUploader(space.systemAction(), space.id, fileId);
-                    expect(file).toEqual(
-                        new FileModel({
-                            id: fileId,
-                            contentType: contentType as FileContentType,
-                            contentLength: expect.any(Number),
-                            isUploading: false,
-                            alternative: expectedAlternative
-                                ? {
-                                      isProcessing: false,
-                                      contentType: expectedAlternative.contentType,
-                                      contentLength: expect.any(Number),
-                                      isImagePreviewContent: false,
-                                  }
-                                : expectedIsImagePreviewContentAlternative
-                                ? {
-                                      isProcessing: false,
-                                      contentType: assertExists(expectedImagePreviewContent)
-                                          .contentType,
-                                      contentLength: expect.any(Number),
-                                      isImagePreviewContent: true,
-                                  }
-                                : null,
-                            preview: expectedPreviewError
-                                ? {
-                                      type: "Image",
-                                      isProcessing: false,
-                                      ok: false,
-                                      error: expectedPreviewError,
-                                      size: "Error",
-                                      placeholder: "Error",
-                                      content: "Error",
-                                      videoDuration: expectedImagePreviewVideoDuration
-                                          ? "Error"
-                                          : undefined,
-                                  }
-                                : expectedImagePreviewSize
-                                ? {
-                                      type: "Image",
-                                      isProcessing: false,
-                                      ok: true,
-                                      size: {
-                                          width: expectedImagePreviewSize.width,
-                                          height: expectedImagePreviewSize.height,
-                                          scale: expectedImagePreviewSize.scale ?? 1,
-                                          hasAlpha: expectedImagePreviewSize.hasAlpha ?? false,
-                                      },
-                                      placeholder: expect.any(FileImagePreviewPlaceholder),
-                                      content: expectedImagePreviewContent
-                                          ? {
-                                                contentType:
-                                                    expectedImagePreviewContent.contentType,
-                                                contentLength: expect.any(Number),
-                                            }
-                                          : undefined,
-                                      videoDuration: expectedImagePreviewVideoDuration,
-                                  }
-                                : expectedAudioPreviewDuration !== undefined
-                                ? {
-                                      type: "Audio",
-                                      isProcessing: false,
-                                      duration: expectedAudioPreviewDuration,
-                                      metadata: {
-                                          title: expectedAudioPreviewMetadata?.title ?? null,
-                                          artist: expectedAudioPreviewMetadata?.artist ?? null,
-                                          album: expectedAudioPreviewMetadata?.album ?? null,
-                                      },
-                                  }
-                                : expectedCodePreviewContent !== undefined
-                                ? {
-                                      type: "Code",
-                                      isProcessing: false,
-                                      content: expect.any(FileCodePreviewContent),
-                                  }
-                                : null,
+                const response = await uploadFile(
+                    ({sessionId, accountId}) =>
+                        context.action({sessionId, accountId}).clone({
+                            tracer: new TracerContextModule(span),
+                            rpc: new TestUploadFileRpcContextModule(),
                         }),
-                    );
+                    {},
+                    {FilesBucket: r2Bucket as any},
+                    edgeTokenAgent,
+                    request,
+                    url,
+                    span,
+                    {spaceId: session.space.id},
+                );
 
-                    expect(events).toEqual([
-                        {
-                            type: "Start",
-                            hasAlternative:
-                                !!expectedAlternative || !!expectedIsImagePreviewContentAlternative,
-                            hasPreview:
-                                !!expectedImagePreviewSize || !!expectedPreviewError
-                                    ? {
-                                          type: "Image",
-                                          hasContent:
-                                              !!expectedImagePreviewContent ||
-                                              !!expectedPreviewError,
-                                          hasVideoDuration: !!expectedImagePreviewVideoDuration,
-                                      }
-                                    : expectedAudioPreviewDuration !== undefined
-                                    ? {type: "Audio"}
-                                    : expectedCodePreviewContent !== undefined
-                                    ? {type: "Code"}
-                                    : null,
-                            fileId: expect.any(String),
-                            signedUrlSearch: "",
+                const responseBody = UploadFileResponseSchema.deserialize(await response.json());
+                if (!responseBody.ok) throw responseBody.error;
+
+                return responseBody.file.id;
+            });
+
+        // Wait for the file to be processed...
+        //
+        // Don't log a `DeadlineExceededError` for long running tasks. It genuinely
+        // takes a while for some files to process.
+        await ProcessContextModule.waitForTestTasks({withoutDeadlineExceededLog: true});
+
+        return getFileAsUploader(session.action(), session.space.id, fileId);
+    }
+
+    // Make sure file processing is idempotent by running each twice. The first
+    // time the file is processed only once. The second time the file is processed
+    // twice concurrently.
+    for (const currentProcessingType of ["Once", "TwiceConcurrently"] as const) {
+        // If `only` has been set on one of our tests, then let's only run the `Once`
+        // test suite.
+        const describeFn = Object.values(testCases).some(contentTypeTestCases =>
+            contentTypeTestCases.some(testCase => !!testCase.only),
+        )
+            ? currentProcessingType === "Once"
+                ? describe.only
+                : describe.skip
+            : describe;
+
+        describeFn(`processing: ${currentProcessingType}`, () => {
+            beforeEach(() => {
+                processingType = currentProcessingType;
+            });
+
+            for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
+                for (const {
+                    only,
+                    path,
+                    alternative: expectedAlternative,
+                    imagePreviewVideoDuration: expectedImagePreviewVideoDuration,
+                    imagePreviewSize: expectedImagePreviewSize,
+                    imagePreviewPlaceholder: expectedImagePreviewPlaceholder,
+                    isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
+                    imagePreviewContent: expectedImagePreviewContent,
+                    audioPreviewDuration: expectedAudioPreviewDuration,
+                    audioPreviewMetadata: expectedAudioPreviewMetadata,
+                    codePreviewContentLength: expectedCodePreviewContentLength,
+                    codePreviewContent: expectedCodePreviewContent,
+                    previewError: expectedPreviewError,
+                    looksSameTolerance = 35,
+                } of contentTypeTestCases) {
+                    const testFn = only ? test.only : test;
+
+                    testFn(
+                        quote`can upload ${contentType} file ${path}`,
+                        async () => {
+                            const space = await TestSpace.create(context);
+                            const session = await space.createSession();
+
+                            const contents = await fs.readFile(
+                                joinPath(
+                                    runfilesPath,
+                                    "cyberworlds/server/files/processor/test_fixtures",
+                                    path,
+                                ),
+                            );
+
+                            const file = await uploadFileForTest(session, {
+                                contentType,
+                                body: contents,
+                            });
+
+                            expect(file).toEqual(
+                                new FileModel({
+                                    id: file.id,
+                                    contentType: contentType as FileContentType,
+                                    contentLength: expect.any(Number),
+                                    isUploading: false,
+                                    alternative: expectedAlternative
+                                        ? {
+                                              isProcessing: false,
+                                              ok: true,
+                                              contentType: expectedAlternative.contentType,
+                                              contentLength: expect.any(Number),
+                                              isImagePreviewContent: false,
+                                          }
+                                        : expectedIsImagePreviewContentAlternative
+                                        ? {
+                                              isProcessing: false,
+                                              ok: true,
+                                              contentType: assertExists(expectedImagePreviewContent)
+                                                  .contentType,
+                                              contentLength: expect.any(Number),
+                                              isImagePreviewContent: true,
+                                          }
+                                        : null,
+                                    preview: expectedPreviewError
+                                        ? {
+                                              type: "Image",
+                                              isProcessing: false,
+                                              ok: false,
+                                              error: expectedPreviewError,
+                                              size: "Error",
+                                              placeholder: "Error",
+                                              content: "Error",
+                                              videoDuration: expectedImagePreviewVideoDuration
+                                                  ? "Error"
+                                                  : undefined,
+                                          }
+                                        : expectedImagePreviewSize
+                                        ? {
+                                              type: "Image",
+                                              isProcessing: false,
+                                              ok: true,
+                                              size: {
+                                                  width: expectedImagePreviewSize.width,
+                                                  height: expectedImagePreviewSize.height,
+                                                  scale: expectedImagePreviewSize.scale ?? 1,
+                                                  hasAlpha:
+                                                      expectedImagePreviewSize.hasAlpha ?? false,
+                                              },
+                                              placeholder: expect.any(FileImagePreviewPlaceholder),
+                                              content: expectedImagePreviewContent
+                                                  ? {
+                                                        contentType:
+                                                            expectedImagePreviewContent.contentType,
+                                                        contentLength: expect.any(Number),
+                                                    }
+                                                  : undefined,
+                                              videoDuration: expectedImagePreviewVideoDuration,
+                                          }
+                                        : expectedAudioPreviewDuration !== undefined
+                                        ? {
+                                              type: "Audio",
+                                              isProcessing: false,
+                                              ok: true,
+                                              duration: expectedAudioPreviewDuration,
+                                              metadata: {
+                                                  title:
+                                                      expectedAudioPreviewMetadata?.title ?? null,
+                                                  artist:
+                                                      expectedAudioPreviewMetadata?.artist ?? null,
+                                                  album:
+                                                      expectedAudioPreviewMetadata?.album ?? null,
+                                              },
+                                          }
+                                        : expectedCodePreviewContent !== undefined
+                                        ? {
+                                              type: "Code",
+                                              isProcessing: false,
+                                              ok: true,
+                                              content: expect.any(FileCodePreviewContent),
+                                          }
+                                        : null,
+                                }),
+                            );
+
+                            // Test to make sure the object we stored in Cloudflare R2 is exactly equal to
+                            // the input object.
+                            {
+                                const object = await r2Bucket.get(`${space.id}/${file.id}`);
+                                if (!object) throw new NotFoundError("File not found");
+
+                                const actualContents = Buffer.from(
+                                    await waitForReadableStreamUint8Array(
+                                        object.body as globalThis.ReadableStream<Uint8Array>,
+                                    ),
+                                );
+
+                                expect(contents.equals(actualContents)).toEqual(true);
+                            }
+
+                            const imagePreviewPlaceholder =
+                                file.preview?.type === "Image" &&
+                                typeof file.preview.placeholder !== "string"
+                                    ? file.preview.placeholder
+                                    : undefined;
+
+                            if (!expectedImagePreviewPlaceholder) {
+                                expect(imagePreviewPlaceholder).toEqual(undefined);
+                            } else {
+                                // Compare placeholders. Sharp's placeholder generation isn't deterministic
+                                // across platforms. So check that placeholders are close to each other if not
+                                // exactly equal.
+                                compareFileImagePreviewPlaceholders(
+                                    assertExists(imagePreviewPlaceholder),
+                                    expectedImagePreviewPlaceholder,
+                                );
+                            }
+
+                            const codePreviewContent =
+                                file.preview?.type === "Code" &&
+                                typeof file.preview.content !== "string"
+                                    ? file.preview.content
+                                    : undefined;
+
+                            expect(
+                                codePreviewContent
+                                    ?.get()
+                                    .map(item =>
+                                        item.type === "Newline"
+                                            ? "\n"
+                                            : item.classes
+                                            ? `<span class="${item.classes}">${escapeHtml(
+                                                  item.string,
+                                              )}</span>`
+                                            : escapeHtml(item.string),
+                                    )
+                                    .join(""),
+                            ).toEqual(expectedCodePreviewContent);
+                            expect(codePreviewContent?.serialize().length).toEqual(
+                                expectedCodePreviewContentLength,
+                            );
+
+                            await testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
+                                context,
+                                {
+                                    r2Bucket,
+                                    contentType,
+                                    path,
+                                    space,
+                                    fileId: file.id,
+                                    expectedAlternative,
+                                    looksSameTolerance,
+                                },
+                            );
+
+                            await testFileProcessorServiceContentTypeExpectedImagePreviewContentSimilarity(
+                                {
+                                    r2Bucket,
+                                    contentType,
+                                    path,
+                                    space,
+                                    fileId: file.id,
+                                    expectedImagePreviewContent,
+                                    looksSameTolerance,
+                                },
+                            );
                         },
-                        ...(expectedImagePreviewSize
-                            ? [
-                                  {
-                                      type: "ImagePreviewSize",
-                                      size: {
-                                          width: expectedImagePreviewSize.width,
-                                          height: expectedImagePreviewSize.height,
-                                          scale: expectedImagePreviewSize.scale ?? 1,
-                                          hasAlpha: expectedImagePreviewSize.hasAlpha ?? false,
-                                      },
-                                  },
-                              ]
-                            : []),
-                        ...(expectedImagePreviewPlaceholder
-                            ? [
-                                  {
-                                      type: "ImagePreviewPlaceholder",
-                                      placeholder: expect.any(FileImagePreviewPlaceholder),
-                                  },
-                              ]
-                            : []),
-                        ...(expectedImagePreviewContent
-                            ? [
-                                  {
-                                      type: "ImagePreviewContent",
-                                      contentType: expectedImagePreviewContent.contentType,
-                                      contentLength:
-                                          file.preview?.type === "Image" &&
-                                          !file.preview.isProcessing &&
-                                          file.preview.ok
-                                              ? file.preview.content?.contentLength
-                                              : null,
-                                  },
-                              ]
-                            : []),
-                        ...(expectedImagePreviewVideoDuration !== undefined
-                            ? [
-                                  {
-                                      type: "ImagePreviewVideoDuration",
-                                      videoDuration: expectedImagePreviewVideoDuration,
-                                  },
-                              ]
-                            : []),
-                        ...(expectedAudioPreviewDuration !== undefined
-                            ? [
-                                  {
-                                      type: "AudioPreviewDuration",
-                                      duration: expectedAudioPreviewDuration,
-                                  },
-                                  {
-                                      type: "AudioPreviewMetadata",
-                                      metadata: {
-                                          title: expectedAudioPreviewMetadata?.title ?? null,
-                                          artist: expectedAudioPreviewMetadata?.artist ?? null,
-                                          album: expectedAudioPreviewMetadata?.album ?? null,
-                                      },
-                                  },
-                              ]
-                            : []),
-                        ...(expectedCodePreviewContent !== undefined
-                            ? [
-                                  {
-                                      type: "CodePreviewContent",
-                                      content: expect.any(FileCodePreviewContent),
-                                  },
-                              ]
-                            : []),
-                        ...(expectedPreviewError
-                            ? [
-                                  {
-                                      type: "PreviewError",
-                                      error: expectedPreviewError,
-                                  },
-                              ]
-                            : []),
-                        ...(expectedAlternative
-                            ? [
-                                  {
-                                      type: "Alternative",
-                                      contentType: expectedAlternative.contentType,
-                                      contentLength:
-                                          file.alternative && !file.alternative.isProcessing
-                                              ? file.alternative.contentLength
-                                              : null,
-                                      isImagePreviewContent: false,
-                                  },
-                              ]
-                            : expectedIsImagePreviewContentAlternative
-                            ? [
-                                  {
-                                      type: "Alternative",
-                                      contentType: assertExists(expectedImagePreviewContent)
-                                          .contentType,
-                                      contentLength:
-                                          file.preview?.type === "Image" &&
-                                          !file.preview.isProcessing &&
-                                          file.preview.ok
-                                              ? file.preview.content?.contentLength
-                                              : null,
-                                      isImagePreviewContent: true,
-                                  },
-                              ]
-                            : []),
-                        {
-                            type: "Finish",
-                        },
-                    ]);
-                    expect(response.status).toEqual(200);
-
-                    // Test to make sure the object we stored in Cloudflare R2 is exactly equal to
-                    // the input object.
-                    {
-                        const object = await r2Bucket.get(`${space.id}/${fileId}`);
-                        if (!object) throw new NotFoundError("File not found");
-
-                        const actualContents = Buffer.from(
-                            await waitForReadableStreamUint8Array(
-                                object.body as globalThis.ReadableStream<Uint8Array>,
-                            ),
-                        );
-
-                        expect(contents.equals(actualContents)).toEqual(true);
-                    }
-
-                    const imagePreviewPlaceholder = findMapIterable(events, event =>
-                        event.type === "ImagePreviewPlaceholder" ? event.placeholder : undefined,
+                        60 * 1000,
                     );
-
-                    if (!expectedImagePreviewPlaceholder) {
-                        expect(imagePreviewPlaceholder).toEqual(undefined);
-                    } else {
-                        // Compare placeholders. Sharp's placeholder generation isn't deterministic
-                        // across platforms. So check that placeholders are close to each other if not
-                        // exactly equal.
-                        compareFileImagePreviewPlaceholders(
-                            assertExists(imagePreviewPlaceholder),
-                            expectedImagePreviewPlaceholder,
-                        );
-                    }
-
-                    const codePreviewContent = findMapIterable(events, event =>
-                        event.type === "CodePreviewContent" ? event.content : undefined,
-                    );
-                    expect(
-                        codePreviewContent
-                            ?.get()
-                            .map(item =>
-                                item.type === "Newline"
-                                    ? "\n"
-                                    : item.classes
-                                    ? `<span class="${item.classes}">${escapeHtml(
-                                          item.string,
-                                      )}</span>`
-                                    : escapeHtml(item.string),
-                            )
-                            .join(""),
-                    ).toEqual(expectedCodePreviewContent);
-                    expect(codePreviewContent?.serialize().length).toEqual(
-                        expectedCodePreviewContentLength,
-                    );
-
-                    await testFileUploadServiceContentTypeExpectedAlternativeSimilarity(context, {
-                        r2Bucket,
-                        contentType,
-                        path,
-                        space,
-                        fileId,
-                        expectedAlternative,
-                        looksSameTolerance,
-                    });
-
-                    await testFileUploadServiceContentTypeExpectedImagePreviewContentSimilarity({
-                        r2Bucket,
-                        contentType,
-                        path,
-                        space,
-                        fileId,
-                        expectedImagePreviewContent,
-                        looksSameTolerance,
-                    });
-                },
-                60 * 1000,
-            );
-        }
+                }
+            }
+        });
     }
 }
 
-async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
+async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
     context: TestContext,
     {
         r2Bucket,
@@ -569,7 +511,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
 
                 const expectedPath = joinPath(
                     runfilesPath,
-                    "cyberworlds/server/files/upload/test_fixtures",
+                    "cyberworlds/server/files/processor/test_fixtures",
                     expectedAlternative.similarPath,
                 );
 
@@ -646,7 +588,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
 
                 const expectedPath = joinPath(
                     runfilesPath,
-                    "cyberworlds/server/files/upload/test_fixtures",
+                    "cyberworlds/server/files/processor/test_fixtures",
                     expectedAlternative.similarPath,
                 );
 
@@ -720,10 +662,8 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                         [
                             "-i",
                             "pipe:0",
-                            // Only use up to 2 threads for FFmpeg to avoid resource contention
-                            // in tests.
                             "-threads",
-                            "2",
+                            String(ffmpegThreadCount),
                             // We're repackaging the file so duration metadata is added.
                             "-c",
                             "copy",
@@ -832,9 +772,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                             ["-r", "1"],
                             // Controls JPEG image quality.
                             ["-q:v", "2"],
-                            // Only use up to 2 threads for FFmpeg to avoid resource contention
-                            // in tests.
-                            ["-threads", "2"],
+                            ["-threads", String(ffmpegThreadCount)],
                             joinPath(
                                 temporaryVideoSimilarityDirectoryPath,
                                 "actual/frame_%04d.jpeg",
@@ -859,9 +797,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                             ["-r", "1"],
                             // Controls JPEG image quality.
                             ["-q:v", "2"],
-                            // Only use up to 2 threads for FFmpeg to avoid resource contention
-                            // in tests.
-                            ["-threads", "2"],
+                            ["-threads", String(ffmpegThreadCount)],
                             joinPath(
                                 temporaryVideoSimilarityDirectoryPath,
                                 "expected/frame_%04d.jpeg",
@@ -960,7 +896,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
         if (expectedAlternative.similarPath) {
             const expectedPath = joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures",
+                "cyberworlds/server/files/processor/test_fixtures",
                 expectedAlternative.similarPath,
             );
 
@@ -995,7 +931,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
     }
 }
 
-async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimilarity({
+async function testFileProcessorServiceContentTypeExpectedImagePreviewContentSimilarity({
     r2Bucket,
     contentType,
     path,
@@ -1024,7 +960,7 @@ async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimila
         fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures",
+                "cyberworlds/server/files/processor/test_fixtures",
                 expectedImagePreviewContent.similarPath,
             ),
         ),

@@ -10,6 +10,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * Get a human readable name for the content type which includes the format of
  * the file. For format names, we use the name of the format from Wikipedia.
  * Exactly as it's spelled on Wikipedia.
+ *
+ * This function is in `~/shared/content/code` because it depends on
+ * `contentCodeBlockLanguageById` from
+ * `~/shared/content/code/content_code_block_language.js` which isn't available
+ * in `~/shared/files`.
  */
 export function getFileContentTypeName(contentType: FileContentType): string {
     return `${getFileContentTypeFormatName(contentType)} ${getFileContentTypeNoun(contentType)}`;

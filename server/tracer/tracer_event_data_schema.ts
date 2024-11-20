@@ -342,6 +342,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         batchSize: Schema.integer,
         delaySeconds: Schema.float,
         queueDurationMs: Schema.float,
+        willRetry: Schema.boolean,
     },
     cohere: {
         textCount: Schema.integer,
@@ -408,6 +409,16 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             imageVideoDurationMs: Schema.float,
             audioDurationMs: Schema.float,
             codeContentLength: Schema.integer,
+        },
+        processing: {
+            alternativeDurationMs: Schema.float,
+            imagePreviewSizeDurationMs: Schema.float,
+            imagePreviewPlaceholderDurationMs: Schema.float,
+            imagePreviewContentDurationMs: Schema.float,
+            imagePreviewVideoDurationDurationMs: Schema.float,
+            audioPreviewDurationDurationMs: Schema.float,
+            audioPreviewMetadataDurationMs: Schema.float,
+            codePreviewContentDurationMs: Schema.float,
         },
     },
     libreoffice: {

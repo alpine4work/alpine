@@ -10,6 +10,7 @@ import {
     renderFileImagePreviewPlaceholder,
 } from "~/client/content/internal/content_file_preview.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -32,7 +33,6 @@ import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -79,10 +79,7 @@ export function ContentFileImageViewerMobile({
         file.preview.size === "Processing"
     ) {
         if (!file.preview.isProcessing && !file.preview.ok) {
-            const ErrorConstructor = getErrorConstructorForCode(file.preview.error.code);
-            throw new ErrorConstructor("Couldn't process file", {
-                displayMessage: file.preview.error.displayMessage,
-            });
+            throw new ContentFileProcessorError(file.contentType, file.preview.error);
         }
 
         return (

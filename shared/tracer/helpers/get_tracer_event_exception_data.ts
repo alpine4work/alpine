@@ -26,15 +26,15 @@ export function getTracerEventExceptionData(
         if (!(error instanceof AggregateError)) {
             aggregateErrors.push(error);
         } else {
-            for (const subError of error.errors) {
-                pushAggregateError(subError);
+            for (const childError of error.errors) {
+                pushAggregateError(childError);
             }
         }
     };
 
     if (error instanceof AggregateError) {
-        for (const subError of error.errors) {
-            pushAggregateError(subError);
+        for (const childError of error.errors) {
+            pushAggregateError(childError);
         }
     }
 

@@ -8,7 +8,7 @@ import {
     changeMessageVisibilityBatchTestCounter,
     deleteMessageBatchTestCounter,
     receiveMessageTestCounter,
-} from "~/server/jobs/queue/job_queue_consumer.js";
+} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,7 +18,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-let consumer: JobQueueConsumer<TestContextModules> | null = null;
+let consumer: JobQueueConsumer<"Default", TestContextModules> | null = null;
 
 let receiveMessageRecorder: {getCount: () => number};
 let deleteMessageBatchRecorder: {getCount: () => number};
@@ -41,7 +41,10 @@ beforeEach(async () => {
 
     consumer = JobQueueConsumer.start(context, {
         region: "us-east-1",
+        queueName: "Default",
         queueUrl: `http://localhost:${context.getSqsLocalPort()}/local/JobQueue`,
+        maxConsumeCallMessageCount: 10,
+        maxRunningConsumeCallCount: 10,
         processJob: async (context, job) => {
             switch (job.type) {
                 case "Test": {

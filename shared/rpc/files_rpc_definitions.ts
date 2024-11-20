@@ -1,8 +1,35 @@
 import {FileAttachmentTargetSchema} from "~/shared/files/file_attachment_target.js";
+import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
+
+export const startUploadingFile = defineRpc({
+    name: "startUploadingFile",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        fileId: Schema.id<FileId>().nullable(),
+        contentType: FileContentTypeSchema,
+        contentLength: Schema.integer,
+        attachTarget: FileAttachmentTargetSchema.nullable(),
+    },
+    output: {
+        fileId: Schema.id<FileId>(),
+    },
+});
+
+export const finishUploadingAndStartProcessingFile = defineRpc({
+    name: "finishUploadingAndStartProcessingFile",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        fileId: Schema.id<FileId>(),
+    },
+    output: {
+        signedUrlSearch: Schema.string,
+        file: FileModel.schema(),
+    },
+});
 
 export const getFileFromAttachment = defineRpc({
     name: "getFileFromAttachment",

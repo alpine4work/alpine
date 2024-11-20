@@ -148,16 +148,29 @@ messages-storage {
         endpoint: `http://localhost:${port}`,
     });
     try {
-        await client.send(new CreateQueueCommand({QueueName: "JobDeadLetterQueue"}));
+        await runAllPromises([
+            client.send(new CreateQueueCommand({QueueName: "JobDeadLetterQueue"})),
+            client.send(new CreateQueueCommand({QueueName: "FileProcessorJobDeadLetterQueue"})),
+        ]);
 
-        await client.send(
-            new CreateQueueCommand({
-                QueueName: "JobQueue",
-                Attributes: {
-                    RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:JobDeadLetterQueue","maxReceiveCount":"5"}`,
-                },
-            }),
-        );
+        await runAllPromises([
+            client.send(
+                new CreateQueueCommand({
+                    QueueName: "JobQueue",
+                    Attributes: {
+                        RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:JobDeadLetterQueue","maxReceiveCount":"5"}`,
+                    },
+                }),
+            ),
+            client.send(
+                new CreateQueueCommand({
+                    QueueName: "FileProcessorJobQueue",
+                    Attributes: {
+                        RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobDeadLetterQueue","maxReceiveCount":"5"}`,
+                    },
+                }),
+            ),
+        ]);
     } finally {
         client.destroy();
     }

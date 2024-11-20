@@ -114,12 +114,12 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         // schedule a callback for graceful shutdown with
         // `shutdownManager.registerListener()`.
         let shutdownTracerPropagationContext: TracerSpanPropagationContext | null = null;
-        process.on("SIGINT", () =>
-            shutdown({type: "Signal", signal: "SIGINT"}, shutdownTracerPropagationContext),
-        );
-        process.on("SIGTERM", () =>
-            shutdown({type: "Signal", signal: "SIGTERM"}, shutdownTracerPropagationContext),
-        );
+        process.on("SIGINT", () => {
+            void shutdown({type: "Signal", signal: "SIGINT"}, shutdownTracerPropagationContext);
+        });
+        process.on("SIGTERM", () => {
+            void shutdown({type: "Signal", signal: "SIGTERM"}, shutdownTracerPropagationContext);
+        });
 
         // In production, run our service across all available CPUs so we get full
         // CPU utilization.
@@ -137,7 +137,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                     quote`Worker exited with code ${exitCode} by signal ${signal}, killing cluster`,
                 );
 
-                shutdown({type: "Error", error}, null);
+                void shutdown({type: "Error", error}, null);
             });
 
             for (let workerIndex = 0; workerIndex < workerCount; workerIndex++) {
@@ -230,7 +230,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                 workerIndex,
             });
         } catch (error) {
-            shutdown({type: "Error", error}, null);
+            void shutdown({type: "Error", error}, null);
 
             // We don't need to `throw actualError` since calling `shutdown()` will make
             // sure the process exits with exit code 1 once all shutdown listeners have

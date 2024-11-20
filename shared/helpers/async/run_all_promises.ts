@@ -1,6 +1,7 @@
 import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 
 /**
  * Runs multiple promises in parallel. Should generally be used instead of
@@ -85,14 +86,14 @@ export function getAggregateErrorPriority(error: unknown): number {
  * flatten them in the resulting `AggregateError`s result list.
  */
 export function createAggregateError(errors: Iterable<unknown>): unknown {
-    const errorsArray: Array<unknown> = [];
+    const errorSet = new Set<unknown>();
 
     const pushError = (error: unknown) => {
         if (!(error instanceof AggregateError) || error.errors.length === 0) {
-            errorsArray.push(error);
+            errorSet.add(error);
         } else {
-            for (const subError of error.errors) {
-                pushError(subError);
+            for (const childError of error.errors) {
+                pushError(childError);
             }
         }
     };
@@ -101,12 +102,12 @@ export function createAggregateError(errors: Iterable<unknown>): unknown {
         pushError(error);
     }
 
-    if (errorsArray.length === 1) return errorsArray[0]!;
+    if (errorSet.size === 1) return iterableFirst(errorSet);
 
     let highestPriority: number | null = null;
     let highestPriorityError: unknown;
 
-    for (const error of errorsArray) {
+    for (const error of errorSet) {
         const priority = getAggregateErrorPriority(error);
 
         if (highestPriority === null || highestPriority < priority) {
@@ -118,10 +119,10 @@ export function createAggregateError(errors: Iterable<unknown>): unknown {
     if (highestPriority === null) {
         return new InternalError("Tried to create an `AggregateError` with no errors");
     } else {
-        const otherErrorCount = errorsArray.length - 1;
+        const otherErrorCount = errorSet.size - 1;
 
         const error = new AggregateError(
-            errorsArray,
+            errorSet,
             `${
                 highestPriorityError instanceof Error
                     ? highestPriorityError.message

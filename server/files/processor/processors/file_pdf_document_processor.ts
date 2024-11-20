@@ -1,20 +1,30 @@
+import fsSync from "fs";
+import fs from "fs/promises";
+import {join as joinPath} from "path";
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {waitForReadableStreamBuffer} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
+import {finished} from "stream/promises";
+import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
 import {
-    pdfPasswordRequiredErrorDisplayMessage,
     processFileImagePreviewPlaceholder,
     rethrowClassifiedSharpError,
     sharpTimeoutSeconds,
-} from "~/server/files/upload/processors/file_image_processor_base.js";
+} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {
     FileProcessor,
     FileProcessorTemplate,
-} from "~/server/files/upload/processors/file_processor.js";
+} from "~/server/files/processor/processors/file_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
+import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {FileContentType, FilePdfDocumentContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    FilePdfDocumentContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -38,51 +48,98 @@ export function createFilePdfDocumentProcessor(
             hasContent: true,
             hasVideoDuration: false,
         },
+        process: async (
+            context,
+            {spaceId, fileId, signal, contentLength, withTemporaryDirectory},
+        ) => {
+            const [temporaryDirectoryPath, object] = await runAllPromises([
+                withTemporaryDirectory(),
+                context.r2.GetObject(
+                    {
+                        Bucket: filesBucketName,
+                        Key: `${spaceId}/${fileId}`,
+                    },
+                    {signal},
+                ),
+            ]);
 
-        // If the PDF is password protected then it's ok to finish the upload. We won't
-        // be able to render the PDF but the user should still be able to download it
-        // and view the PDF on their local machine.
-        acceptError: error => error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
+            assert(object.Body instanceof ReadableStream);
 
-        process: (stream, signal) => processPdfDocumentFile(stream, signal),
+            const inputPath = joinPath(temporaryDirectoryPath, "input.pdf");
+            const inputWriteStream = fsSync.createWriteStream(inputPath);
+
+            await finished(object.Body.pipe(inputWriteStream));
+
+            return processPdfDocumentFile(context, inputPath, {
+                signal,
+                contentLength,
+                temporaryDirectoryPath,
+            });
+        },
     };
 }
 
 export function processPdfDocumentFile(
-    stream: ReadableStream,
-    signal: AbortSignal,
-    {extractPreview}: {extractPreview?: sharp.Region} = {},
-): ReturnType<
-    FileProcessorTemplate<
-        false,
-        {type: "Image"; hasContent: true; hasVideoDuration: false}
-    >["process"]
+    context: FileProcessorServiceActionContext,
+    inputPath: string,
+    {
+        signal,
+        contentLength,
+        temporaryDirectoryPath,
+        extractPreview,
+    }: {
+        signal: AbortSignal;
+        contentLength: number;
+        temporaryDirectoryPath: string;
+        extractPreview?: sharp.Region;
+    },
+): Awaited<
+    ReturnType<
+        FileProcessorTemplate<
+            false,
+            {type: "Image"; hasContent: true; hasVideoDuration: false}
+        >["process"]
+    >
 > {
-    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-    // more efficient to await `dataPromise` than to use `stream`. See our comment
-    // on `FileProcessor`.
-    const dataPromise = waitForReadableStreamBuffer(stream, signal);
+    // All processing done in this function is with `sharp()` which doesn't support
+    // an `AbortSignal` but does support a timeout. `sharp()` will abort itself
+    // after our 20s timeout which is fine.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    signal;
 
     const previewSizeWithoutExtractPromise = (async () => {
-        const data = await dataPromise;
-
         let retryCount = 0;
 
         while (true) {
             retryCount++;
 
             try {
-                const metadata = await sharp(data, {pages: 1})
-                    .timeout({seconds: sharpTimeoutSeconds})
-                    .metadata()
-                    .catch(rethrowClassifiedSharpError);
+                const metadata = await context.tracer.withSpan(
+                    `sharp get ${getFileContentTypeName("application/pdf")} metadata`,
+                    async (context, span) => {
+                        span.addData({
+                            file: {
+                                contentType: "application/pdf",
+                                contentLength,
+                            },
+                        });
 
-                const expectedFormat = "pdf";
-                if (metadata.format !== expectedFormat) {
-                    throw new InvalidArgumentError(
-                        quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
-                    );
-                }
+                        const metadata = await sharp(inputPath, {pages: 1})
+                            .timeout({seconds: sharpTimeoutSeconds})
+                            .metadata()
+                            .catch(rethrowClassifiedSharpError);
+
+                        const expectedFormat = "pdf";
+                        if (metadata.format !== expectedFormat) {
+                            throw new InvalidArgumentError(
+                                quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+                            );
+                        }
+
+                        return metadata;
+                    },
+                );
 
                 if (metadata.width === undefined || metadata.height === undefined) {
                     throw new InternalError('Couldn\'t find "width" or "height" of image file');
@@ -135,68 +192,90 @@ export function processPdfDocumentFile(
         }
     })();
 
+    const previewContentPath = joinPath(
+        temporaryDirectoryPath,
+        `preview.${getFileContentTypePreferredExtension("image/avif")}`,
+    );
+
     const previewContentPromise = (async (): Promise<{
         contentType: FileContentType;
         contentLength: number;
-        data: Buffer;
+        data: ReadableStream;
     }> => {
-        const [{width, height, scale}, inputData] = await runAllPromises([
-            previewSizeWithoutExtractPromise,
-            dataPromise,
-        ]);
+        const {width, height, scale} = await previewSizeWithoutExtractPromise;
 
-        let sharpInstance = sharp(inputData, {pages: 1})
-            .timeout({seconds: sharpTimeoutSeconds})
-            // AVIF is our preferred format for generating preview images ([source][1],
-            // [source][2]). AVIF has full browser support, provides better compression
-            // than JPEG and WebP, and has alpha channel support (unlike JPEG).
-            //
-            // Quality 80 since:
-            //
-            // - The preview's dimensions are already 2x the original file's
-            // - We only use this when previewing the file, when viewing the file we use a
-            //   full PDF renderer
-            //
-            // We want some compression since the extra storage cost of the preview file is
-            // bourne by us.
-            //
-            // If we need lossless images we should use WebP instead since [AVIF is worse
-            // at lossless compression][3].
-            //
-            // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
-            // [2]: https://jakearchibald.com/2020/avif-has-landed
-            // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
-            .toFormat("avif", {quality: 80})
-            .resize(width, height);
+        await context.tracer.withSpan(
+            `sharp reformat ${getFileContentTypeName(
+                "application/pdf",
+            )} to ${getFileContentTypeName("image/avif")}`,
+            async (context, span) => {
+                span.addData({
+                    file: {
+                        contentType: "application/pdf",
+                        contentLength,
+                    },
+                });
 
-        if (extractPreview) {
-            const extractLeft = clamp(0, extractPreview.left * scale, width);
-            const extractTop = clamp(0, extractPreview.top * scale, height);
+                let sharpInstance = sharp(inputPath, {pages: 1})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    // AVIF is our preferred format for generating preview images ([source][1],
+                    // [source][2]). AVIF has full browser support, provides better compression
+                    // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+                    //
+                    // Quality 80 since:
+                    //
+                    // - The preview's dimensions are already 2x the original file's
+                    // - We only use this when previewing the file, when viewing the file we use a
+                    //   full PDF renderer
+                    //
+                    // We want some compression since the extra storage cost of the preview file is
+                    // bourne by us.
+                    //
+                    // If we need lossless images we should use WebP instead since [AVIF is worse
+                    // at lossless compression][3].
+                    //
+                    // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                    // [2]: https://jakearchibald.com/2020/avif-has-landed
+                    // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
+                    .toFormat("avif", {quality: 80})
+                    .resize(width, height);
 
-            sharpInstance = sharpInstance.extract({
-                left: extractLeft,
-                width: clamp(0, extractPreview.width * scale, width - extractLeft),
-                top: extractTop,
-                height: clamp(0, extractPreview.height * scale, height - extractTop),
-            });
-        }
+                if (extractPreview) {
+                    const extractLeft = clamp(0, extractPreview.left * scale, width);
+                    const extractTop = clamp(0, extractPreview.top * scale, height);
 
-        const outputData = await sharpInstance.toBuffer().catch(rethrowClassifiedSharpError);
+                    sharpInstance = sharpInstance.extract({
+                        left: extractLeft,
+                        width: clamp(0, extractPreview.width * scale, width - extractLeft),
+                        top: extractTop,
+                        height: clamp(0, extractPreview.height * scale, height - extractTop),
+                    });
+                }
+
+                return sharpInstance.toFile(previewContentPath).catch(rethrowClassifiedSharpError);
+            },
+        );
 
         return {
             contentType: "image/avif",
-            contentLength: outputData.length,
-            data: outputData,
+            contentLength: (await fs.stat(previewContentPath)).size,
+            data: fsSync.createReadStream(previewContentPath),
         };
     })();
 
     const previewPlaceholderPromise = (async () => {
         if (extractPreview) {
-            const {data} = await previewContentPromise;
-            return processFileImagePreviewPlaceholder(data);
+            const previewContent = await previewContentPromise;
+
+            return processFileImagePreviewPlaceholder(context, previewContentPath, {
+                contentType: previewContent.contentType,
+                contentLength: previewContent.contentLength,
+            });
         } else {
-            const data = await dataPromise;
-            return processFileImagePreviewPlaceholder(data);
+            return processFileImagePreviewPlaceholder(context, inputPath, {
+                contentType: "application/pdf",
+                contentLength,
+            });
         }
     })();
 
