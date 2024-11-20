@@ -116,5 +116,5 @@ jobs:
                       --cloudflareR2SecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_R2_SECRET_ACCESS_KEY }} \
                       --cloudflareWorkersToken=${{ secrets.DEPLOY_CLOUDFLARE_WORKERS_TOKEN }} \
                       "--cloudflareAccountId=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).cloudflareAccountId)")" \
-                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")"
+                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                       "--fileProcessorJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")"
