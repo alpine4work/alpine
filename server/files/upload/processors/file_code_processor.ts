@@ -1,5 +1,6 @@
 import {NodeType, Tree} from "@lezer/common";
 import {highlightCode} from "@lezer/highlight";
+import {Writable as WritableStream} from "stream";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
@@ -12,6 +13,7 @@ import {
     FileCodeContentType,
     getFileContentTypeContentCodeBlockLanguageId,
 } from "~/shared/files/file_content_type.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 const fileCodePreviewWaitForLineCount = 128;
@@ -28,74 +30,90 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
             const codePreviewContentPromise = (async () => {
                 const parserPromise = language.getParser()?.promise;
 
-                // Receive data from stream until we've received a certain number of lines.
-                // Then stop waiting for data. Next we'll parse the data we've received...
-                const stringPromise = new Promise<string>((resolve, reject) => {
-                    if (stream.readableEnded) {
-                        resolve("");
-                        return;
-                    }
+                let string = "";
+                const promiseResolver = createPromiseResolver();
 
-                    if (signal.aborted) {
-                        reject(signal.reason);
-                        return;
-                    }
+                {
+                    let streamLineCount = 1;
 
-                    let string = "";
-                    let lineCount = 1;
+                    // This code is a little simpler if we attach `stream.on("data")` and
+                    // `stream.on("end")` listeners. However, according to the Node.js
+                    // documentation this may cause problems:
+                    //
+                    // > ##### Choose one API style
+                    // >
+                    // > The `Readable` stream API evolved across multiple Node.js versions and
+                    // > provides multiple methods of consuming stream data. In general,
+                    // > developers should choose one of the methods of consuming data and
+                    // > should never use multiple methods to consume data from a single
+                    // > stream. Specifically, using a combination of `on('data')`,
+                    // > `on('readable')`, `pipe()`, or async iterators could lead to
+                    // > unintuitive behavior.
+                    //
+                    // Given we use this to consume data from a stream we also consume with
+                    // `.pipe()` (the `req` body in an `uploadFile()` HTTP request) let's be
+                    // consistent and use `.pipe()` here too.
+                    const writableStream = new WritableStream({
+                        write: (chunk: Buffer, encoding, callback) => {
+                            const chunkString = chunk.toString("utf8");
+                            string += chunkString;
 
-                    const handleData = (chunk: Buffer) => {
-                        const chunkString = chunk.toString("utf8");
-                        string += chunkString;
+                            let offset = 0;
+                            while (true) {
+                                const index = chunkString.indexOf("\n", offset);
+                                if (index === -1) break;
+                                streamLineCount += 1;
+                                offset = index + 1;
+                            }
 
-                        let offset = 0;
-                        while (true) {
-                            const index = chunkString.indexOf("\n", offset);
-                            if (index === -1) break;
-                            lineCount += 1;
-                            offset = index + 1;
-                        }
+                            if (streamLineCount >= fileCodePreviewWaitForLineCount) {
+                                writableStream.off("error", handleError);
+                                signal.removeEventListener("abort", handleAbort);
+                                promiseResolver.resolve();
 
-                        if (lineCount >= fileCodePreviewWaitForLineCount) {
-                            stream.off("data", handleData);
-                            stream.off("end", handleEnd);
-                            stream.off("error", handleError);
+                                // Unpipe the stream so we don't receive any more data.
+                                stream.unpipe(writableStream);
+                            }
+
+                            callback();
+                        },
+                        final: callback => {
+                            writableStream.off("error", handleError);
                             signal.removeEventListener("abort", handleAbort);
-                            resolve(string);
-                        }
-                    };
 
-                    const handleEnd = () => {
-                        stream.off("data", handleData);
-                        stream.off("end", handleEnd);
-                        stream.off("error", handleError);
-                        signal.removeEventListener("abort", handleAbort);
-                        resolve(string);
-                    };
+                            promiseResolver.resolve();
+
+                            callback();
+                        },
+                    });
 
                     const handleError = (error: unknown) => {
-                        stream.off("data", handleData);
-                        stream.off("end", handleEnd);
-                        stream.off("error", handleError);
+                        writableStream.off("error", handleError);
                         signal.removeEventListener("abort", handleAbort);
-                        reject(error);
+
+                        promiseResolver.reject(error);
+
+                        // Unpipe the stream so we don't receive any more data.
+                        stream.unpipe(writableStream);
                     };
 
                     const handleAbort = () => {
-                        stream.off("data", handleData);
-                        stream.off("end", handleEnd);
-                        stream.off("error", handleError);
+                        writableStream.off("error", handleError);
                         signal.removeEventListener("abort", handleAbort);
-                        reject(signal.reason);
+
+                        promiseResolver.reject(signal.reason);
+
+                        // Unpipe the stream so we don't receive any more data.
+                        stream.unpipe(writableStream);
                     };
 
-                    stream.on("data", handleData);
-                    stream.on("end", handleEnd);
-                    stream.on("error", handleError);
+                    writableStream.on("error", handleError);
                     signal.addEventListener("abort", handleAbort);
-                });
 
-                const [parser, string] = await runAllPromises([parserPromise, stringPromise]);
+                    stream.pipe(writableStream);
+                }
+
+                const [parser] = await runAllPromises([parserPromise, promiseResolver.promise]);
 
                 const content: Array<
                     {type: "Newline"} | {type: "String"; classes: string; string: string}

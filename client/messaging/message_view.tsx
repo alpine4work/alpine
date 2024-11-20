@@ -1,4 +1,4 @@
-import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {timeline} from "motion";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";

@@ -1,8 +1,8 @@
 diff --git a/esbuild/private/esbuild.bzl b/esbuild/private/esbuild.bzl
-index 10d6616..32db947 100644
+index eb9f5e5..6ecb9af 100644
 --- a/esbuild/private/esbuild.bzl
 +++ b/esbuild/private/esbuild.bzl
-@@ -209,6 +209,11 @@ See https://esbuild.github.io/api/#target for more details
+@@ -216,6 +216,11 @@ See https://esbuild.github.io/api/#target for more details
          for more information.
          """,
      ),
@@ -14,7 +14,7 @@ index 10d6616..32db947 100644
  }
  
  def _bin_relative_path(ctx, file):
-@@ -308,7 +313,7 @@ def _esbuild_impl(ctx):
+@@ -315,7 +320,7 @@ def _esbuild_impl(ctx):
  
          args.update({"outfile": _bin_relative_path(ctx, js_out)})
  
@@ -24,7 +24,7 @@ index 10d6616..32db947 100644
          "ESBUILD_BINARY_PATH": "../../../" + esbuild_toolinfo.target_tool_path,
      }
 diff --git a/esbuild/private/launcher.js b/esbuild/private/launcher.js
-index 2f76c0d..7f64c67 100755
+index 2f76c0d..b362a21 100755
 --- a/esbuild/private/launcher.js
 +++ b/esbuild/private/launcher.js
 @@ -135,7 +135,20 @@ async function runOneBuild(args, userArgsFilePath, configFilePath) {
@@ -35,7 +35,7 @@ index 2f76c0d..7f64c67 100755
 +    // NOTE(calebmer): Simplify error message. If `args.logLevel` is not silent
 +    // then any build errors will have already been logged. Don't log them again.
 +    // There may be cases where we silence errors that's thrown in JavaScript
-+    // that's not logged by ESBuild's native error logger. We'll address those
++    // that's not logged by esbuild's native error logger. We'll address those
 +    // issues as we see them.
 +    //
 +    // This is the error message we're silencing:
@@ -102,13 +102,13 @@ index c58b668..f61cc2c 100644
    if (result.errors && result.errors.length) {
      // There was an error resolving, just return the error as-is.
 diff --git a/esbuild/private/versions.bzl b/esbuild/private/versions.bzl
-index 7d2250f..281884e 100644
+index f0e33ca..b8810fc 100644
 --- a/esbuild/private/versions.bzl
 +++ b/esbuild/private/versions.bzl
-@@ -5,6 +5,14 @@ RULES_ESBUILD_VERSION = "$Format:%(describe:tags=true)$"  # Replaced during publ
- # This assignment is automatically updated by /scripts/mirror_release.sh.
- # Versions should be descending order so TOOL_VERSIONS.keys()[0] is the latest version.
- TOOL_VERSIONS = {
+@@ -13,6 +13,14 @@ TOOL_VERSIONS = {
+         "linux-arm64": "sha512-j1t5iG8jE7BhonbsEg5d9qOYcVZv/Rv6tghaXM/Ug9xahM0nX/H2gfu6X6z11QRTMT6+aywOMA8TDkhPo8aCGw==",
+         "win32-x64": "sha512-Arm+WgUFLUATuoxCJcahGuk6Yj9Pzxd6l11Zb/2aAuv5kWWvvfhLFo2fni4uSK5vzlUdCGZ/BdV5tH8klj8p8g==",
+     },
 +    "0.21.5": {
 +        "npm": "sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==",
 +        "darwin-x64": "sha512-se/JjF8NlmKVG4kNIuyWMV/22ZaerB+qaSi5MdrXtd6R08kvs2qCN4C09miupktDitvh8jRFflwGFBQcxZRjbw==",

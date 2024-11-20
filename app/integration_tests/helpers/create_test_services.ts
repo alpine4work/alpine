@@ -285,7 +285,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
+                `--fileUploadServiceUrl=http://localhost:${fileUploadServicePort}`,
                 `--cacheLocalDataPath=${edgeCacheLocalDataPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
             ],

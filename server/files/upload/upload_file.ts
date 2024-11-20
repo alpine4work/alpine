@@ -183,6 +183,14 @@ async function actuallyUploadFile(
         throw new InvalidArgumentError('"Content-Length" header must be an integer');
     }
 
+    // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
+    // `FileUploadService`.
+    if (contentLength <= 0) {
+        throw new InvalidArgumentError(
+            `Can't upload file with "Content-Length" of ${prettyBytes(contentLength)}`,
+        );
+    }
+
     // If the client sends more bytes than what they declared in `Content-Length`
     // then Node.js will truncate the data to `Content-Length` bytes. This behavior
     // from Node.js is important to make sure attackers can't upload files bigger
@@ -248,14 +256,24 @@ async function actuallyUploadFile(
     const handleEnd = () => {
         req.off("end", handleEnd);
         req.off("close", handleClose);
+        req.off("error", handleError);
     };
+
     const handleClose = () => {
         if (!abortController.signal.aborted) {
             abortController.abort(new CancelledError("Upload file request closed prematurely"));
         }
     };
+
+    const handleError = (error: unknown) => {
+        if (!abortController.signal.aborted) {
+            abortController.abort(new CancelledError("HTTP request error", {cause: error}));
+        }
+    };
+
     req.on("end", handleEnd);
     req.on("close", handleClose);
+    req.on("error", handleError);
 
     try {
         const fileUploader = await startUploadingAndProcessingFile(context, {
@@ -290,6 +308,7 @@ async function actuallyUploadFile(
         abortTimeout.clear();
         req.off("end", handleEnd);
         req.off("close", handleClose);
+        req.off("error", handleError);
     }
 }
 
@@ -360,6 +379,7 @@ async function uploadAndProcessFile(
                 Bucket: filesBucketName,
                 Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
+                ContentLength: contentLength,
                 Body: stream,
             },
             {signal},
@@ -459,15 +479,6 @@ async function uploadAndProcessFile(
                       const alternative = await alternativePromise;
                       if (signal.aborted) throw signal.reason;
 
-                      let dataContentLength: number = 0;
-                      if (alternative.data instanceof Buffer) {
-                          dataContentLength = alternative.data.length;
-                      } else {
-                          alternative.data.on("data", (chunk: Buffer) => {
-                              dataContentLength += chunk.length;
-                          });
-                      }
-
                       // NOTE: We don't `Promise.race()` `PutObject()` with
                       // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
                       // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
@@ -477,6 +488,7 @@ async function uploadAndProcessFile(
                               Bucket: filesBucketName,
                               Key: `${spaceId}/${fileUploader.fileId}-alternative`,
                               ContentType: alternative.contentType,
+                              ContentLength: alternative.contentLength,
                               Body: alternative.data,
                           },
                           {signal},
@@ -484,13 +496,13 @@ async function uploadAndProcessFile(
 
                       await fileUploader.finishProcessingAlternative(context, {
                           contentType: alternative.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: alternative.contentLength,
                       });
 
                       sendEvent({
                           type: "Alternative",
                           contentType: alternative.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: alternative.contentLength,
                           isImagePreviewContent: false,
                       });
 
@@ -498,8 +510,8 @@ async function uploadAndProcessFile(
                           file: {
                               alternative: {
                                   contentType: alternative.contentType,
-                                  contentLength: dataContentLength,
-                                  contentLengthRatio: dataContentLength / contentLength,
+                                  contentLength: alternative.contentLength,
+                                  contentLengthRatio: alternative.contentLength / contentLength,
                               },
                           },
                       };
@@ -576,15 +588,6 @@ async function uploadAndProcessFile(
                       if (signal.aborted) throw signal.reason;
                       if (hasAcceptedPreviewError) return;
 
-                      let dataContentLength: number = 0;
-                      if (content.data instanceof Buffer) {
-                          dataContentLength = content.data.length;
-                      } else {
-                          content.data.on("data", (chunk: Buffer) => {
-                              dataContentLength += chunk.length;
-                          });
-                      }
-
                       // NOTE: We don't `Promise.race()` `PutObject()` with
                       // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
                       // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
@@ -594,6 +597,7 @@ async function uploadAndProcessFile(
                               Bucket: filesBucketName,
                               Key: `${spaceId}/${fileUploader.fileId}-preview`,
                               ContentType: content.contentType,
+                              ContentLength: content.contentLength,
                               Body: content.data,
                           },
                           {signal},
@@ -604,21 +608,21 @@ async function uploadAndProcessFile(
 
                       await fileUploader.finishProcessingImagePreviewContent(context, {
                           contentType: content.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: content.contentLength,
                           isAlternative: fileProcessor.hasAlternative === "ImagePreviewContent",
                       });
 
                       sendEvent({
                           type: "ImagePreviewContent",
                           contentType: content.contentType,
-                          contentLength: dataContentLength,
+                          contentLength: content.contentLength,
                       });
 
                       if (fileProcessor.hasAlternative === "ImagePreviewContent") {
                           sendEvent({
                               type: "Alternative",
                               contentType: content.contentType,
-                              contentLength: dataContentLength,
+                              contentLength: content.contentLength,
                               isImagePreviewContent: true,
                           });
                       }
@@ -627,15 +631,16 @@ async function uploadAndProcessFile(
                           file: {
                               preview: {
                                   contentType: content.contentType,
-                                  contentLength: dataContentLength,
-                                  contentLengthRatio: dataContentLength / contentLength,
+                                  contentLength: content.contentLength,
+                                  contentLengthRatio: content.contentLength / contentLength,
                               },
                               alternative:
                                   fileProcessor.hasAlternative === "ImagePreviewContent"
                                       ? {
                                             contentType: content.contentType,
-                                            contentLength: dataContentLength,
-                                            contentLengthRatio: dataContentLength / contentLength,
+                                            contentLength: content.contentLength,
+                                            contentLengthRatio:
+                                                content.contentLength / contentLength,
                                         }
                                       : undefined,
                           },

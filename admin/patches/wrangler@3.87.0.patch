@@ -1,8 +1,8 @@
 diff --git a/wrangler-dist/cli.js b/wrangler-dist/cli.js
-index ab3a304d1718640e830015b0a2f62268bb80a815..143582c4ab5a6c318a0174f0b6b096c48cd1f73f 100644
+index 5e00a67677531a301100d20b763197448a75e088..5a9d78c2f10475a596cf9d10ded4e8c9f955015b 100644
 --- a/wrangler-dist/cli.js
 +++ b/wrangler-dist/cli.js
-@@ -139838,6 +139838,16 @@ async function forEachFile(baseDir, fn2) {
+@@ -151665,6 +151665,16 @@ async function forEachFile(baseDir, fn2) {
        } else if (entry.isFile()) {
          returnValues.push(await fn2(pathname));
        }

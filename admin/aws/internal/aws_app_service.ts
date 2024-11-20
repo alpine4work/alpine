@@ -235,7 +235,7 @@ export class AwsAppService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/app/app_production.runfiles/node_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/api/internal/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/app/app_production.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/api/internal/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });
@@ -284,8 +284,15 @@ export class AwsAppService extends Construct {
 
         opensearch.allowConnectionsFrom(service.connections);
 
-        const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
+        // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
+        // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
+        // switched to an opinionated `loadBalancerName` in order to do a zero downtime
+        // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
+        // updated our DNS record, waited for all requests to move to `LoadBalancer2`
+        // then deleted `LoadBalancer`.
+        const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer2", {
             vpc,
+            loadBalancerName: "cyberworlds-app",
             internetFacing: true,
         });
 
@@ -304,6 +311,7 @@ export class AwsAppService extends Construct {
         });
 
         listener.addTargets("TargetGroup", {
+            targetGroupName: "cyberworlds-app-target-group",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],

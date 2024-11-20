@@ -12,27 +12,29 @@ import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
-const opensearchDeployScriptLambdaRelativePath =
+const opensearchDeployLambdaRelativePath =
     process.env.CDK_LITE === "true"
         ? "cyberworlds/admin/aws/empty_lambda"
         : "cyberworlds/admin/opensearch/deploy/deploy";
 
 const opensearchDeployScriptLambdaPath = joinPath(
     runfilesPath,
-    opensearchDeployScriptLambdaRelativePath,
+    `${opensearchDeployLambdaRelativePath}.zip`,
 );
 
-const opensearchDeployScriptLambdaContents = await fs.readFile(
-    joinPath(opensearchDeployScriptLambdaPath, `${opensearchDeployScriptLambdaRelativePath}.cjs`),
-    "utf-8",
-);
+const opensearchDeployScriptLambdaHash = await getFileSha256Hash(opensearchDeployScriptLambdaPath);
 
-const opensearchDeployScriptLambdaHash = crypto
-    .createHash("sha256")
-    .update(opensearchDeployScriptLambdaContents)
-    .digest("hex");
+async function getFileSha256Hash(path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash("sha256");
+        const stream = fs.createReadStream(path);
+        stream.on("error", reject);
+        stream.on("data", chunk => hash.update(chunk));
+        stream.on("end", () => resolve(hash.digest("hex")));
+    });
+}
 
-const opensearchDeployScriptLambdaHandler = `${opensearchDeployScriptLambdaRelativePath}.handler`;
+const opensearchDeployScriptLambdaHandler = `${opensearchDeployLambdaRelativePath}.handler`;
 
 export class AwsOpensearch {
     protected readonly _domain: IDomain;

@@ -1,5 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import differenceInDays from "date-fns/differenceInDays/index.js";
+import {differenceInDays} from "date-fns/differenceInDays";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {Locale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";

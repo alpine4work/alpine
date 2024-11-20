@@ -14,7 +14,7 @@ import {
     S3Client,
 } from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
-import {ErrorBase, UnknownError} from "~/shared/error/error.js";
+import {CancelledError, ErrorBase, UnknownError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -114,14 +114,30 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
         accountId,
         accessKeyId,
         secretAccessKey,
+        endpointOverrideForTest,
     }: {
         accountId: string;
         accessKeyId: string;
         secretAccessKey: string;
+        endpointOverrideForTest?: string;
     }) {
+        if (!import.meta.jest) {
+            assert(endpointOverrideForTest === undefined);
+        }
+
         this._client = new S3Client({
             region: "auto",
-            endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+            endpoint: endpointOverrideForTest ?? `https://${accountId}.r2.cloudflarestorage.com`,
+            ...(endpointOverrideForTest !== undefined
+                ? {
+                      endpointProvider: params => ({
+                          url: new URL(
+                              params.Bucket !== undefined ? `/${params.Bucket}` : "/",
+                              endpointOverrideForTest,
+                          ),
+                      }),
+                  }
+                : {}),
             credentials: {
                 accessKeyId,
                 secretAccessKey,
@@ -131,6 +147,11 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
 
     public isMiniflare() {
         return false;
+    }
+
+    public destroyForTest() {
+        assert(import.meta.jest);
+        this._client.destroy();
     }
 
     /**
@@ -172,6 +193,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: output.ContentType,
+                            contentLength: output.ContentLength,
                         },
                     },
                 },
@@ -220,6 +242,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: output.ContentType,
+                            contentLength: output.ContentLength,
                         },
                     },
                 },
@@ -256,6 +279,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                         object: {
                             key: input.Key,
                             contentType: input.ContentType,
+                            contentLength: input.ContentLength,
                         },
                     },
                 },
@@ -346,6 +370,14 @@ function rethrowClassifiedCloudflareR2Error(error: unknown): never {
 }
 
 function classifyCloudflareR2Error(error: unknown): ErrorBase {
+    if (
+        isObject(error) &&
+        typeof error.message === "string" &&
+        error.message.startsWith("Request aborted")
+    ) {
+        return new CancelledError(error.message);
+    }
+
     const originalErrorCode = isObject(error) && typeof error.Code === "string" ? error.Code : null;
 
     let errorCode: ErrorCode | null = null;

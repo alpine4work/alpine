@@ -342,7 +342,7 @@ function createArtifacts() {
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--fileUploadServiceHostname=localhost:${fileUploadDevPort}`,
+                `--fileUploadServiceUrl=http://localhost:${fileUploadDevPort}`,
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "edge")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,

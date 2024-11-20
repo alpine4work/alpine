@@ -62,6 +62,7 @@ export function createFileWebUnsafeVideoProcessor(
         ) => {
             const alternativePromiseResolver = createPromiseResolver<{
                 contentType: FileContentType;
+                contentLength: number;
                 data: ReadableStream;
             }>();
             const previewSizePromiseResolver = createPromiseResolver<
@@ -69,6 +70,7 @@ export function createFileWebUnsafeVideoProcessor(
             >();
             const previewContentPromiseResolver = createPromiseResolver<{
                 contentType: FileContentType;
+                contentLength: number;
                 data: Buffer;
             }>();
             const previewVideoDurationPromiseResolver = createPromiseResolver<number>();
@@ -83,19 +85,24 @@ export function createFileWebUnsafeVideoProcessor(
                     parentTemporaryDirectoryPath,
                     `${fileId}_`,
                     async temporaryDirectoryPath => {
-                        const output1Path = joinPath(
+                        const previewOutput1Path = joinPath(
                             temporaryDirectoryPath,
-                            `output1.${ffmpegImagePreviewContentOutputExtension}`,
+                            `preview-output-1.${ffmpegImagePreviewContentOutputExtension}`,
                         );
 
-                        const output2Path = joinPath(
+                        const previewOutput2Path = joinPath(
                             temporaryDirectoryPath,
-                            `output2.${ffmpegImagePreviewContentOutputExtension}`,
+                            `preview-output-2.${ffmpegImagePreviewContentOutputExtension}`,
                         );
 
-                        const output3Path = joinPath(
+                        const previewOutput3Path = joinPath(
                             temporaryDirectoryPath,
-                            `output3.${ffmpegImagePreviewContentOutputExtension}`,
+                            `preview-output-3.${ffmpegImagePreviewContentOutputExtension}`,
+                        );
+
+                        const outputPath = joinPath(
+                            temporaryDirectoryPath,
+                            `output.${getFileContentTypePreferredExtension("video/webm")}`,
                         );
 
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
@@ -139,9 +146,9 @@ export function createFileWebUnsafeVideoProcessor(
                                 // or else we get the error "[avif] muxer does not support non seekable
                                 // output".
                                 ...getFfmpegImagePreviewContentOutputOptions({
-                                    output1Path,
-                                    output2Path,
-                                    output3Path,
+                                    output1Path: previewOutput1Path,
+                                    output2Path: previewOutput2Path,
+                                    output3Path: previewOutput3Path,
                                 }),
                             ],
                             {
@@ -173,8 +180,8 @@ export function createFileWebUnsafeVideoProcessor(
                                 "libvpx-vp9",
                                 "-acodec",
                                 "libopus",
-                                // Output the new video to stdout.
-                                "pipe:1",
+                                // Output the new video to the provided path.
+                                outputPath,
                             ],
                             {
                                 cwd: runfilesPath,
@@ -245,12 +252,6 @@ export function createFileWebUnsafeVideoProcessor(
                         alternativeSubprocess.stderr.on("data", (chunk: Buffer) => {
                             const string = chunk.toString("utf8");
                             alternativeStderr += string;
-                        });
-
-                        // `alternativeSubprocess.stdout` will stream the transcoded alternative file.
-                        alternativePromiseResolver.resolve({
-                            contentType: "video/webm",
-                            data: alternativeSubprocess.stdout,
                         });
 
                         await runAllPromises([
@@ -324,19 +325,20 @@ export function createFileWebUnsafeVideoProcessor(
                                         previewContentStderr,
                                     )
                                 ) {
-                                    outputData = await fs.readFile(output3Path);
+                                    outputData = await fs.readFile(previewOutput3Path);
                                 } else if (
                                     /(?:^|\n)\[out#0\/[^\]]*\] Output file is empty, nothing was encoded\(check -ss \/ -t \/ -frames parameters if used\)(?:\n|$)/.test(
                                         previewContentStderr,
                                     )
                                 ) {
-                                    outputData = await fs.readFile(output2Path);
+                                    outputData = await fs.readFile(previewOutput2Path);
                                 } else {
-                                    outputData = await fs.readFile(output1Path);
+                                    outputData = await fs.readFile(previewOutput1Path);
                                 }
 
                                 previewContentPromiseResolver.resolve({
                                     contentType: ffmpegImagePreviewContentOutputContentType,
+                                    contentLength: outputData.length,
                                     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
                                     // more efficient to read the full data buffer into memory than to use
                                     // `fs.createReadStream()` and stream that data into `sharp`. See our comment
@@ -395,6 +397,13 @@ export function createFileWebUnsafeVideoProcessor(
                                         parseFfmpegStderrDuration(match[1]!),
                                     );
                                 }
+
+                                // Read the transcoded alternative file from the file system.
+                                alternativePromiseResolver.resolve({
+                                    contentType: "video/webm",
+                                    contentLength: (await fs.stat(outputPath)).size,
+                                    data: fsSync.createReadStream(outputPath),
+                                });
                             }),
                         ]);
                     },

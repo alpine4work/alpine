@@ -137,6 +137,7 @@ export function processPdfDocumentFile(
 
     const previewContentPromise = (async (): Promise<{
         contentType: FileContentType;
+        contentLength: number;
         data: Buffer;
     }> => {
         const [{width, height, scale}, inputData] = await runAllPromises([
@@ -182,7 +183,11 @@ export function processPdfDocumentFile(
 
         const outputData = await sharpInstance.toBuffer().catch(rethrowClassifiedSharpError);
 
-        return {contentType: "image/avif", data: outputData};
+        return {
+            contentType: "image/avif",
+            contentLength: outputData.length,
+            data: outputData,
+        };
     })();
 
     const previewPlaceholderPromise = (async () => {

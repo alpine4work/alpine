@@ -1,8 +1,8 @@
 diff --git a/ts/private/ts_project.bzl b/ts/private/ts_project.bzl
-index fcdf651..1475691 100644
+index 367bba0..4fdc98c 100644
 --- a/ts/private/ts_project.bzl
 +++ b/ts/private/ts_project.bzl
-@@ -319,6 +319,10 @@ This is an error because Bazel does not run actions unless their outputs are nee
+@@ -366,6 +366,10 @@ See https://github.com/aspect-build/rules_ts/issues/361 for more details.
              # https://bazel.build/extending/rules#validations_output_group
              # "hold the otherwise unused outputs of validation actions"
              _validation = validation_outs,

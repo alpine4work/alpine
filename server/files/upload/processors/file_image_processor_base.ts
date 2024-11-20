@@ -17,6 +17,7 @@ import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -113,92 +114,122 @@ export function processImageFile(
     const previewSizePromise = (async () => {
         const data = await dataPromise;
 
-        const metadata = await sharp(data, {pages: 1})
-            .timeout({seconds: sharpTimeoutSeconds})
-            .metadata()
-            .catch(rethrowClassifiedSharpError);
+        let retryCount = 0;
 
-        let expectedFormat: keyof sharp.FormatEnum;
-        let expectedCompression: sharp.Metadata["compression"];
-        let expectedFormatMagick: sharp.Metadata["formatMagick"];
+        while (true) {
+            retryCount++;
 
-        switch (contentType) {
-            case "image/apng":
-                expectedFormat = "png";
-                break;
-            case "image/avif":
-                // See: https://github.com/lovell/sharp/issues/2504
-                expectedFormat = "heif";
-                expectedCompression = "av1";
-                break;
-            case "image/gif":
-                expectedFormat = "gif";
-                break;
-            case "image/jpeg":
-                expectedFormat = "jpeg";
-                break;
-            case "image/png":
-                expectedFormat = "png";
-                break;
-            case "image/svg+xml":
-                expectedFormat = "svg";
-                break;
-            case "image/webp":
-                expectedFormat = "webp";
-                break;
-            case "image/bmp":
-                expectedFormat = "magick";
-                expectedFormatMagick = "BMP";
-                break;
-            case "image/tiff":
-                expectedFormat = "tiff";
-                break;
-            case "image/heif":
-                expectedFormat = "heif";
-                expectedCompression = "hevc";
-                break;
-            default:
-                throw exhaustive(contentType);
+            try {
+                const metadata = await sharp(data, {pages: 1})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    .metadata()
+                    .catch(rethrowClassifiedSharpError);
+
+                let expectedFormat: keyof sharp.FormatEnum;
+                let expectedCompression: sharp.Metadata["compression"];
+                let expectedFormatMagick: sharp.Metadata["formatMagick"];
+
+                switch (contentType) {
+                    case "image/apng":
+                        expectedFormat = "png";
+                        break;
+                    case "image/avif":
+                        // See: https://github.com/lovell/sharp/issues/2504
+                        expectedFormat = "heif";
+                        expectedCompression = "av1";
+                        break;
+                    case "image/gif":
+                        expectedFormat = "gif";
+                        break;
+                    case "image/jpeg":
+                        expectedFormat = "jpeg";
+                        break;
+                    case "image/png":
+                        expectedFormat = "png";
+                        break;
+                    case "image/svg+xml":
+                        expectedFormat = "svg";
+                        break;
+                    case "image/webp":
+                        expectedFormat = "webp";
+                        break;
+                    case "image/bmp":
+                        expectedFormat = "magick";
+                        expectedFormatMagick = "BMP";
+                        break;
+                    case "image/tiff":
+                        expectedFormat = "tiff";
+                        break;
+                    case "image/heif":
+                        expectedFormat = "heif";
+                        expectedCompression = "hevc";
+                        break;
+                    default:
+                        throw exhaustive(contentType);
+                }
+
+                if (metadata.format !== expectedFormat) {
+                    throw new InvalidArgumentError(
+                        quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+                    );
+                }
+
+                if (metadata.compression !== expectedCompression) {
+                    throw new InvalidArgumentError(
+                        quote`Expected file in ${expectedFormat} format to use ${expectedCompression} compression but received file with ${metadata.compression} compression`,
+                    );
+                }
+
+                if (metadata.formatMagick !== expectedFormatMagick) {
+                    throw new InvalidArgumentError(
+                        quote`Expected file in ${expectedFormat} format to use ${expectedFormatMagick} magick format but received file with ${metadata.formatMagick} magick format`,
+                    );
+                }
+
+                if (metadata.width === undefined || metadata.height === undefined) {
+                    throw new InternalError('Couldn\'t find "width" or "height" of image file');
+                }
+
+                return {
+                    width:
+                        // Respect EXIF orientation metadata. Based on example from `sharp`.
+                        // https://sharp.pixelplumbing.com/api-input#metadata
+                        metadata.orientation !== undefined && metadata.orientation >= 5
+                            ? metadata.height
+                            : metadata.width,
+                    height:
+                        // Respect EXIF orientation metadata. Based on example from `sharp`.
+                        // https://sharp.pixelplumbing.com/api-input#metadata
+                        metadata.orientation !== undefined && metadata.orientation >= 5
+                            ? metadata.width
+                            : metadata.height,
+                    scale: 1,
+                    hasAlpha: metadata.hasAlpha ?? false,
+                };
+            } catch (error) {
+                // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an
+                // error message. Our "can't upload invalid image data" test in
+                // `upload_file.test.ts` observes occasional failures where we get the
+                // truncated error message "Input buffer has corrupt header: " instead
+                // of the full "Input buffer has corrupt header: x2vips: libX error: Improper
+                // image header...". So when we detect a truncated error message from
+                // `sharp` let's retry the `metadata()` call up to 10 times until we get a real
+                // error message.
+                //
+                // Code in `sharp` where this error message is created:
+                // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417
+                if (
+                    retryCount <= 10 &&
+                    error instanceof Error &&
+                    /^Input buffer has corrupt header: *$/.test(error.message)
+                ) {
+                    await wait(100);
+                    continue;
+                }
+
+                throw error;
+            }
         }
-
-        if (metadata.format !== expectedFormat) {
-            throw new InvalidArgumentError(
-                quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
-            );
-        }
-
-        if (metadata.compression !== expectedCompression) {
-            throw new InvalidArgumentError(
-                quote`Expected file in ${expectedFormat} format to use ${expectedCompression} compression but received file with ${metadata.compression} compression`,
-            );
-        }
-
-        if (metadata.formatMagick !== expectedFormatMagick) {
-            throw new InvalidArgumentError(
-                quote`Expected file in ${expectedFormat} format to use ${expectedFormatMagick} magick format but received file with ${metadata.formatMagick} magick format`,
-            );
-        }
-
-        if (metadata.width === undefined || metadata.height === undefined) {
-            throw new InternalError('Couldn\'t find "width" or "height" of image file');
-        }
-
-        return {
-            width:
-                // Respect EXIF orientation metadata. Based on example from `sharp`.
-                // https://sharp.pixelplumbing.com/api-input#metadata
-                metadata.orientation !== undefined && metadata.orientation >= 5
-                    ? metadata.height
-                    : metadata.width,
-            height:
-                // Respect EXIF orientation metadata. Based on example from `sharp`.
-                // https://sharp.pixelplumbing.com/api-input#metadata
-                metadata.orientation !== undefined && metadata.orientation >= 5
-                    ? metadata.width
-                    : metadata.height,
-            scale: 1,
-            hasAlpha: metadata.hasAlpha ?? false,
-        };
     })();
 
     const previewPlaceholderPromise = (async () => {

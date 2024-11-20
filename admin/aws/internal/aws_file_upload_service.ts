@@ -188,6 +188,7 @@ export class AwsFileUploadService extends Construct {
                     "fileUploadServicePrivateKey",
                 ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
+                HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
                 CLOUDFLARE_R2_ACCESS_KEY_ID: EcsSecret.fromSecretsManager(
                     secrets,
                     "cloudflareR2AccessKeyId",
@@ -214,6 +215,7 @@ export class AwsFileUploadService extends Construct {
                     // escalate permissions to a space system actor. It's dangerous to give access
                     // to this capability.
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     `--cloudflareAccountId=${cloudflareAccountId}`,
                     `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
                     `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
@@ -235,7 +237,7 @@ export class AwsFileUploadService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/files/upload/upload.runfiles/node_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/files/upload/upload.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });
@@ -271,6 +273,7 @@ export class AwsFileUploadService extends Construct {
 
         const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
             vpc,
+            loadBalancerName: "cyberworlds-files",
             internetFacing: true,
         });
 
@@ -289,6 +292,7 @@ export class AwsFileUploadService extends Construct {
         });
 
         listener.addTargets("TargetGroup", {
+            targetGroupName: "cyberworlds-files-target-group",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],

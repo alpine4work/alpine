@@ -28,7 +28,7 @@ export const options = {
     temporaryDirectoryPath: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverProcessContextOptions,
-    ...omitObject(serviceCloudflareR2Options, ["fileUploadServiceHostname"]),
+    ...omitObject(serviceCloudflareR2Options, ["fileUploadServiceUrl"]),
 } as const;
 
 export async function run({
@@ -59,7 +59,7 @@ export async function run({
     }).clone({
         r2: createServiceCloudflareR2ContextModule({
             ...options,
-            fileUploadServiceHostname: `localhost:${port}`,
+            fileUploadServiceUrl: `http://localhost:${port}`,
         }),
         files: new FilesContextModule(tokenAgent),
     });

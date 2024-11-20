@@ -17,6 +17,9 @@ ts_project(
         "//server/spaces/test_helpers",
     ],
     tests = {
+        "processors/file_processor_content_types_test": {
+            "size": "medium",
+        },
         "processors/file_processor_content_types_microsoft_office_test": {
             "size": "medium",
             "tags": ["libreoffice"],

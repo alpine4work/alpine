@@ -8,7 +8,9 @@ import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_co
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
@@ -68,14 +70,14 @@ export async function uploadAppStaticFilesBeforeDeploy(
 
     const currentTime = new Date();
 
-    const oldFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+    const oldFileByPath = new Map<string, AppStaticBucketManifestFile>();
 
     for (const file of oldManifest.files) {
-        assert(!oldFilesByPath.has(file.path));
-        oldFilesByPath.set(file.path, file);
+        assert(!oldFileByPath.has(file.path));
+        oldFileByPath.set(file.path, file);
     }
 
-    const uploadFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+    const uploadFileByPath = new Map<string, AppStaticBucketManifestFile>();
 
     const traverse = async (relativePath: string, path: string) => {
         const childPathNames = await fs.readdir(path);
@@ -88,7 +90,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 if ((await fs.stat(childPath)).isDirectory()) {
                     await traverse(`${childRelativePath}/`, childPath);
                 } else {
-                    uploadFilesByPath.set(childRelativePath, {
+                    uploadFileByPath.set(childRelativePath, {
                         path: childRelativePath,
                         contentMd5: await getFileMd5Hash(childPath),
                         uploadTime: currentTime,
@@ -112,15 +114,15 @@ export async function uploadAppStaticFilesBeforeDeploy(
     const rootPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
     await traverse("", rootPath);
 
-    const newFilesByPath = new Map(oldFilesByPath);
+    const newFileByPath = new Map(oldFileByPath);
 
-    for (const newFile of uploadFilesByPath.values()) {
-        const oldFile = oldFilesByPath.get(newFile.path);
+    for (const newFile of uploadFileByPath.values()) {
+        const oldFile = oldFileByPath.get(newFile.path);
 
         if (!oldFile) {
-            newFilesByPath.set(newFile.path, newFile);
+            newFileByPath.set(newFile.path, newFile);
         } else {
-            newFilesByPath.set(oldFile.path, {
+            newFileByPath.set(oldFile.path, {
                 path: oldFile.path,
                 contentMd5: newFile.contentMd5,
                 uploadTime: maxDate([oldFile.uploadTime, newFile.uploadTime]),
@@ -129,7 +131,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
         }
     }
 
-    const newManifest: AppStaticBucketManifest = {files: Array.from(newFilesByPath.values())};
+    const newManifest: AppStaticBucketManifest = {files: Array.from(newFileByPath.values())};
 
     // We don't need to worry about multiple scripts trying to write to
     // `manifest.json` at the same time since only one `deploy()` function may be
@@ -141,10 +143,14 @@ export async function uploadAppStaticFilesBeforeDeploy(
         Body: JSON.stringify(AppStaticBucketManifestSchema.serialize(newManifest)),
     });
 
+    // Only allow 8 `PutObject()` requests at once.
+    let mutexCount = 0;
+    const mutexes = createArrayWithLength(8, () => new Mutex());
+
     await runAllPromises(
-        mapIterable(uploadFilesByPath.values(), async newFile => {
+        mapIterable(uploadFileByPath.values(), async newFile => {
             // If the file content didn't change then don't upload the file again.
-            const oldFile = oldFilesByPath.get(newFile.path);
+            const oldFile = oldFileByPath.get(newFile.path);
             if (oldFile?.contentMd5 === newFile.contentMd5) return;
 
             // Use the same logic to determine the `Content-Type` as the `serve-static`
@@ -162,19 +168,27 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 }
             }
 
-            await context.r2.PutObject({
-                Bucket: appStaticBucketName,
-                Key: `files/${newFile.path}`,
-                ContentMD5: newFile.contentMd5,
-                ContentType: contentType || "application/octet-stream",
-                Body: fs.createReadStream(joinPath(rootPath, newFile.path)),
+            const newFilePath = joinPath(rootPath, newFile.path);
+
+            const mutex = mutexes[mutexCount % mutexes.length]!;
+            mutexCount++;
+
+            await mutex.withLock(async () => {
+                await context.r2.PutObject({
+                    Bucket: appStaticBucketName,
+                    Key: `files/${newFile.path}`,
+                    ContentMD5: newFile.contentMd5,
+                    ContentType: contentType || "application/octet-stream",
+                    ContentLength: (await fs.stat(newFilePath)).size,
+                    Body: fs.createReadStream(newFilePath),
+                });
             });
         }),
     );
 
     return {
         manifest: newManifest,
-        paths: new Set(uploadFilesByPath.keys()),
+        paths: new Set(uploadFileByPath.keys()),
     };
 }
 

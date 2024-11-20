@@ -1060,6 +1060,9 @@ export type TracerEventData = {
 
                 /** The content type of our Cloudflare R2 object. */
                 readonly contentType?: string;
+
+                /** The content length of our Cloudflare R2 object. */
+                readonly contentLength?: number;
             };
         };
     };
