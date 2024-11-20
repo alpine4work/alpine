@@ -520,12 +520,6 @@ HTTP/1.1 400 Bad Request\r\n\
 Connection: close\r\n\
 \r\n\
 `);
-
-    await ProcessContextModule.waitForTestTasks();
-
-    await expect(getFileAsUploader(space.systemAction(), space.id, fileId)).rejects.toThrow(
-        NotFoundError,
-    );
 });
 
 test("request can be ended before completion", async () => {

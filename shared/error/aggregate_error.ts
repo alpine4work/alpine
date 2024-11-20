@@ -1,7 +1,6 @@
 import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 
 export function getAggregateErrorPriority(error: unknown): number {
     if (error instanceof AggregateError && error.errors.length > 0) {
@@ -72,7 +71,7 @@ export function createAggregateError(errors: Iterable<unknown>): unknown {
         pushError(error);
     }
 
-    if (errorSet.size === 1) return iterableFirst(errorSet);
+    if (errorSet.size === 1) return errorSet[Symbol.iterator]().next().value;
 
     let highestPriority: number | null = null;
     let highestPriorityError: unknown;

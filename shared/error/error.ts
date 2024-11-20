@@ -23,8 +23,8 @@ export function getErrorCode(error: unknown) {
  */
 export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
-    public readonly displayMessage: ErrorDisplayMessage | undefined;
-    public readonly aggregateDedupeKey: string | undefined;
+    public readonly displayMessage?: ErrorDisplayMessage;
+    public readonly aggregateDedupeKey?: string;
 
     constructor(
         message: string,
@@ -56,8 +56,8 @@ export abstract class ErrorBase extends Error {
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";
         this.cause = cause;
-        this.displayMessage = displayMessage;
-        this.aggregateDedupeKey = aggregateDedupeKey;
+        if (displayMessage !== undefined) this.displayMessage = displayMessage;
+        if (aggregateDedupeKey !== undefined) this.aggregateDedupeKey = aggregateDedupeKey;
     }
 
     protected abstract _getCode(): ErrorCode;

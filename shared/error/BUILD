@@ -1,6 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 CORE_SRCS = [
+    "aggregate_error.ts",
     "error.ts",
     "error_code.ts",
     "error_display_message.ts",
