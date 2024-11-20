@@ -90,7 +90,7 @@ export class AwsFileProcessorService extends Construct {
         //
         // 30 GiB is the default size for an EBS volume so use that as our minimum
         // volume size.
-        const maxFileContentLengthGib = maxFileContentLength / (1024 ^ 3);
+        const maxFileContentLengthGib = maxFileContentLength / 1024 ** 3;
         const volumeSize = Math.max(30, Math.ceil(maxFileContentLengthGib * 1.1 * vCpuCount));
 
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
@@ -342,6 +342,8 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
     const instanceTypeString = instanceType.toString();
 
     switch (instanceTypeString) {
+        case "t3.micro":
+            return 2;
         default: {
             throw new InternalError(
                 quote`Unknown vCPU count for instance type ${instanceTypeString}, please update \`getInstanceTypeVCpuCount()\` to handle this instance type`,
