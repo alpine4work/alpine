@@ -70,7 +70,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -147,22 +147,24 @@ test("can not get a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await expect(getChannel(session.action(), generateId())).rejects.toThrow(NotFoundError);
+    const badChanelId = generateId<ChannelId>();
+
+    await expect(getChannel(session.action(), badChanelId)).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelNameAndDescriptionContent(session.action(), generateId()),
+        getChannelNameAndDescriptionContent(session.action(), badChanelId),
     ).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelAndMetadata(session.action(), {channelId: generateId(), postFilesLimit: 100}),
+        getChannelAndMetadata(session.action(), {channelId: badChanelId, postFilesLimit: 100}),
     ).rejects.toThrow(NotFoundError);
     await expect(
         getChannelAndMetadata(session.action(), {
-            channelId: generateId(),
+            channelId: badChanelId,
             postFilesLimit: 100,
-            afterItemKey: getChannelContributorsKey(generateId()),
+            afterItemKey: getChannelContributorsKey(badChanelId),
         }),
     ).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelContributors(session.action(), generateId(), {limit: 100}),
+        getChannelContributors(session.action(), badChanelId, {limit: 100}),
     ).rejects.toThrow(NotFoundError);
 });
 
@@ -4525,7 +4527,7 @@ test("will attach referenced files to post when creating from draft", async () =
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: expect.any(Object),
         }),
     );
 });

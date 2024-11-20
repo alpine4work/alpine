@@ -24,17 +24,32 @@ export function getErrorCode(error: unknown) {
 export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
     public readonly displayMessage: ErrorDisplayMessage | undefined;
+    public readonly aggregateDedupeKey: string | undefined;
 
     constructor(
         message: string,
         {
             cause,
             displayMessage,
+            aggregateDedupeKey,
         }: {
             cause?: unknown;
-            // TODO(calebmer): Consider requiring a display message for some classes
-            // of errors? Consider allowing a `ErrorDisplayMessage` as the message?
+
+            /**
+             * A message to show to the user in the UI when this error is thrown. `message`
+             * is intended for internal developer usage, however `displayMessage` can be
+             * presented to the end user.
+             */
             displayMessage?: ErrorDisplayMessage;
+
+            /**
+             * When creating an error with `createAggregateError()` if there are multiple
+             * errors with the same code, message, and `aggregateDedupeKey` then only the
+             * first such error will be included in the aggregate error.
+             *
+             * If `aggregateDedupeKey` isn't set then this error will never be deduped.
+             */
+            aggregateDedupeKey?: string;
         } = {},
     ) {
         super(message, {cause});
@@ -42,6 +57,7 @@ export abstract class ErrorBase extends Error {
         this.name = getErrorCodeName(this.code) + "Error";
         this.cause = cause;
         this.displayMessage = displayMessage;
+        this.aggregateDedupeKey = aggregateDedupeKey;
     }
 
     protected abstract _getCode(): ErrorCode;

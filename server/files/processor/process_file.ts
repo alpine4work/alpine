@@ -21,6 +21,7 @@ import {createFileWebUnsafeImageProcessor} from "~/server/files/processor/proces
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/processor/processors/file_web_unsafe_video_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
     AbortedError,
     DeadlineExceededError,
@@ -33,7 +34,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {fileProcessorTimeoutMs} from "~/shared/files/file_model.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {createAggregateError, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";

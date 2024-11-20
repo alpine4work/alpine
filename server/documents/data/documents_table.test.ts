@@ -6588,7 +6588,7 @@ describe("Comments", () => {
                     commentThreadId: generateId(),
                     isFirstComment: true,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow("Document not found (and 1 other error)");
 
             await expect(
                 getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6596,7 +6596,7 @@ describe("Comments", () => {
                     commentThreadId: generateId(),
                     isFirstComment: false,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow("Document not found (and 1 other error)");
 
             const document = await createDocument(context.action(session1), {
                 spaceId: space.id,

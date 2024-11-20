@@ -1,9 +1,9 @@
+import {getAggregateErrorPriority} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {getErrorCodeName} from "~/shared/error/error_code.js";
 import {ErrorOriginalTracerSpanResult} from "~/shared/error/error_original_tracer_span.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_display_message.js";
-import {getAggregateErrorPriority} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TraceId} from "~/shared/id/types/id_types.js";
 import {

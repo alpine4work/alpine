@@ -1,4 +1,5 @@
-import {createAggregateError, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 /**
  * Helper that allows you to wait for an arbitrary set of promises. Similar to

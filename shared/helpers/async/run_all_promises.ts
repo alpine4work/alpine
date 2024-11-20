@@ -1,7 +1,4 @@
-import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 
 /**
  * Runs multiple promises in parallel. Should generally be used instead of
@@ -47,93 +44,6 @@ export async function runAllPromises<Value>(
     if (errors.length > 0) throw createAggregateError(errors);
 
     return values;
-}
-
-export function getAggregateErrorPriority(error: unknown): number {
-    if (error instanceof AggregateError && error.errors.length > 0) {
-        return error.errors.map(getAggregateErrorPriority).reduce((a, b) => Math.max(a, b), 0);
-    }
-
-    const isErrorBase = error instanceof ErrorBase;
-
-    let priority = 2;
-
-    // Errors with a display message are higher priority than errors without a
-    // display message.
-    if (isErrorBase && error.displayMessage !== undefined) {
-        priority = 3;
-    }
-    // Cancelled errors (e.g. from `AbortSignal`s) are lower priority than other
-    // errors.
-    else if (isErrorBase && error.code === ErrorCode.Cancelled) {
-        priority = 1;
-    }
-
-    // System errors are highest priority. If an error doesn't have a code then its
-    // code is `ErrorCode.Unknown` which is a system error.
-    if (!isErrorBase || isSystemErrorCode(error.code)) priority += 4;
-
-    return priority;
-}
-
-/**
- * Create an `AggregateError` instance from multiple errors. We pick the error
- * with the highest priority (according to `getAggregateErrorPriority()`) to be
- * the message of the aggregate error.
- *
- * If there's only one error then we return that error. If there are zero errors
- * we return an `InternalError`. If `AggregateError`s are provided then we
- * flatten them in the resulting `AggregateError`s result list.
- */
-export function createAggregateError(errors: Iterable<unknown>): unknown {
-    const errorSet = new Set<unknown>();
-
-    const pushError = (error: unknown) => {
-        if (!(error instanceof AggregateError) || error.errors.length === 0) {
-            errorSet.add(error);
-        } else {
-            for (const childError of error.errors) {
-                pushError(childError);
-            }
-        }
-    };
-
-    for (const error of errors) {
-        pushError(error);
-    }
-
-    if (errorSet.size === 1) return iterableFirst(errorSet);
-
-    let highestPriority: number | null = null;
-    let highestPriorityError: unknown;
-
-    for (const error of errorSet) {
-        const priority = getAggregateErrorPriority(error);
-
-        if (highestPriority === null || highestPriority < priority) {
-            highestPriority = priority;
-            highestPriorityError = error;
-        }
-    }
-
-    if (highestPriority === null) {
-        return new InternalError("Tried to create an `AggregateError` with no errors");
-    } else {
-        const otherErrorCount = errorSet.size - 1;
-
-        const error = new AggregateError(
-            errorSet,
-            `${
-                highestPriorityError instanceof Error
-                    ? highestPriorityError.message
-                    : String(highestPriorityError)
-            } (and ${otherErrorCount} other ${otherErrorCount === 1 ? "error" : "errors"})`,
-        );
-
-        (error as any).code = getErrorCode(highestPriorityError);
-
-        return error;
-    }
 }
 
 /**

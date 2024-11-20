@@ -1,4 +1,5 @@
-import {createAggregateError, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";

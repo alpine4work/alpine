@@ -1,3 +1,4 @@
+import {getAggregateErrorPriority} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode, isErrorCode} from "~/shared/error/error_code.js";
 import {
@@ -10,7 +11,6 @@ import {
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
 } from "~/shared/error/types/error_display_message_type.js";
-import {getAggregateErrorPriority} from "~/shared/helpers/async/run_all_promises.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
