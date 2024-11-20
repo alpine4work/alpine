@@ -6958,9 +6958,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
         ),
-    ).rejects.toThrow(
-        new PermissionDeniedError("System action doesn't have access to space (and 1 other error)"),
-    );
+    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
 });
 
 test("can't attach file as uploader if not the uploader", async () => {
