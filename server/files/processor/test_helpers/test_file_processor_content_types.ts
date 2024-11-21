@@ -48,6 +48,7 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -605,26 +606,52 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                 });
 
                 const [actualMetadataString, expectedMetadataString] = await runAllPromises([
-                    runProcess(
-                        ffprobeExecutablePath,
-                        ["-print_format", "json", "-show_streams", "-show_format", "-"],
-                        {
-                            cwd: runfilesPath,
-                            stdin: actualContents,
-                            onStdinError: error => {
-                                // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
-                                // figured out the file's metadata.
-                                if (isObject(error) && error.code === "EPIPE") {
-                                    return {preventDefault: true};
-                                }
+                    retryWithExponentialBackoff(async retry => {
+                        const actualMetadataString = await runProcess(
+                            ffprobeExecutablePath,
+                            ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                            {
+                                cwd: runfilesPath,
+                                stdin: actualContents,
+                                onStdinError: error => {
+                                    // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                                    // figured out the file's metadata.
+                                    if (isObject(error) && error.code === "EPIPE") {
+                                        return {preventDefault: true};
+                                    }
+                                },
                             },
-                        },
-                    ),
-                    runProcess(
-                        ffprobeExecutablePath,
-                        ["-print_format", "json", "-show_streams", "-show_format", expectedPath],
-                        {cwd: runfilesPath},
-                    ),
+                        );
+
+                        // NOTE(calebmer, 2024-11-21): We're experiencing some test flakiness where
+                        // occasionally `ffmpeg` returns an empty string for metadata. Let's try
+                        // retrying when this happens.
+                        if (actualMetadataString === "")
+                            retry(new InternalError("Metadata string is empty"));
+
+                        return actualMetadataString;
+                    }),
+                    retryWithExponentialBackoff(async retry => {
+                        const expectedMetadataString = await runProcess(
+                            ffprobeExecutablePath,
+                            [
+                                "-print_format",
+                                "json",
+                                "-show_streams",
+                                "-show_format",
+                                expectedPath,
+                            ],
+                            {cwd: runfilesPath},
+                        );
+
+                        // NOTE(calebmer, 2024-11-21): We're experiencing some test flakiness where
+                        // occasionally `ffmpeg` returns an empty string for metadata. Let's try
+                        // retrying when this happens.
+                        if (expectedMetadataString === "")
+                            retry(new InternalError("Metadata string is empty"));
+
+                        return expectedMetadataString;
+                    }),
                 ]);
 
                 let actualMetadata;
