@@ -6,7 +6,6 @@ import {
 } from "~/server/apns/apns_alert_notification.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {createStandardizedHeaders} from "~/server/node/create_standardized_server.js";
 import {
     DeadlineExceededError,
     InternalError,
@@ -342,18 +341,18 @@ export class ApnsConnection {
                 byte.toString(16).padStart(2, "0"),
             ).join("");
 
-            const requestHeaders: {[key: string]: string} = {
+            const requestHeaders = {
                 "apns-push-type": "alert",
-                ...(id ? {"apns-id": convertIdIntoUuid(id)} : {}),
-                ...(expirationTime
-                    ? {"apns-expiration": String(Math.floor(expirationTime.getTime() / 1000))}
-                    : {}),
+                "apns-id": id ? convertIdIntoUuid(id) : undefined,
+                "apns-expiration": expirationTime
+                    ? String(Math.floor(expirationTime.getTime() / 1000))
+                    : undefined,
                 "apns-priority": String(priority),
                 "apns-topic":
                     process.env.NODE_ENV === "production"
                         ? "inc.alpine.mobile.app"
                         : "dev.cyberworlds.mobile.app",
-                ...(collapseId !== undefined ? {"apns-collapse-id": collapseId} : {}),
+                "apns-collapse-id": collapseId,
             };
 
             const request = this._session.request({
@@ -373,7 +372,7 @@ export class ApnsConnection {
                     route: "/3/device/:deviceToken",
                     method: "POST",
                     request: {
-                        header: getHeadersTracerData(new Headers(requestHeaders)),
+                        header: getHeadersTracerData(Object.entries(requestHeaders)),
                     },
                 },
             });
@@ -410,7 +409,7 @@ export class ApnsConnection {
                 http: {
                     statusCode,
                     response: {
-                        header: getHeadersTracerData(createStandardizedHeaders(response.headers)),
+                        header: getHeadersTracerData(Object.entries(response.headers)),
                     },
                 },
                 apns: {

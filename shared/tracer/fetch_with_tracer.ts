@@ -3,6 +3,7 @@ import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {formatDate as formatHttpDate} from "tough-cookie";
 import {FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
@@ -234,7 +235,9 @@ export async function fetchWithTracer<ResponseData>(
     }
 }
 
-export function getHeadersTracerData(headers: Headers): {
+export function getHeadersTracerData(
+    headers: Iterable<[string, string | ReadonlyArray<string> | undefined]>,
+): {
     readonly [K in TracerEventHttpHeaderName]?: string | number;
 } {
     return Object.fromEntries(
@@ -242,8 +245,16 @@ export function getHeadersTracerData(headers: Headers): {
             const normalizedHeaderName = header[0].toLowerCase();
             if (!tracerEventHttpHeaderNames.has(normalizedHeaderName)) return;
 
-            if (normalizedHeaderName === "content-length" && /^\s*\d+\s*$/.test(header[1])) {
+            if (header[1] === undefined) return;
+
+            if (normalizedHeaderName === "content-length") {
+                if (typeof header[1] !== "string" || !/^\s*\d+\s*$/.test(header[1])) return;
                 return [header[0], parseInt(header[1], 10)];
+            }
+
+            if (isReadonlyArray(header[1])) {
+                if (header[1].length === 0) return;
+                return [header[0], header[1].join(", ")];
             }
 
             return header;
