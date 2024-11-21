@@ -284,13 +284,10 @@ oci_register_toolchains(name = "oci")
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 
 oci_pull(
-    name = "debian_image",
-    digest = "sha256:432f545c6ba13b79e2681f4cc4858788b0ab099fc1cca799cc0fae4687c69070",
-    image = "debian",
-    platforms = [
-        "linux/amd64",
-        "linux/arm64/v8",
-    ],
+    name = "ubuntu_image",
+    digest = "sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295",
+    image = "ubuntu",
+    platforms = ["linux/arm64/v8"],
 )
 
 # The `Dockerfile` that builds this image lives at
@@ -302,7 +299,7 @@ oci_pull(
     name = "ubuntu_libreoffice_image",
     digest = "sha256:3abbbc6eddf5943d62d4d30220e3993c878826db6fdb7fb65f318e1aec660609",
     image = "docker.io/calebmer/cyberworlds-libreoffice",
-    platforms = ["linux/amd64"],
+    platforms = ["linux/arm64/v8"],
 )
 
 # =========================================================================== #

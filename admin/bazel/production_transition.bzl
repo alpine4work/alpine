@@ -12,7 +12,7 @@ def _production_transition_impl(_settings, attr):
     # `.bazelrc` so when we build with `--config=production` we use the same
     # options to avoid build transitions and speed up our build.
     return {
-        "//command_line_option:platforms": str(attr._linux_arm),
+        "//command_line_option:platforms": str(attr._linux_arm64),
         "//command_line_option:compilation_mode": "opt",
     }
 
@@ -38,7 +38,7 @@ production_transition = rule(
     _production_transition_rule_impl,
     attrs = {
         "target": attr.label(cfg = _production_transition),
-        "_linux_arm": attr.label(default = "//admin/bazel:linux_arm"),
+        "_linux_arm64": attr.label(default = "//admin/bazel:linux_arm64"),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
@@ -68,7 +68,7 @@ production_transition_executable = rule(
     executable = True,
     attrs = {
         "target": attr.label(cfg = _production_transition, executable = True),
-        "_linux_arm": attr.label(default = "//admin/bazel:linux_arm"),
+        "_linux_arm64": attr.label(default = "//admin/bazel:linux_arm64"),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),

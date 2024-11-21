@@ -39,7 +39,7 @@ js_image_layer(
 
 oci_image(
     name = "migration_image",
-    base = "@debian_image",
+    base = "@ubuntu_image",
     tars = [":migration_image_layer"],
     # For security, use the `www-data` user which exists on our Linux image. It
     # only has read access and execute access to files on our system.

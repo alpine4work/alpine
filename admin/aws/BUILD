@@ -91,7 +91,7 @@ js_image_layer(
 
 oci_image(
     name = "empty_image",
-    base = "@debian_image",
+    base = "@ubuntu_image",
     tars = [":empty_image_layer"],
     user = "www-data",
 )
