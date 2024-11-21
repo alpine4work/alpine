@@ -360,7 +360,7 @@ export class AwsGithubRunners extends Construct {
             userDataExtra: Fn.join("", [
                 `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
-                '","fileProcessorJobQueueUrl":',
+                '","fileProcessorJobQueueUrl":"',
                 sqs.getFileProcessorJobQueueUrl(),
                 '"}',
             ]),
