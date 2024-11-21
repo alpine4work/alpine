@@ -297,7 +297,7 @@ oci_pull(
 # Docker account.
 oci_pull(
     name = "ubuntu_libreoffice_image",
-    digest = "sha256:3abbbc6eddf5943d62d4d30220e3993c878826db6fdb7fb65f318e1aec660609",
+    digest = "sha256:17016c323c85bbd8f2530537f27007418ca1d200b15ca3f491fe69ec572a89eb",
     image = "docker.io/calebmer/cyberworlds-libreoffice",
     platforms = ["linux/arm64/v8"],
 )
