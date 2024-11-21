@@ -79,7 +79,7 @@ export class HoneycombTracerClient {
                         //
                         // TODO(calebmer, #files): Make sure this works.
                         bodyString = bodyString.replaceAll(
-                            /([?&]sig=)[A-Za-z0-9+/\-_=.]+/,
+                            /([?&]sig=)[A-Za-z0-9+/\-_=.]+/g,
                             `$1${debugRedactedString}`,
                         );
 
