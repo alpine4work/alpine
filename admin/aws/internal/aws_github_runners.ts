@@ -341,7 +341,8 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-deploy"],
 
             instanceType: deployInstanceType,
-            storageSize: Size.gibibytes(30),
+            // TODO(calebmer, #files): Does more storage work? Document if yes.
+            storageSize: Size.gibibytes(40),
 
             // Do not use spot pricing for deploy GitHub runners. If a deploy is
             // interrupted production may be left in a bad state. (e.g. We interrupt during
