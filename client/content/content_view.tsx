@@ -5,6 +5,7 @@ import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "re
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
@@ -352,24 +353,10 @@ export function ContentView<Content extends ContentWithReferences>({
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
         if (contentUpdatedTime) {
-            let depthToLastTextblockChild = null;
-            let lastTextblockChild = content.doc.lastChild;
-            let depth = 1;
-
-            while (lastTextblockChild !== null) {
-                if (lastTextblockChild.isTextblock) {
-                    depthToLastTextblockChild = depth;
-                    break;
-                }
-                lastTextblockChild = lastTextblockChild.lastChild;
-                depth++;
-            }
-
-            const depthToLastParagraphChild =
-                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
+            const result = getContentViewLastParagraphChild(content.doc);
 
             let html: HtmlElementGenerator;
-            if (depthToLastParagraphChild !== null) {
+            if (result !== null) {
                 const updatedNoteHtml = new HtmlElementGenerator("span");
                 updatedNoteHtml.setAttribute("id", `${id}-edited`);
                 updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
@@ -391,41 +378,26 @@ export function ContentView<Content extends ContentWithReferences>({
 
             decorations.push({
                 type: "Widget",
-                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                pos: content.doc.nodeSize - ((result?.depth ?? 0) + 1),
                 html,
             });
         }
 
         if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
-            let depthToLastTextblockChild = null;
-            let lastTextblockChild = content.doc.lastChild;
-            let depth = 1;
-
-            while (lastTextblockChild !== null) {
-                if (lastTextblockChild.isTextblock) {
-                    depthToLastTextblockChild = depth;
-                    break;
-                }
-                lastTextblockChild = lastTextblockChild.lastChild;
-                depth++;
-            }
-
-            const depthToLastParagraphChild =
-                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
+            const result = getContentViewLastParagraphChild(content.doc);
 
             const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
 
             let html: HtmlElementGenerator;
             if (
-                depthToLastParagraphChild !== null &&
+                result !== null &&
                 // Always render "See less" on its own line. Don't put it inline with the last
                 // paragraph.
                 !shouldShowSeeLessContentButton
             ) {
                 const shouldAddEllipsis =
-                    lastTextblockChild &&
-                    lastTextblockChild.childCount > 0 &&
-                    !isTextEndedWithPunctuation(lastTextblockChild.lastChild!.text!);
+                    result.node.childCount > 0 &&
+                    !isTextEndedWithPunctuation(result.node.lastChild!.text!);
 
                 const seeButtonContainerHtml = new HtmlElementGenerator("span");
 
@@ -455,7 +427,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
             decorations.push({
                 type: "Widget",
-                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                pos: content.doc.nodeSize - ((result?.depth ?? 0) + 1),
                 html,
             });
         }

@@ -1294,7 +1294,7 @@ function PostRouteShimmer() {
             <Box flexGrow="1" overflow="hidden">
                 <Box height="safe-area-inset-top" />
                 {platform === "mobile" ? (
-                    <Box style={{height: postViewNavigationBarSpace}}>
+                    <Box style={{height: postViewNavigationBarSpace[platform]}}>
                         <Box
                             height={navigationBarHeight}
                             display="flex"
@@ -1312,7 +1312,7 @@ function PostRouteShimmer() {
                         width="full"
                         maxWidth={contentStyles.contentMaxWidth}
                         marginX="center"
-                        style={{height: postViewNavigationBarSpace}}
+                        style={{height: postViewNavigationBarSpace[platform]}}
                     >
                         <Box height={navigationBarHeight} display="flex" alignItems="center">
                             <Box flexGrow="1">

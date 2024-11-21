@@ -3,10 +3,10 @@ import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/sty
 import {
     RemLength,
     addRemLengths,
-    assertSpacing,
     parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
+    spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -33,7 +33,11 @@ export const postFauxInputCreateButtonMarginTop = {
 export const postFauxInputCreateButtonHeight = "12";
 
 export const postContentViewOuterMarginY = "5";
-export const postContentViewInnerMarginY = "3";
+
+// We also use this value as the padding X and Y padding for our post content
+// editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
+// values in addition to Y axis spacing values.
+export const postContentViewInnerMarginY = "2";
 
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";
@@ -41,17 +45,9 @@ export const postContentViewHeaderHeight = "8";
 export const postContentViewFooterHeight = "8";
 export const postContentViewFooterButtonHeight = "7";
 
-export const postContentEditorPadding = "2";
-
-export const screenPaddingXWithoutPostContentEditorPadding = mapObjectValues(
+export const screenPaddingXWithoutPostContentViewInnerMarginY = mapObjectValues(
     screenPaddingX,
-    screenPaddingX =>
-        assertSpacing(`${parseFloat(screenPaddingX) - parseFloat(postContentEditorPadding)}`),
-);
-
-export const postContentViewInnerMarginYWithoutContentEditorPadding = subtractRemLengths(
-    postContentViewInnerMarginY,
-    postContentEditorPadding,
+    screenPaddingX => subtractRemLengths(screenPaddingX, postContentViewInnerMarginY),
 );
 
 const fontSize75LineHeightRem = parseRemLength(fontSizes["75"].lineHeight);
@@ -86,10 +82,16 @@ const postCommentSectionGuidelineStartHeightRem =
 
 export const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
 
-export const postViewNavigationBarSpace = subtractRemLengths(
-    navigationBarStyles.navigationBarHeight,
-    postContentViewInnerMarginY,
-);
+// On desktop there's a bit of extra margin bottom below the navigation bar and
+// post content so that when the user edits their post the focus ring won't be
+// clipped by the navigation bar.
+export const postViewNavigationBarSpace = {
+    desktop: spacing[navigationBarStyles.navigationBarHeight],
+    mobile: subtractRemLengths(
+        navigationBarStyles.navigationBarHeight,
+        postContentViewInnerMarginY,
+    ),
+};
 
 const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
     postContentViewInnerMarginY,
@@ -115,7 +117,7 @@ export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
 );
 
 export const postViewMinHeight = addRemLengths(
-    postViewNavigationBarSpace,
+    navigationBarStyles.navigationBarHeight,
     postContentViewMinHeightWithoutHeaderBase,
     postContentViewOuterMarginBottom,
 );

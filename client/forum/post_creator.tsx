@@ -278,7 +278,7 @@ export function PostCreator({
                                 marginX="center"
                                 paddingX={screenPaddingX}
                                 marginBottom={postContentViewInnerMarginY}
-                                style={{height: postViewNavigationBarSpace}}
+                                style={{height: postViewNavigationBarSpace[platform]}}
                             >
                                 <Box
                                     position="absolute"

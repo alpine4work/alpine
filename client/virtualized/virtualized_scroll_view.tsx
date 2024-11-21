@@ -1980,16 +1980,33 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
     // If the item is already partially visible, we make sure it is fully visible
     // and don't scroll anymore.
     if (areRangesOverlapping(offset, offset + height, viewTop, viewBottom)) {
-        // If the item is bigger than the screen, don't change scroll position.
-        if (offset < viewTop && offset + height > viewBottom) {
+        // If the item is bigger than the screen (excluding margins), don't change
+        // scroll position.
+        if (offset < viewTop + margin && offset + height > viewBottom - margin) {
             return {scrollOffset, position};
         }
 
-        if (offset < viewTop) {
-            return {scrollOffset: offset - margin, position};
+        // If the item is visible but its top is out of the scroll view then figure out
+        // the smallest scroll to make the item fully visible (either scrolling to top
+        // or scrolling to bottom).
+        if (offset < viewTop + margin) {
+            const scrollOffset1 = offset - margin;
+            const scrollOffset2 = offset + height - viewHeight + margin;
+            const scrollDelta1 = Math.abs(scrollOffset - scrollOffset1);
+            const scrollDelta2 = Math.abs(scrollOffset - scrollOffset2);
+
+            // Don't bother scrolling if we have a subpixel scroll delta. It's likely due
+            // to a rounding error somewhere.
+            if (scrollDelta1 < 1) return {scrollOffset, position};
+            if (scrollDelta2 < 1) return {scrollOffset, position};
+
+            return {
+                scrollOffset: scrollDelta2 < scrollDelta1 ? scrollOffset2 : scrollOffset1,
+                position,
+            };
         }
 
-        if (offset + height > viewBottom) {
+        if (offset + height > viewBottom - margin) {
             return {
                 scrollOffset: offset + height - viewHeight + margin,
                 position,

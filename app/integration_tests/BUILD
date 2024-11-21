@@ -24,6 +24,8 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 # - Inline editing states for channel name, channel description, post, task
 #   collection name, etc.
 # - All task filters and sorts.
+# - Editing a post that ends with a file that has an "(edited)" note. We want
+#   to exercise that has the same layout as `<ContentView>`.
 
 ts_playwright_tests(
     name = "integration_tests",

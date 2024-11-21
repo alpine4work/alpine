@@ -4,14 +4,17 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
+import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
@@ -29,11 +32,10 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     postCommentSectionGuidelineOffset,
     postCommentSectionGuidelineStartHeight,
-    postContentEditorPadding,
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
-    postContentViewInnerMarginYWithoutContentEditorPadding,
+    postContentViewInnerMarginY,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
     postContentViewOuterMarginBottom,
@@ -41,17 +43,27 @@ import {
     postContentViewOuterOpenCommentSectionMarginBottom,
     postViewMinHeight,
     postViewNavigationBarSpace,
-    screenPaddingXWithoutPostContentEditorPadding,
+    screenPaddingXWithoutPostContentViewInnerMarginY,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    contentViewStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
+import {
+    PostContent,
+    PostContentWithReferences,
+    assertPostContent,
+} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
@@ -83,6 +95,7 @@ export function PostContentView({
     onMergePostContentReferences,
     onTogglePostComments,
     onLoadInitialPostComments,
+    onScrollToIfNotVisible,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
@@ -95,6 +108,7 @@ export function PostContentView({
     onMergePostContentReferences: (references: ContentReferences) => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
+    onScrollToIfNotVisible: () => void;
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -214,7 +228,7 @@ export function PostContentView({
         >
             {isPostView ? (
                 <Box paddingTop="safe-area-inset">
-                    <Box style={{height: postViewNavigationBarSpace}} />
+                    <Box style={{height: postViewNavigationBarSpace[platform]}} />
                 </Box>
             ) : (
                 <>
@@ -257,10 +271,9 @@ export function PostContentView({
             )}
             <Box
                 ref={contentContainerRef}
-                paddingX={screenPaddingXWithoutPostContentEditorPadding}
                 style={{
-                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPadding,
-                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPadding,
+                    paddingLeft: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
+                    paddingRight: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
                 }}
             >
                 {!isEditingPost ? (
@@ -269,18 +282,14 @@ export function PostContentView({
                             content={post.content}
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
-                            className={sprinkles({
-                                padding: postContentEditorPadding,
-                            })}
+                            className={sprinkles({padding: postContentViewInnerMarginY})}
                             onMergeContentReferences={onMergePostContentReferences}
                         />
                     ) : (
                         <ContentViewWithSeeMoreToggle
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
-                            className={sprinkles({
-                                padding: postContentEditorPadding,
-                            })}
+                            className={sprinkles({padding: postContentViewInnerMarginY})}
                             content={post.content}
                             contentSnippet={postSnippet}
                             onMergeContentReferences={onMergePostContentReferences}
@@ -291,6 +300,9 @@ export function PostContentView({
                         idBase={idBase}
                         postEditingForThisPost={postEditingForThisPost}
                         fileAttachmentTarget={fileAttachmentTarget}
+                        initialContent={post.content}
+                        initialContentUpdatedTime={post.contentUpdatedTime}
+                        onScrollToIfNotVisible={onScrollToIfNotVisible}
                     />
                 )}
             </Box>
@@ -588,10 +600,16 @@ function PostContentViewEditor({
     idBase,
     postEditingForThisPost,
     fileAttachmentTarget,
+    initialContent,
+    initialContentUpdatedTime,
+    onScrollToIfNotVisible,
 }: {
     idBase: string;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
+    initialContent: PostContentWithReferences;
+    initialContentUpdatedTime: Date | null;
+    onScrollToIfNotVisible: () => void;
 }) {
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
 
@@ -602,68 +620,124 @@ function PostContentViewEditor({
         hasInitiallyMountedRef.current = true;
 
         const editor = assertExists(editorRef.current);
-        editor.focus();
-    }, []);
+
+        // If the user is in the middle of a post and they hit "edit" we don't want to
+        // scroll the post. However, if the user is reading comments then they hit
+        // "edit" on the post then we do want to scroll.
+        //
+        // By default, Chrome's scroll on focus will always scroll to the top of the
+        // editor even if the editor is already visible. However, the
+        // `onScrollToIfNotVisible()` function won't scroll if the editor is already
+        // visible.
+        editor.focus({preventScroll: true});
+        onScrollToIfNotVisible();
+    }, [onScrollToIfNotVisible]);
+
+    // Recreate the "(edited)" update note `<ContentView>` renders when editing a
+    // post. This way when we start editing a post that ends with a file layout
+    // doesn't shift.
+    const initialContentUpdatedNote = useMemo(() => {
+        if (!initialContentUpdatedTime) return;
+
+        const result = getContentViewLastParagraphChild(initialContent.doc);
+        if (result) return;
+
+        return (
+            <Box
+                marginTop={`-${postContentViewInnerMarginY}`}
+                paddingBottom={postContentViewInnerMarginY}
+            >
+                <p
+                    className={paragraphClassName}
+                    style={{
+                        marginBottom: 0,
+                        // We are assuming here that if `depthToLastParagraphChild` is null that's
+                        // because the last element is a block with standalone margin. We may need to
+                        // modify this logic depending on what the actual last element is.
+                        marginTop: contentStyles.standaloneBlockMarginVar,
+                    }}
+                >
+                    <Tooltip
+                        placement="bottom"
+                        content={
+                            <PrettyAbsoluteDateTooltipContent date={initialContentUpdatedTime} />
+                        }
+                    >
+                        <span className={contentViewStyles.updatedNoteClassName}>(edited)</span>
+                    </Tooltip>
+                </p>
+            </Box>
+        );
+    }, [initialContent.doc, initialContentUpdatedTime]);
 
     return (
-        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
-            <Box
-                id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-                // We picked this border radius because it looks good with a selected file's
-                // `<FocusRing>` when they line up in the bottom corners.
-                borderRadius="2.5"
-                style={{
-                    // Use box shadow to draw the border so it doesn't add 1px to layout like
-                    // `border` CSS would.
-                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                }}
-                ref={useConfirmSaveAfterLosingFocus({
-                    shouldConfirmSave:
-                        postEditingForThisPost.state.contentEditorState.getDoc() !==
-                        postEditingForThisPost.state.initialContent,
-                    isConfirmingSave:
-                        postEditingForThisPost.state.isEditing &&
-                        postEditingForThisPost.state.confirmationDialog === "Save",
-                    onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
-                    onConfirmSave: () =>
-                        postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
-                })}
+        <>
+            <FocusRing
+                // This has an `inset` offset to avoid conflicting with the post navigation bar
+                // when `isPostView` is true.
+                offset="inset"
+                isVisibleWhenFocusWithin={true}
+                isVisibleFromAnyFocus={true}
             >
-                <ContentEditor
-                    ref={editorRef}
-                    aria-label="Post"
-                    state={postEditingForThisPost.state.contentEditorState}
-                    onChange={(contentEditorState, transaction) => {
-                        if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
-
-                        postEditingForThisPost.dispatch({
-                            type: "ContentEditorStateChange",
-                            contentEditorState,
-                        });
+                <Box
+                    id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
+                    // We picked this border radius because it looks good with a selected file's
+                    // `<FocusRing>` when they line up in the bottom corners.
+                    borderRadius="2.5"
+                    style={{
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like
+                        // `border` CSS would.
+                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
-                    // On mobile, don't allow interactions when unfocused. We're already in an
-                    // editing modality.
-                    withoutMobileDualModality={true}
-                    placeholder="Share your ideas…"
-                    fileAttachmentTarget={fileAttachmentTarget}
-                    className={sprinkles({
-                        padding: postContentEditorPadding,
+                    ref={useConfirmSaveAfterLosingFocus({
+                        shouldConfirmSave:
+                            postEditingForThisPost.state.contentEditorState.getDoc() !==
+                            postEditingForThisPost.state.initialContent,
+                        isConfirmingSave:
+                            postEditingForThisPost.state.isEditing &&
+                            postEditingForThisPost.state.confirmationDialog === "Save",
+                        onCancelSave: () =>
+                            postEditingForThisPost.dispatch({type: "CancelEditing"}),
+                        onConfirmSave: () =>
+                            postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
                     })}
-                    onModEnter={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (postEditingForThisPost.state.isSaving) return;
-                        postEditingForThisPost.dispatch({type: "SaveEditedContent"});
-                    }}
-                    onEscape={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (postEditingForThisPost.state.isSaving) return;
-                        postEditingForThisPost.dispatch({type: "CancelEditing"});
-                    }}
-                />
-            </Box>
-        </FocusRing>
+                >
+                    <ContentEditor
+                        ref={editorRef}
+                        aria-label="Post"
+                        state={postEditingForThisPost.state.contentEditorState}
+                        onChange={(contentEditorState, transaction) => {
+                            if (postEditingForThisPost.state.isSaving && transaction.docChanged)
+                                return;
+
+                            postEditingForThisPost.dispatch({
+                                type: "ContentEditorStateChange",
+                                contentEditorState,
+                            });
+                        }}
+                        // On mobile, don't allow interactions when unfocused. We're already in an
+                        // editing modality.
+                        withoutMobileDualModality={true}
+                        placeholder="Share your ideas…"
+                        fileAttachmentTarget={fileAttachmentTarget}
+                        className={sprinkles({padding: postContentViewInnerMarginY})}
+                        onModEnter={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (postEditingForThisPost.state.isSaving) return;
+                            postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                        }}
+                        onEscape={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (postEditingForThisPost.state.isSaving) return;
+                            postEditingForThisPost.dispatch({type: "CancelEditing"});
+                        }}
+                    />
+                </Box>
+            </FocusRing>
+            {initialContentUpdatedNote}
+        </>
     );
 }
 

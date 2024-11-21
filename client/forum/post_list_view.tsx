@@ -885,6 +885,12 @@ function PostListView(
                                         onLoadInitialPostComments={() =>
                                             loadInitialPostComments(item)
                                         }
+                                        onScrollToIfNotVisible={() => {
+                                            assertExists(viewRef.current).scrollToKeyIfExists(
+                                                `PostContent:${item.post.id}`,
+                                                {withAnchor: true},
+                                            );
+                                        }}
                                     />
                                 </div>
                                 {hasAside && (
