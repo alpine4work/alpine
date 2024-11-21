@@ -115,14 +115,37 @@ export function useContentEditorTracker({
                 );
                 const coordsTo =
                     typeof pos !== "number" ? viewRef.current.coordsAtPos(pos.to, side) : null;
-                coords = coordsTo
-                    ? {
-                          top: Math.min(coordsFrom.top, coordsTo.top),
-                          bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
-                          left: Math.min(coordsFrom.left, coordsTo.left),
-                          right: Math.max(coordsFrom.right, coordsTo.right),
-                      }
-                    : coordsFrom;
+
+                if (!coordsTo) {
+                    coords = coordsFrom;
+                } else {
+                    // When determining the coordinates of a selection range to position our cursor
+                    // tracker, remember the overlay attached to the cursor tracker needs to look
+                    // good above and below the selection. For example
+                    // `<ContentEditorPointerToolbar>` when editing a post view on desktop with text
+                    // selected at the start of the post will need to flip down to avoid the post
+                    // navigation bar.
+                    if (
+                        Math.abs(coordsFrom.top - coordsTo.top) <= 1 &&
+                        Math.abs(coordsFrom.bottom - coordsTo.bottom) <= 1
+                    ) {
+                        coords = {
+                            top: Math.min(coordsFrom.top, coordsTo.top),
+                            bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
+                            left: Math.min(coordsFrom.left, coordsTo.left),
+                            right: Math.max(coordsFrom.right, coordsTo.right),
+                        };
+                    } else {
+                        const viewRect = viewRef.current.dom.getBoundingClientRect();
+
+                        coords = {
+                            top: Math.min(coordsFrom.top, coordsTo.top),
+                            bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
+                            left: viewRect.left,
+                            right: viewRect.right,
+                        };
+                    }
+                }
             }
 
             // `coords` are relative to the viewport, so get our offset parent's viewport
