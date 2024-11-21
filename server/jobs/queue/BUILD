@@ -43,7 +43,7 @@ js_image_layer(
 
 oci_image(
     name = "queue_image",
-    base = "@ubuntu_image",
+    base = "@debian_image",
     tars = [
         "//admin/aws:www_data_directory_layer",
         ":queue_image_layer",

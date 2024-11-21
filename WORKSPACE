@@ -284,9 +284,9 @@ oci_register_toolchains(name = "oci")
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 
 oci_pull(
-    name = "ubuntu_image",
-    digest = "sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295",
-    image = "ubuntu",
+    name = "debian_image",
+    digest = "sha256:ca3372ce30b03a591ec573ea975ad8b0ecaf0eb17a354416741f8001bbcae33d",
+    image = "debian",
     platforms = ["linux/arm64/v8"],
 )
 
