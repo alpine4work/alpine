@@ -2,6 +2,7 @@ import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Peer, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -85,7 +86,7 @@ export class AwsTaskRealtimeService extends Construct {
         this.autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
             instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: partitionCount * partitionInstanceCount,
             // During a deploy, we double our capacity needs since we keep running old

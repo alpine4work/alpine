@@ -3,6 +3,7 @@ import {AutoScalingGroup, BlockDeviceVolume} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -96,7 +97,7 @@ export class AwsFileProcessorService extends Construct {
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
             instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: 1,
             // During a deploy, we double our capacity needs since we keep running old

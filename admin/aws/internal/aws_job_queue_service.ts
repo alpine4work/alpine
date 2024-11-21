@@ -2,6 +2,7 @@ import {Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -50,7 +51,7 @@ export class AwsJobQueueService extends Construct {
             // First 750 hours per month of this instance type are free. That effectively
             // translates to 1 free capacity of this instance type across our AWS account.
             instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: 1,
             // During a deploy, we double our capacity needs since we keep running old
