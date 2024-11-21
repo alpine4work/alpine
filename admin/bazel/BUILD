@@ -1,8 +1,8 @@
 platform(
-    name = "linux_x86_64",
+    name = "linux_arm",
     constraint_values = [
         "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
+        "@platforms//cpu:arm",
     ],
     visibility = ["//visibility:public"],
 )
