@@ -5,6 +5,7 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
@@ -192,37 +193,31 @@ test("can write collaboratively at the same time in a document", async ({
     for (let index = 0; index < count; index++) {
         await runAllPromiseThunks(
             async () => {
-                if (canPrimaryInputHover) {
-                    await page1
-                        .getByRole("textbox", {name: "Document"})
-                        .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-                } else {
-                    await page1
-                        .getByRole("textbox", {name: "Document"})
-                        .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
-                }
+                await page1.evaluate("dev.contentEditor.setTextSelection(275)");
+
+                const delay = randomInteger(0, 50);
+
+                await wait(delay);
 
                 await page1
                     .getByRole("textbox", {name: "Document"})
-                    .pressSequentially("123456123456123456", {delay: randomInteger(0, 10)});
+                    .pressSequentially("123456123456123456", {delay});
+
                 await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
                 if (index === reload1) await page1.reload();
             },
             async () => {
-                if (canPrimaryInputHover) {
-                    await page2
-                        .getByRole("textbox", {name: "Document"})
-                        .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-                } else {
-                    await page2
-                        .getByRole("textbox", {name: "Document"})
-                        .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
-                }
+                await page2.evaluate("dev.contentEditor.setTextSelection(275)");
+
+                const delay = randomInteger(0, 50);
+
+                await wait(delay);
 
                 await page2
                     .getByRole("textbox", {name: "Document"})
-                    .pressSequentially("abcdefabcdefabcdef", {delay: randomInteger(0, 10)});
+                    .pressSequentially("abcdefabcdefabcdef", {delay});
+
                 await page2.getByRole("textbox", {name: "Document"}).press("Enter");
 
                 if (index === reload2) await page2.reload();
