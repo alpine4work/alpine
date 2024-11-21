@@ -2,7 +2,7 @@ import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
-import {TableView, columnResizing, tableEditing} from "prosemirror-tables";
+import {tableEditing} from "prosemirror-tables";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
@@ -25,6 +25,7 @@ import {
     mergeContentReferencesFileSignedUrlSearches,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {columnResizing} from "~/shared/content/table/content_editor_column_resize_plugin.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -87,38 +88,24 @@ function buildPlugins<Content extends ContentWithReferences>({
         schema.nodes.table &&
         schema.nodes.table_row &&
         schema.nodes.table_cell &&
-        schema.nodes.table_header &&
+        schema.nodes.tableHeader &&
         schema.nodes.table.spec.attrs &&
         schema.nodes.table.spec.attrs.columns !== undefined &&
         schema.nodes.table_cell.spec.attrs &&
         schema.nodes.table_cell.spec.attrs.colspan !== undefined &&
         schema.nodes.table_cell.spec.attrs.rowspan !== undefined
     );
-    if (hasTableSupport) {
-        try {
-            plugins.push(
-                tableEditing({
-                    allowTableNodeSelection: true,
-                }),
-            );
 
-            // Add column resizing in a separate try block
-            try {
-                plugins.push(
-                    columnResizing({
-                        cellMinWidth: 50,
-                        // defaultCellMinWidth: 100,
-                        View: TableView,
-                        lastColumnResizable: true,
-                    }),
-                );
-            } catch (e) {
-                console.warn("Failed to initialize table column resizing:", e);
-            }
-        } catch (e) {
-            console.warn("Failed to initialize table editing:", e);
-        }
-    }
+    assert(hasTableSupport);
+
+    plugins.push(
+        tableEditing({
+            allowTableNodeSelection: true,
+        }),
+        columnResizing(),
+    );
+
+    plugins.push();
 
     return plugins;
 }

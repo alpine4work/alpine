@@ -36,9 +36,9 @@ import {
 } from "~/shared/content/content_styles.js";
 import {
     table,
-    table_cell,
-    table_header,
-    table_row,
+    tableCell,
+    tableHeader,
+    tableRow,
 } from "~/shared/content/table/content_editor_table_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
@@ -464,10 +464,11 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 },
             ],
         },
+
         table: table,
-        table_row: table_row,
-        table_cell: table_cell,
-        table_header: table_header,
+        table_row: tableRow,
+        table_cell: tableCell,
+        tableHeader: tableHeader,
     },
     marks: {
         // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means

@@ -1081,13 +1081,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
-                                                                                        "table_header": {
+                                                                                        "tableHeader": {
                                                                                             "type": "Object",
                                                                                             "propertySchemaByKey": {
                                                                                                 "type": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Value",
-                                                                                                        "value": "table_header"
+                                                                                                        "value": "tableHeader"
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
@@ -2586,13 +2586,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                 },
                                                                                                                                 "referenceId": "578d9f54"
                                                                                                                             },
-                                                                                                                            "table_header": {
+                                                                                                                            "tableHeader": {
                                                                                                                                 "type": "Object",
                                                                                                                                 "propertySchemaByKey": {
                                                                                                                                     "type": {
                                                                                                                                         "valueSchema": {
                                                                                                                                             "type": "Value",
-                                                                                                                                            "value": "table_header"
+                                                                                                                                            "value": "tableHeader"
                                                                                                                                         },
                                                                                                                                         "optional": false
                                                                                                                                     },
@@ -2918,7 +2918,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "578d9f54"
                                                                                                 },
-                                                                                                "table_header": {
+                                                                                                "tableHeader": {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "cf6dded0"
                                                                                                 },
@@ -5179,13 +5179,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "table_header": {
+                                                                    "tableHeader": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "table_header"
+                                                                                    "value": "tableHeader"
                                                                                 },
                                                                                 "optional": false
                                                                             },
@@ -9253,13 +9253,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "table_header": {
+                                                                    "tableHeader": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "table_header"
+                                                                                    "value": "tableHeader"
                                                                                 },
                                                                                 "optional": false
                                                                             },

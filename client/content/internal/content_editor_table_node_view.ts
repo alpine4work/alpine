@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {addColumnAfter} from "prosemirror-tables";
@@ -27,9 +26,7 @@ export class TableView implements NodeView {
 
     constructor(public node: Node, public defaultCellMinWidth: number, public view: EditorView) {
         this.dom = document.createElement("div");
-        this.dom.className = classNames(tableClassName, {
-            [tableAlignClassName]: node.attrs.alignment !== "center",
-        });
+        this.dom.className = tableClassName;
         this.dom.style.position = "relative";
 
         this.dom.setAttribute("data-scrollbar", "false");

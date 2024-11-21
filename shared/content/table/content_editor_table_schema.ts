@@ -1,7 +1,13 @@
 import classNames from "classnames";
-import {Node} from "prosemirror-model";
+import {
+    AttributeSpec,
+    Node,
+    NodeSpec,
+    NodeType,
+    Schema as ProsemirrorSchema,
+} from "prosemirror-model";
 
-import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {Command} from "prosemirror-state";
 import {
     CellSelection,
     addColumnAfter as addColumnAfterFromProsemirrorTables,
@@ -18,6 +24,7 @@ import {
     setCellAttr,
     splitCell,
     tableEditing,
+    tableNodes,
     toggleHeader,
     toggleHeaderCell,
 } from "prosemirror-tables";
@@ -29,32 +36,29 @@ import {
 } from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-// table: {
-//     content: "table_row+",
-//     tableRole: "table",
-//     isolating: true,
-//     group: "block",
-//     parseDOM: [{tag: "table"}],
-//     toDOM() {
-//         return ["table", 0];
-//     },
-// },
-// table_row: {
-//     content: "table_cell+",
-//     tableRole: "row",
-//     parseDOM: [{tag: "tr"}],
-//     toDOM() {
-//         return ["tr", 0];
-//     },
-// },
-// table_cell: {
-//     content: "block+",
-//     tableRole: "cell",
-//     parseDOM: [{tag: "td"}],
-//     toDOM() {
-//         return ["td", 0];
-//     },
-// },
+/**
+ *  Why some defult values for colspan, rowspan, colwidth are required?
+ * The default cell attributes (cellAttrs) are essential for defining the fundamental properties of each table cell in ProseMirror's table schema:
+   - **colspan** (default: 1): Allows cells to span multiple columns.
+   - **rowspan** (default: 1): Allows cells to span multiple rows.
+   - **colwidth** (default: null): Holds information about column widths.
+
+   These defaults ensure:
+   - Regular cells function correctly (1x1 size) without needing explicit attributes.
+   - The schema can effectively parse and serialize HTML tables.
+   - Consistent base values for table operations (e.g., splitting and merging cells).
+
+   Without these defaults, ProseMirror would struggle to manage basic table cell behavior and maintain the integrity of the table structure. The schema utilizes these attributes in the `getCellAttrs()` and `setCellAttrs()` functions to:
+   - Parse HTML tables into ProseMirror's internal format.
+   - Render ProseMirror tables back to HTML.
+   - Facilitate table editing operations.
+ */
+const cellAttrs: Record<string, AttributeSpec> = {
+    colspan: {default: 1, schema: Schema.integer},
+    rowspan: {default: 1, schema: Schema.integer},
+    colwidth: {default: null, schema: Schema.unknown},
+};
+
 export const table = {
     name: "table",
     content: "table_row+",
@@ -195,20 +199,20 @@ export const table = {
     },
 };
 
-export const table_row = {
+export const tableRow = {
     name: "table_row",
-    content: "(table_cell | table_header)+",
+    content: "(table_cell | tableHeader)+",
     tableRole: "row",
     isolating: true,
     selectable: true,
+    copyable: true,
     parseDOM: [{tag: "tr"}],
     toDOM() {
         return ["tr", 0] as const;
     },
-    copyable: true,
 };
 
-export const table_cell = {
+export const tableCell = {
     name: "table_cell",
     group: "block",
     content: "block+",
@@ -217,52 +221,39 @@ export const table_cell = {
     isolating: true,
     copyable: true,
 
-    attrs: {
-        colspan: {default: 1, schema: Schema.integer},
-        rowspan: {default: 1, schema: Schema.integer},
-        colwidth: {default: null, schema: Schema.unknown},
-        // colwidth: {default: null, schema: Schema.array(Schema.integer)},
-    },
-    parseDOM: [
-        {
-            tag: "td",
-            getAttrs: (dom: Element) => ({
-                colspan: Number(dom.getAttribute("colspan")) || 1,
-                rowspan: Number(dom.getAttribute("rowspan")) || 1,
-            }),
-        },
-    ],
-    toDOM(node: Node) {
-        const {colspan, rowspan} = node.attrs;
-        return [
-            "td",
-            {
-                class: tableCellClassName,
-                colspan: colspan > 1 ? colspan : null,
-                rowspan: rowspan > 1 ? rowspan : null,
-            },
-            0,
-        ] as const;
+    attrs: cellAttrs,
+    parseDOM: [{tag: "td"}],
+    toDOM() {
+        return ["td", {class: tableCellClassName}, 0] as const;
     },
 };
 
-export const table_header = {
-    name: "table_header",
+export const tableHeader = {
+    name: "tableHeader", // name must match the name in the column definition
     content: "block+",
     selectable: true,
     isolating: true,
     copyable: true,
-
-    // attrs: cellAttrs,
-    attrs: {
-        // Add these attributes
-        colspan: {default: 1, schema: Schema.integer},
-        rowspan: {default: 1, schema: Schema.integer},
-        colwidth: {default: null, schema: Schema.unknown},
-    },
     tableRole: "header_cell",
     parseDOM: [{tag: "th"}],
     toDOM() {
-        return ["th", {class: tableHeaderClassName}, 0] as const;
+        return ["th", {class: tableHeaderClassName}, 0] as const; // added class to match the css
     },
+    attrs: cellAttrs, // mandatory for table to work
 };
+
+export function tableNodeTypes(schema: ProsemirrorSchema): Record<TableRole, NodeType> {
+    let result = schema.cached.tableNodeTypes;
+    if (!result) {
+        result = schema.cached.tableNodeTypes = {};
+        for (const name in schema.nodes) {
+            const type = schema.nodes[name];
+            const role = type?.spec.tableRole;
+            if (role) result[role] = type;
+        }
+    }
+    return result;
+}
+
+export type TableNodes = Record<"table" | "tableRow" | "tableCell" | "tableHeader", NodeSpec>;
+export type TableRole = "table" | "row" | "cell" | "header_cell";
