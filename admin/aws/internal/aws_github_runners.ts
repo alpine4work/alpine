@@ -13,7 +13,6 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
-import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -64,13 +63,13 @@ export class AwsGithubRunners extends Construct {
         const testInstanceClass = InstanceClass.M7G;
         const testInstanceType = InstanceType.of(testInstanceClass, InstanceSize.XLARGE2);
 
-        // 4 vCPU, 16 GiB memory, Gravitron (ARM) processor
+        // 2 vCPU, 8 GiB memory, Gravitron (ARM) processor
         //
         // We use the same instance class for our deploy GitHub runners as we do our
         // production services so when building we're building for the right
         // architecture.
-        const deployInstanceClass = awsServiceInstanceClass;
-        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE);
+        const deployInstanceClass = InstanceClass.T4G;
+        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.LARGE);
 
         const createImageBuilderComponents = (
             extraAptDependencies: Array<string> = [],

@@ -342,7 +342,7 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
     const instanceTypeString = instanceType.toString();
 
     switch (instanceTypeString) {
-        case "t4g.micro":
+        case "t3.micro":
             return 2;
         default: {
             throw new InternalError(
