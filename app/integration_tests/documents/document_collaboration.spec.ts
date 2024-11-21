@@ -169,14 +169,7 @@ test("can write collaboratively at the same time in a document", async ({
     await page1.getByRole("textbox", {name: "Document"}).focus();
     await page2.getByRole("textbox", {name: "Document"}).focus();
 
-    if (canPrimaryInputHover) {
-        await page1
-            .getByRole("textbox", {name: "Document"})
-            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-        await page2
-            .getByRole("textbox", {name: "Document"})
-            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
-    } else {
+    if (!canPrimaryInputHover) {
         await page1
             .getByRole("textbox", {name: "Document"})
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
@@ -205,7 +198,16 @@ test("can write collaboratively at the same time in a document", async ({
 
                 await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
-                if (index === reload1) await page1.reload();
+                if (index === reload1) {
+                    await page1.reload();
+                    await page1.getByRole("textbox", {name: "Document"}).focus();
+
+                    if (!canPrimaryInputHover) {
+                        await page1
+                            .getByRole("textbox", {name: "Document"})
+                            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
+                    }
+                }
             },
             async () => {
                 await page2.evaluate("dev.contentEditor.setTextSelection(275)");
@@ -220,7 +222,16 @@ test("can write collaboratively at the same time in a document", async ({
 
                 await page2.getByRole("textbox", {name: "Document"}).press("Enter");
 
-                if (index === reload2) await page2.reload();
+                if (index === reload2) {
+                    await page2.reload();
+                    await page2.getByRole("textbox", {name: "Document"}).focus();
+
+                    if (!canPrimaryInputHover) {
+                        await page2
+                            .getByRole("textbox", {name: "Document"})
+                            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
+                    }
+                }
             },
         );
     }
