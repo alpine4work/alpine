@@ -15,12 +15,11 @@ import {
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {convertIdIntoUuid} from "~/shared/id/convert_id_into_uuid.js";
 import {generateId} from "~/shared/id/id.js";
 import {ApnsConnectionId} from "~/shared/id/types/id_types.js";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const apnsHostname =
@@ -373,11 +372,7 @@ export class ApnsConnection {
                     route: "/3/device/:deviceToken",
                     method: "POST",
                     request: {
-                        header: Object.fromEntries(
-                            filterIterable(Object.entries(requestHeaders), ([headerName]) =>
-                                tracerEventHttpHeaderNames.has(headerName),
-                            ),
-                        ),
+                        header: getHeadersTracerData(requestHeaders),
                     },
                 },
             });
@@ -414,11 +409,7 @@ export class ApnsConnection {
                 http: {
                     statusCode,
                     response: {
-                        header: Object.fromEntries(
-                            filterIterable(Object.entries(response.headers), ([headerName]) =>
-                                tracerEventHttpHeaderNames.has(headerName),
-                            ),
-                        ),
+                        header: getHeadersTracerData(response.headers),
                     },
                 },
                 apns: {
