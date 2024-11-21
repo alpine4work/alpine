@@ -7962,15 +7962,15 @@ test("can get all files attached to post draft", async () => {
 
     const draftId = generateChronologicalId<PostDraftId>();
 
-    await expect(
-        getPostDraftFileAttachments(
+    expect(
+        await getPostDraftFileAttachments(
             session1.action(),
             space.id,
             session1.account.id,
             draftId,
             FilePostAuthorizer,
         ),
-    ).rejects.toThrow(new NotFoundError("Post draft not found"));
+    ).toEqual([]);
 
     await createOrReplacePostDraft(session1.action(), space.id, session1.account.id, draftId, {
         channelId: null,

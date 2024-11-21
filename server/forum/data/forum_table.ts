@@ -822,8 +822,6 @@ type ChannelPostFilesItem = DynamoGeneralRealtimeTableItemType<
 
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
-type PostDraftItem = DynamoTableItemType<typeof ForumTable, "Account", "PostDraft">;
-
 export const FileChannelAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Channel",
@@ -3958,10 +3956,12 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     return {type: "Available", changes};
 }
 
-async function authorizePostDraftAccessEvenIfNotExists(
+export async function authorizePostDraftAccess(
     context: ServerActionContext,
     spaceId: SpaceId,
     accountId: AccountId,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    draftId: PostDraftId,
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -3980,79 +3980,20 @@ async function authorizePostDraftAccessEvenIfNotExists(
         default:
             throw exhaustive(context.actor);
     }
-}
 
-/**
- * Authorizes whether our session has access to the provided post draft.
- */
-export async function authorizePostDraftAccess(
-    context: ServerActionContext,
-    spaceId: SpaceId,
-    accountId: AccountId,
-    draftId: PostDraftId,
-): Promise<void> {
-    await authorizePostDraftAccessEvenIfNotExists(context, spaceId, accountId);
-
-    // Throws an error if the draft item doesn't exist. That's all we need to
-    // check. Whether the draft exists or not.
-    const draftItem = await getPostDraftItemForAuthorization(context, spaceId, accountId, draftId);
-    if (!draftItem) throw new NotFoundError("Post draft not found");
+    // Note that we don't authorize whether the post draft actually exists or not.
+    // The session actor always has access to drafts with their `accountId` in the
+    // key and nothing in the draft item can change that. We don't check if the
+    // draft exists for performance because it's irrelevant to whether the account
+    // has access. Also since there's a race condition when create a post with a
+    // `draftId` between `getPostDraftFileAttachments()` (which calls this
+    // function) and DynamoDB deleting the draft item.
 
     // Note that we don't authorize whether you have access to
     // `draftItem.channelId`. The draft author may have had access to the provided
     // channel when they created the draft then subsequently lost access to the
     // channel. If the user has lost access to the channel then we should consider
     // `channelId` to be null.
-}
-
-const PostDraftItemAuthorizationCache = new ContextCache<
-    `${SpaceId}:${AccountId}:${PostDraftId}`,
-    PostDraftItem | null
->();
-
-async function getPostDraftItemForAuthorization(
-    context: ServerActionContext,
-    spaceId: SpaceId,
-    accountId: AccountId,
-    draftId: PostDraftId,
-): Promise<PostDraftItem | null> {
-    return PostDraftItemAuthorizationCache.get(
-        context,
-        `${spaceId}:${accountId}:${draftId}`,
-        async () => {
-            const draftItem = await ForumTable.getItemIfExists(
-                context,
-                {
-                    partitionType: "Account",
-                    sortRangeType: "PostDraft",
-                    spaceId,
-                    accountId,
-                    draftId,
-                },
-                {
-                    // It's ok to call this function when expecting strong read consistency.
-                    // Authorization is mostly strongly consistent since we retry with strong
-                    // consistency if our eventually consistent read fails.
-                    allowsEventualReadConsistency: true,
-                },
-            );
-            if (draftItem) return draftItem;
-
-            return ForumTable.getItemIfExists(
-                context,
-                {
-                    partitionType: "Account",
-                    sortRangeType: "PostDraft",
-                    spaceId,
-                    accountId,
-                    draftId,
-                },
-                {
-                    consistency: "Strong",
-                },
-            );
-        },
-    );
 }
 
 /**
@@ -4065,7 +4006,7 @@ export async function createOrReplacePostDraft(
     draftId: PostDraftId,
     {channelId, content}: {channelId: ChannelId | null; content: PostContent},
 ): Promise<void> {
-    await authorizePostDraftAccessEvenIfNotExists(context, spaceId, accountId);
+    await authorizePostDraftAccess(context, spaceId, accountId, draftId);
 
     await ForumTable.createOrReplaceItem(context, {
         partitionType: "Account",
@@ -4090,7 +4031,7 @@ export async function getPostDraftIfExists(
     channel: ChannelPreviewModel | null;
     content: PostContentWithReferences;
 } | null> {
-    await authorizePostDraftAccessEvenIfNotExists(context, spaceId, accountId);
+    await authorizePostDraftAccess(context, spaceId, accountId, draftId);
 
     const draftItem = await ForumTable.getItemIfExists(context, {
         partitionType: "Account",
@@ -4101,8 +4042,6 @@ export async function getPostDraftIfExists(
     });
 
     if (!draftItem) return null;
-
-    PostDraftItemAuthorizationCache.set(context, `${spaceId}:${accountId}:${draftId}`, draftItem);
 
     const [channel, contentReferences] = await runAllPromises([
         draftItem.channelId

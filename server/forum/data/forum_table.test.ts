@@ -4307,9 +4307,7 @@ test("can create, get, update, and authorize a post draft", async () => {
 
     const draftId = generateChronologicalId<PostDraftId>();
 
-    await expect(
-        authorizePostDraftAccess(session1.action(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("Post draft not found");
+    await authorizePostDraftAccess(session1.action(), space.id, session1.account.id, draftId);
 
     expect(
         await getPostDraftIfExists(session1.action(), space.id, session1.account.id, draftId),
