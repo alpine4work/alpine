@@ -26,6 +26,7 @@ type TracerEventHttpHeaderNameMap = {
     connection: true;
     "content-encoding": true;
     "content-type": true;
+    "content-length": true;
     date: true;
     forwarded: true;
     host: true;
@@ -104,6 +105,7 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     connection: true,
     "content-encoding": true,
     "content-type": true,
+    "content-length": true,
     date: true,
     forwarded: true,
     host: true,

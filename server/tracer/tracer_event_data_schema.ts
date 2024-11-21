@@ -117,23 +117,19 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         flavor: LabelStringSchema,
         userAgent: LabelStringSchema,
         request: {
-            contentLength: Schema.float,
-            uncompressedContentLength: Schema.float,
             header: Object.fromEntries(
                 mapIterable(tracerEventHttpHeaderNames, headerName => [
                     headerName,
-                    LabelStringSchema,
+                    headerName === "content-length" ? Schema.integer : LabelStringSchema,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
             obfuscatedCookieHeader: Schema.string,
         },
         response: {
-            contentLength: Schema.float,
-            uncompressedContentLength: Schema.float,
             header: Object.fromEntries(
                 mapIterable(tracerEventHttpHeaderNames, headerName => [
                     headerName,
-                    LabelStringSchema,
+                    headerName === "content-length" ? Schema.integer : LabelStringSchema,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
             obfuscatedSetCookieHeader: Schema.string,

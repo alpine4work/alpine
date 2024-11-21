@@ -238,21 +238,8 @@ export type TracerEventData = {
         readonly userAgent?: string;
 
         readonly request?: {
-            /**
-             * The size of the request payload body in bytes. This is the number of bytes
-             * transferred excluding headers and is often, but not always, present as the
-             * `Content-Length` header. For requests using transport encoding, this should
-             * be the compressed size.
-             */
-            readonly contentLength?: number;
-
-            /**
-             * The size of the request payload body in bytes without compression.
-             */
-            readonly uncompressedContentLength?: number;
-
             /** HTTP request headers. */
-            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string};
+            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string | number};
 
             /**
              * If this request had a `Cookie` header this is an obfuscated approximation of
@@ -263,21 +250,8 @@ export type TracerEventData = {
         };
 
         readonly response?: {
-            /**
-             * The size of the response payload body in bytes. This is the number of bytes
-             * transferred excluding headers and is often, but not always, present as the
-             * `Content-Length` header. For requests using transport encoding, this should
-             * be the compressed size.
-             */
-            readonly contentLength?: number;
-
-            /**
-             * The size of the response payload body in bytes without compression.
-             */
-            readonly uncompressedContentLength?: number;
-
             /** HTTP response headers. */
-            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string};
+            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string | number};
 
             /**
              * If this request had a `Set-Cookie` header this is an obfuscated

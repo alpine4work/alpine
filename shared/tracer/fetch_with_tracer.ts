@@ -6,8 +6,11 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {
+    TracerEventHttpHeaderName,
+    tracerEventHttpHeaderNames,
+} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
@@ -172,11 +175,7 @@ export async function fetchWithTracer<ResponseData>(
                 method: requestMethod,
                 userAgent: request.headers.get("user-agent") ?? undefined,
                 request: {
-                    header: Object.fromEntries(
-                        filterIterable(request.headers, ([headerName]) =>
-                            tracerEventHttpHeaderNames.has(headerName),
-                        ),
-                    ),
+                    header: getHeadersTracerData(request.headers),
                     obfuscatedCookieHeader: obfuscateCookieHeader(request.headers),
                 },
             },
@@ -218,47 +217,13 @@ export async function fetchWithTracer<ResponseData>(
                 fetchDurationMs: fetchEndTime - fetchStartTime,
                 statusCode: response.status,
                 response: {
-                    header: Object.fromEntries(
-                        filterIterable(response.headers, ([headerName]) =>
-                            tracerEventHttpHeaderNames.has(headerName),
-                        ),
-                    ),
+                    header: getHeadersTracerData(response.headers),
                     obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(response.headers),
                 },
             },
         });
 
-        const responseContentLengthHeader = response.headers.get("content-length");
-        const responseContentLengthHeaderNumber = responseContentLengthHeader
-            ? parseInt(responseContentLengthHeader, 10)
-            : null;
-
-        let responseUncompressedContentLength = 0;
-
-        // Count the bytes streamed through a response body. We only count the bytes if
-        // `action()` consumes the body.
-        const newResponseBody = response.body?.pipeThrough(
-            new TransformStream({
-                transform: (chunk, controller) => {
-                    responseUncompressedContentLength += chunk.length;
-                    controller.enqueue(chunk);
-                },
-            }),
-        );
-
-        let responseData;
-        try {
-            responseData = await action(new Response(newResponseBody, response), span);
-        } finally {
-            span.addData({
-                http: {
-                    response: {
-                        contentLength: responseContentLengthHeaderNumber ?? undefined,
-                        uncompressedContentLength: responseUncompressedContentLength,
-                    },
-                },
-            });
-        }
+        const responseData = await action(response, span);
 
         finishSpan();
         return responseData;
@@ -267,6 +232,23 @@ export async function fetchWithTracer<ResponseData>(
         finishSpan();
         throw error;
     }
+}
+
+export function getHeadersTracerData(headers: Headers): {
+    readonly [K in TracerEventHttpHeaderName]?: string | number;
+} {
+    return Object.fromEntries(
+        filterMapIterable(headers, header => {
+            const normalizedHeaderName = header[0].toLowerCase();
+            if (!tracerEventHttpHeaderNames.has(normalizedHeaderName)) return;
+
+            if (normalizedHeaderName === "content-length" && /^\s*\d+\s*$/.test(header[1])) {
+                return [header[0], parseInt(header[1], 10)];
+            }
+
+            return header;
+        }),
+    );
 }
 
 export function obfuscateCookieHeader(headers: Headers): string | undefined {
