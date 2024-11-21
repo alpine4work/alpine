@@ -28,6 +28,7 @@ import {ContentEditorCursorTracker} from "~/client/content/internal/content_edit
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Menu, MenuSize} from "~/client/design/menu.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -410,6 +411,7 @@ export function ContentEditorMentionFloater({
             isVisible={!isClosing}
             disableAnimation={!wasInitiallyLoading && !isClosing}
             placement="bottom-start"
+            overflowTop={navigationBarHeight}
             // Set a constant `overflowBottom` value instead of relying on the current
             // keyboard height (which will be updated asynchronously after `isEditing` is
             // true). This stops the overlay placement from jumping around while the
