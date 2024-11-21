@@ -221,6 +221,7 @@ Resources:
                 - Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
                 - Ref: AppServiceAutoScalingGroupCapacityProvider7D53F9BC
                 - Ref: JobQueueServiceAutoScalingGroupCapacityProvider3105FE09
+                - Ref: FileProcessorServiceAutoScalingGroupCapacityProviderA11D6649
             Cluster:
                 Ref: EcsClusterFB9B21B5
             DefaultCapacityProviderStrategy: []
@@ -3961,6 +3962,576 @@ Resources:
                 - Ref: MigrationServiceTaskDefinitionExecutionRole96CABBE6
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/FileProcessorService/AutoScalingGroup
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup/Resource
+    FileProcessorServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B40007F4B684B:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path:
+                CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup/from
+                CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
+    FileProcessorServiceAutoScalingGroupInstanceRoleFECBC5DF:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/AmazonSSMManagedInstanceCore
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/FileProcessorService/AutoScalingGroup
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceRole/Resource
+    FileProcessorServiceAutoScalingGroupInstanceRoleDefaultPolicyADD0E96D:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecs:DeregisterContainerInstance
+                          - ecs:RegisterContainerInstance
+                          - ecs:Submit*
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - EcsClusterFB9B21B5
+                              - Arn
+                    - Action:
+                          - ecs:Poll
+                          - ecs:StartTelemetrySession
+                      Condition:
+                          ArnEquals:
+                              ecs:cluster:
+                                  Fn::GetAtt:
+                                      - EcsClusterFB9B21B5
+                                      - Arn
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - ecr:GetAuthorizationToken
+                          - ecs:DiscoverPollEndpoint
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: FileProcessorServiceAutoScalingGroupInstanceRoleDefaultPolicyADD0E96D
+            Roles:
+                - Ref: FileProcessorServiceAutoScalingGroupInstanceRoleFECBC5DF
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
+    FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Roles:
+                - Ref: FileProcessorServiceAutoScalingGroupInstanceRoleFECBC5DF
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceProfile
+    FileProcessorServiceAutoScalingGroupLaunchConfig718B9C3D:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            BlockDeviceMappings:
+                - DeviceName: /dev/xvda
+                  Ebs:
+                      VolumeSize: 30
+            IamInstanceProfile:
+                Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
+            ImageId:
+                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+            InstanceType: t3.micro
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
+                      - GroupId
+            UserData:
+                Fn::Base64:
+                    Fn::Join:
+                        - ""
+                        - - |-
+                              #!/bin/bash
+                              echo ECS_CLUSTER=
+                          - Ref: EcsClusterFB9B21B5
+                          - >2-
+                             >> /etc/ecs/ecs.config
+                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
+                            169.254.169.254/32 --jump DROP
+
+                            sudo service iptables save
+
+                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+        DependsOn:
+            - FileProcessorServiceAutoScalingGroupInstanceRoleDefaultPolicyADD0E96D
+            - FileProcessorServiceAutoScalingGroupInstanceRoleFECBC5DF
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/LaunchConfig
+    FileProcessorServiceAutoScalingGroupASG01D937BC:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            LaunchConfigurationName:
+                Ref: FileProcessorServiceAutoScalingGroupLaunchConfig718B9C3D
+            MaxSize: "2"
+            MinSize: "1"
+            NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: Name
+                  PropagateAtLaunch: true
+                  Value: CyberworldsStack/FileProcessorService/AutoScalingGroup
+            VPCZoneIdentifier:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+        UpdatePolicy:
+            AutoScalingScheduledAction:
+                IgnoreUnmodifiedGroupSizeProperties: true
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/ASG
+    FileProcessorServiceAutoScalingGroupCapacityProviderA11D6649:
+        Type: AWS::ECS::CapacityProvider
+        Properties:
+            AutoScalingGroupProvider:
+                AutoScalingGroupArn:
+                    Ref: FileProcessorServiceAutoScalingGroupASG01D937BC
+                ManagedScaling:
+                    Status: ENABLED
+                    TargetCapacity: 100
+                ManagedTerminationProtection: ENABLED
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroupCapacityProvider/AutoScalingGroupCapacityProvider
+    FileProcessorServiceTaskDefinitionTaskRoleB119FAEB:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TaskDefinition/TaskRole/Resource
+    FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - sqs:ChangeMessageVisibility
+                          - sqs:DeleteMessage
+                          - sqs:ReceiveMessage
+                          - sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SqsFileProcessorJobQueue551DBCF8
+                              - Arn
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                Version: 2012-10-17
+            PolicyName: FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920
+            Roles:
+                - Ref: FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    FileProcessorServiceTaskDefinitionB92D7613:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                - Command:
+                      - sh
+                      - -c
+                      - Fn::Join:
+                            - ""
+                            - - /var/www/server/files/processor/processor --port=4000
+                                --temporaryDirectoryPath=/var/www-data/files --jobQueueUrl=
+                              - Ref: SqsJobQueue62388F96
+                              - " --fileProcessorJobQueueUrl="
+                              - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
+                  Environment:
+                      - Name: NODE_ENV
+                        Value: production
+                  Essential: true
+                  HealthCheck:
+                      Command:
+                          - CMD-SHELL
+                          - /var/www/server/files/processor/processor.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node
+                            --input-type module --eval "const response = await
+                            fetch('http://localhost:4000/healthcheck'); if (!response.ok) { throw
+                            new Error('Healthcheck failed') }"
+                      Interval: 30
+                      Retries: 3
+                      Timeout: 5
+                  Image:
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group:
+                              Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
+                          awslogs-stream-prefix: CyberworldsStack
+                          awslogs-region: us-east-1
+                  Memory: 944
+                  Name: Container
+                  PortMappings:
+                      - ContainerPort: 4000
+                        HostPort: 4000
+                        Protocol: tcp
+                  Secrets:
+                      - Name: APP_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:appServicePublicKey::"
+                      - Name: EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:edgeServiceFamilyPublicKey\
+                                    ::"
+                      - Name: TASK_REALTIME_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:taskRealtimeServicePublicK\
+                                    ey::"
+                      - Name: JOB_QUEUE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:jobQueueServicePublicKey::"
+                      - Name: FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:fileProcessorServicePublic\
+                                    Key::"
+                      - Name: FILE_PROCESSOR_SERVICE_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:fileProcessorServicePrivat\
+                                    eKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:tokenAgentSecret::"
+                      - Name: HONEYCOMB_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:honeycombApiKey::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:cloudflareR2SecretAccessKe\
+                                    y::"
+                  StopTimeout: 330
+                  User: www-data
+            ExecutionRoleArn:
+                Fn::GetAtt:
+                    - FileProcessorServiceTaskDefinitionExecutionRole6D3EE091
+                    - Arn
+            Family: CyberworldsStackFileProcessorServiceTaskDefinitionE1CCC853
+            NetworkMode: host
+            RequiresCompatibilities:
+                - EC2
+            TaskRoleArn:
+                Fn::GetAtt:
+                    - FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TaskDefinition/Resource
+    FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 14
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TaskDefinition/Container/LogGroup/Resource
+    FileProcessorServiceTaskDefinitionExecutionRole6D3EE091:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TaskDefinition/ExecutionRole/Resource
+    FileProcessorServiceTaskDefinitionExecutionRoleDefaultPolicy7047412C:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecr:BatchCheckLayerAvailability
+                          - ecr:BatchGetImage
+                          - ecr:GetDownloadUrlForLayer
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ecr:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :repository/
+                                - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                    - Action: ecr:GetAuthorizationToken
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:FileProcessorServiceSecrets-??????
+                Version: 2012-10-17
+            PolicyName: FileProcessorServiceTaskDefinitionExecutionRoleDefaultPolicy7047412C
+            Roles:
+                - Ref: FileProcessorServiceTaskDefinitionExecutionRole6D3EE091
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    FileProcessorService338B5AC6:
+        Type: AWS::ECS::Service
+        Properties:
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: FileProcessorServiceAutoScalingGroupCapacityProviderA11D6649
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                MaximumPercent: 200
+                MinimumHealthyPercent: 50
+            DesiredCount: 1
+            EnableECSManagedTags: false
+            HealthCheckGracePeriodSeconds: 60
+            LoadBalancers:
+                - ContainerName: Container
+                  ContainerPort: 4000
+                  TargetGroupArn:
+                      Ref: FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: FileProcessorServiceTaskDefinitionB92D7613
+        DependsOn:
+            - FileProcessorServiceLoadBalancerListenerB76CB696
+            - FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D
+            - FileProcessorServiceTaskDefinitionTaskRoleDefaultPolicy620C2920
+            - FileProcessorServiceTaskDefinitionTaskRoleB119FAEB
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/Service/Service
+    FileProcessorServiceLoadBalancerE2970553:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            LoadBalancerAttributes:
+                - Key: deletion_protection.enabled
+                  Value: "false"
+            Name: cyberworlds-files
+            Scheme: internet-facing
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                      - GroupId
+            Subnets:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+            Type: application
+        DependsOn:
+            - VpcPublicSubnet1DefaultRoute3DA9E72A
+            - VpcPublicSubnet1RouteTableAssociation97140677
+            - VpcPublicSubnet2DefaultRoute97F91067
+            - VpcPublicSubnet2RouteTableAssociationDD5762D8
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Resource
+    FileProcessorServiceLoadBalancerSecurityGroup2345292F:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Automatically created Security Group for ELB
+                CyberworldsStackFileProcessorServiceLoadBalancer9FAA8720
+            SecurityGroupIngress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow from anyone on port 443
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/Resource
+    FileProcessorServiceLoadBalancerSecurityGrouptoCyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791400000737CAB:
+        Type: AWS::EC2::SecurityGroupEgress
+        Properties:
+            Description: to
+                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
+            DestinationSecurityGroupId:
+                Fn::GetAtt:
+                    - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
+                    - GroupId
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
+                    - GroupId
+            IpProtocol: tcp
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/to
+                CyberworldsStackFileProcessorServiceAutoScalingGroupInstanceSecurityGroup2667A791:4000
+    FileProcessorServiceLoadBalancerListenerB76CB696:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            Certificates:
+                - CertificateArn:
+                      Ref: FileProcessorServiceCertificate599FAD03
+            DefaultActions:
+                - TargetGroupArn:
+                      Ref: FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D
+                  Type: forward
+            LoadBalancerArn:
+                Ref: FileProcessorServiceLoadBalancerE2970553
+            Port: 443
+            Protocol: HTTPS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/Resource
+    FileProcessorServiceLoadBalancerListenerTargetGroupGroupA383D96D:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckIntervalSeconds: 5
+            HealthCheckPath: /healthcheck
+            HealthCheckTimeoutSeconds: 3
+            HealthyThresholdCount: 3
+            Name: cyberworlds-files-target-group
+            Port: 4000
+            Protocol: HTTP
+            TargetGroupAttributes:
+                - Key: deregistration_delay.timeout_seconds
+                  Value: "300"
+                - Key: stickiness.enabled
+                  Value: "false"
+            TargetType: instance
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/Listener/TargetGroupGroup/Resource
+    FileProcessorServiceCertificate599FAD03:
+        Type: AWS::CertificateManager::Certificate
+        Properties:
+            DomainName: files.cyberworlds.dev
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/FileProcessorService/Certificate
+            ValidationMethod: DNS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/Certificate/Resource
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
