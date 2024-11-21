@@ -12,7 +12,7 @@ export const serviceTokenAgentOptions = {
     edgeServiceFamilyPublicKey: {type: "string"},
     taskRealtimeServicePublicKey: {type: "string"},
     jobQueueServicePublicKey: {type: "string"},
-    fileUploadServicePublicKey: {type: "string"},
+    fileProcessorServicePublicKey: {type: "string"},
     servicePrivateKey: {type: "string"},
     tokenAgentSecret: {type: "string"},
 } as const;
@@ -22,7 +22,7 @@ export type ServiceTokenAgentOptions = {
     readonly edgeServiceFamilyPublicKey?: string;
     readonly taskRealtimeServicePublicKey?: string;
     readonly jobQueueServicePublicKey?: string;
-    readonly fileUploadServicePublicKey?: string;
+    readonly fileProcessorServicePublicKey?: string;
     readonly servicePrivateKey?: string;
     readonly tokenAgentSecret?: string;
 };
@@ -56,8 +56,8 @@ export async function createServiceTokenAgent<
         throw new InternalError("Missing `taskRealtimeServicePublicKey` option");
     if (!options.jobQueueServicePublicKey)
         throw new InternalError("Missing `jobQueueServicePublicKey` option");
-    if (!options.fileUploadServicePublicKey)
-        throw new InternalError("Missing `fileUploadServicePublicKey` option");
+    if (!options.fileProcessorServicePublicKey)
+        throw new InternalError("Missing `fileProcessorServicePublicKey` option");
     if (!options.servicePrivateKey) throw new InternalError("Missing `servicePrivateKey` option");
     if (!options.tokenAgentSecret) throw new InternalError("Missing `tokenAgentSecret` option");
 
@@ -66,7 +66,7 @@ export async function createServiceTokenAgent<
         edgeServiceFamilyPublicKey,
         taskRealtimeServicePublicKey,
         jobQueueServicePublicKey,
-        fileUploadServicePublicKey,
+        fileProcessorServicePublicKey,
         servicePrivateKey,
         tokenAgentSecret,
     ] = await runAllPromises([
@@ -74,7 +74,7 @@ export async function createServiceTokenAgent<
         getServiceTokenAgentKeyFromOption(options.edgeServiceFamilyPublicKey),
         getServiceTokenAgentKeyFromOption(options.taskRealtimeServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.jobQueueServicePublicKey),
-        getServiceTokenAgentKeyFromOption(options.fileUploadServicePublicKey),
+        getServiceTokenAgentKeyFromOption(options.fileProcessorServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.servicePrivateKey),
         getServiceTokenAgentKeyFromOption(options.tokenAgentSecret),
     ]);
@@ -86,7 +86,7 @@ export async function createServiceTokenAgent<
             edgeServiceFamilyPublicKey,
             taskRealtimeServicePublicKey,
             jobQueueServicePublicKey,
-            fileUploadServicePublicKey,
+            fileProcessorServicePublicKey,
             secret: tokenAgentSecret,
         }),
         privateSideClass.new({

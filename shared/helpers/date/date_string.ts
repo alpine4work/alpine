@@ -1,5 +1,5 @@
-import isValid from "date-fns/isValid/index.js";
-import parseISO from "date-fns/parseISO/index.js";
+import {isValid} from "date-fns/isValid";
+import {parseISO} from "date-fns/parseISO";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**

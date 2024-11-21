@@ -84,6 +84,7 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
 import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     ContentEditorFileDropTarget,
@@ -94,7 +95,6 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
-import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
@@ -1149,7 +1149,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
-                isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 draggingFileRef,
             }),
         };
@@ -1279,8 +1278,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         /* ========================================================================== *\
          *                                 Copy/paste                                 *
         \* ========================================================================== */
-
-        let uploadingFileIds: Set<FileId> | undefined;
 
         let temporaryPastedFileInfoById:
             | Map<
@@ -1575,7 +1572,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         }) {
             // If we're dropping or pasting an empty slice that means ProseMirror couldn't
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
-            // use `FileUploadService` to attach the file to our content.
+            // use `FileProcessorService` to attach the file to our content.
             if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
@@ -1758,7 +1755,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 );
 
                             const promise = (async () => {
-                                let uploadingFileId: FileId | undefined;
                                 let unsubscribeFromFileStore: (() => void) | undefined;
 
                                 try {
@@ -1771,10 +1767,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         input: temporaryPastedFileInfo.input,
                                         progressStores,
                                         onAttach: ({signedUrlSearch, fileStore}) => {
-                                            const initialFile = fileStore.getSnapshot();
-                                            uploadingFileId = initialFile.id;
-                                            (uploadingFileIds ??= new Set()).add(initialFile.id);
-
                                             // Whenever the file changes during the upload, make sure to update it in
                                             // our content references. We unsubscribe once the upload has finished since
                                             // after that the file should be immutable.
@@ -1803,7 +1795,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
                                 } finally {
-                                    if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
                                     unsubscribeFromFileStore?.();
                                 }
                             })();

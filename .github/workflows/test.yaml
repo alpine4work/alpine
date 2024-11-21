@@ -30,13 +30,12 @@ jobs:
                   path: |
                       ~/.cache/bazelisk
                       ~/.cache/bazel
-                  # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. The workflows
-                  # run on different architectures so we can't share the cache but the cache
-                  # invalidation logic should still be the same.
+                  # IMPORTANT: Should have the same `hashFiles()` as `deploy.yaml`. We want to
+                  # share our cache between the two workflows.
                   key: |
-                      bazel-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
                   restore-keys: |
-                      bazel-test-${{ runner.os }}-${{ runner.arch }}-
+                      bazel-${{ runner.os }}-${{ runner.arch }}-
 
             # If we don't have an exact cache entry match then we need to fetch
             # repositories we'll need for our build. We also build `//:node_modules` which

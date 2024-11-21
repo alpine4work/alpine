@@ -31,8 +31,11 @@ export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: Tracer
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
      */
-    public GetObject(input: GetObjectCommandInput): Promise<GetObjectCommandOutput> {
-        return this._client.GetObject(this._context.tracer.getTracer(), input);
+    public GetObject(
+        input: GetObjectCommandInput,
+        options?: {signal?: AbortSignal},
+    ): Promise<GetObjectCommandOutput> {
+        return this._client.GetObject(this._context.tracer.getTracer(), input, options);
     }
 
     /**

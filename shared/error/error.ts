@@ -1,5 +1,19 @@
-import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code.js";
+import {ErrorCode, getErrorCodeName, isErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+
+export function getErrorCode(error: unknown) {
+    if (error instanceof ErrorBase) return error.code;
+
+    if (
+        error instanceof AggregateError &&
+        typeof (error as any).code === "number" &&
+        isErrorCode((error as any).code)
+    ) {
+        return (error as any).code;
+    }
+
+    return ErrorCode.Unknown;
+}
 
 /**
  * An exception in our codebase that interrupts the normal flow of execution.
@@ -9,25 +23,41 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
  */
 export abstract class ErrorBase extends Error {
     public readonly code: ErrorCode;
-    public readonly displayMessage: ErrorDisplayMessage | undefined;
+    public readonly displayMessage?: ErrorDisplayMessage;
+    public readonly aggregateDedupeKey?: string;
 
     constructor(
         message: string,
         {
             cause,
             displayMessage,
+            aggregateDedupeKey,
         }: {
             cause?: unknown;
-            // TODO(calebmer): Consider requiring a display message for some classes
-            // of errors? Consider allowing a `ErrorDisplayMessage` as the message?
+
+            /**
+             * A message to show to the user in the UI when this error is thrown. `message`
+             * is intended for internal developer usage, however `displayMessage` can be
+             * presented to the end user.
+             */
             displayMessage?: ErrorDisplayMessage;
+
+            /**
+             * When creating an error with `createAggregateError()` if there are multiple
+             * errors with the same code, message, and `aggregateDedupeKey` then only the
+             * first such error will be included in the aggregate error.
+             *
+             * If `aggregateDedupeKey` isn't set then this error will never be deduped.
+             */
+            aggregateDedupeKey?: string;
         } = {},
     ) {
         super(message, {cause});
         this.code = this._getCode();
         this.name = getErrorCodeName(this.code) + "Error";
         this.cause = cause;
-        this.displayMessage = displayMessage;
+        if (displayMessage !== undefined) this.displayMessage = displayMessage;
+        if (aggregateDedupeKey !== undefined) this.aggregateDedupeKey = aggregateDedupeKey;
     }
 
     protected abstract _getCode(): ErrorCode;

@@ -905,7 +905,6 @@ export async function rewindAccountEmailAddressOneTimePasswordSignInStateTimeFor
 export class Session {
     public readonly id: SessionId;
     public readonly accountId: AccountId;
-    public readonly createdTime: Date;
     private readonly _preloadedAccount: {
         readonly account: AccountModelWithoutSpace;
         readonly hasInternalAccess: boolean;
@@ -914,7 +913,6 @@ export class Session {
     private constructor(
         id: SessionId,
         accountId: AccountId,
-        createdTime: Date,
         preloadedAccount: {
             readonly account: AccountModelWithoutSpace;
             readonly hasInternalAccess: boolean;
@@ -922,7 +920,6 @@ export class Session {
     ) {
         this.id = id;
         this.accountId = accountId;
-        this.createdTime = createdTime;
         this._preloadedAccount = preloadedAccount;
     }
 
@@ -959,7 +956,6 @@ export class Session {
         return new Session(
             sessionId,
             sessionItem.accountId,
-            sessionItem.createdTime,
             accountItem
                 ? {
                       account: createAccountModelFromItem(accountItem),
@@ -975,27 +971,17 @@ export class Session {
      */
     public static test(
         sessionItem:
-            | {id: SessionId; account: {id: AccountId}; createdTime: Date}
-            | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
+            | {id: SessionId; account: {id: AccountId}}
+            | {sessionId: SessionId; accountId: AccountId},
     ) {
         assert(process.env.NODE_ENV === "test");
 
         // Support passing in a session model object (e.g. `TestScenarioSession`) and
         // passing a `SessionItem` object in directly.
         if ("id" in sessionItem) {
-            return new Session(
-                sessionItem.id,
-                sessionItem.account.id,
-                sessionItem.createdTime,
-                null,
-            );
+            return new Session(sessionItem.id, sessionItem.account.id, null);
         } else {
-            return new Session(
-                sessionItem.sessionId,
-                sessionItem.accountId,
-                sessionItem.createdTime,
-                null,
-            );
+            return new Session(sessionItem.sessionId, sessionItem.accountId, null);
         }
     }
 

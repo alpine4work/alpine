@@ -1,11 +1,11 @@
 import classNames from "classnames";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {useMemo, useRef, useState} from "react";
-import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
-} from "~/client/content/internal/render_content_file_preview.js";
+} from "~/client/content/internal/content_file_preview.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";

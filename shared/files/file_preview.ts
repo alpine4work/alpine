@@ -1,9 +1,9 @@
-import {getErrorCodes} from "~/shared/error/error_code.js";
-import {ErrorDisplayMessageSchema} from "~/shared/error/error_schema.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {FileProcessorError, FileProcessorErrorSchema} from "~/shared/files/file_processor_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type FileImagePreviewSize = SchemaType<typeof FileImagePreviewSizeSchema>;
@@ -133,13 +133,7 @@ export const FileImagePreviewSchema = Schema.booleanUnion(
             type: Schema.value("Image"),
             isProcessing: Schema.value(false),
             ok: Schema.value(false),
-            // Not a full `ErrorSchema` since we store this in the database. Storing
-            // properties like the stack trace, `original` trace, and `cause` don't
-            // make sense for a persisted error.
-            error: Schema.object({
-                code: Schema.enum(getErrorCodes()),
-                displayMessage: ErrorDisplayMessageSchema,
-            }),
+            error: FileProcessorErrorSchema,
             size: errorSchema(FileImagePreviewSizeSchema),
             placeholder: errorSchema(FileImagePreviewPlaceholder.schema),
             content: errorSchema(
@@ -185,12 +179,23 @@ export const FileAudioPreviewSchema = Schema.booleanUnion(
         duration: processingSchema(Schema.integer),
         metadata: processingSchema(FileAudioPreviewMetadataSchema).optional(),
     }),
-    Schema.object({
-        type: Schema.value("Audio"),
-        isProcessing: Schema.value(false),
-        duration: Schema.integer,
-        metadata: FileAudioPreviewMetadataSchema.optional(),
-    }),
+    Schema.result(
+        Schema.object({
+            type: Schema.value("Audio"),
+            isProcessing: Schema.value(false),
+            ok: Schema.value(true),
+            duration: Schema.integer,
+            metadata: FileAudioPreviewMetadataSchema.optional(),
+        }),
+        Schema.object({
+            type: Schema.value("Audio"),
+            isProcessing: Schema.value(false),
+            ok: Schema.value(false),
+            error: FileProcessorErrorSchema,
+            duration: errorSchema(Schema.integer),
+            metadata: errorSchema(FileAudioPreviewMetadataSchema).optional(),
+        }),
+    ),
 ).validation(
     "When `isProcessing` is true some preview data must be processing",
     preview =>
@@ -212,11 +217,21 @@ export const FileCodePreviewSchema = Schema.booleanUnion(
         isProcessing: Schema.value(true),
         content: processingSchema(FileCodePreviewContent.schema),
     }),
-    Schema.object({
-        type: Schema.value("Code"),
-        isProcessing: Schema.value(false),
-        content: FileCodePreviewContent.schema,
-    }),
+    Schema.result(
+        Schema.object({
+            type: Schema.value("Code"),
+            isProcessing: Schema.value(false),
+            ok: Schema.value(true),
+            content: FileCodePreviewContent.schema,
+        }),
+        Schema.object({
+            type: Schema.value("Code"),
+            isProcessing: Schema.value(false),
+            ok: Schema.value(false),
+            error: FileProcessorErrorSchema,
+            content: errorSchema(FileCodePreviewContent.schema),
+        }),
+    ),
 ).validation(
     "When `isProcessing` is true some preview data must be processing",
     preview => !preview.isProcessing || preview.content === "Processing",
@@ -229,6 +244,15 @@ export const FilePreviewSchema = Schema.union({
     Audio: FileAudioPreviewSchema,
     Code: FileCodePreviewSchema,
 });
+
+// All file previews must have a processing state, a finished processing state,
+// and a failed processing state.
+assertAssignableTypes<
+    FilePreview,
+    | {isProcessing: true}
+    | {isProcessing: false; ok: true}
+    | {isProcessing: false; ok: false; error: FileProcessorError}
+>();
 
 export type FileHasPreview = SchemaType<typeof FileHasPreviewSchema>;
 

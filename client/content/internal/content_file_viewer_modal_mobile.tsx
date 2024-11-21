@@ -5,7 +5,9 @@ import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_fi
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {getContentFileDownloadName} from "~/client/content/internal/content_file_preview.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {ContentFileVideoViewerMobile} from "~/client/content/internal/content_file_video_viewer_mobile.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
@@ -14,9 +16,7 @@ import {
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
-import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {getContentFileDownloadName} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -37,9 +37,9 @@ import {
     spaceLayoutErrorRendererPaddingY,
 } from "~/client/styles/space_layout_shared_styles.js";
 import {initialSelectionColorsClassName, spinAnimationClassName} from "~/client/styles/styles.js";
+import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {ErrorBase, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -100,7 +100,7 @@ export function ContentFileViewerModalMobile({
     const onShare = async () => {
         let url: string | undefined;
 
-        if (file.alternative && !file.alternative.isProcessing) {
+        if (file.alternative && !file.alternative.isProcessing && file.alternative.ok) {
             url = `/files/${space.id}/${file.id}${signedUrlSearch}&variant=${
                 file.alternative.isImagePreviewContent ? "preview" : "alternative"
             }`;
@@ -271,25 +271,23 @@ export function ContentFileViewerModalMobile({
                                 >
                                     <Spacer space={navigationBarHeight} />
                                     <Spacer space={spaceLayoutErrorRendererPaddingY} />
-                                    {error instanceof ErrorBase &&
-                                    error.code === ErrorCode.PermissionDenied ? (
-                                        <ErrorBodyRenderer
-                                            icon={<Lock weight="bold" />}
-                                            title={`Protected ${getFileContentTypeNoun(
-                                                file.contentType,
-                                            )}`}
-                                            error={error}
-                                            colorSchemeOverride="dark"
-                                        />
-                                    ) : (
-                                        <ErrorBodyRenderer
-                                            title={`Couldn’t open ${getFileContentTypeNoun(
-                                                file.contentType,
-                                            )}`}
-                                            error={error}
-                                            colorSchemeOverride="dark"
-                                        />
-                                    )}
+                                    <ErrorBodyRenderer
+                                        icon={
+                                            error instanceof ContentFileProcessorError &&
+                                            error.cause.type === "PasswordProtected" ? (
+                                                <Lock weight="bold" />
+                                            ) : undefined
+                                        }
+                                        title={
+                                            error instanceof ContentFileProcessorError
+                                                ? error.title
+                                                : `Couldn’t open ${getFileContentTypeNoun(
+                                                      file.contentType,
+                                                  )}`
+                                        }
+                                        error={error}
+                                        colorSchemeOverride="dark"
+                                    />
                                     <Spacer space="5" />
                                     <Button
                                         variant="neutral"

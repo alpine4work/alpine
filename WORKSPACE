@@ -93,22 +93,29 @@ http_archive(
     name = "rules_nodejs",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/rules_nodejs.patch"],
-    sha256 = "8fc8e300cb67b89ceebd5b8ba6896ff273c84f6099fc88d23f24e7102319d8fd",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.4/rules_nodejs-core-5.8.4.tar.gz"],
+    sha256 = "158619723f1d8bd535dd6b93521f4e03cf24a5e107126d05685fbd9540ccad10",
+    strip_prefix = "rules_nodejs-6.3.2",
+    url = "https://github.com/bazel-contrib/rules_nodejs/releases/download/v6.3.2/rules_nodejs-v6.3.2.tar.gz",
 )
 
 http_archive(
     name = "aspect_rules_js",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/aspect_rules_js.patch"],
-    sha256 = "2cfb3875e1231cefd3fada6774f2c0c5a99db0070e0e48ea398acbff7c6c765b",
-    strip_prefix = "rules_js-1.42.3",
-    url = "https://github.com/aspect-build/rules_js/releases/download/v1.42.3/rules_js-v1.42.3.tar.gz",
+    sha256 = "75c25a0f15a9e4592bbda45b57aa089e4bf17f9176fd735351e8c6444df87b52",
+    strip_prefix = "rules_js-2.1.0",
+    url = "https://github.com/aspect-build/rules_js/releases/download/v2.1.0/rules_js-v2.1.0.tar.gz",
 )
 
 load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
 
 rules_js_dependencies()
+
+load("@aspect_rules_js//js:toolchains.bzl", "rules_js_register_toolchains")
+
+rules_js_register_toolchains(
+    node_version = "22.11.0",
+)
 
 # =========================================================================== #
 #                                 TypeScript                                  #
@@ -118,44 +125,22 @@ http_archive(
     name = "aspect_rules_ts",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/aspect_rules_ts.patch"],
-    sha256 = "f69a6452b129d39d9b05f3dff8b1057185bb195b4daf0cff419988de757c6c31",
-    strip_prefix = "rules_ts-2.4.2",
-    url = "https://github.com/aspect-build/rules_ts/releases/download/v2.4.2/rules_ts-v2.4.2.tar.gz",
+    sha256 = "9acd128abe77397505148eaa6895faed57839560dbf2177dd6285e51235e2724",
+    strip_prefix = "rules_ts-3.3.1",
+    url = "https://github.com/aspect-build/rules_ts/releases/download/v3.3.1/rules_ts-v3.3.1.tar.gz",
 )
 
 load("@aspect_rules_ts//ts:repositories.bzl", "rules_ts_dependencies")
 
 rules_ts_dependencies(
-    ts_version = "5.1.3",
-)
-
-# =========================================================================== #
-#                                  Node.js                                    #
-# =========================================================================== #
-
-load("@rules_nodejs//nodejs:repositories.bzl", "nodejs_register_toolchains")
-
-nodejs_register_toolchains(
-    name = "node",
-    # NOTE(calebmer): Our version of `rules_nodejs` does not have this Node.js
-    # version yet.
-    node_repositories = {
-        "20.9.0-darwin_arm64": ("node-v20.9.0-darwin-arm64.tar.gz", "node-v20.9.0-darwin-arm64", "31d2d46ae8d8a3982f54e2ff1e60c2e4a8e80bf78a3e8b46dcaac95ac5d7ce6a"),
-        "20.9.0-darwin_amd64": ("node-v20.9.0-darwin-x64.tar.gz", "node-v20.9.0-darwin-x64", "fc5b73f2a78c17bbe926cdb1447d652f9f094c79582f1be6471b4b38a2e1ccc8"),
-        "20.9.0-linux_arm64": ("node-v20.9.0-linux-arm64.tar.xz", "node-v20.9.0-linux-arm64", "ced3ecece4b7c3a664bca3d9e34a0e3b9a31078525283a6fdb7ea2de8ca5683b"),
-        "20.9.0-linux_ppc64le": ("node-v20.9.0-linux-ppc64le.tar.xz", "node-v20.9.0-linux-ppc64le", "3c6cea5d614cfbb95d92de43fbc2f8ecd66e431502fe5efc4f3c02637897bd45"),
-        "20.9.0-linux_s390x": ("node-v20.9.0-linux-s390x.tar.xz", "node-v20.9.0-linux-s390x", "af1f4e63756ff685d452166c4d5ba93a308e816ee7c46015b5e086163d9f011b"),
-        "20.9.0-linux_amd64": ("node-v20.9.0-linux-x64.tar.xz", "node-v20.9.0-linux-x64", "9033989810bf86220ae46b1381bdcdc6c83a0294869ba2ad39e1061f1e69217a"),
-        "20.9.0-windows_amd64": ("node-v20.9.0-win-x64.zip", "node-v20.9.0-win-x64", "70d87dad2378c63216ff83d5a754c61d2886fc39d32ce0d2ea6de763a22d3780"),
-    },
-    node_version = "20.9.0",
+    ts_version_from = "//:package.json",
 )
 
 # =========================================================================== #
 #                          node_modules (via pnpm)                            #
 # =========================================================================== #
 
-load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
+load("@aspect_rules_js//npm:repositories.bzl", "npm_translate_lock")
 
 npm_translate_lock(
     name = "npm",
@@ -165,6 +150,7 @@ npm_translate_lock(
     npmrc = "//:.npmrc",
     patch_args = {},
     pnpm_lock = "//:pnpm-lock.yaml",
+    pnpm_version = "9.12.1",
     verify_node_modules_ignored = "//:.bazelignore",
 )
 
@@ -180,9 +166,9 @@ http_archive(
     name = "aspect_rules_swc",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/aspect_rules_swc.patch"],
-    sha256 = "b647c7c31feeb7f9330fff08b45f8afe7de674d3a9c89c712b8f9d1723d0c8f9",
-    strip_prefix = "rules_swc-1.0.1",
-    url = "https://github.com/aspect-build/rules_swc/releases/download/v1.0.1/rules_swc-v1.0.1.tar.gz",
+    sha256 = "e5ac926ebe1bbef1f38d245a65626d86f114eb1f3c68362e8a33472351d83608",
+    strip_prefix = "rules_swc-2.0.1",
+    url = "https://github.com/aspect-build/rules_swc/releases/download/v2.0.1/rules_swc-v2.0.1.tar.gz",
 )
 
 load("@aspect_rules_swc//swc:dependencies.bzl", "rules_swc_dependencies")
@@ -210,9 +196,9 @@ http_archive(
     name = "aspect_rules_esbuild",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/aspect_rules_esbuild.patch"],
-    sha256 = "82e6fa940760412eedfa0c4e3918c68424cf0432840de4bcc476d0b9869ff7b5",
-    strip_prefix = "rules_esbuild-0.20.1",
-    url = "https://github.com/aspect-build/rules_esbuild/releases/download/v0.20.1/rules_esbuild-v0.20.1.tar.gz",
+    sha256 = "550e33ddeb86a564b22b2c5d3f84748c6639b1b2b71fae66bf362c33392cbed8",
+    strip_prefix = "rules_esbuild-0.21.0",
+    url = "https://github.com/aspect-build/rules_esbuild/releases/download/v0.21.0/rules_esbuild-v0.21.0.tar.gz",
 )
 
 load("@aspect_rules_esbuild//esbuild:dependencies.bzl", "rules_esbuild_dependencies")
@@ -273,6 +259,12 @@ playwright_browsers_repository(
 # =========================================================================== #
 #                          Open Container Initiative                          #
 # =========================================================================== #
+
+http_archive(
+    name = "rules_pkg",
+    sha256 = "d20c951960ed77cb7b341c2a59488534e494d5ad1d30c4818c736d57772a9fef",
+    url = "https://github.com/bazelbuild/rules_pkg/releases/download/1.0.1/rules_pkg-1.0.1.tar.gz",
+)
 
 http_archive(
     name = "rules_oci",
@@ -561,6 +553,14 @@ http_archive(
     integrity = "sha256-mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM=",
     strip_prefix = "zlib-1.3.1",
     url = "https://zlib.net/zlib-1.3.1.tar.gz",
+)
+
+http_archive(
+    name = "openssl",
+    build_file = "@//admin/bazel:third_party/BUILD.openssl.bazel",
+    integrity = "sha256-4V3agv4v6BOdwqwho21MoB1TE8dfmfRsTooncJtylL8=",
+    strip_prefix = "openssl-3.4.0",
+    url = "https://github.com/openssl/openssl/releases/download/openssl-3.4.0/openssl-3.4.0.tar.gz",
 )
 
 # NOTE(calebmer, 2024-11-07): Unfortunately we're using the `zig` nightly

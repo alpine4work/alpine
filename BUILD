@@ -59,10 +59,21 @@ ts_lint_and_format_test(
 alias(
     name = "node",
     actual = select({
-        "@bazel_tools//src/conditions:darwin_arm64": "@node_darwin_arm64//:bin/node",
-        "@bazel_tools//src/conditions:darwin_x86_64": "@node_darwin_amd64//:bin/node",
-        "@bazel_tools//src/conditions:linux_aarch64": "@node_linux_arm64//:bin/node",
-        "@bazel_tools//src/conditions:linux_x86_64": "@node_linux_amd64//:bin/node",
+        "@bazel_tools//src/conditions:darwin_arm64": "@nodejs_darwin_arm64//:bin/node",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@nodejs_darwin_amd64//:bin/node",
+        "@bazel_tools//src/conditions:linux_aarch64": "@nodejs_linux_arm64//:bin/node",
+        "@bazel_tools//src/conditions:linux_x86_64": "@nodejs_linux_amd64//:bin/node",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "python",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "@python_aarch64-apple-darwin//:bin/python",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@python_x86_64-apple-darwin//:bin/python",
+        "@bazel_tools//src/conditions:linux_aarch64": "@python_aarch64-unknown-linux-gnu//:bin/python",
+        "@bazel_tools//src/conditions:linux_x86_64": "@python_x86_64-unknown-linux-gnu//:bin/python",
     }),
     visibility = ["//visibility:public"],
 )

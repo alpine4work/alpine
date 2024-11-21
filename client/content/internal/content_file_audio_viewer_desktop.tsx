@@ -2,6 +2,11 @@ import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {useMemo, useRef} from "react";
 import {
+    addContentFileAudioPlayerBehavior,
+    renderContentFileAudioPlayer,
+} from "~/client/content/internal/content_file_audio_player.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
+import {
     contentFileViewerDesktopMarginX,
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -10,10 +15,6 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    addContentFileAudioPlayerBehavior,
-    renderContentFileAudioPlayer,
-} from "~/client/content/internal/render_content_file_audio_player.js";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -100,6 +101,13 @@ function ContentFileAudioViewerDesktopInner({
     audioSrc: string;
     viewerSize: {width: number; height: number};
 }) {
+    if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
+        throw new ContentFileProcessorError(file.contentType, file.alternative.error);
+    }
+    if (!filePreview.ok) {
+        throw new ContentFileProcessorError(file.contentType, filePreview.error);
+    }
+
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
 

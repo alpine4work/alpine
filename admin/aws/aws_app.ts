@@ -4,7 +4,7 @@ import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsFileUploadService} from "~/admin/aws/internal/aws_file_upload_service.js";
+import {AwsFileProcessorService} from "~/admin/aws/internal/aws_file_processor_service.js";
 import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
@@ -89,7 +89,7 @@ async function addAwsResources(
         sqs,
     });
 
-    new AwsFileUploadService(stack, {
+    new AwsFileProcessorService(stack, {
         vpc,
         ecsCluster,
         cloudflareAccountId,

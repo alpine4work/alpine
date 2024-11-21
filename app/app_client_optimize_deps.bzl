@@ -32,7 +32,7 @@ def _app_client_optimize_deps_aspect_impl(target, ctx):
     # Only collect dependencies for `js_library()` rules. This excludes
     # dependencies of build tools (e.g. esbuild) that output a `JsInfo` but whose
     # `deps` are build dependencies not runtime dependencies.
-    if ctx.rule.kind == "js_library":
+    if ctx.rule.kind == "js_library" or ctx.rule.kind == "ts_project":
         if hasattr(ctx.rule.attr, "deps"):
             for dep in ctx.rule.attr.deps:
                 if AppClientOptimizeDepsInfo in dep:
@@ -113,7 +113,6 @@ app_client_optimize_deps_aspect = aspect(
         ),
     },
     provides = [AppClientOptimizeDepsInfo],
-    required_providers = [JsInfo],
 )
 
 def _app_client_optimize_deps_impl(ctx):

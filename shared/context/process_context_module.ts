@@ -1,10 +1,8 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -77,15 +75,17 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      * Wait for all the promises passed into the `waitUntil()` function of
      * `ProcessContextModule.test()`s to resolve.
      */
-    public static async waitForTestTasks() {
+    public static async waitForTestTasks({
+        withoutDeadlineExceededLog = false,
+    }: {
+        withoutDeadlineExceededLog?: boolean;
+    } = {}) {
         assert(process.env.NODE_ENV === "test");
         assert(afterEachPromisesForTest);
 
         if (!this._waitForTestTasksPromise) {
             this._waitForTestTasksPromise = (async () => {
-                let hasError = false;
-                let errorPriority = 0;
-                let error: unknown;
+                const errors: Array<unknown> = [];
 
                 // Wait for all promises to resolve. If there's an error, don't throw it until
                 // all promises have resolved.
@@ -93,38 +93,30 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
                     const promises = afterEachPromisesForTest;
                     afterEachPromisesForTest = [];
 
-                    // Log a warning when we've been waiting on a promise for too long. We construct
-                    // the error in the `waitUntil()` call so we can trace the source of the
-                    // promise.
-                    for (const promise of promises) {
-                        const timeoutId = originalSetTimeout(() => {
-                            // eslint-disable-next-line no-console
-                            console.error(promise.deadlineExceededError);
-                        }, 5000);
+                    if (!withoutDeadlineExceededLog) {
+                        // Log a warning when we've been waiting on a promise for too long. We construct
+                        // the error in the `waitUntil()` call so we can trace the source of the
+                        // promise.
+                        for (const promise of promises) {
+                            const timeoutId = originalSetTimeout(() => {
+                                // eslint-disable-next-line no-console
+                                console.error(promise.deadlineExceededError);
+                            }, 5000);
 
-                        void promise.finally(() => clearTimeout(timeoutId));
+                            void promise.catch(() => {}).finally(() => clearTimeout(timeoutId));
+                        }
                     }
 
                     try {
                         await runAllPromises(promises);
-                    } catch (newError) {
-                        const newErrorPriority = getAggregateErrorPriority(newError);
-
-                        if (!hasError) {
-                            hasError = true;
-                            errorPriority = newErrorPriority;
-                            error = newError;
-                        }
-                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                        // just the first one. Probably by using an `AggregateError`.
-                        else if (newErrorPriority > errorPriority) {
-                            errorPriority = newErrorPriority;
-                            error = newError;
-                        }
+                    } catch (error) {
+                        errors.push(error);
                     }
                 }
 
-                if (hasError) throw error;
+                if (errors.length > 0) {
+                    throw createAggregateError(errors);
+                }
             })().finally(() => {
                 this._waitForTestTasksPromise = undefined;
             });

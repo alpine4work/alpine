@@ -1,4 +1,4 @@
-import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {Bell} from "phosphor-react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";

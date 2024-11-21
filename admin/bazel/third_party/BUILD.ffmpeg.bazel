@@ -12,10 +12,10 @@
 genrule(
     name = "ffmpeg",
     srcs = [
-        "@pkg_config",
         "@libaom",
         "@libopus",
         "@libvpx",
+        "@pkg_config",
         "@zlib",
     ] + glob(
         include = ["**"],
@@ -88,9 +88,9 @@ echo "# ========================================================================
 echo >> cmd.log
 
 mkdir pkgconfig
-cp ../libvpx/install/lib/pkgconfig/vpx.pc pkgconfig/vpx.pc
-cp ../libopus/install/lib/pkgconfig/opus.pc pkgconfig/opus.pc
 cp ../libaom/install/lib/pkgconfig/aom.pc pkgconfig/aom.pc
+cp ../libopus/install/lib/pkgconfig/opus.pc pkgconfig/opus.pc
+cp ../libvpx/install/lib/pkgconfig/vpx.pc pkgconfig/vpx.pc
 cp ../zlib/install/lib/pkgconfig/zlib.pc pkgconfig/zlib.pc
 
 escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')

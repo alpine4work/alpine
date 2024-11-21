@@ -3,15 +3,36 @@ import {
     FileAuthorizer,
     attachFileAsUploader,
     attachFileFromAttachment,
+    finishUploadingAndStartProcessingFile,
     getFileAsUploader,
     getFileFromAttachment,
-    startUploadingAndProcessingFile,
+    getFileUploaderAsUploader,
+    startUploadingFile,
 } from "~/server/files/data/files_table.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileId} from "~/shared/id/types/id_types.js";
+
+const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
+    [
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+    ],
+    [
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+    ],
+    [
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+        {r: 255, g: 0, b: 0},
+    ],
+]);
 
 export class TestFile {
     public readonly context: TestContext;
@@ -32,17 +53,36 @@ export class TestFile {
     }
 
     public static async create(session: TestSpaceSession): Promise<TestFile> {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const {fileId} = await startUploadingFile(session.action(), {
             spaceId: session.space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: null,
         });
 
-        await fileUploader.finishUploading(session.action());
+        await finishUploadingAndStartProcessingFile(session.action(), {
+            spaceId: session.space.id,
+            fileId,
+        });
 
-        return new TestFile(session.context, session.space, fileUploader.fileId, null);
+        const fileUploader = await getFileUploaderAsUploader(
+            session.action(),
+            session.space.id,
+            fileId,
+        );
+
+        await fileUploader.finishProcessingImagePreviewSize(session.action(), {
+            width: 1000,
+            height: 1000,
+            scale: 1,
+            hasAlpha: false,
+        });
+
+        await fileUploader.finishProcessingImagePreviewPlaceholder(
+            session.action(),
+            fileImagePreviewPlaceholder,
+        );
+
+        return new TestFile(session.context, session.space, fileId, null);
     }
 
     public get(): Promise<FileModel> {

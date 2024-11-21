@@ -13,7 +13,9 @@ import {ContentFileAudioViewerDesktop} from "~/client/content/internal/content_f
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
+import {handleDownloadContentFile} from "~/client/content/internal/content_file_preview.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {ContentFileVideoViewerDesktop} from "~/client/content/internal/content_file_video_viewer_desktop.js";
 import {
     contentFileViewerDesktopMarginBottom,
@@ -25,9 +27,7 @@ import {
     contentFileViewerLargeProcessingIndicatorIconSize,
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
-import {getFileContentTypeName} from "~/client/content/internal/get_file_content_type_name.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {handleDownloadContentFile} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -44,9 +44,8 @@ import {
     invertLightSelectionColorsClassName,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
+import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -292,25 +291,23 @@ export function ContentFileViewerModalDesktop({
                                     alignItems="center"
                                 >
                                     <Box maxWidth="96">
-                                        {error instanceof ErrorBase &&
-                                        error.code === ErrorCode.PermissionDenied ? (
-                                            <ErrorBodyRenderer
-                                                icon={<Lock weight="bold" />}
-                                                title={`Protected ${getFileContentTypeNoun(
-                                                    file.contentType,
-                                                )}`}
-                                                error={error}
-                                                colorSchemeOverride="dark"
-                                            />
-                                        ) : (
-                                            <ErrorBodyRenderer
-                                                title={`Couldn’t open ${getFileContentTypeNoun(
-                                                    file.contentType,
-                                                )}`}
-                                                error={error}
-                                                colorSchemeOverride="dark"
-                                            />
-                                        )}
+                                        <ErrorBodyRenderer
+                                            icon={
+                                                error instanceof ContentFileProcessorError &&
+                                                error.cause.type === "PasswordProtected" ? (
+                                                    <Lock weight="bold" />
+                                                ) : undefined
+                                            }
+                                            title={
+                                                error instanceof ContentFileProcessorError
+                                                    ? error.title
+                                                    : `Couldn’t open ${getFileContentTypeNoun(
+                                                          file.contentType,
+                                                      )}`
+                                            }
+                                            error={error}
+                                            colorSchemeOverride="dark"
+                                        />
                                     </Box>
                                 </Box>
                             )}

@@ -20,6 +20,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {
     authorizeChannelAccess,
     createChannel,
@@ -38,7 +39,6 @@ import {
     createDynamoGeneralRealtimeIndexQuerySchema,
     createDynamoGeneralRealtimeQuerySchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -107,7 +107,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 name: createSearchParam,
             }));
         } catch (error) {
-            if (!(error instanceof FailedPreconditionError)) {
+            if (!isDynamoConditionCheckError(error)) {
                 throw error;
             }
 

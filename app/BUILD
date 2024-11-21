@@ -263,7 +263,7 @@ output_files(
 # `:app_lib`'s runfiles excluding source files.
 esbuild_runfiles_without_sources(
     name = "app_runfiles",
-    target = ":app_lib",
+    srcs = [":app_lib"],
 )
 
 alias(

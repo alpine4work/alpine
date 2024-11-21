@@ -1082,6 +1082,7 @@ export async function authorizeSpaceAccess(
                 ))
             ) {
                 throw new PermissionDeniedError("Account doesn't have access to space", {
+                    aggregateDedupeKey: `${spaceId}:${context.actor.getAccountId()}`,
                     displayMessage: errorDisplayMessage`You don’t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
                         "switching spaces",
                     )} or ${errorDisplayMessage.signOutLink("signing out")}.`,
@@ -1091,7 +1092,9 @@ export async function authorizeSpaceAccess(
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System action doesn't have access to space");
+                throw new PermissionDeniedError("System action doesn't have access to space", {
+                    aggregateDedupeKey: spaceId,
+                });
             }
             break;
         }

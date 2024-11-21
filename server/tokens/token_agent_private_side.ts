@@ -77,8 +77,8 @@ export class TokenAgentPrivateSide {
      * algorithm. So each service has its own private key and other services verify
      * it against their public key. If a service's private key is discovered by an
      * attacker they still wouldn't be able to create keys that let them
-     * impersonate another service. (e.g. If `FileUploadService` is compromised an
-     * attacker couldn't use that access to create a session token as
+     * impersonate another service. (e.g. If `FileProcessorService` is compromised
+     * an attacker couldn't use that access to create a session token as
      * `AppService`.)
      *
      * This is used to authenticate the execution of a single action.
@@ -122,8 +122,8 @@ export class TokenAgentPrivateSide {
      * This means all instances of `TokenAgent` across all our services have the
      * same HS256 secret key. To learn more about these two algorithms read "[RS256
      * vs HS256: What's The Difference?][1]". If an attacker gets access to
-     * `FileUploadService` than they'll be able to sign URLs same as `AppService`
-     * since they have the secret key.
+     * `FileProcessorService` than they'll be able to sign URLs same as
+     * `AppService` since they have the secret key.
      *
      * So HS256 is a little less secure than RS256 (but not by much, practically).
      * We use it because it generates much shorter signatures (2.5x smaller!).
@@ -152,7 +152,10 @@ export class TokenAgentPrivateSide {
         {
             currentTimeForTest,
             expirationMinutes,
-        }: {currentTimeForTest?: Date; expirationMinutes?: number} = {},
+        }: {
+            currentTimeForTest?: Date;
+            expirationMinutes?: number;
+        } = {},
     ): Promise<URL> {
         assert(currentTimeForTest === undefined || import.meta.jest);
 

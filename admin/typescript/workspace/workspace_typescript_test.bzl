@@ -42,7 +42,7 @@ def _workspace_typescript_test_impl(ctx):
         runfiles.append(target[OutputGroupInfo].srcs)
 
         if JsInfo in target:
-            runfiles.append(target[JsInfo].transitive_npm_linked_package_files)
+            runfiles.append(target[JsInfo].npm_sources)
 
         if NpmPackageStoreInfo in target:
             runfiles.append(target[NpmPackageStoreInfo].transitive_files)

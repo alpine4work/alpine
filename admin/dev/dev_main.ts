@@ -97,10 +97,10 @@ const taskRealtimeDevPrivatePorts = parsePorts(env.TASK_REALTIME_DEV_PRIVATE_POR
 
 const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
 
-const fileUploadDevPort = parsePort(env.FILE_UPLOAD_DEV_PORT);
-const fileUploadInspectorDevPort = parsePort(env.FILE_UPLOAD_DEV_INSPECTOR_PORT);
-const fileUploadDevPrivatePorts = parsePorts(env.FILE_UPLOAD_DEV_PRIVATE_PORTS);
-const fileUploadServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
+const fileProcessorDevPort = parsePort(env.FILE_PROCESSOR_DEV_PORT);
+const fileProcessorDevInspectorPort = parsePort(env.FILE_PROCESSOR_DEV_INSPECTOR_PORT);
+const fileProcessorDevPrivatePorts = parsePorts(env.FILE_PROCESSOR_DEV_PRIVATE_PORTS);
+const fileProcessorServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
 
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
@@ -139,8 +139,14 @@ const taskRealtimeServicePublicKeyPath = joinPath(
 const jobQueueServicePrivateKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa");
 const jobQueueServicePublicKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa.pub");
 
-const fileUploadServicePrivateKeyPath = joinPath(keysDirectoryPath, "file_upload_service_rsa");
-const fileUploadServicePublicKeyPath = joinPath(keysDirectoryPath, "file_upload_service_rsa.pub");
+const fileProcessorServicePrivateKeyPath = joinPath(
+    keysDirectoryPath,
+    "file_processor_service_rsa",
+);
+const fileProcessorServicePublicKeyPath = joinPath(
+    keysDirectoryPath,
+    "file_processor_service_rsa.pub",
+);
 
 const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
 
@@ -295,7 +301,7 @@ function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
@@ -304,6 +310,7 @@ function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${appDevInspectorPort}`,
@@ -339,10 +346,10 @@ function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--fileUploadServiceUrl=http://localhost:${fileUploadDevPort}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "edge")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
@@ -367,13 +374,14 @@ function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--inspectorPort=${taskRealtimeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
@@ -388,13 +396,14 @@ function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
@@ -406,28 +415,29 @@ function createArtifacts() {
             server: new MutexValue<ArtifactServer | null>(null),
         },
         {
-            bazelTarget: "//server/files/upload",
-            executablePath: "server/files/upload/upload.sh",
-            stdioPrefix: "fup",
+            bazelTarget: "//server/files/processor",
+            executablePath: "server/files/processor/processor.sh",
+            stdioPrefix: "flp",
             ports: {
-                publicPort: fileUploadDevPort,
-                privatePorts: fileUploadDevPrivatePorts,
+                publicPort: fileProcessorDevPort,
+                privatePorts: fileProcessorDevPrivatePorts,
                 privatePortIndex: 0,
             },
             args: [
-                `--inspectorPort=${fileUploadInspectorDevPort}`,
+                `--inspectorPort=${fileProcessorDevInspectorPort}`,
                 `--appServicePublicKey=${appServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
-                `--servicePrivateKey=${fileUploadServicePrivateKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
-                `--temporaryDirectoryPath=${fileUploadServiceTemporaryDirectoryPath}`,
+                `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -483,11 +493,11 @@ const fastSetupPromise = runAllPromises([
         });
     }),
     bazelDevServerPromise,
-    // Cleanup `FileUploadService`'s temporary directory whenever our dev process
-    // manager restarts to make sure we start from a clean slate.
+    // Cleanup `FileProcessorService`'s temporary directory whenever our dev
+    // process manager restarts to make sure we start from a clean slate.
     //
     // Ignore error if the directory doesn't exist.
-    fs.rm(fileUploadServiceTemporaryDirectoryPath, {recursive: true}).catch(error => {
+    fs.rm(fileProcessorServiceTemporaryDirectoryPath, {recursive: true}).catch(error => {
         if (isObject(error) && error.code === "ENOENT") return;
         throw error;
     }),

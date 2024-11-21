@@ -64,13 +64,13 @@ export class AwsGithubRunners extends Construct {
         const testInstanceClass = InstanceClass.M7G;
         const testInstanceType = InstanceType.of(testInstanceClass, InstanceSize.XLARGE2);
 
-        // 2 vCPU, 8 GiB memory, Intel Xeon Platinum (x86_64) processor
+        // 4 vCPU, 16 GiB memory, Gravitron (ARM) processor
         //
         // We use the same instance class for our deploy GitHub runners as we do our
         // production services so when building we're building for the right
         // architecture.
         const deployInstanceClass = awsServiceInstanceClass;
-        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.LARGE);
+        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE);
 
         const createImageBuilderComponents = (
             extraAptDependencies: Array<string> = [],
@@ -314,7 +314,7 @@ export class AwsGithubRunners extends Construct {
                 subnetSelection: {subnetType: SubnetType.PUBLIC},
 
                 os: Os.LINUX_UBUNTU,
-                architecture: Architecture.X86_64,
+                architecture: Architecture.ARM64,
                 baseAmi: stack.formatArn({
                     service: "imagebuilder",
                     resource: "image",
@@ -327,10 +327,7 @@ export class AwsGithubRunners extends Construct {
                     instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
                 },
 
-                components: createImageBuilderComponents([
-                    // Required for building `libvpx` and `libaom` on x86_64 architectures.
-                    "yasm",
-                ]),
+                components: createImageBuilderComponents(),
             },
         );
 
@@ -360,6 +357,8 @@ export class AwsGithubRunners extends Construct {
             userDataExtra: Fn.join("", [
                 `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
+                '","fileProcessorJobQueueUrl":"',
+                sqs.getFileProcessorJobQueueUrl(),
                 '"}',
             ]),
         });

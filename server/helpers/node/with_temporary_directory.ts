@@ -20,9 +20,9 @@ export async function withTemporaryDirectory<Value>(
 ): Promise<Value> {
     assert(!namePrefix.includes(sep));
 
-    const temporaryDirectoryPath = joinPath(parentDirectoryPath, await fs.mkdtemp(namePrefix));
+    await fs.mkdir(parentDirectoryPath, {recursive: true});
 
-    await fs.mkdir(temporaryDirectoryPath, {recursive: true});
+    const temporaryDirectoryPath = await fs.mkdtemp(joinPath(parentDirectoryPath, namePrefix));
     try {
         const value = await action(temporaryDirectoryPath);
         return value;

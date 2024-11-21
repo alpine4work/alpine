@@ -207,7 +207,7 @@ export function getContentFileViewerSrc({
     }
 
     if (file.alternative) {
-        if (file.alternative.isProcessing) return null;
+        if (file.alternative.isProcessing || !file.alternative.ok) return null;
 
         return `/files/${spaceId}/${file.id}${signedUrlSearch}&variant=${
             file.alternative.isImagePreviewContent ? "preview" : "alternative"

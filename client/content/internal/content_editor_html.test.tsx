@@ -14,7 +14,7 @@ import {
     ContentEditorState,
     getContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
-import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/render_content_file_preview.js";
+import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/content_file_preview.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
@@ -1456,6 +1456,7 @@ test("file row (one file, audio type)", async () => {
                         preview: {
                             type: "Audio",
                             isProcessing: false,
+                            ok: true,
                             duration: 5000,
                         },
                     }),
@@ -1522,6 +1523,7 @@ test("file row (two files)", async () => {
                         isUploading: false,
                         alternative: {
                             isProcessing: false,
+                            ok: true,
                             contentType: "image/avif",
                             contentLength: 1200 ** 2,
                             isImagePreviewContent: true,
@@ -1602,6 +1604,7 @@ test("file row (three files)", async () => {
                         isUploading: false,
                         alternative: {
                             isProcessing: false,
+                            ok: true,
                             contentType: "image/avif",
                             contentLength: 1200 ** 2,
                             isImagePreviewContent: true,

@@ -3,16 +3,19 @@ import {createPath} from "@remix-run/router";
 import {Fragment, useEffect, useRef} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
+import {
+    defaultErrorDisplayMessage,
+    withoutErrorDisplayMessageRendererReporting,
+} from "~/client/design/default_error_display_message.js";
 import {Link} from "~/client/design/link.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {Color} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 
 const isBrowserRuntime = typeof window !== "undefined";
 
@@ -61,7 +64,10 @@ export function ErrorDisplayMessageRenderer({
     const location = useLocation();
     const navigate = useNavigate();
 
-    const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
+    const displayMessage = error instanceof ErrorBase ? error.displayMessage : undefined;
+
+    const withoutReporting: boolean =
+        isObject(error) && error[withoutErrorDisplayMessageRendererReporting] === true;
 
     const errorToReportRef = useRef({error, hasReported: false});
 
@@ -71,34 +77,40 @@ export function ErrorDisplayMessageRenderer({
     // an effect. Ok to break the rules of hooks here since this branch is entirely
     // environment dependent.
     if (!isBrowserRuntime) {
-        // If the error prop changed, then we need to log it again.
-        if (!Object.is(errorToReportRef.current.error, error)) {
-            errorToReportRef.current = {error, hasReported: false};
-        }
-
-        // We report rendered errors in the React render function since we want the
-        // errors to show up in our instrumentation while server-side rendering.
-        // Server-side rendering doesn't run effects.
-        if (!errorToReportRef.current.hasReported) {
-            errorToReportRef.current.hasReported = true;
-            (reportingContext ?? context).react.reportRenderedError(errorToReportRef.current.error);
-        }
-    } else {
-        // eslint-disable-next-line react-compiler/react-compiler
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        useEffect(() => {
+        if (!withoutReporting) {
             // If the error prop changed, then we need to log it again.
             if (!Object.is(errorToReportRef.current.error, error)) {
                 errorToReportRef.current = {error, hasReported: false};
             }
 
+            // We report rendered errors in the React render function since we want the
+            // errors to show up in our instrumentation while server-side rendering.
+            // Server-side rendering doesn't run effects.
             if (!errorToReportRef.current.hasReported) {
                 errorToReportRef.current.hasReported = true;
                 (reportingContext ?? context).react.reportRenderedError(
                     errorToReportRef.current.error,
                 );
             }
-        }, [context, error, reportingContext]);
+        }
+    } else {
+        // eslint-disable-next-line react-compiler/react-compiler
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useEffect(() => {
+            if (!withoutReporting) {
+                // If the error prop changed, then we need to log it again.
+                if (!Object.is(errorToReportRef.current.error, error)) {
+                    errorToReportRef.current = {error, hasReported: false};
+                }
+
+                if (!errorToReportRef.current.hasReported) {
+                    errorToReportRef.current.hasReported = true;
+                    (reportingContext ?? context).react.reportRenderedError(
+                        errorToReportRef.current.error,
+                    );
+                }
+            }
+        }, [context, error, reportingContext, withoutReporting]);
     }
 
     const debugColor = "grey-40";
@@ -199,8 +211,7 @@ export function ErrorDisplayMessageRenderer({
                             backgroundImage: "linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0))",
                         }}
                     >
-                        {isSingleLine && "("}Error code:{" "}
-                        {error instanceof ErrorBase ? error.code : ErrorCode.Unknown}
+                        {isSingleLine && "("}Error code: {getErrorCode(error)}
                         {isSingleLine && ")"}
                     </Box>
                 </>

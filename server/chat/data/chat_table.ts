@@ -1141,7 +1141,7 @@ export async function authorizeChatAccessForAccount(
 
                     if (!chatAccountItem) {
                         throw new PermissionDeniedError(
-                            "Session account doesn't have access to chat",
+                            "Session actor account doesn't have access to chat",
                         );
                     }
                     break;

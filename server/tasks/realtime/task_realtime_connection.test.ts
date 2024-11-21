@@ -12433,10 +12433,14 @@ test("will lose access to subscribed task upon reauthorization if account remove
         accountId: session2.account.id,
     });
 
-    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
+    await expect(connection.authorize()).rejects.toThrow(
+        "Account doesn't have access to space (and 1 other error)",
+    );
 
     expect(connection.isClosed()).toEqual(true);
-    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
+    expect((connection.getCloseError() as any).message).toEqual(
+        "Account doesn't have access to space (and 1 other error)",
+    );
 
     expect(connection.takeEvents()).toEqual([]);
 

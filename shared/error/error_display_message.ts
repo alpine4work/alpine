@@ -25,7 +25,7 @@ import {
  * [1]: https://spectrum.adobe.com/page/writing-for-errors
  */
 export function errorDisplayMessage(
-    templateStrings: TemplateStringsArray,
+    templateStrings: ReadonlyArray<string>,
     ...values: Array<string | number | ErrorDisplayMessageLinkSegment | ErrorDisplayMessage>
 ): ErrorDisplayMessage {
     if (templateStrings.length === 0)
