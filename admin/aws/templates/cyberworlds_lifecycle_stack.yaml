@@ -1352,7 +1352,8 @@ Resources:
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsStack:JobQueueArn
+                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                          - Fn::ImportValue: CyberworldsStack:JobQueueArn
                 Version: 2012-10-17
             PolicyName: GithubRunnersTestRunnerProviderRoleDefaultPolicyC5F9D7D8
             Roles:
@@ -2339,7 +2340,8 @@ Resources:
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsStack:JobQueueArn
+                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                          - Fn::ImportValue: CyberworldsStack:JobQueueArn
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:BatchWriteItem
@@ -3294,7 +3296,7 @@ Resources:
                             - 3
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - .
                       - Ref: AWS::URLSuffix
                       - /
@@ -3302,13 +3304,13 @@ Resources:
                             - 4
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - /
                       - Fn::Select:
                             - 5
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3361,7 +3363,7 @@ Resources:
                             - 3
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - .
                       - Ref: AWS::URLSuffix
                       - /
@@ -3369,13 +3371,13 @@ Resources:
                             - 4
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - /
                       - Fn::Select:
                             - 5
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3428,7 +3430,7 @@ Resources:
                             - 3
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - .
                       - Ref: AWS::URLSuffix
                       - /
@@ -3436,13 +3438,13 @@ Resources:
                             - 4
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - /
                       - Fn::Select:
                             - 5
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3495,7 +3497,7 @@ Resources:
                             - 3
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - .
                       - Ref: AWS::URLSuffix
                       - /
@@ -3503,13 +3505,13 @@ Resources:
                             - 4
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - /
                       - Fn::Select:
                             - 5
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3562,7 +3564,7 @@ Resources:
                             - 3
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - .
                       - Ref: AWS::URLSuffix
                       - /
@@ -3570,13 +3572,13 @@ Resources:
                             - 4
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - /
                       - Fn::Select:
                             - 5
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3628,7 +3630,7 @@ Resources:
                             - 3
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - .
                       - Ref: AWS::URLSuffix
                       - /
@@ -3636,13 +3638,13 @@ Resources:
                             - 4
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - /
                       - Fn::Select:
                             - 5
                             - Fn::Split:
                                   - ":"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                       - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20

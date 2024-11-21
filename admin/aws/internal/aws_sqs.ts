@@ -118,7 +118,7 @@ export class AwsSqs {
                 Queue.fromQueueArn(
                     importStack,
                     "FileProcessorJobQueueImport",
-                    Fn.importValue(`${this._jobQueue.stack.stackName}:JobQueueArn`),
+                    Fn.importValue(`${this._jobQueue.stack.stackName}:FileProcessorJobQueueArn`),
                 ),
             );
     }
