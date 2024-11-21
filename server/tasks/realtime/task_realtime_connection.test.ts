@@ -6066,21 +6066,39 @@ test("collections of parent tasks are backfilled when query is initially loaded"
 
     expect(connection.takeEvents()).toEqual([]);
 
-    expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+    const subscribeResult = await connection.procedures.subscribeToQuery(
+        query(session, {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
-    ).toEqual({
+                },
+            ],
+        }),
+    );
+
+    expect({
+        ...subscribeResult,
+        updateEvent: {
+            ...subscribeResult.updateEvent,
+            // We've found the order of `backfillCollections` to be non-deterministic
+            // causing this test to flake. So sort collections.
+            backfillCollections: Array.from(subscribeResult.updateEvent!.backfillCollections).sort(
+                (collection1, collection2) =>
+                    defaultCompareStrings(
+                        collection1.type === "Authorized"
+                            ? collection1.collection.id
+                            : collection1.collectionId,
+                        collection2.type === "Authorized"
+                            ? collection2.collection.id
+                            : collection2.collectionId,
+                    ),
+            ),
+        },
+    }).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
@@ -6099,11 +6117,9 @@ test("collections of parent tasks are backfilled when query is initially loaded"
                 expectAuthorizedTask(parentTask3.id),
                 expectAuthorizedTask(parentTask2.id),
             ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection3.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillCollections: [collection1.id, collection2.id, collection3.id]
+                .sort(defaultCompareStrings)
+                .map(expectAuthorizedCollection),
             referencedAccounts: [await session.get()],
         },
     });
