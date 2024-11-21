@@ -3291,7 +3291,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3358,7 +3358,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3425,7 +3425,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3492,7 +3492,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3559,7 +3559,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3625,7 +3625,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"fileProcessorJobQueueUrl\":https://sqs.
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
                       - Fn::Select:
                             - 3
                             - Fn::Split:
