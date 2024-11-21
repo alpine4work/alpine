@@ -5,9 +5,9 @@ import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicat
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {usePeekContext} from "~/client/peek/peek_context.js";
 import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
+import {usePeekContext} from "~/client/remix/peek_context.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {
     GlobalLoadingIndicatorChip,
@@ -126,10 +126,7 @@ export default function PeekLayout() {
             // Make sure we use a new navigation context provider in peeks so the promises
             // returned by `navigate()` will correspond to the peek `useLocation()`.
             >
-                <LoadingIndicatorSpaceOutletContainer
-                    routeId="routes/s.$spaceId.peek"
-                    withMobileLayout={peekContext.withMobileLayout}
-                >
+                <LoadingIndicatorSpaceOutletContainer routeId="routes/s.$spaceId.peek">
                     <GlobalLoadingIndicatorContextProvider>
                         {globalLoadingIndicator => (
                             <>

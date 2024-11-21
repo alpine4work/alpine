@@ -12,11 +12,9 @@ import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_
 import {TaskQueryDisplayStatusFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryDisplayStatusFilterOperationEditor({
-    withMobileLayout,
     filter,
     onFilterChange,
 }: {
-    withMobileLayout: boolean;
     filter: TaskQueryDisplayStatusFilter;
     onFilterChange: (filter: TaskQueryDisplayStatusFilter) => void;
 }) {
@@ -55,7 +53,6 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
-                withMobileLayout={withMobileLayout}
                 operatorLabel={filter.operation.type === "OneOf" ? "is" : "is not"}
                 allOperators={[
                     {
@@ -181,7 +178,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                         isPressed ? "grey-20" : isHovered ? "grey-10" : "grey-5"
                                     }
                                     style={{
-                                        top: addRemLengths(spacing["3"], spacing["0.5"]),
+                                        top: addRemLengths("3", "0.5"),
                                         left: `calc(${spacing["3"]} - 1px)`,
                                     }}
                                 />
@@ -223,7 +220,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                     }
                                     style={{
                                         top: 0,
-                                        bottom: addRemLengths(spacing["3"], spacing["0.5"]),
+                                        bottom: addRemLengths("3", "0.5"),
                                         left: `calc(${spacing["3"]} - 1px)`,
                                     }}
                                 />
@@ -234,7 +231,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                         isPressed ? "grey-20" : isHovered ? "grey-10" : "grey-5"
                                     }
                                     style={{
-                                        top: addRemLengths(spacing["3"], spacing["0.5"]),
+                                        top: addRemLengths("3", "0.5"),
                                         left: `calc(${spacing["3"]} - 1px)`,
                                     }}
                                 />

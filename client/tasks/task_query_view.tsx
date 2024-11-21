@@ -3,7 +3,6 @@ import {useCallback, useImperativeHandle, useMemo, useRef, useState} from "react
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
@@ -17,8 +16,10 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     inputPlaceholderStyles,
@@ -78,7 +79,6 @@ import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort
 import {TaskQuerySort, serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQueryView({
-    withMobileLayout: withMobileLayoutProp,
     store,
     affinityManager,
     initialQuery,
@@ -90,7 +90,6 @@ export function TaskQueryView({
     initialSorts,
     onSortsChange,
 }: {
-    withMobileLayout: boolean;
     store: TaskClientStore;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialQuery: {
@@ -105,13 +104,12 @@ export function TaskQueryView({
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
-    const isMobile = useIsMobile();
-    const remPx = useRemPx();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+    const spacingScale = useSpacingScale();
     const {isAppleDevice} = useClientInfo();
     const currentDate = useCurrentDate();
     const {space, currentAccount} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const desktopHeaderRef = useRef<TaskQueryViewDesktopHeaderRef>(null);
     const navigationBarDesktopNameRef = useRef<TaskQueryViewDesktopHeaderNameRef>(null);
@@ -141,9 +139,9 @@ export function TaskQueryView({
         // eslint-disable-next-line react-compiler/react-compiler
         shouldOpenFirstCollectionsFilterOperationValueRef.current = false;
 
-        if (!withMobileLayout) {
+        if (routeLayout !== "narrow") {
             assertExists(desktopHeaderRef.current).openFirstCollectionsFilterOperationValue();
-        } else if (isMobile) {
+        } else if (platform === "mobile") {
             assertExists(
                 mobileCustomizationSectionRef.current,
             ).openFirstCollectionsFilterOperationValue();
@@ -152,7 +150,7 @@ export function TaskQueryView({
                 desktopCustomizationSectionRef.current,
             ).openFirstCollectionsFilterOperationValue();
         }
-    }, [isMobile, shouldOpenFirstCollectionsFilterOperationValueRef, withMobileLayout]);
+    }, [platform, routeLayout, shouldOpenFirstCollectionsFilterOperationValueRef]);
 
     const [sorts, _setSorts] = useState(initialSorts);
 
@@ -262,9 +260,9 @@ export function TaskQueryView({
             {
                 label: "Edit name",
                 onPress: () => {
-                    if (!withMobileLayout) {
+                    if (routeLayout !== "narrow") {
                         assertExists(desktopHeaderRef.current).editName();
-                    } else if (!isMobile) {
+                    } else if (platform !== "mobile") {
                         assertExists(navigationBarDesktopNameRef.current).editName();
                     } else {
                         setShouldShowEditNameMobileModal(true);
@@ -290,13 +288,13 @@ export function TaskQueryView({
     }, [
         filters,
         isAppleDevice,
-        isMobile,
         name,
+        platform,
         redoEvent,
+        routeLayout,
         sorts,
         space.id,
         undoEvent,
-        withMobileLayout,
     ]);
 
     const readOnlyStickyBannerHeight = "8";
@@ -326,7 +324,7 @@ export function TaskQueryView({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
-    const itemCountBeforeGridView = withMobileLayout ? 1 : 0;
+    const itemCountBeforeGridView = routeLayout === "narrow" ? 1 : 0;
 
     const shiftRenderedRangeForGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
@@ -410,7 +408,7 @@ export function TaskQueryView({
         redo,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(() => {
-            if (!withMobileLayout) {
+            if (routeLayout !== "narrow") {
                 return {
                     isReadOnly,
                     hasParentTaskTitle: true,
@@ -427,7 +425,7 @@ export function TaskQueryView({
                     hasColumns: false,
                 };
             }
-        }, [isReadOnly, withMobileLayout]),
+        }, [isReadOnly, routeLayout]),
         viewRef: itemCountBeforeGridView !== 0 ? gridViewRef : viewRef,
         store,
         affinityManager,
@@ -436,8 +434,8 @@ export function TaskQueryView({
         // the instructional view component. This allows us to visually center the new
         // view instructions.
         withoutDecorativeGhostRowsIfEmpty:
-            withMobileLayout &&
-            isMobile &&
+            routeLayout === "narrow" &&
+            platform === "mobile" &&
             !queryState.activeQuery.isAvailable &&
             queryState.activeQuery.isMissingRequiredFilters,
         // NOTE(calebmer): Currently, all updates which use this are disabled in
@@ -486,11 +484,10 @@ export function TaskQueryView({
             // top of the view in a non-sticky manner.
             //
             // We do this for peeks too.
-            if (withMobileLayout) return;
+            if (routeLayout === "narrow") return;
 
             return {
-                minHeight:
-                    spacing[isMobile ? navigationBarHeight.mobile : navigationBarHeight.desktop],
+                minHeight: spacing[navigationBarHeight],
                 node: (
                     <>
                         {readOnlyStickyBanner}
@@ -513,47 +510,46 @@ export function TaskQueryView({
         }, [
             filterReferences,
             filters,
-            isMobile,
             menuActions,
             name,
             readOnlyStickyBanner,
+            routeLayout,
             setName,
             setSorts,
             sorts,
             store,
             updateFilters,
-            withMobileLayout,
         ]),
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: !withMobileLayout,
-        withMobileLayout,
+        isDisabled: routeLayout !== "narrow",
         withoutDisappearingTitle: true,
-        title: isMobile ? (
-            name
-        ) : (
-            <TaskQueryViewDesktopHeaderName
-                ref={navigationBarDesktopNameRef}
-                name={name}
-                onNameChange={setName}
-            />
-        ),
+        title:
+            platform === "mobile" ? (
+                name
+            ) : (
+                <TaskQueryViewDesktopHeaderName
+                    ref={navigationBarDesktopNameRef}
+                    name={name}
+                    onNameChange={setName}
+                />
+            ),
         menuActions,
         stickyBanner: readOnlyStickyBanner,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
-            if (withMobileLayout && index === 0) {
+            if (routeLayout === "narrow" && index === 0) {
                 return {
                     key: "CustomizationBar",
-                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    minHeight: spacing[navigationBarHeight],
                     node: (
                         <Box paddingTop="safe-area-inset">
                             <Box height={navigationBarHeight} />
                             {readOnlyReason?.message && <Box height={readOnlyStickyBannerHeight} />}
-                            {isMobile ? (
+                            {platform === "mobile" ? (
                                 <TaskQueryViewCustomizationMobileSection
                                     ref={mobileCustomizationSectionRef}
                                     store={store}
@@ -577,7 +573,6 @@ export function TaskQueryView({
                                 >
                                     <TaskQueryViewCustomizationBar
                                         ref={desktopCustomizationSectionRef}
-                                        withMobileLayout={withMobileLayout}
                                         store={store}
                                         shouldCollapseWhenFiltersAreEmpty={false}
                                         defaultOrderSentence={defaultOrderSentence}
@@ -599,15 +594,15 @@ export function TaskQueryView({
         [
             filterReferences,
             filters,
-            isMobile,
             itemCountBeforeGridView,
+            platform,
             readOnlyReason?.message,
             renderGridViewItem,
+            routeLayout,
             setSorts,
             sorts,
             store,
             updateFilters,
-            withMobileLayout,
         ],
     );
 
@@ -642,7 +637,7 @@ export function TaskQueryView({
                     itemCount={itemCountBeforeGridView + gridViewItemCount}
                     alwaysRenderAdditionalItemIndexes={useMemo(
                         () =>
-                            withMobileLayout
+                            routeLayout === "narrow"
                                 ? [
                                       // Always render `<TaskQueryViewCustomizationMobileSection>`
                                       // regardless of where we've scrolled. We can return focus there at
@@ -658,16 +653,16 @@ export function TaskQueryView({
                         [
                             alwaysRenderAdditionalGridViewItemIndexes,
                             itemCountBeforeGridView,
-                            withMobileLayout,
+                            routeLayout,
                         ],
                     )}
                     scrollbarInsetTop={
-                        withMobileLayout
+                        routeLayout === "narrow"
                             ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
                             : undefined
                     }
                     scrollbarInsetTopItemIndex={
-                        !withMobileLayout && scrollbarInsetTopGridViewItemIndex !== undefined
+                        routeLayout !== "narrow" && scrollbarInsetTopGridViewItemIndex !== undefined
                             ? scrollbarInsetTopGridViewItemIndex + itemCountBeforeGridView
                             : undefined
                     }
@@ -698,12 +693,14 @@ export function TaskQueryView({
                                         alignItems="center"
                                         style={{
                                             top: contentHeight,
-                                            height: !withMobileLayout
-                                                ? convertRemLengthToPx(spacing["128"], remPx)
-                                                : undefined,
-                                            minHeight: withMobileLayout
-                                                ? Math.max(0, viewHeight - contentHeight)
-                                                : undefined,
+                                            height:
+                                                routeLayout !== "narrow"
+                                                    ? convertRemLengthToPx("128", spacingScale)
+                                                    : undefined,
+                                            minHeight:
+                                                routeLayout === "narrow"
+                                                    ? Math.max(0, viewHeight - contentHeight)
+                                                    : undefined,
                                         }}
                                     >
                                         <TaskQueryViewInstructionalPlaceholder
@@ -741,7 +738,7 @@ function TaskQueryViewInstructionalPlaceholder({
         options?: {shouldOpenFirstCollectionsFilterOperationValue?: boolean},
     ) => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
 
     return (
@@ -799,7 +796,7 @@ function TaskQueryViewInstructionalPlaceholder({
                     icon={<Plus />}
                     // Consistent icon placement with mobile customization section filter/sort add
                     // buttons.
-                    iconPlacement={isMobile ? "end" : "start"}
+                    iconPlacement={platform === "mobile" ? "end" : "start"}
                     height="6"
                     paddingX="2"
                     isDisabled={filters.some(
@@ -848,7 +845,7 @@ function TaskQueryViewInstructionalPlaceholder({
                     icon={<Plus />}
                     // Consistent icon placement with mobile customization section filter/sort add
                     // buttons.
-                    iconPlacement={isMobile ? "end" : "start"}
+                    iconPlacement={platform === "mobile" ? "end" : "start"}
                     height="6"
                     paddingX="2"
                     isDisabled={filters.some(
@@ -894,7 +891,7 @@ function TaskQueryViewInstructionalPlaceholder({
                     icon={<Plus />}
                     // Consistent icon placement with mobile customization section filter/sort add
                     // buttons.
-                    iconPlacement={isMobile ? "end" : "start"}
+                    iconPlacement={platform === "mobile" ? "end" : "start"}
                     height="6"
                     paddingX="2"
                     // The collection add button doesn't immediately give the user access to the

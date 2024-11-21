@@ -1,6 +1,6 @@
 import {useContext} from "react";
-import {PeekContextDefinition} from "~/client/peek/internal/peek_context_definition.js";
-import {PeekContext} from "~/client/peek/peek_context_types.js";
+import {PeekContextDefinition} from "~/client/remix/internal/peek_context_definition.js";
+import {PeekContext} from "~/client/remix/peek_context_types.js";
 
 /**
  * Get the context of the peek we are rendering in if we are rendering in

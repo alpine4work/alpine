@@ -24,7 +24,8 @@ import {
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -44,7 +45,6 @@ export function InboxBannerOutletContainer({
     initialEntry,
     withoutRealtime,
     navigation,
-    withMobileLayout,
     maxWidth,
     sidebarRightWidth,
     children,
@@ -52,7 +52,6 @@ export function InboxBannerOutletContainer({
     initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
     withoutRealtime: boolean;
     navigation: InboxContextNavigation | null;
-    withMobileLayout: boolean;
     maxWidth: Spacing | "full";
     sidebarRightWidth?: Spacing;
     children?: ReactNode;
@@ -60,7 +59,8 @@ export function InboxBannerOutletContainer({
     const context = useAppContext();
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {locale, isAppleDevice} = useClientInfo();
     const location = useLocation();
     const accountStore = useAccountClientStore();
@@ -200,7 +200,7 @@ export function InboxBannerOutletContainer({
                     // like it.
                     "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${
                         spacing[
-                            withMobileLayout
+                            routeLayout === "narrow"
                                 ? mobileLayoutInboxBannerHeight
                                 : desktopLayoutInboxBannerHeight
                         ]
@@ -221,7 +221,7 @@ export function InboxBannerOutletContainer({
                         width="full"
                         maxWidth={maxWidth}
                         height={
-                            withMobileLayout
+                            routeLayout === "narrow"
                                 ? mobileLayoutInboxBannerHeight
                                 : desktopLayoutInboxBannerHeight
                         }
@@ -240,13 +240,15 @@ export function InboxBannerOutletContainer({
                                 color="grey-50"
                                 fontSize="75"
                                 fontStyle="truncate"
-                                paddingRight={!navigation && !isMobile ? "0.5" : undefined}
+                                paddingRight={
+                                    !navigation && platform !== "mobile" ? "0.5" : undefined
+                                }
                             >
-                                {isMobile
+                                {platform === "mobile"
                                     ? "Notification"
                                     : `Notification: ${entryDisplaySummaryText}`}
                             </Box>
-                            {!navigation && !isMobile && (
+                            {!navigation && platform !== "mobile" && (
                                 <IconButton
                                     size="xs"
                                     description="Open in inbox"
@@ -266,7 +268,7 @@ export function InboxBannerOutletContainer({
 
                                         const newPathname =
                                             convertPeekPathToSpacePathParts(location.pathname, {
-                                                withMobileLayout: false,
+                                                routeLayout: "wide",
                                             })?.[1].slice(1) ??
                                             location.pathname.replace(/^\/s\/[^/]+\//, "");
 
@@ -292,7 +294,7 @@ export function InboxBannerOutletContainer({
                                 </IconButton>
                             )}
                             <Box minWidth="10" flexGrow="1" />
-                            {navigation && !isMobile && (
+                            {navigation && platform !== "mobile" && (
                                 <>
                                     <IconButton
                                         size="xs"
@@ -373,7 +375,7 @@ export function InboxBannerOutletContainer({
                                 Done
                             </Button>
                         </Box>
-                        {sidebarRightWidth && !withMobileLayout ? (
+                        {sidebarRightWidth && routeLayout !== "narrow" ? (
                             <Box height="full" flexShrink="0" width={sidebarRightWidth}></Box>
                         ) : null}
                     </Box>

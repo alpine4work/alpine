@@ -19,12 +19,8 @@ import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_s
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    postContentViewInnerMarginY,
-} from "~/client/styles/forum_shared_styles.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {postContentViewInnerMarginY} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -56,7 +52,7 @@ export function PostMobileEditor({
     }) => void;
 }) {
     const isInitialAppRender = useIsInitialAppRender();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const context = useAppContext();
 
     const [postFromState, setPost] = useState(postFromProps);
@@ -120,7 +116,6 @@ export function PostMobileEditor({
     );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout: true,
         title: "Edit post",
         withoutDisappearingTitle: true,
         replaceActions: (
@@ -168,7 +163,7 @@ export function PostMobileEditor({
                         paddingTop="safe-area-inset"
                     >
                         {navigationBar}
-                        {isMobile && <Box height={navigationBarHeight} />}
+                        {platform === "mobile" && <Box height={navigationBarHeight} />}
                         <Box
                             flexShrink="0"
                             width="full"
@@ -176,19 +171,12 @@ export function PostMobileEditor({
                             marginX="center"
                             paddingX={screenPaddingX}
                             paddingBottom={postContentViewInnerMarginY}
-                            style={{
-                                paddingTop: isMobile
-                                    ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                    : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
-                            }}
                         >
                             <PostContentViewHeader post={post} shouldShowChannel={true} />
                         </Box>
                         <ContentEditor
                             ref={editorRef}
                             aria-label="Post"
-                            // Only rendered in mobile layouts.
-                            withMobileLayout={true}
                             state={state}
                             onChange={onChange}
                             // On mobile, don't allow interactions when unfocused. We're already in an

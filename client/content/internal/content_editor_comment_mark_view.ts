@@ -3,17 +3,18 @@ import {MarkViewConstructor} from "prosemirror-view";
 import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {commentClassName, fileClassName} from "~/shared/content/content_styles.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 export function createContentEditorCommentMarkViewConstructor({
-    withMobileLayout,
+    getRouteLayout,
     canPrimaryInputHover,
     openCommentThread,
     onCommentThreadPressedChange,
 }: {
-    withMobileLayout: () => boolean;
+    getRouteLayout: () => RouteLayout;
     canPrimaryInputHover: () => boolean;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
     onCommentThreadPressedChange: (
@@ -109,7 +110,7 @@ export function createContentEditorCommentMarkViewConstructor({
             // In mobile layouts (e.g. mobile device or peek), prevent default since
             // clicking a comment opens the comment thread but does not select the text.
             // (Unless you hold shift.)
-            if (withMobileLayout()) {
+            if (getRouteLayout() === "narrow") {
                 event.preventDefault();
             }
         });
@@ -149,7 +150,7 @@ export function createContentEditorCommentMarkViewConstructor({
             // In mobile layouts (e.g. mobile device or peek), prevent default since
             // clicking a comment opens the comment thread but does not select the text.
             // (Unless you hold shift.)
-            if (withMobileLayout()) {
+            if (getRouteLayout() === "narrow") {
                 event.preventDefault();
             }
         });
@@ -204,7 +205,7 @@ export function createContentEditorCommentMarkViewConstructor({
             // In mobile layouts (e.g. mobile device or peek), prevent default since
             // clicking a comment opens the comment thread but does not select the text.
             // (Unless you hold shift.)
-            if (withMobileLayout()) {
+            if (getRouteLayout() === "narrow") {
                 event.preventDefault();
             }
         });

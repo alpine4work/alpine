@@ -4,24 +4,22 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskQueryTitleFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryTitleFilterOperationEditor({
-    withMobileLayout,
     filter,
     onFilterChange,
 }: {
-    withMobileLayout: boolean;
     filter: TaskQueryTitleFilter;
     onFilterChange: (filter: TaskQueryTitleFilter) => void;
 }) {
     return (
         <>
             <TaskQueryFilterOperatorEditor
-                withMobileLayout={withMobileLayout}
                 operatorLabel={filter.operation.type === "Includes" ? "includes" : "excludes"}
                 allOperators={[
                     {
@@ -47,7 +45,6 @@ export function TaskQueryTitleFilterOperationEditor({
                 ]}
             />
             <TaskQueryTitleFilterOperationEditorValueEditor
-                withMobileLayout={withMobileLayout}
                 titleQuery={filter.operation.titleQuery}
                 onTitleQueryChange={titleQuery =>
                     onFilterChange({
@@ -61,14 +58,14 @@ export function TaskQueryTitleFilterOperationEditor({
 }
 
 function TaskQueryTitleFilterOperationEditorValueEditor({
-    withMobileLayout,
     titleQuery,
     onTitleQueryChange,
 }: {
-    withMobileLayout: boolean;
     titleQuery: string;
     onTitleQueryChange: (filter: string) => void;
 }) {
+    const routeLayout = useRouteLayout();
+
     const inputRef = useRef<HTMLInputElement>(null);
     const {hoverProps, isHovered} = useHover({});
 
@@ -98,8 +95,8 @@ function TaskQueryTitleFilterOperationEditorValueEditor({
         <Box
             {...hoverProps}
             height="full"
-            maxWidth={withMobileLayout ? undefined : "48"}
-            overflow={withMobileLayout ? "hidden" : undefined}
+            maxWidth={routeLayout === "narrow" ? undefined : "48"}
+            overflow={routeLayout === "narrow" ? "hidden" : undefined}
             position="relative"
             zIndex="0"
         >

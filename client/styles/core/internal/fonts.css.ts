@@ -7,13 +7,16 @@
  */
 
 import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
-import {mobilePlatformSelector} from "~/client/styles/core/internal/platform.css.js";
+import {
+    largeSpacingScaleSelector,
+    mediumSpacingScaleSelector,
+} from "~/client/styles/core/internal/selectors.css.js";
 import {
     interFontAscender,
     interFontDescender,
     interFontUnitsPerEm,
 } from "~/shared/design/core/font_metrics.js";
-import {createFontStyles, fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -51,22 +54,34 @@ export const fontStyles = createFontStyles({
 });
 
 const fontSizeVars = createGlobalTheme(":root", {
-    font: mapObjectValues(fontSizesByPlatform, ({desktop, mobile}) => {
-        assert(desktop.lineHeight === mobile.lineHeight);
+    font: mapObjectValues(fontSizesBySpacingScale, ({small, large}) => {
+        assert(small.lineHeight === large.lineHeight);
         return {
-            fontSize: `${desktop.fontSize}px`,
-            letterSpacing: desktop.letterSpacing,
+            fontSize: `${small.fontSize}px`,
+            letterSpacing: small.letterSpacing,
         };
     }),
 });
 
-globalStyle(mobilePlatformSelector, {
+globalStyle(mediumSpacingScaleSelector, {
     vars: assignVars(fontSizeVars, {
-        font: mapObjectValues(fontSizesByPlatform, ({desktop, mobile}) => {
-            assert(desktop.lineHeight === mobile.lineHeight);
+        font: mapObjectValues(fontSizesBySpacingScale, ({small, medium}) => {
+            assert(small.lineHeight === medium.lineHeight);
             return {
-                fontSize: `${mobile.fontSize}px`,
-                letterSpacing: mobile.letterSpacing,
+                fontSize: `${medium.fontSize}px`,
+                letterSpacing: medium.letterSpacing,
+            };
+        }),
+    }),
+});
+
+globalStyle(largeSpacingScaleSelector, {
+    vars: assignVars(fontSizeVars, {
+        font: mapObjectValues(fontSizesBySpacingScale, ({small, large}) => {
+            assert(small.lineHeight === large.lineHeight);
+            return {
+                fontSize: `${large.fontSize}px`,
+                letterSpacing: large.letterSpacing,
             };
         }),
     }),
@@ -95,16 +110,17 @@ globalStyle(mobilePlatformSelector, {
  * [4]: https://www.untitledui.com
  */
 export const fontSizes: {
-    [K in keyof typeof fontSizesByPlatform]: {
+    [K in keyof typeof fontSizesBySpacingScale]: {
         fontSize: string;
         letterSpacing: string;
         lineHeight: RemLength;
     };
-} = mapObjectValues(fontSizesByPlatform, ({desktop, mobile}, fontSizeName) => {
-    assert(desktop.lineHeight === mobile.lineHeight);
+} = mapObjectValues(fontSizesBySpacingScale, ({small, medium, large}, fontSizeName) => {
+    assert(small.lineHeight === medium.lineHeight);
+    assert(small.lineHeight === large.lineHeight);
     return {
         fontSize: fontSizeVars.font[fontSizeName].fontSize,
         letterSpacing: fontSizeVars.font[fontSizeName].letterSpacing,
-        lineHeight: desktop.lineHeight,
+        lineHeight: small.lineHeight,
     };
 });

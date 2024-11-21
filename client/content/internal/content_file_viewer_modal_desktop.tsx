@@ -31,13 +31,13 @@ import {ContentFileViewerLoaderData} from "~/client/content/internal/load_conten
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
 import {ErrorBoundary} from "~/client/helpers/error_boundary.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     initialSelectionColorsClassName,
@@ -344,7 +344,7 @@ function ContentFileDesktopViewer(props: {
 }) {
     const {file, signedUrlSearch, viewerSize} = props;
 
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
     switch (props.file.contentType) {
         case "application/octet-stream": {
@@ -416,19 +416,12 @@ function ContentFileDesktopViewer(props: {
                         signedUrlSearch={signedUrlSearch}
                         viewerWidth={
                             viewerSize.width -
-                            convertRemLengthToPx(spacing[contentFileViewerDesktopMarginX], remPx) *
-                                2
+                            convertRemLengthToPx(contentFileViewerDesktopMarginX, spacingScale) * 2
                         }
                         viewerHeight={
                             viewerSize.height -
-                            convertRemLengthToPx(
-                                spacing[contentFileViewerDesktopMarginTop],
-                                remPx,
-                            ) -
-                            convertRemLengthToPx(
-                                spacing[contentFileViewerDesktopMarginBottom],
-                                remPx,
-                            )
+                            convertRemLengthToPx(contentFileViewerDesktopMarginTop, spacingScale) -
+                            convertRemLengthToPx(contentFileViewerDesktopMarginBottom, spacingScale)
                         }
                     />
                 </Box>

@@ -2,7 +2,7 @@ import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -39,16 +39,15 @@ export async function loader({context: unauthenticatedContext}: LoaderArgs) {
 }
 
 export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: SpaceModel}) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const rootNavigate = useRootNavigate();
 
     const {otherSpaces} = useLoaderDataWithSchema(LoaderSchema);
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (
         <SpaceRouteScrollView
-            withMobileLayout={isMobile}
             title="Switch space"
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}

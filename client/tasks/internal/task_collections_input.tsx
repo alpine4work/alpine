@@ -19,7 +19,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -35,7 +34,8 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -146,7 +146,7 @@ function TaskCollectionsInput(
     },
     ref: Ref<TaskCollectionsInputRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const navigate = useNavigate();
@@ -608,7 +608,7 @@ function TaskCollectionsInput(
         if (lastIsOpenRef.current === comboBoxState.isOpen) return;
         lastIsOpenRef.current = comboBoxState.isOpen;
 
-        if (!isMobile) return;
+        if (platform !== "mobile") return;
         if (!comboBoxState.isOpen) return;
 
         const popoverElement = assertExists(popoverRef.current);
@@ -647,7 +647,7 @@ function TaskCollectionsInput(
             const clearanceBottom =
                 viewportHeight -
                 getCurrentCoveredHeight() -
-                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+                convertRemLengthToPx("1", getSpacingScaleWithoutListening());
 
             if (popoverRect.bottom <= clearanceBottom) return;
 
@@ -673,7 +673,7 @@ function TaskCollectionsInput(
             timeout.clear();
             run();
         }, perceivedAsInstantLimitMs);
-    }, [comboBoxState.isOpen, getCurrentCoveredHeight, isMobile]);
+    }, [comboBoxState.isOpen, getCurrentCoveredHeight, platform]);
 
     const inputPlaceholder = "Add";
 
@@ -1122,7 +1122,7 @@ function TaskCollectionsInput(
                 <OverlayAnimated
                     isVisible={comboBoxState.isOpen}
                     // Mobile collection chips are bigger so add more offset.
-                    offset={isMobile ? "2.5" : "1.5"}
+                    offset={platform === "mobile" ? "2.5" : "1.5"}
                     disableAnimationIn={true}
                     disableAnimationOut={
                         inputState.type === "Unfocused" && inputState.disableAnimationOut
@@ -1134,7 +1134,7 @@ function TaskCollectionsInput(
                     // Don't allow flipping vertically on mobile. Instead
                     // `useScrollToAvoidBottomBarsAndMobileKeyboard()` should kick in to make sure
                     // the overlay is visible.
-                    fallbackPlacements={!isMobile ? ["top-start"] : []}
+                    fallbackPlacements={platform !== "mobile" ? ["top-start"] : []}
                     // The overlay blocks interaction with everything outside the overlay. Except
                     // the combobox input. We still want to render the overlay in our current
                     // overlay scope so that it animates smoothly with scroll animations (important
@@ -1152,8 +1152,8 @@ function TaskCollectionsInput(
                     // keyboard opens. The value was calculated based on the keyboard height in
                     // iOS. We may need to change this constant if the keyboard height for iOS
                     // changes or the Android keyboard height is bigger.
-                    overflowBottom={isMobile ? "18rem" : undefined}
-                    overflowTop={navigationBarHeight[isMobile ? "mobile" : "desktop"]}
+                    overflowBottom={platform === "mobile" ? "18rem" : undefined}
+                    overflowTop={navigationBarHeight}
                     overlay={
                         <Box
                             ref={popoverRef}
@@ -1274,7 +1274,7 @@ function TaskCollectionsInput(
                                                 ? shouldAlignWithDetailViewInputsIfEmpty &&
                                                   displayCollections.length === 0
                                                     ? spacing["5"]
-                                                    : addRemLengths(spacing["3"], spacing["0.5"])
+                                                    : addRemLengths("3", "0.5")
                                                 : undefined,
                                     }}
                                     // By default `<input>` elements have a `min-width` determined by the `size`

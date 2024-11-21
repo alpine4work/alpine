@@ -6,8 +6,8 @@ import {Box} from "~/client/design/box.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
@@ -338,24 +338,19 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return defaultShouldRevalidate;
 };
 
-export default function TaskCollectionRoute({
-    withMobileLayout = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function TaskCollectionRoute() {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <TaskCollectionRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-            withMobileLayout={withMobileLayout}
         />
     );
 }
 
-function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function TaskCollectionRouteInner() {
+    const platform = usePlatform();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -460,7 +455,7 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
         );
     });
 
-    if (isMobile && !collectionSubscription) {
+    if (platform === "mobile" && !collectionSubscription) {
         return (
             <Box flexGrow="1" overflow="hidden" position="relative" height="full">
                 <TaskCollectionMobileEditor
@@ -501,7 +496,6 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
     return (
         <TaskGridViewDndContext store={store}>
             <TaskCollectionView
-                withMobileLayout={withMobileLayout}
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription ?? null}

@@ -4,7 +4,7 @@ import {Memo, useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewBubbleBorderRadius,
@@ -16,9 +16,8 @@ import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
-    spacing,
 } from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
@@ -87,7 +86,7 @@ function MessagingTypingIndicator({
     account: AccountModel;
     paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const dot1Ref = useRef<HTMLDivElement>(null);
     const dot2Ref = useRef<HTMLDivElement>(null);
@@ -100,7 +99,7 @@ function MessagingTypingIndicator({
 
         const duration = 0.8;
         const staggerDuration = duration / 6;
-        const offset = `${parseRemLengthNumber(spacing["0.5"]) / 2}rem`;
+        const offset = `${parseRemLength("0.5") / 2}rem`;
         const easing = easeInOutSin.cubicBezier as Easing;
 
         const createSequence = (element: HTMLElement): Parameters<typeof timeline>[0] => [
@@ -142,11 +141,9 @@ function MessagingTypingIndicator({
                 style={{
                     paddingLeft: addRemLengths(
                         getMessageBubbleMarginLeft(
-                            typeof paddingX === "string"
-                                ? paddingX
-                                : paddingX[isMobile ? "mobile" : "desktop"],
+                            typeof paddingX === "string" ? paddingX : paddingX[platform],
                         ),
-                        spacing["0.5"],
+                        "0.5",
                     ),
                 }}
             >

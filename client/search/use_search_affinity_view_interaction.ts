@@ -1,6 +1,6 @@
 import {useEffect} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {usePeekContext} from "~/client/peek/peek_context.js";
+import {usePeekContext} from "~/client/remix/peek_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";

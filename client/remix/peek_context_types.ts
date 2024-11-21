@@ -1,7 +1,8 @@
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 
 export type PeekContext = {
     readonly id: PeekId;
-    readonly withMobileLayout: boolean;
+    readonly layout: RouteLayout;
     readonly withoutSearchAffinityViewInteraction: boolean;
 };

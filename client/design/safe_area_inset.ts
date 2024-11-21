@@ -1,4 +1,4 @@
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {InternalError} from "~/shared/error/error.js";
 
 /**

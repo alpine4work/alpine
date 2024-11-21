@@ -2,7 +2,7 @@ import {X} from "phosphor-react";
 import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
 import {IconButton} from "~/client/design/icon_button.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {Sprinkles, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {
@@ -112,7 +112,7 @@ function TaskCollectionChipBase(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const isDisabled = !onPress;
     const {pressProps, isPressed} = usePress({isDisabled, onPress});
@@ -167,10 +167,10 @@ function TaskCollectionChipBase(
             {onRemove &&
                 // If we're on mobile but `withDesktopLayout` is true then never render the
                 // remove button since it would be too small.
-                !(isMobile && withDesktopLayout) && (
+                !(platform === "mobile" && withDesktopLayout) && (
                     <div className={removeButtonContainerClassName}>
                         <IconButton
-                            size={isMobile ? "md" : "xs"}
+                            size={platform === "mobile" ? "md" : "xs"}
                             variant="quiet-above-grey-5-background"
                             borderRadius={taskCollectionChipBorderRadius}
                             // The user focuses the pill as a whole and hits the delete key to delete using
@@ -180,7 +180,7 @@ function TaskCollectionChipBase(
                             withoutTooltip={true}
                             onPress={onRemove}
                         >
-                            <X size={isMobile ? spacing["3"] : spacing["2.5"]} />
+                            <X size={platform === "mobile" ? spacing["3"] : spacing["2.5"]} />
                         </IconButton>
                     </div>
                 )}

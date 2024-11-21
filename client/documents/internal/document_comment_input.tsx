@@ -23,7 +23,6 @@ import {
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export function DocumentCommentInput({
-    withMobileLayout,
     isStickyPositioned,
     inputRef: inputRefProp,
     viewRef,
@@ -43,7 +42,6 @@ export function DocumentCommentInput({
     onFocus,
     onBeforeFocusFromReplyOrEditingChange,
 }: {
-    withMobileLayout: boolean;
     isStickyPositioned: boolean;
     inputRef?: Ref<MessageInputRef>;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -177,7 +175,6 @@ export function DocumentCommentInput({
     return (
         <MessageInput
             ref={useMergedRefs(inputRef, inputRefProp ?? null)}
-            withMobileLayout={withMobileLayout}
             messageNoun="comment"
             isNotBottomBar={isStickyPositioned}
             messages={comments}

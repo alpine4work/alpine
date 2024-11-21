@@ -23,7 +23,7 @@ import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -39,7 +39,6 @@ import {
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 
 export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
-    withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     placeholder?: string;
@@ -80,7 +79,6 @@ export {MessageInputForwardRef as MessageInput};
 
 function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>(
     {
-        withMobileLayout,
         messageNoun = "message",
         messageStartOfSentenceNoun,
         placeholder,
@@ -106,7 +104,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const reporter = useReporter();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
@@ -116,7 +114,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     // If we're on a mobile device then message editing will happen inside this
     // message input component instead of inline within `<MessageView>`.
     const messageEditingForThisInput =
-        isMobile && messageEditing.state.isEditing
+        platform === "mobile" && messageEditing.state.isEditing
             ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
             : null;
 
@@ -303,7 +301,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         ? newMessageKey
                         : `MessageEditing:${messageEditingForThisInput.state.messageRoomKey}:${messageEditingForThisInput.state.messageIndex}`
                 }
-                withMobileLayout={withMobileLayout}
                 messageNoun={messageNoun}
                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                 placeholder={placeholder}
@@ -388,7 +385,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                     messageRoomKey: message.getRoomKey(),
                                     messageIndex: message.index,
                                     messagePayload: message.payload,
-                                    isMobile,
+                                    platform,
                                     returnFocusAfterEditing: () => {
                                         inputRef.current?.focus();
                                     },

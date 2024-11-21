@@ -319,7 +319,6 @@ for (const blockTestCase of blockTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
                     references: blockTestCase.references ?? emptyContentReferences,
@@ -347,7 +346,6 @@ for (const blockTestCase of blockTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
                     references: blockTestCase.references ?? emptyContentReferences,
@@ -387,7 +385,6 @@ for (const blockTestCase of blockTestCases) {
             render(
                 <ContentEditor
                     aria-label="Test"
-                    withMobileLayout={false}
                     state={ContentEditorState.create({
                         doc: content,
                         references: blockTestCase.references ?? emptyContentReferences,
@@ -428,7 +425,6 @@ for (const inlineTestCase of inlineTestCases) {
         render(
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({
                     doc: content,
                     references: emptyContentReferences,
@@ -475,7 +471,6 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
             <TestContextProvider>
                 <ContentEditor
                     aria-label="Test"
-                    withMobileLayout={false}
                     state={state}
                     onChange={setState}
                     // Use a different file attachment target to exercise `<ContentEditor>`s ability
@@ -595,7 +590,6 @@ test("divider", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -611,7 +605,6 @@ test("heading cannot have a level lower than 1", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 0}, [schema.text("Test")]),
@@ -628,7 +621,6 @@ test("heading cannot have a level lower than 1", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: -42}, [schema.text("Test")]),
@@ -647,7 +639,6 @@ test("heading cannot have a level greater than 3", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 4}, [schema.text("Test")]),
@@ -664,7 +655,6 @@ test("heading cannot have a level greater than 3", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 42}, [schema.text("Test")]),
@@ -683,7 +673,6 @@ test("heading cannot be the wrong type", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: ""}, [schema.text("Test")]),
@@ -700,7 +689,6 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: "secondary"}, [schema.text("Test")]),
@@ -717,7 +705,6 @@ test("heading cannot be the wrong type", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: true}, [schema.text("Test")]),
@@ -736,7 +723,6 @@ test("heading is converted into an integer", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("heading", {level: 2.5}, [schema.text("Test")]),
@@ -755,7 +741,6 @@ test("link with a non-HTTP scheme is blocked", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
@@ -779,7 +764,6 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
@@ -802,7 +786,6 @@ test("link with a non-HTTP scheme is blocked", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: schema.node("doc", {}, [
                     schema.node("paragraph", {}, [
@@ -841,7 +824,6 @@ test("bullet list with multiple items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -863,7 +845,6 @@ test("ordered list with multiple items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -897,7 +878,6 @@ test("check list with multiple items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -936,7 +916,6 @@ test("bullet list with sub-list", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -975,7 +954,6 @@ test("ordered list with sub-list", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1014,7 +992,6 @@ test("check list with sub-list", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1053,7 +1030,6 @@ test("bullet list with sub-list of another type", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1092,7 +1068,6 @@ test("ordered list with sub-list of another type", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1131,7 +1106,6 @@ test("check list with sub-list of another type", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1155,7 +1129,6 @@ test("breaks inside paragraphs", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1181,7 +1154,6 @@ test("breaks inside list items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1204,7 +1176,6 @@ test("multiple paragraphs inside list items", async () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -1232,7 +1203,6 @@ test("account long mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1261,7 +1231,6 @@ test("account short mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1289,7 +1258,6 @@ test("unknown account mention", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1337,7 +1305,6 @@ test("file row (one file)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1361,7 +1328,6 @@ test("file row (one file, null reference)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1409,7 +1375,6 @@ test("file row (one file, image type)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1458,7 +1423,6 @@ test("file row (one file, video type)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1505,7 +1469,6 @@ test("file row (one file, audio type)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1586,7 +1549,6 @@ test("file row (two files)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1688,7 +1650,6 @@ test("file row (three files)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1738,7 +1699,6 @@ test("file float (left direction)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -1788,7 +1748,6 @@ test("file float (right direction)", async () => {
         <TestContextProvider>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}

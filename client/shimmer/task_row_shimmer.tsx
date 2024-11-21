@@ -1,18 +1,11 @@
 import {Box} from "~/client/design/box.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {pulseAnimationClassName} from "~/client/styles/styles.js";
 import {
-    desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentationRem,
+    taskRowViewIndentationRem,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
-import {
-    RemLength,
-    Spacing,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, parseRemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
 
 export function TaskRowShimmer({
     hasColumns,
@@ -25,13 +18,12 @@ export function TaskRowShimmer({
     ragRight?: Spacing;
     indentation?: number;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const marginLeft: RemLength = `${
-        parseRemLengthNumber(spacing[isMobile ? "2" : "5"]) +
-        parseRemLengthNumber(spacing[isMobile ? "7" : "6"]) +
-        (isMobile ? mobileTaskRowViewIndentationRem : desktopTaskRowViewIndentationRem) *
-            indentation
+        parseRemLength(platform === "mobile" ? "2" : "5") +
+        parseRemLength(platform === "mobile" ? "7" : "6") +
+        taskRowViewIndentationRem[platform] * indentation
     }rem`;
 
     return (
@@ -58,10 +50,10 @@ export function TaskRowShimmer({
                 alignItems="center"
                 height={taskRowViewMinHeight}
             >
-                <Box width={isMobile ? "7" : "6"} paddingRight="2">
+                <Box width={platform === "mobile" ? "7" : "6"} paddingRight="2">
                     <Box
-                        width={isMobile ? "5" : "4"}
-                        height={isMobile ? "5" : "4"}
+                        width={platform === "mobile" ? "5" : "4"}
+                        height={platform === "mobile" ? "5" : "4"}
                         borderRadius="full"
                         border="grey-10"
                     />

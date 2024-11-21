@@ -4,14 +4,17 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
+import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {Tooltip} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {getPostMoreActions} from "~/client/forum/get_post_more_actions.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
@@ -22,32 +25,34 @@ import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_wi
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
-    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postCommentSectionGuidelineStartHeight,
-    postContentEditorPadding,
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
-    postContentViewInnerMarginYWithoutContentEditorPadding,
+    postContentViewInnerMarginY,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
-    screenPaddingXWithoutPostContentEditorPadding,
+    postViewMinHeight,
+    postViewNavigationBarSpace,
+    screenPaddingXWithoutPostContentViewInnerMarginY,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    contentViewStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -75,75 +80,68 @@ export type PostContentViewInitialScroll = {
 };
 
 export function PostContentView({
-    withMobileLayout,
     post,
     postComments,
     postCommentsState,
     shouldShowChannel,
     postEditing,
-    hasNavigationBar,
-    isSingleLayoutWithPinnedCommentInput,
+    isPostView,
     initialScroll,
     idBase,
     onMergePostContentReferences,
     onTogglePostComments,
     onLoadInitialPostComments,
+    onScrollToIfNotVisible,
 }: {
-    withMobileLayout: boolean;
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
     postEditing: PostEditing;
     shouldShowChannel: boolean;
-    hasNavigationBar: boolean;
-    isSingleLayoutWithPinnedCommentInput: boolean;
+    isPostView: boolean;
     initialScroll: PostContentViewInitialScroll | null;
     idBase: string;
     onMergePostContentReferences: (references: ContentReferences) => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
+    onScrollToIfNotVisible: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
 
     const contentContainerRef = useRef<HTMLDivElement>(null);
 
     const postEditingForThisPost =
         // On mobile we use a modal for the editing UI instead of inline editing.
-        !isMobile && postEditing.state.isEditing && postEditing.state.postId === post.id
+        platform !== "mobile" && postEditing.state.isEditing && postEditing.state.postId === post.id
             ? (postEditing as PostEditing & {state: {isEditing: true}})
             : null;
 
     const isEditingPost = !!postEditingForThisPost;
 
     const postSnippet = useMemo(() => {
-        if (isSingleLayoutWithPinnedCommentInput) {
+        if (isPostView) {
             return null;
         } else {
             return {
                 doc: assertPostContent(
                     getContentSnippet(
                         post.content.doc.resolve(0),
-                        {linesAbove: 0, linesBelow: withMobileLayout ? 5 : 16},
+                        {linesAbove: 0, linesBelow: routeLayout === "narrow" ? 5 : 16},
                         {
                             // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
                             // want to be slightly more aggressive than the default grapheme count (which
                             // counts the "l" character which is narrower) since we render the entire
                             // snippet.
-                            maxLineGraphemeCount: isMobile ? 42 : 72,
+                            maxLineGraphemeCount: platform === "mobile" ? 42 : 72,
                         },
                     ),
                 ),
                 references: post.content.references,
             };
         }
-    }, [
-        isMobile,
-        isSingleLayoutWithPinnedCommentInput,
-        post.content.doc,
-        post.content.references,
-        withMobileLayout,
-    ]);
+    }, [isPostView, platform, post.content.doc, post.content.references, routeLayout]);
 
     const isPostSnippetTruncated = post.content.doc.nodeSize !== postSnippet?.doc.nodeSize;
 
@@ -211,29 +209,24 @@ export function PostContentView({
                 process.env.NODE_ENV !== "production" ? `PostContentView:${post.id}` : undefined
             }
             position="relative"
-            paddingTop={
-                !hasNavigationBar || !isSingleLayoutWithPinnedCommentInput
-                    ? postContentViewOuterMarginY
-                    : undefined
-            }
+            paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
-                minHeight:
-                    hasNavigationBar && isSingleLayoutWithPinnedCommentInput
-                        ? withMobileLayout
-                            ? isMobile
-                                ? mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
-                                : mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
-                            : desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput
-                        : postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput
-                        ? postContentViewMinHeightWithOpenCommentSection
-                        : postContentViewMinHeightWithClosedCommentSection,
+                minHeight: isPostView
+                    ? postViewMinHeight
+                    : postCommentsState !== "Closed" && !isPostView
+                    ? postContentViewMinHeightWithOpenCommentSection
+                    : postContentViewMinHeightWithClosedCommentSection,
                 paddingBottom:
-                    postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput
+                    postCommentsState !== "Closed" && !isPostView
                         ? postContentViewOuterOpenCommentSectionMarginBottom
                         : postContentViewOuterMarginBottom,
             }}
         >
-            {!hasNavigationBar || !isSingleLayoutWithPinnedCommentInput ? (
+            {isPostView ? (
+                <Box paddingTop="safe-area-inset">
+                    <Box style={{height: postViewNavigationBarSpace[platform]}} />
+                </Box>
+            ) : (
                 <>
                     <Box position="relative" paddingX={screenPaddingX}>
                         <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
@@ -250,13 +243,13 @@ export function PostContentView({
                                             type: "StartEditing",
                                             postId: post.id,
                                             currentContent: post.content,
-                                            isMobile,
+                                            platform,
                                         });
                                     },
                                 })}
                             >
                                 <IconButton
-                                    size={isMobile ? "base" : "md"}
+                                    size={platform === "mobile" ? "base" : "md"}
                                     description="More"
                                     withoutTooltip={true}
                                 >
@@ -271,47 +264,28 @@ export function PostContentView({
                         )}
                     </Box>
                 </>
-            ) : (
-                <Box paddingTop="safe-area-inset">
-                    <Box
-                        style={{
-                            height: withMobileLayout
-                                ? isMobile
-                                    ? `${mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                    : `${mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                : `${desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-                        }}
-                    />
-                </Box>
             )}
             <Box
                 ref={contentContainerRef}
-                paddingX={screenPaddingXWithoutPostContentEditorPadding}
                 style={{
-                    paddingTop: postContentViewInnerMarginYWithoutContentEditorPadding,
-                    paddingBottom: postContentViewInnerMarginYWithoutContentEditorPadding,
+                    paddingLeft: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
+                    paddingRight: screenPaddingXWithoutPostContentViewInnerMarginY[platform],
                 }}
             >
                 {!isEditingPost ? (
                     !postSnippet ? (
                         <ContentView
-                            withMobileLayout={withMobileLayout}
                             content={post.content}
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
-                            className={sprinkles({
-                                padding: postContentEditorPadding,
-                            })}
+                            className={sprinkles({padding: postContentViewInnerMarginY})}
                             onMergeContentReferences={onMergePostContentReferences}
                         />
                     ) : (
                         <ContentViewWithSeeMoreToggle
-                            withMobileLayout={withMobileLayout}
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
-                            className={sprinkles({
-                                padding: postContentEditorPadding,
-                            })}
+                            className={sprinkles({padding: postContentViewInnerMarginY})}
                             content={post.content}
                             contentSnippet={postSnippet}
                             onMergeContentReferences={onMergePostContentReferences}
@@ -319,10 +293,12 @@ export function PostContentView({
                     )
                 ) : (
                     <PostContentViewEditor
-                        withMobileLayout={withMobileLayout}
                         idBase={idBase}
                         postEditingForThisPost={postEditingForThisPost}
                         fileAttachmentTarget={fileAttachmentTarget}
+                        initialContent={post.content}
+                        initialContentUpdatedTime={post.contentUpdatedTime}
+                        onScrollToIfNotVisible={onScrollToIfNotVisible}
                     />
                 )}
             </Box>
@@ -333,7 +309,7 @@ export function PostContentView({
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
-            {postCommentsState !== "Closed" && !isSingleLayoutWithPinnedCommentInput && (
+            {postCommentsState !== "Closed" && !isPostView && (
                 <div
                     className={sprinkles({
                         position: "absolute",
@@ -343,9 +319,7 @@ export function PostContentView({
                     })}
                     style={{
                         height: postCommentSectionGuidelineStartHeight,
-                        left: `calc(${
-                            postCommentSectionGuidelineOffset[isMobile ? "mobile" : "desktop"]
-                        } - 1px)`,
+                        left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
                     }}
                 />
             )}
@@ -366,7 +340,7 @@ function PostContentViewFooter({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const navigate = useNavigate();
     const reporter = useReporter();
 
@@ -399,7 +373,7 @@ function PostContentViewFooter({
                         height={postContentViewFooterButtonHeight}
                         paddingX="1.5"
                         icon={
-                            isMobile ? (
+                            platform === "mobile" ? (
                                 <ChatCircleDots
                                     size={spacing[postContentViewFooterButtonIconSize]}
                                 />
@@ -437,7 +411,7 @@ function PostContentViewFooter({
                         iconPlacement="start"
                         pressErrorTitle="Couldn’t open comments"
                         onPress={async () => {
-                            if (isMobile) {
+                            if (platform === "mobile") {
                                 await navigate(`/s/${post.spaceId}/posts/${post.id}`);
                                 return;
                             }
@@ -619,15 +593,19 @@ function PostCommentsAccountAvatarPile({
 }
 
 function PostContentViewEditor({
-    withMobileLayout,
     idBase,
     postEditingForThisPost,
     fileAttachmentTarget,
+    initialContent,
+    initialContentUpdatedTime,
+    onScrollToIfNotVisible,
 }: {
-    withMobileLayout: boolean;
     idBase: string;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
+    initialContent: PostContentWithReferences;
+    initialContentUpdatedTime: Date | null;
+    onScrollToIfNotVisible: () => void;
 }) {
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
 
@@ -638,69 +616,124 @@ function PostContentViewEditor({
         hasInitiallyMountedRef.current = true;
 
         const editor = assertExists(editorRef.current);
-        editor.focus();
-    }, []);
+
+        // If the user is in the middle of a post and they hit "edit" we don't want to
+        // scroll the post. However, if the user is reading comments then they hit
+        // "edit" on the post then we do want to scroll.
+        //
+        // By default, Chrome's scroll on focus will always scroll to the top of the
+        // editor even if the editor is already visible. However, the
+        // `onScrollToIfNotVisible()` function won't scroll if the editor is already
+        // visible.
+        editor.focus({preventScroll: true});
+        onScrollToIfNotVisible();
+    }, [onScrollToIfNotVisible]);
+
+    // Recreate the "(edited)" update note `<ContentView>` renders when editing a
+    // post. This way when we start editing a post that ends with a file layout
+    // doesn't shift.
+    const initialContentUpdatedNote = useMemo(() => {
+        if (!initialContentUpdatedTime) return;
+
+        const result = getContentViewLastParagraphChild(initialContent.doc);
+        if (result) return;
+
+        return (
+            <Box
+                marginTop={`-${postContentViewInnerMarginY}`}
+                paddingBottom={postContentViewInnerMarginY}
+            >
+                <p
+                    className={paragraphClassName}
+                    style={{
+                        marginBottom: 0,
+                        // We are assuming here that if `depthToLastParagraphChild` is null that's
+                        // because the last element is a block with standalone margin. We may need to
+                        // modify this logic depending on what the actual last element is.
+                        marginTop: contentStyles.standaloneBlockMarginVar,
+                    }}
+                >
+                    <Tooltip
+                        placement="bottom"
+                        content={
+                            <PrettyAbsoluteDateTooltipContent date={initialContentUpdatedTime} />
+                        }
+                    >
+                        <span className={contentViewStyles.updatedNoteClassName}>(edited)</span>
+                    </Tooltip>
+                </p>
+            </Box>
+        );
+    }, [initialContent.doc, initialContentUpdatedTime]);
 
     return (
-        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
-            <Box
-                id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-                // We picked this border radius because it looks good with a selected file's
-                // `<FocusRing>` when they line up in the bottom corners.
-                borderRadius="2.5"
-                style={{
-                    // Use box shadow to draw the border so it doesn't add 1px to layout like
-                    // `border` CSS would.
-                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                }}
-                ref={useConfirmSaveAfterLosingFocus({
-                    shouldConfirmSave:
-                        postEditingForThisPost.state.contentEditorState.getDoc() !==
-                        postEditingForThisPost.state.initialContent,
-                    isConfirmingSave:
-                        postEditingForThisPost.state.isEditing &&
-                        postEditingForThisPost.state.confirmationDialog === "Save",
-                    onCancelSave: () => postEditingForThisPost.dispatch({type: "CancelEditing"}),
-                    onConfirmSave: () =>
-                        postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
-                })}
+        <>
+            <FocusRing
+                // This has an `inset` offset to avoid conflicting with the post navigation bar
+                // when `isPostView` is true.
+                offset="inset"
+                isVisibleWhenFocusWithin={true}
+                isVisibleFromAnyFocus={true}
             >
-                <ContentEditor
-                    ref={editorRef}
-                    aria-label="Post"
-                    withMobileLayout={withMobileLayout}
-                    state={postEditingForThisPost.state.contentEditorState}
-                    onChange={(contentEditorState, transaction) => {
-                        if (postEditingForThisPost.state.isSaving && transaction.docChanged) return;
-
-                        postEditingForThisPost.dispatch({
-                            type: "ContentEditorStateChange",
-                            contentEditorState,
-                        });
+                <Box
+                    id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
+                    // We picked this border radius because it looks good with a selected file's
+                    // `<FocusRing>` when they line up in the bottom corners.
+                    borderRadius="2.5"
+                    style={{
+                        // Use box shadow to draw the border so it doesn't add 1px to layout like
+                        // `border` CSS would.
+                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
-                    // On mobile, don't allow interactions when unfocused. We're already in an
-                    // editing modality.
-                    withoutMobileDualModality={true}
-                    placeholder="Share your ideas…"
-                    fileAttachmentTarget={fileAttachmentTarget}
-                    className={sprinkles({
-                        padding: postContentEditorPadding,
+                    ref={useConfirmSaveAfterLosingFocus({
+                        shouldConfirmSave:
+                            postEditingForThisPost.state.contentEditorState.getDoc() !==
+                            postEditingForThisPost.state.initialContent,
+                        isConfirmingSave:
+                            postEditingForThisPost.state.isEditing &&
+                            postEditingForThisPost.state.confirmationDialog === "Save",
+                        onCancelSave: () =>
+                            postEditingForThisPost.dispatch({type: "CancelEditing"}),
+                        onConfirmSave: () =>
+                            postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
                     })}
-                    onModEnter={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (postEditingForThisPost.state.isSaving) return;
-                        postEditingForThisPost.dispatch({type: "SaveEditedContent"});
-                    }}
-                    onEscape={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (postEditingForThisPost.state.isSaving) return;
-                        postEditingForThisPost.dispatch({type: "CancelEditing"});
-                    }}
-                />
-            </Box>
-        </FocusRing>
+                >
+                    <ContentEditor
+                        ref={editorRef}
+                        aria-label="Post"
+                        state={postEditingForThisPost.state.contentEditorState}
+                        onChange={(contentEditorState, transaction) => {
+                            if (postEditingForThisPost.state.isSaving && transaction.docChanged)
+                                return;
+
+                            postEditingForThisPost.dispatch({
+                                type: "ContentEditorStateChange",
+                                contentEditorState,
+                            });
+                        }}
+                        // On mobile, don't allow interactions when unfocused. We're already in an
+                        // editing modality.
+                        withoutMobileDualModality={true}
+                        placeholder="Share your ideas…"
+                        fileAttachmentTarget={fileAttachmentTarget}
+                        className={sprinkles({padding: postContentViewInnerMarginY})}
+                        onModEnter={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (postEditingForThisPost.state.isSaving) return;
+                            postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                        }}
+                        onEscape={event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (postEditingForThisPost.state.isSaving) return;
+                            postEditingForThisPost.dispatch({type: "CancelEditing"});
+                        }}
+                    />
+                </Box>
+            </FocusRing>
+            {initialContentUpdatedNote}
+        </>
     );
 }
 
@@ -711,7 +744,7 @@ export function PostContentViewEditingActions({
     idBase: string;
     postEditing: PostEditing & {state: {isEditing: true}};
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {isAppleDevice} = useClientInfo();
 
     return (
@@ -726,7 +759,7 @@ export function PostContentViewEditingActions({
                 description="Save"
                 tooltipPlacement="bottom-end"
                 keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
-                size={isMobile ? "base" : "md"}
+                size={platform === "mobile" ? "base" : "md"}
                 onPress={() => {
                     postEditing.dispatch({
                         type: "SaveEditedContent",
@@ -741,7 +774,7 @@ export function PostContentViewEditingActions({
                 description="Cancel"
                 tooltipPlacement="bottom-end"
                 keyboardShortcutHint="Esc"
-                size={isMobile ? "base" : "md"}
+                size={platform === "mobile" ? "base" : "md"}
                 onPress={() => postEditing.dispatch({type: "CancelEditing"})}
                 isDisabled={postEditing.state.isSaving}
             >

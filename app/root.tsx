@@ -42,7 +42,8 @@ import {useClientInfoContextProvider} from "~/client/remix/client_info_context.j
 import {CurrentTimeContextProvider} from "~/client/remix/current_time_context_provider.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
+import {usePlatformContextProvider} from "~/client/remix/platform_context.js";
+import {useSpacingScaleContextProvider} from "~/client/remix/spacing_scale_context.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
@@ -466,7 +467,7 @@ export default function Root() {
         nodes.sort((node1, node2) => defaultCompareStrings(String(node1.key), String(node2.key)));
     }
 
-    const wrappedChildren4 = (
+    const wrappedChildren5 = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
                 <CurrentTimeContextProvider initialTime={initialTime}>
@@ -490,17 +491,22 @@ export default function Root() {
         </IconContext.Provider>
     );
 
-    const {clientInfo, children: wrappedChildren3} = useClientInfoContextProvider(
+    const {clientInfo, children: wrappedChildren4} = useClientInfoContextProvider(
         {
             // If there was an error at our root loader and we couldn't load `BrowserId`
             // then use the `RealmId` as the `BrowserId`.
             browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
             initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
         },
+        wrappedChildren5,
+    );
+
+    const {spacingScale, children: wrappedChildren3} = useSpacingScaleContextProvider(
+        clientInfo,
         wrappedChildren4,
     );
 
-    const {isMobile, children: wrappedChildren2} = useIsMobileContextProvider(
+    const {platform, children: wrappedChildren2} = usePlatformContextProvider(
         clientInfo,
         wrappedChildren3,
     );
@@ -540,8 +546,9 @@ export default function Root() {
         <html
             ref={htmlRef}
             lang="en"
-            data-platform={isMobile ? "mobile" : "desktop"}
-            data-color-scheme={getColorSchemeWithoutListeningIfBrowser()}
+            data-platform={platform}
+            data-spacing={spacingScale}
+            data-color={getColorSchemeWithoutListeningIfBrowser()}
         >
             <head>
                 <meta charSet="utf-8" />
@@ -596,7 +603,7 @@ export default function Root() {
             <body>
                 {wrappedChildren}
                 <ScrollRestoration />
-                <BazelBuildIndicator isMobile={isMobile} />
+                <BazelBuildIndicator platform={platform} />
                 <script
                     // Let our native app know we're ready once the server render has finished.
                     // This script intentionally runs before React hydration since we can

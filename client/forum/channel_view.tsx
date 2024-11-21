@@ -3,8 +3,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
-import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
-import {NavigationBarProps} from "~/client/design/navigation_bar_types.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
@@ -20,7 +18,8 @@ import {
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -28,10 +27,10 @@ import {
     postContentViewMinHeightWithClosedCommentSection,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeQueryResult,
@@ -51,20 +50,17 @@ import {
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelView({
-    withMobileLayout: withMobileLayoutProp,
     initialChannelResult,
     initialPostsResult,
 }: {
-    withMobileLayout: boolean;
     initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
 }) {
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
@@ -111,7 +107,7 @@ export function ChannelView({
     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
     // expanded comments on mobile. So make sure to close them all.
-    if (isMobile && posts.hasOpenPostComments()) {
+    if (platform === "mobile" && posts.hasOpenPostComments()) {
         setPosts(posts.closeAllPostComments());
     }
 
@@ -176,18 +172,17 @@ export function ChannelView({
     }, [channel.id]);
 
     const [isEditingNameInline, setIsEditingNameInline] = useState(false);
-    if (isEditingNameInline && isMobile) setIsEditingNameInline(false);
+    if (isEditingNameInline && platform === "mobile") setIsEditingNameInline(false);
 
     const [isEditingDescriptionInline, setIsEditingDescriptionInline] = useState(false);
-    if (isEditingDescriptionInline && isMobile) setIsEditingDescriptionInline(false);
+    if (isEditingDescriptionInline && platform === "mobile") setIsEditingDescriptionInline(false);
 
     const [editNameAndDescriptionMobileModalState, setEditNameAndDescriptionMobileModalState] =
         useState<{readonly initiallyFocus: "Name" | "Description"} | null>(null);
-    if (editNameAndDescriptionMobileModalState && !isMobile)
+    if (editNameAndDescriptionMobileModalState && platform !== "mobile")
         setEditNameAndDescriptionMobileModalState(null);
 
-    const navigationBarProps: Omit<NavigationBarProps, "ref"> = {
-        withMobileLayout,
+    const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
             <ChannelViewNameEditor
@@ -214,7 +209,7 @@ export function ChannelView({
                     // Disable selection from double click.
                     event.preventDefault();
 
-                    if (!isMobile) {
+                    if (platform !== "mobile") {
                         setIsEditingNameInline(true);
                     }
                 }}
@@ -222,12 +217,10 @@ export function ChannelView({
                 {channel.name}
             </Box>
         ),
-        desktopMaxWidth: !withMobileLayout
-            ? addRemLengths(
-                  spacing[contentStyles.contentMaxWidth],
-                  spacing[postListViewAsideMaxWidth],
-              )
-            : contentStyles.contentMaxWidth,
+        desktopMaxWidth:
+            routeLayout !== "narrow"
+                ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
+                : contentStyles.contentMaxWidth,
         // Create a bit of space to the left so we don't cut off the channel name
         // editor border.
         desktopTitleLeftSlop: "1",
@@ -251,7 +244,7 @@ export function ChannelView({
                 {
                     label: "Edit name",
                     onPress: () => {
-                        if (!isMobile) {
+                        if (platform !== "mobile") {
                             setIsEditingNameInline(true);
                         } else {
                             setEditNameAndDescriptionMobileModalState({initiallyFocus: "Name"});
@@ -261,7 +254,7 @@ export function ChannelView({
                 {
                     label: "Edit description",
                     onPress: () => {
-                        if (!isMobile) {
+                        if (platform !== "mobile") {
                             setIsEditingDescriptionInline(true);
                         } else {
                             setEditNameAndDescriptionMobileModalState({
@@ -271,7 +264,7 @@ export function ChannelView({
                     },
                 },
             ],
-            ...(withMobileLayout
+            ...(routeLayout === "narrow"
                 ? [
                       [
                           {
@@ -286,9 +279,7 @@ export function ChannelView({
                   ]
                 : []),
         ],
-    };
-
-    const navigationBar = useNavigationBar({...navigationBarProps, isDisabled: !withMobileLayout});
+    });
 
     const channelHeader = useMemo(
         (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
@@ -322,43 +313,7 @@ export function ChannelView({
             overflow="hidden"
             height="full"
         >
-            {!withMobileLayout && (
-                <Box
-                    position="absolute"
-                    zIndex="10"
-                    left="0"
-                    right="0"
-                    backgroundColor="grey-0-opacity-80"
-                    style={{
-                        // TODO(calebmer, 2024-11-05): Trying this effect out. Seeing how I feel about
-                        // it. If I like it, will add to more places. Otherwise should remove for
-                        // consistency.
-                        //
-                        // Some quick reasons I like it:
-                        //
-                        // - I'm liking border-less designs. Makes the app feel very spacious and clean
-                        //
-                        // - The problem with no borders is sticky navigation bar UI cutting off
-                        //   content can look a little weird, it can look like the content flows into
-                        //   the navigation bar
-                        //
-                        // - Using a reinforced frosted glass effect brings back a sense of depth to
-                        //   the UI
-                        //
-                        // - Opacity alone doesn't feel right to me, opacity + blur also doesn't feel
-                        //   right, but the reinforced frosted glass effect (of opacity + blur + see
-                        //   through dots) abstracts the background even more and makes the navigation
-                        //   bar feel more solid
-                        backdropFilter: "blur(3px)",
-                        backgroundImage: `radial-gradient(transparent 1px, ${colorSchemeVars["grey-0"]} 1px)`,
-                        backgroundSize: "4px 4px",
-                    }}
-                >
-                    <NavigationBarContent {...navigationBarProps} />
-                </Box>
-            )}
             <PostListView
-                withMobileLayout={withMobileLayout}
                 channelHeader={channelHeader}
                 posts={posts}
                 onMergePostContentReferences={useCallback(
@@ -392,7 +347,7 @@ export function ChannelView({
                     );
                 }, [])}
                 aside={
-                    !withMobileLayout && (
+                    routeLayout !== "narrow" && (
                         <ChannelViewAside
                             channel={channel}
                             channelAndMetadataQuery={channelAndMetadataQuery}
@@ -402,7 +357,6 @@ export function ChannelView({
                         />
                     )
                 }
-                withStaticNavigationBar={!withMobileLayout}
                 navigationBar={navigationBar}
             />
             {editNameAndDescriptionMobileModalState && (

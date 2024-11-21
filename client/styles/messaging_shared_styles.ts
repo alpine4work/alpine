@@ -3,14 +3,8 @@
 // `client/messaging`. For example `client/content`.
 
 import {contentStyles} from "~/client/styles/styles.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {RemLength, Spacing, addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const messageViewBubbleMinWidth: Spacing = "6";
@@ -27,16 +21,19 @@ export const messageViewBubblePaddingY: {desktop: Spacing; mobile: Spacing} = {
     mobile: "1.5",
 };
 
-export const messageViewBubbleMinHeight: {desktop: RemLength; mobile: RemLength} = {
+export const messageViewBubbleMinHeight: {
+    desktop: RemLength;
+    mobile: RemLength;
+} = {
     desktop: addRemLengths(
-        spacing[messageViewBubblePaddingY.desktop],
+        messageViewBubblePaddingY.desktop,
         contentStyles.paragraphFontSize.lineHeight,
-        spacing[messageViewBubblePaddingY.desktop],
+        messageViewBubblePaddingY.desktop,
     ),
     mobile: addRemLengths(
-        spacing[messageViewBubblePaddingY.mobile],
+        messageViewBubblePaddingY.mobile,
         contentStyles.extraCompactParagraphFontSize.lineHeight,
-        spacing[messageViewBubblePaddingY.mobile],
+        messageViewBubblePaddingY.mobile,
     ),
 };
 
@@ -49,19 +46,18 @@ export const messageViewTimestampDividerMarginBottom: Spacing = "2";
 export const messageViewMinHeight = mapObjectValues(
     messageViewBubbleMinHeight,
     messageViewBubbleMinHeight =>
-        addRemLengths(messageViewBubbleMinHeight, spacing[messageViewMergedMarginY]),
+        addRemLengths(messageViewBubbleMinHeight, messageViewMergedMarginY),
 );
 
 export const messageViewActionsWidth: Spacing = "10";
 export const messageViewActionsWidthWithoutHoveringPrimaryInput: Spacing = "5";
 
 export const messageViewReplyPreviewScale =
-    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+    fontSizesBySpacingScale["50"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
 
-export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
-    addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);
+export const getMessageBubbleMarginLeft = (marginX: Spacing) => addRemLengths(marginX, "7", "2");
 
 export const messageInputPaddingY: Spacing = "3";
 export const messageInputAccountAvatarSize: Spacing = "7";
@@ -69,8 +65,8 @@ export const messageInputAccountAvatarPaddingY = mapObjectValues(
     messageViewBubbleMinHeight,
     (messageViewBubbleMinHeight): RemLength =>
         `${
-            (parseRemLengthNumber(messageViewBubbleMinHeight) -
-                parseRemLengthNumber(spacing[messageInputAccountAvatarSize])) /
+            (parseRemLength(messageViewBubbleMinHeight) -
+                parseRemLength(messageInputAccountAvatarSize)) /
             2
         }rem`,
 );
@@ -78,11 +74,7 @@ export const messageInputAccountAvatarPaddingY = mapObjectValues(
 export const messageInputMinHeight = mapObjectValues(
     messageViewBubbleMinHeight,
     messageViewBubbleMinHeight =>
-        addRemLengths(
-            spacing[messageInputPaddingY],
-            messageViewBubbleMinHeight,
-            spacing[messageInputPaddingY],
-        ),
+        addRemLengths(messageInputPaddingY, messageViewBubbleMinHeight, messageInputPaddingY),
 );
 
 export const messagingViewMarginBottomCalcExpression =

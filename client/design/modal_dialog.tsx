@@ -9,7 +9,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -88,11 +88,7 @@ function ModalDialog({
             cancelButtonPressErrorTitle={cancelButtonPressErrorTitle}
             onCancelButtonPress={onCancelButtonPress}
             shouldHideCancelButton={shouldHideCancelButton}
-            maxWidth={`${lerp(
-                parseRemLengthNumber(spacing["96"]),
-                parseRemLengthNumber(spacing["128"]),
-                0.5,
-            )}rem`}
+            maxWidth={`${lerp(parseRemLength("96"), parseRemLength("128"), 0.5)}rem`}
             buttonsPaddingX="7"
             buttonsPaddingBottom="5"
             // Improve focus on the dialog's content by not showing a close button. A modal

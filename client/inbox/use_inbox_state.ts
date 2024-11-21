@@ -1,6 +1,5 @@
 import {useCallback, useEffect, useReducer, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
@@ -18,6 +17,7 @@ import {
     subscribeToUnarchiveInboxEntryOptimistically,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
@@ -268,7 +268,7 @@ export function useInboxState(props: {
                             viewHeight /
                                 convertRemLengthToPx(
                                     inboxEntryViewMinHeight,
-                                    getRemPxWithoutListening(),
+                                    getSpacingScaleWithoutListening(),
                                 ),
                         ),
                     );

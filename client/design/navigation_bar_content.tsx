@@ -7,12 +7,12 @@ import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
-    mobileNavigationBarGap,
     navigationBarActionsFlexBasis,
     navigationBarDoneButtonActionFlexBasis,
     navigationBarDoneButtonActionSpacerWidth,
     navigationBarDoneButtonActionWidth,
     navigationBarHeight,
+    navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
@@ -21,7 +21,8 @@ import {ShareButton} from "~/client/design/share_button.js";
 import {addShareMenuItem} from "~/client/design/share_menu_item.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
@@ -43,7 +44,6 @@ export type NavigationBarContentRef = {
 
 export const NavigationBarContent = forwardRef(function NavigationBarContent(
     {
-        withMobileLayout,
         title,
         withDisappearingTitle = false,
         withoutFocusedTextInputDoneButton = false,
@@ -64,7 +64,6 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutMobileBackButton = false,
         onMobileCancel,
     }: {
-        withMobileLayout: boolean;
         title?: ReactNode;
         withDisappearingTitle?: boolean;
         withoutFocusedTextInputDoneButton?: boolean;
@@ -92,10 +91,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     },
     ref: Ref<NavigationBarContentRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const reporter = useReporter();
+
+    const isMobile = platform === "mobile";
 
     titleJustifyContent ??= isMobile ? "center" : "flex-start";
 
@@ -173,6 +175,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     return (
         <Box
             ref={contentRef}
+            // Override `pointerEvents="none"` of parent in `navigation_bar_internal.tsx`.
+            pointerEvents="auto"
             position="relative"
             zIndex="0"
             width="full"
@@ -190,13 +194,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                           <Box
                               flexShrink="0"
                               height={navigationBarHeight}
-                              paddingLeft={mobileNavigationBarGap}
+                              paddingLeft={navigationBarMobileGap}
                               display="flex"
                               justifyContent="flex-start"
                               alignItems="center"
                               style={{flexBasis: spacing[navigationBarActionsFlexBasis]}}
-                              // Gives children `pointer-events: initial` so the user can interact with them.
-                              className={pointerEventsNoneNotInheritedClassName}
                           >
                               {onMobileCancel ? (
                                   <Box
@@ -261,7 +263,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     flexGrow="1"
                     flexShrink="1"
                     height={navigationBarHeight}
-                    paddingX={isMobile ? mobileNavigationBarGap : undefined}
+                    paddingX={isMobile ? navigationBarMobileGap : undefined}
                     paddingLeft={
                         desktopTitleMaxWidth === undefined &&
                         !isMobile &&
@@ -281,14 +283,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         minWidth: 0,
                     }}
                 >
-                    {!isMobile && desktopControls && (
-                        <Box
-                            // Gives children `pointer-events: initial` so the user can interact with them.
-                            className={pointerEventsNoneNotInheritedClassName}
-                        >
-                            {desktopControls}
-                        </Box>
-                    )}
+                    {!isMobile && desktopControls && <Box>{desktopControls}</Box>}
                     <Box
                         ref={titleRef}
                         overflow="hidden"
@@ -363,7 +358,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         flexGrow={!isMobile ? "1" : undefined}
                         flexShrink="0"
                         height={navigationBarHeight}
-                        paddingRight={isMobile ? mobileNavigationBarGap : "5"}
+                        paddingRight={isMobile ? navigationBarMobileGap : "5"}
                         display="flex"
                         justifyContent="flex-end"
                         alignItems="center"
@@ -381,7 +376,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                             replaceActions
                         ) : (
                             <>
-                                {shareButton && !withMobileLayout && (
+                                {shareButton && routeLayout !== "narrow" && (
                                     <Box paddingRight="4">
                                         <ShareButton />
                                     </Box>
@@ -425,11 +420,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                             </IconButton>
                                         )}
                                         {(menuActions.length > 0 ||
-                                            (shareButton && withMobileLayout)) && (
+                                            (shareButton && routeLayout === "narrow")) && (
                                             <MenuButton
                                                 placement="bottom-end"
                                                 actions={
-                                                    shareButton && withMobileLayout
+                                                    shareButton && routeLayout === "narrow"
                                                         ? addShareMenuItem(reporter, menuActions)
                                                         : menuActions
                                                 }

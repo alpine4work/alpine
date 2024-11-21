@@ -1,7 +1,7 @@
 import {User} from "phosphor-react";
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 
 export function TaskMissingAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     return (
@@ -36,7 +36,9 @@ export function TaskMissingAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"})
 }
 
 export function TaskMissingAccountAvatarDashedCircle({size}: {size: "3" | "4" | "5"}) {
-    const radius = useSpacingPx(size) / 2;
+    const spacingScale = useSpacingScale();
+
+    const radius = convertRemLengthToPx(size, spacingScale) / 2;
     const strokeWidth = 1;
     const viewBoxSize = radius * 2 + strokeWidth;
     const circumference = 2 * Math.PI * radius;

@@ -90,7 +90,7 @@ export function ContentEditorMobileLinkModal({
 
             view.dispatch(
                 state.tr.replaceSelection(
-                    new Slice(new Fragment([schema.text(text, marks)]), 0, 0),
+                    new Slice(Fragment.from([schema.text(text, marks)]), 0, 0),
                 ),
             );
         } else if (hasUrlChanged) {

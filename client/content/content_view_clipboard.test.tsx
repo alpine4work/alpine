@@ -246,7 +246,6 @@ test("can copy when selection is entirely in content view", () => {
     const {container} = render(
         <TestSpaceContextProvider space={space} currentAccount={account}>
             <ContentView
-                withMobileLayout={false}
                 content={testDocument}
                 onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testDocumentFileAttachmentTarget}

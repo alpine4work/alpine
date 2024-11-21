@@ -9,7 +9,7 @@ import {ChatBrandBigIcon} from "~/client/icons/brand/chat_brand_big_icon.js";
 import {DocumentBrandBigIcon} from "~/client/icons/brand/document_brand_big_icon.js";
 import {PostBrandBigIcon} from "~/client/icons/brand/post_brand_big_icon.js";
 import {TaskBrandBigIcon} from "~/client/icons/brand/task_brand_big_icon.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -24,15 +24,14 @@ export function meta() {
 }
 
 export default function CreateRoute() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const rootNavigate = useRootNavigate();
     const {space} = useSpaceContext();
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (
         <SpaceRouteScrollView
-            withMobileLayout={isMobile}
             title="Create"
             withoutDisappearingTitle={true}
             titleJustifyContent="center"
@@ -152,7 +151,7 @@ function CreateRouteButton({
             style={{
                 // Optically center by including a little less padding top. The icon color
                 // splash makes the icon leads to more whitespace near the top of the icon.
-                paddingTop: addRemLengths(spacing["3"], spacing["0.5"]),
+                paddingTop: addRemLengths("3", "0.5"),
                 paddingBottom: spacing["4"],
                 boxShadow:
                     !isPressed && !isHovered

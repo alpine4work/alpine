@@ -19,9 +19,13 @@ import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
-    getIsMobileWithoutListening,
-    subscribeToIsMobileChange,
-} from "~/client/remix/use_is_mobile.js";
+    getPlatformWithoutListening,
+    subscribeToPlatformChange,
+} from "~/client/remix/platform_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    subscribeToSpacingScaleChange,
+} from "~/client/remix/spacing_scale_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -82,7 +86,8 @@ export function createContentEditorFileNodeViewConstructor({
         const update = () => {
             assert(!isDestroyed);
 
-            const isMobile = getIsMobileWithoutListening();
+            const platform = getPlatformWithoutListening();
+            const spacingScale = getSpacingScaleWithoutListening();
             const {references} = getContentEditorReferences(view.state);
 
             const spaceId = getSpaceId();
@@ -95,7 +100,8 @@ export function createContentEditorFileNodeViewConstructor({
 
             const layout = layoutContentFile(references, view.state.doc, getPos(), node, {
                 screenWidth,
-                isMobile,
+                platform,
+                spacingScale,
             });
 
             // Layout will update when `node` and `fileReference.file` update. So we don't
@@ -118,7 +124,8 @@ export function createContentEditorFileNodeViewConstructor({
                         reference: fileReference,
                         layout,
                         screenWidth,
-                        isMobile,
+                        platform,
+                        spacingScale,
                         isInitialAppRender: false,
                         expirationTimers: getExpirationTimers(),
                     }),
@@ -262,7 +269,8 @@ export function createContentEditorFileNodeViewConstructor({
             });
         });
 
-        const unsubscribeFromIsMobileChange = subscribeToIsMobileChange(update);
+        const unsubscribeFromPlatformChange = subscribeToPlatformChange(update);
+        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(update);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);
 
         const unsubscribeFromUpdatedContentEditorFileParent = getOrSetDefaultMapValue(
@@ -292,7 +300,8 @@ export function createContentEditorFileNodeViewConstructor({
                 cleanup?.();
                 cleanup = null;
 
-                unsubscribeFromIsMobileChange();
+                unsubscribeFromPlatformChange();
+                unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
                 unsubscribeFromUpdatedContentEditorFileParent();
             },

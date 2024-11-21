@@ -23,8 +23,8 @@ import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
-    mobileNavigationBarGap,
     navigationBarHeight,
+    navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -194,8 +194,8 @@ export function ContentFileViewerModalMobile({
                         />
                         <Box
                             height={navigationBarHeight}
-                            paddingX={mobileNavigationBarGap}
-                            gap={mobileNavigationBarGap}
+                            paddingX={navigationBarMobileGap}
+                            gap={navigationBarMobileGap}
                             display="flex"
                             justifyContent="space-between"
                             alignItems="center"

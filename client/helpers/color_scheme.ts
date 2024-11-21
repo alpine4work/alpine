@@ -12,7 +12,7 @@ export type ColorScheme = "light" | "dark";
  */
 export function getColorSchemeWithoutListeningIfBrowser(): ColorScheme | null {
     if (typeof document === "undefined") return null;
-    return document.documentElement.dataset.colorScheme === "dark" ? "dark" : "light";
+    return document.documentElement.getAttribute("data-color") === "dark" ? "dark" : "light";
 }
 
 const colorSchemeListeners = new Set<(colorScheme: ColorScheme) => void>();
@@ -20,7 +20,7 @@ const colorSchemeListeners = new Set<(colorScheme: ColorScheme) => void>();
 export function setColorScheme(colorScheme: ColorScheme) {
     assert(typeof document !== "undefined", "Can not set color scheme on the server");
 
-    document.documentElement.dataset.colorScheme = colorScheme;
+    document.documentElement.setAttribute("data-color", colorScheme);
     localStorage.setItem("colorScheme", colorScheme);
 
     for (const listener of colorSchemeListeners) {

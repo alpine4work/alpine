@@ -1,4 +1,5 @@
 import {Path} from "@remix-run/router";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 
 const spacePathRegExp = /^(\/s\/[^/]+\/)(?!peek)(.*)$/;
 const peekPathRegExp = /^(\/s\/[^/]+)\/peek(\/.*)$/;
@@ -38,7 +39,7 @@ export function convertSpacePathToPeekPath(path: Path): Path | null {
  */
 export function convertPeekPathToSpacePath(
     path: Path,
-    options: {withMobileLayout: boolean},
+    options: {routeLayout: RouteLayout},
 ): Path | null {
     const parts = convertPeekPathToSpacePathParts(path.pathname, options);
     if (!parts) return null;
@@ -55,7 +56,7 @@ export function convertPeekPathToSpacePath(
  */
 export function convertPeekPathToSpacePathParts(
     pathname: string,
-    {withMobileLayout}: {withMobileLayout: boolean},
+    {routeLayout}: {routeLayout: RouteLayout},
 ): [string, string] | null {
     const match = pathname.match(optionalPeekPathWithTasksGroupRegExp);
     if (!match) return null;
@@ -66,7 +67,7 @@ export function convertPeekPathToSpacePathParts(
     // On desktop we do not want expanding a peek from task comments to navigate
     // to Task comments route and then redirect to the main Task route. This check
     // allows us to directly navigate to the Task route on desktop.
-    if (!withMobileLayout && match.groups?.taskComments) {
+    if (routeLayout !== "narrow" && match.groups?.taskComments) {
         pathnamePart2 = pathnamePart2.slice(0, -9);
     }
 

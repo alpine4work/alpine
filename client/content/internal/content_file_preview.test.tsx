@@ -133,7 +133,6 @@ test("will refresh signed URL when it's about to expire", async () => {
             <TestContextProvider>
                 <ContentEditor
                     aria-label="Test"
-                    withMobileLayout={false}
                     state={state}
                     onChange={setState}
                     fileAttachmentTarget={fileAttachmentTarget}

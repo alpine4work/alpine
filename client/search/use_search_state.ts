@@ -4,7 +4,7 @@ import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-bou
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
     ExecuteSearchOutput,
@@ -38,49 +38,51 @@ import {ValueStore} from "~/shared/store/value_store.js";
  */
 export const affinitySearchResultLimit = 30;
 
-/**
- * The debounce timeout before we'll send a new search request. Picked so that
- * >50% of typists will be done typing by the time this debounce fires.
- *
- * We expect that in a work context we generally have above average typists.
- * Also for search the user generally knows what they want to type or it's a
- * word they usually type which may make them faster. We may have some weird
- * intermediate results but that's accepted.
- */
-export const desktopSearchWordTypingDebounceMs = (() => {
-    // This is p50 typing speed according to the distribution here:
-    // https://humanbenchmark.com/tests/typing
-    //
-    // Percentile calculator here:
-    // https://docs.google.com/spreadsheets/d/1_FiahHiNpEqFG7KrtRYOcKWRG8LYIcuHZWBAX2X4nFQ/edit?usp=sharing
-    const wordsPerMinute = 44;
+const searchWordTypingDebounceMs = {
+    /**
+     * The debounce timeout before we'll send a new search request. Picked so that
+     * >50% of typists will be done typing by the time this debounce fires.
+     *
+     * We expect that in a work context we generally have above average typists.
+     * Also for search the user generally knows what they want to type or it's a
+     * word they usually type which may make them faster. We may have some weird
+     * intermediate results but that's accepted.
+     */
+    desktop: (() => {
+        // This is p50 typing speed according to the distribution here:
+        // https://humanbenchmark.com/tests/typing
+        //
+        // Percentile calculator here:
+        // https://docs.google.com/spreadsheets/d/1_FiahHiNpEqFG7KrtRYOcKWRG8LYIcuHZWBAX2X4nFQ/edit?usp=sharing
+        const wordsPerMinute = 44;
 
-    const charactersPerMinute = wordsPerMinute * 5;
-    const charactersPerSecond = charactersPerMinute / 60;
-    const charactersPerMillisecond = charactersPerSecond / 1000;
-    const millisecondsPerCharacter = 1 / charactersPerMillisecond;
+        const charactersPerMinute = wordsPerMinute * 5;
+        const charactersPerSecond = charactersPerMinute / 60;
+        const charactersPerMillisecond = charactersPerSecond / 1000;
+        const millisecondsPerCharacter = 1 / charactersPerMillisecond;
 
-    return Math.floor(millisecondsPerCharacter);
-})();
+        return Math.floor(millisecondsPerCharacter);
+    })(),
 
-/**
- * The debounce timeout before we'll send a new search request for mobile.
- * Picked so that >50% of typists will be done typing by the time this debounce
- * fires. Slower than `desktopSearchWordTypingDebounceMs` since the average
- * typing speed on mobile devices is slower than on desktop devices.
- */
-export const mobileSearchWordTypingDebounceMs = (() => {
-    // This is average typing speed according to:
-    // https://wordsrated.com/typing-speed-statistics/
-    const wordsPerMinute = 38;
+    /**
+     * The debounce timeout before we'll send a new search request for mobile.
+     * Picked so that >50% of typists will be done typing by the time this debounce
+     * fires. Slower than `searchWordTypingDebounceMs.desktop` since the average
+     * typing speed on mobile devices is slower than on desktop devices.
+     */
+    mobile: (() => {
+        // This is average typing speed according to:
+        // https://wordsrated.com/typing-speed-statistics/
+        const wordsPerMinute = 38;
 
-    const charactersPerMinute = wordsPerMinute * 5;
-    const charactersPerSecond = charactersPerMinute / 60;
-    const charactersPerMillisecond = charactersPerSecond / 1000;
-    const millisecondsPerCharacter = 1 / charactersPerMillisecond;
+        const charactersPerMinute = wordsPerMinute * 5;
+        const charactersPerSecond = charactersPerMinute / 60;
+        const charactersPerMillisecond = charactersPerSecond / 1000;
+        const millisecondsPerCharacter = 1 / charactersPerMillisecond;
 
-    return Math.floor(millisecondsPerCharacter);
-})();
+        return Math.floor(millisecondsPerCharacter);
+    })(),
+};
 
 type SearchState = {
     readonly queryText: string;
@@ -249,7 +251,7 @@ export function useSearchState({
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {timeZone} = useClientInfo();
 
     const [searchParams, setSearchParams] = useSearchParams();
@@ -319,9 +321,7 @@ export function useSearchState({
             time: new Date(),
             queryText: queryTextFromSearchParams,
             updatingSearchParams: null,
-            wordTypingDebounceMs: isMobile
-                ? mobileSearchWordTypingDebounceMs
-                : desktopSearchWordTypingDebounceMs,
+            wordTypingDebounceMs: searchWordTypingDebounceMs[platform],
         });
     }
 
@@ -493,9 +493,7 @@ export function useSearchState({
                     time: new Date(),
                     queryText,
                     updatingSearchParams: isSearchParamControlled ? searchParamsRef.current : null,
-                    wordTypingDebounceMs: isMobile
-                        ? mobileSearchWordTypingDebounceMs
-                        : desktopSearchWordTypingDebounceMs,
+                    wordTypingDebounceMs: searchWordTypingDebounceMs[platform],
                 });
 
                 if (isSearchParamControlled) {
@@ -518,7 +516,7 @@ export function useSearchState({
                     );
                 }
             },
-            [isMobile, isSearchParamControlled, setSearchParams],
+            [isSearchParamControlled, platform, setSearchParams],
         ),
     };
 }

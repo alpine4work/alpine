@@ -7,8 +7,8 @@ import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {taskNotepadViewPaginatorHeight} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
@@ -34,7 +34,7 @@ export function TaskNotepadViewPaginator({
     onNotepadPageIdSelect: (notepadPageId: TaskNotepadPageId) => Promise<void>;
     onCreateTask: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     onNotepadPageIdSelect = useEvent(onNotepadPageIdSelect);
 
@@ -72,15 +72,15 @@ export function TaskNotepadViewPaginator({
 
     return (
         <Box
-            flexGrow={isMobile ? "1" : undefined}
+            flexGrow={platform === "mobile" ? "1" : undefined}
             height={taskNotepadViewPaginatorHeight}
             display="flex"
-            flexDirection={isMobile ? "row-reverse" : "row"}
-            justifyContent={isMobile ? "space-between" : undefined}
+            flexDirection={platform === "mobile" ? "row-reverse" : "row"}
+            justifyContent={platform === "mobile" ? "space-between" : undefined}
             alignItems="center"
             gap="3"
         >
-            {isMobile ? (
+            {platform === "mobile" ? (
                 <Button
                     variant="quieter"
                     icon={<Plus />}
@@ -188,7 +188,7 @@ export function TaskNotepadViewPaginator({
                         }),
                     ).reverse();
 
-                    if (!isMobile) {
+                    if (platform !== "mobile") {
                         return actions;
                     } else {
                         return [
@@ -207,10 +207,10 @@ export function TaskNotepadViewPaginator({
                     allNotepadPageIds,
                     createNotepadPage,
                     currentTime,
-                    isMobile,
                     locale,
                     notepadPageId,
                     onNotepadPageIdSelect,
+                    platform,
                     timeZone,
                 ])}
             >

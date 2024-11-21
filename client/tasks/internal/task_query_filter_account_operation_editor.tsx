@@ -7,7 +7,7 @@ import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -60,14 +60,12 @@ type TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem =
       };
 
 export function TaskQueryFilterAccountOperationEditor({
-    withMobileLayout,
     inputLabel,
     shouldHideMissingAccountItem = false,
     filterReferences,
     operation,
     onOperationChange,
 }: {
-    withMobileLayout: boolean;
     inputLabel: string;
     shouldHideMissingAccountItem?: boolean;
     filterReferences: TaskQueryFilterReferences;
@@ -120,7 +118,6 @@ export function TaskQueryFilterAccountOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
-                withMobileLayout={withMobileLayout}
                 operatorLabel={
                     operation.type === "OneOf" ? oneOfOperatorLabel : noneOfOperatorLabel
                 }
@@ -148,7 +145,6 @@ export function TaskQueryFilterAccountOperationEditor({
                 ]}
             />
             <TaskQueryFilterEditorMultiSelectComboBox<TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem>
-                withMobileLayout={withMobileLayout}
                 inputLabel={inputLabel}
                 preview={
                     <TaskQueryFilterAccountOperationEditorPreview
@@ -335,7 +331,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
     shouldHideMissingAccountItem: boolean;
     accountIds: ReadonlySet<AccountId | "CurrentAccount" | "MissingAccount">;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts();
@@ -377,7 +373,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                                     placement="bottom"
                                 >
                                     <span className={sprinkles({color: "grey-50"})}>
-                                        (dynamic{!isMobile && "*"})
+                                        (dynamic{platform !== "mobile" && "*"})
                                     </span>
                                 </Tooltip>
                             </Box>
@@ -448,7 +444,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
         allUnsortedAccounts,
         currentAccount.id,
         initialAccountIds,
-        isMobile,
+        platform,
         shouldHideMissingAccountItem,
     ]);
 

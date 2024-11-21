@@ -11,7 +11,7 @@ import {
     useUnarchiveInboxEntry,
 } from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
@@ -42,7 +42,7 @@ export function InboxMobileView({
     // `<SearchMobileView>` where the `/s/:spaceId/search` route also renders the
     // mobile UI on desktop. On desktop the `/s/:spaceId/inbox` route renders
     // `<InboxView>`.
-    assert(useIsMobile());
+    assert(usePlatform() === "mobile");
 
     const navigate = useNavigate();
     const {space} = useSpaceContext();
@@ -60,7 +60,6 @@ export function InboxMobileView({
     });
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout: true,
         title: filter === "New" ? "Inbox" : "Inbox (old)",
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
@@ -106,7 +105,7 @@ export function InboxMobileView({
             if (index === 0) {
                 return {
                     key: "Header",
-                    minHeight: addRemLengths(spacing[navigationBarHeight.mobile]),
+                    minHeight: addRemLengths(navigationBarHeight),
                     node: (
                         <>
                             <Box height="safe-area-inset-top" />

@@ -28,6 +28,7 @@ import {ContentEditorCursorTracker} from "~/client/content/internal/content_edit
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Menu, MenuSize} from "~/client/design/menu.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -35,7 +36,7 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {
     greyElevated2ClassName,
@@ -77,7 +78,7 @@ export function ContentEditorMentionFloater({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const overlayRef = useRef<OverlayRef>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -205,7 +206,7 @@ export function ContentEditorMentionFloater({
             // Only use short name for a non-ambiguous name on desktop. Since on mobile the
             // quick undo capability doesn't really exist. Instead the user may tap delete
             // to get a short name.
-            isShort: !isMobile && !isShortNameAmbiguous,
+            isShort: platform !== "mobile" && !isShortNameAmbiguous,
         };
 
         let transaction = updateContentEditorReferences(
@@ -397,7 +398,7 @@ export function ContentEditorMentionFloater({
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
     const menuSize: MenuSize = "lg";
-    const {width} = Menu.sizeConstants[menuSize][isMobile ? "mobile" : "desktop"];
+    const {width} = Menu.sizeConstants[menuSize][platform];
 
     return (
         <OverlayAnimated
@@ -410,13 +411,14 @@ export function ContentEditorMentionFloater({
             isVisible={!isClosing}
             disableAnimation={!wasInitiallyLoading && !isClosing}
             placement="bottom-start"
+            overflowTop={navigationBarHeight}
             // Set a constant `overflowBottom` value instead of relying on the current
             // keyboard height (which will be updated asynchronously after `isEditing` is
             // true). This stops the overlay placement from jumping around while the
             // keyboard opens. The value was calculated based on the keyboard height in
             // iOS. We may need to change this constant if the keyboard height for iOS
             // changes or the Android keyboard height is bigger.
-            overflowBottom={isMobile ? "18rem" : undefined}
+            overflowBottom={platform === "mobile" ? "18rem" : undefined}
             offset="3"
             overlay={
                 // TODO(calebmer): This should eventually be virtualized. Probably at the same
@@ -438,7 +440,7 @@ export function ContentEditorMentionFloater({
                     style={{
                         // On mobile the height needs to be less than half of the available space when
                         // the keyboard and navigation bar are open.
-                        maxHeight: isMobile ? "10rem" : spacing["64"],
+                        maxHeight: platform === "mobile" ? "10rem" : spacing["64"],
                     }}
                 >
                     <Box

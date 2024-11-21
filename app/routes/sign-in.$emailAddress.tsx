@@ -9,14 +9,14 @@ import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
-    mobileNavigationBarGap,
     navigationBarHeight,
+    navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {
@@ -158,7 +158,7 @@ export async function action({request, context, params}: LoaderArgs) {
 }
 
 export default function SignInEmailCodePage() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const navigate = useNavigate();
     const params = useParams();
     const emailAddress = params.emailAddress;
@@ -250,11 +250,11 @@ export default function SignInEmailCodePage() {
                 minHeight: "100lvh",
             }}
         >
-            {isMobile && (
+            {platform === "mobile" && (
                 <Box position="absolute" top="0" left="0" right="0" paddingTop="safe-area-inset">
                     <Box
                         height={navigationBarHeight}
-                        paddingX={mobileNavigationBarGap}
+                        paddingX={navigationBarMobileGap}
                         display="flex"
                         alignItems="center"
                     >

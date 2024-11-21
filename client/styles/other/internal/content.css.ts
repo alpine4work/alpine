@@ -13,6 +13,7 @@ import {
     fontSizes,
     fontStyles,
     inputPlaceholderStyles,
+    largeSpacingScaleSelector,
     lightColorSchemeSelector,
     mobilePlatformSelector,
 } from "~/client/styles/core/styles_core.js";
@@ -28,10 +29,7 @@ import {
     parseRawColor,
     printRawColor,
 } from "~/client/styles/other/internal/helpers/raw_color.js";
-import {
-    desktopNavigationBarHeight,
-    mobileNavigationBarHeight,
-} from "~/client/styles/other/internal/navigation_bar.css.js";
+import {navigationBarHeight} from "~/client/styles/other/internal/navigation_bar.css.js";
 import {
     boldClassName,
     checkListItemCheckedClassName,
@@ -68,7 +66,7 @@ import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {
     RemLength,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
     subtractRemLengths,
@@ -109,20 +107,20 @@ export {contentMaxWidthSpacing as contentMaxWidth};
 const contentMaxWidth = spacing[contentMaxWidthSpacing];
 
 export const blockMaxWidth = mapObjectValues(screenPaddingX, screenPaddingX =>
-    subtractRemLengths(contentMaxWidth, spacing[screenPaddingX], spacing[screenPaddingX]),
+    subtractRemLengths(contentMaxWidth, screenPaddingX, screenPaddingX),
 );
 export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
-    parseRemLengthNumber(blockMaxWidth),
+    parseRemLength(blockMaxWidth),
 );
 
 const defaultParagraphMarginSpacing = "2";
 const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
 export {defaultParagraphMarginSpacing as defaultParagraphMargin};
-export const defaultParagraphMarginRem = parseRemLengthNumber(defaultParagraphMargin);
+export const defaultParagraphMarginRem = parseRemLength(defaultParagraphMargin);
 
 const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
-const standaloneBlockMarginVar = createVar("standalone-block-margin");
+export const standaloneBlockMarginVar = createVar("standalone-block-margin");
 export const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
@@ -161,7 +159,7 @@ export const docClassName = style({
     fontFeatureSettings: '"liga" 0',
 });
 
-export const withMobileLayoutDocClassName = style({});
+export const narrowRouteLayoutDocClassName = style({});
 
 export const selectionChangeDraggingClassName = style({});
 
@@ -205,16 +203,12 @@ const blockStyles = {
     clear: "both",
 } as const;
 
-export const paragraphFontSize: {
-    fontSize: string;
-    letterSpacing: string;
-    lineHeight: RemLength;
-} = {
+export const paragraphFontSize = {
     ...fontSizes["100"],
     lineHeight: "1.375rem",
-};
+} as const;
 
-export const paragraphLineHeightRem = parseRemLengthNumber(paragraphFontSize.lineHeight);
+export const paragraphLineHeightRem = parseRemLength(paragraphFontSize.lineHeight);
 
 export const extraCompactParagraphFontSize: {
     fontSize: string;
@@ -248,124 +242,100 @@ globalStyle(`${extraCompactDocClassName} ${paragraphClassName}`, {
 // Header sizes are smaller on mobile than desktop because mobile has less
 // horizontal space than desktop. So we want to fit more header on a
 // single line.
-export const desktopTitleFontSize = fontSizes["800"];
-export const mobileTitleFontSize = fontSizes["700"];
+export const titleFontSize = {wide: "800", narrow: "700"} as const;
 
-export const desktopHeadingLevel1FontSize = fontSizes["600"];
-export const mobileHeadingLevel1FontSize = fontSizes["500"];
+export const headingLevel1FontSize = {wide: "600", narrow: "500"} as const;
+export const headingLevel2FontSize = {wide: "400", narrow: "350-narrow-heading"} as const;
+export const headingLevel3FontSize = {wide: "200", narrow: "200"} as const;
 
-export const desktopHeadingLevel2FontSize = fontSizes["400"];
-export const mobileHeadingLevel2FontSize = fontSizes["mobile-heading-350"];
-
-export const desktopHeadingLevel3FontSize = fontSizes["200"];
-export const mobileHeadingLevel3FontSize = fontSizes["200"];
-
-export const desktopHeading1TopMargin = "10";
-export const mobileHeading1TopMargin = "8";
-
-export const desktopHeading2TopMargin = "8";
-export const mobileHeading2TopMargin = "6";
-
-export const desktopHeading3TopMargin = "6";
-export const mobileHeading3TopMargin = "5";
-
-export const desktopHeading4TopMargin = "4";
-export const mobileHeading4TopMargin = "4";
+export const heading1TopMargin = {wide: "10", narrow: "8"} as const;
+export const heading2TopMargin = {wide: "8", narrow: "6"} as const;
+export const heading3TopMargin = {wide: "6", narrow: "5"} as const;
+export const heading4TopMargin = {wide: "4", narrow: "4"} as const;
 
 const headingMarginVars = createGlobalTheme(":root", {
-    heading1TopMargin: spacing[desktopHeading1TopMargin],
-    heading2TopMargin: spacing[desktopHeading2TopMargin],
-    heading3TopMargin: spacing[desktopHeading3TopMargin],
-    heading4TopMargin: spacing[desktopHeading4TopMargin],
+    heading1TopMargin: spacing[heading1TopMargin.wide],
+    heading2TopMargin: spacing[heading2TopMargin.wide],
+    heading3TopMargin: spacing[heading3TopMargin.wide],
+    heading4TopMargin: spacing[heading4TopMargin.wide],
 });
 
-globalStyle(withMobileLayoutDocClassName, {
+globalStyle(narrowRouteLayoutDocClassName, {
     vars: assignVars(headingMarginVars, {
-        heading1TopMargin: spacing[mobileHeading1TopMargin],
-        heading2TopMargin: spacing[mobileHeading2TopMargin],
-        heading3TopMargin: spacing[mobileHeading3TopMargin],
-        heading4TopMargin: spacing[mobileHeading4TopMargin],
+        heading1TopMargin: spacing[heading1TopMargin.narrow],
+        heading2TopMargin: spacing[heading2TopMargin.narrow],
+        heading3TopMargin: spacing[heading3TopMargin.narrow],
+        heading4TopMargin: spacing[heading4TopMargin.narrow],
     }),
 });
 
-globalStyle(mobilePlatformSelector, {
-    vars: assignVars(headingMarginVars, {
-        heading1TopMargin: spacing[mobileHeading1TopMargin],
-        heading2TopMargin: spacing[mobileHeading2TopMargin],
-        heading3TopMargin: spacing[mobileHeading3TopMargin],
-        heading4TopMargin: spacing[mobileHeading4TopMargin],
-    }),
-});
-
-export const desktopTitlePaddingTop = addRemLengths(
-    spacing["10"],
-    spacing[desktopNavigationBarHeight],
-);
-export const mobilePlatformTitlePaddingTop = addRemLengths(
-    spacing["3"],
-    spacing[mobileNavigationBarHeight],
-);
-export const mobileLayoutTitlePaddingTop = addRemLengths(
-    spacing["0"],
-    spacing[desktopNavigationBarHeight],
-);
+export const titlePaddingTop = {
+    mobileNarrow: addRemLengths("3", navigationBarHeight),
+    desktopWide: addRemLengths("10", navigationBarHeight),
+    desktopNarrow: addRemLengths("0", navigationBarHeight),
+};
 
 const titleLetterSpacingFactor = 0.6;
 
 globalStyle(titleClassName, {
     ...blockStyles,
     ...fontStyles["bold"],
-    ...desktopTitleFontSize,
+    ...fontSizes[titleFontSize.wide],
     // Use a bolder font weight for titles than `bold` but `extra-bold` is too
     // much. Find something visually pleasing between that which helps titles
     // really stand out.
     fontWeight: 650,
     // The letter spacing is too tight for bold text at this font size. Ease up
     // a bit on the letter spacing.
-    letterSpacing: `calc(${desktopTitleFontSize.letterSpacing} * ${titleLetterSpacingFactor})`,
-    paddingTop: `calc(${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+    letterSpacing: `calc(${
+        fontSizes[titleFontSize.wide].letterSpacing
+    } * ${titleLetterSpacingFactor})`,
+    paddingTop: `calc(${titlePaddingTop.desktopWide} + var(--safe-area-inset-top, 0px))`,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: `calc(${desktopTitleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
+    minHeight: `calc(${fontSizes[titleFontSize.wide].lineHeight} + ${titlePaddingTop.desktopWide})`,
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${withMobileLayoutDocClassName} ${titleClassName}`, {
-    ...mobileTitleFontSize,
-    letterSpacing: `calc(${mobileTitleFontSize.letterSpacing} * ${titleLetterSpacingFactor})`,
-    paddingTop: `calc(${mobileLayoutTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-    minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileLayoutTitlePaddingTop})`,
+globalStyle(`${narrowRouteLayoutDocClassName} ${titleClassName}`, {
+    ...fontSizes[titleFontSize.narrow],
+    letterSpacing: `calc(${
+        fontSizes[titleFontSize.narrow].letterSpacing
+    } * ${titleLetterSpacingFactor})`,
+    paddingTop: `calc(${titlePaddingTop.desktopNarrow} + var(--safe-area-inset-top, 0px))`,
+    minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+        titlePaddingTop.desktopNarrow
+    })`,
 });
 
 globalStyle(
     [
         `${mobilePlatformSelector} ${titleClassName}`,
-        `${mobilePlatformSelector} ${withMobileLayoutDocClassName} ${titleClassName}`,
+        `${mobilePlatformSelector} ${narrowRouteLayoutDocClassName} ${titleClassName}`,
     ].join(", "),
     {
-        ...mobileTitleFontSize,
-        paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-        minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
+        ...fontSizes[titleFontSize.narrow],
+        paddingTop: `calc(${titlePaddingTop.mobileNarrow} + var(--safe-area-inset-top, 0px))`,
+        minHeight: `calc(${fontSizes[titleFontSize.narrow].lineHeight} + ${
+            titlePaddingTop.mobileNarrow
+        })`,
     },
 );
 
 globalStyle(headingLevel1ClassName, {
     ...blockStyles,
     ...fontStyles["bold"],
-    ...desktopHeadingLevel1FontSize,
+    ...fontSizes[headingLevel1FontSize.wide],
     marginTop: headingMarginVars.heading1TopMargin,
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${mobilePlatformSelector} ${headingLevel1ClassName}`, {
-    ...mobileHeadingLevel1FontSize,
-});
-globalStyle(`${withMobileLayoutDocClassName} ${headingLevel1ClassName}`, {
-    ...mobileHeadingLevel1FontSize,
+globalStyle(`${narrowRouteLayoutDocClassName} ${headingLevel1ClassName}`, {
+    ...fontSizes[headingLevel1FontSize.narrow],
 });
 globalStyle(`${titleClassName} + ${headingLevel1ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
@@ -374,18 +344,15 @@ globalStyle(`${titleClassName} + ${headingLevel1ClassName}`, {
 globalStyle(headingLevel2ClassName, {
     ...blockStyles,
     ...fontStyles["bold"],
-    ...desktopHeadingLevel2FontSize,
+    ...fontSizes[headingLevel2FontSize.wide],
     marginTop: headingMarginVars.heading2TopMargin,
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${mobilePlatformSelector} ${headingLevel2ClassName}`, {
-    ...mobileHeadingLevel2FontSize,
-});
-globalStyle(`${withMobileLayoutDocClassName} ${headingLevel2ClassName}`, {
-    ...mobileHeadingLevel2FontSize,
+globalStyle(`${narrowRouteLayoutDocClassName} ${headingLevel2ClassName}`, {
+    ...fontSizes[headingLevel2FontSize.narrow],
 });
 globalStyle(`${titleClassName} + ${headingLevel2ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
@@ -397,18 +364,15 @@ globalStyle(`${headingLevel1ClassName} + ${headingLevel2ClassName}`, {
 globalStyle(headingLevel3ClassName, {
     ...blockStyles,
     ...fontStyles["bold"],
-    ...desktopHeadingLevel3FontSize,
+    ...fontSizes[headingLevel3FontSize.wide],
     marginTop: headingMarginVars.heading3TopMargin,
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${mobilePlatformSelector} ${headingLevel3ClassName}`, {
-    ...mobileHeadingLevel3FontSize,
-});
-globalStyle(`${withMobileLayoutDocClassName} ${headingLevel3ClassName}`, {
-    ...mobileHeadingLevel3FontSize,
+globalStyle(`${narrowRouteLayoutDocClassName} ${headingLevel3ClassName}`, {
+    ...fontSizes[headingLevel3FontSize.narrow],
 });
 globalStyle(`${titleClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
@@ -458,7 +422,7 @@ globalStyle(`${quoteBlockClassName}::before`, {
 const listItemIndentationSpacing = "8";
 const listItemIndentation = spacing[listItemIndentationSpacing];
 export {listItemIndentationSpacing as listItemIndentation};
-export const listItemIndentationRem = parseRemLengthNumber(listItemIndentation);
+export const listItemIndentationRem = parseRemLength(listItemIndentation);
 
 const unorderedListItemBulletSizeSpacing = "1.5";
 const unorderedListItemBulletSize = spacing[unorderedListItemBulletSizeSpacing];
@@ -470,21 +434,19 @@ globalStyle(listItemClassName, {
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
 
-export const unorderedListItemBulletTop: RemLength = `${
-    parseRemLengthNumber(
-        subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize),
-    ) / 2
+export const unorderedListItemBulletTop = `${
+    parseRemLength(subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize)) /
+    2
 }rem`;
 
 const extraCompactUnorderedListItemBulletTop: RemLength = `${
-    parseRemLengthNumber(
+    parseRemLength(
         subtractRemLengths(extraCompactParagraphFontSize.lineHeight, unorderedListItemBulletSize),
     ) / 2
 }rem`;
 
 export const unorderedListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
-    parseRemLengthNumber(listItemIndentation) / 2 -
-    parseRemLengthNumber(unorderedListItemBulletSize) / 2
+    parseRemLength(listItemIndentation) / 2 - parseRemLength(unorderedListItemBulletSize) / 2
 }rem + ${listItemOffsetVar})`;
 
 globalStyle(`${unorderedListItemClassName}::before`, {
@@ -534,15 +496,13 @@ export const checkListItemContentClassName = style({});
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
     top: `${
-        (parseRemLengthNumber(paragraphFontSize.lineHeight) -
-            parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
+        (parseRemLength(paragraphFontSize.lineHeight) -
+            parseRemLength(checkListItemCheckboxDesktopSize)) /
         2
     }rem`,
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
-        parseRemLengthNumber(listItemIndentation) / 2 -
-        (parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize]) +
-            parseRemLengthNumber(spacing["1"]) * 2) /
-            2
+        parseRemLength(listItemIndentation) / 2 -
+        (parseRemLength(checkListItemCheckboxDesktopSize) + parseRemLength("1") * 2) / 2
     }rem + ${listItemOffsetVar})`,
     borderRadius: "100%",
     paddingLeft: spacing["1"],
@@ -552,28 +512,26 @@ export const checkListItemCheckboxContainerClassName = style({
     selectors: {
         [`${mobilePlatformSelector} &`]: {
             top: `${
-                (parseRemLengthNumber(paragraphFontSize.lineHeight) -
-                    parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
+                (parseRemLength(paragraphFontSize.lineHeight) -
+                    parseRemLength(checkListItemCheckboxMobileSize)) /
                 2
             }rem`,
             left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
-                parseRemLengthNumber(listItemIndentation) / 2 -
-                (parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize]) +
-                    parseRemLengthNumber(spacing["1"]) * 2) /
-                    2
+                parseRemLength(listItemIndentation) / 2 -
+                (parseRemLength(checkListItemCheckboxMobileSize) + parseRemLength("1") * 2) / 2
             }rem + ${listItemOffsetVar})`,
         },
         [`${desktopPlatformSelector} ${extraCompactDocClassName} &`]: {
             top: `${
-                (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
-                    parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
+                (parseRemLength(extraCompactParagraphFontSize.lineHeight) -
+                    parseRemLength(checkListItemCheckboxDesktopSize)) /
                 2
             }rem`,
         },
         [`${mobilePlatformSelector} ${extraCompactDocClassName} &`]: {
             top: `${
-                (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
-                    parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
+                (parseRemLength(extraCompactParagraphFontSize.lineHeight) -
+                    parseRemLength(checkListItemCheckboxMobileSize)) /
                 2
             }rem`,
         },
@@ -633,8 +591,8 @@ export const checkListItemCheckboxIconClassName = style({
     position: "absolute",
     top: "50%",
     left: "50%",
-    width: addRemLengths(spacing["2"], spacing["0.5"]),
-    height: addRemLengths(spacing["2"], spacing["0.5"]),
+    width: spacing["2.5"],
+    height: spacing["2.5"],
     transform: `translate(-50%, -50%) scale(${parseInt(checkListItemCheckboxDesktopSize, 10) / 4})`,
     pointerEvents: "none",
     selectors: {
@@ -682,15 +640,13 @@ globalStyle(codeBlockWrapperClassName, {
 // (since `overflowX` is scrollable).
 const codeBlockPaddingY = `${Math.max(
     0,
-    (parseRemLengthNumber(codeBlockToolbarHeight) -
-        parseRemLengthNumber(paragraphFontSize.lineHeight)) /
-        2,
+    (parseRemLength(codeBlockToolbarHeight) - parseRemLength(paragraphFontSize.lineHeight)) / 2,
 )}rem`;
 
 const extraCompactCodeBlockPaddingY = `${Math.max(
     0,
-    (parseRemLengthNumber(codeBlockToolbarHeight) -
-        parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight)) /
+    (parseRemLength(codeBlockToolbarHeight) -
+        parseRemLength(extraCompactParagraphFontSize.lineHeight)) /
         2,
 )}rem`;
 
@@ -817,9 +773,13 @@ globalStyle(`${codeBlockLineClassName}::after`, {
     position: "sticky",
     // Render in margins to make sure there are no rendering artifacts.
     right: `-${codeBlockPaddingRight}`,
-    width: `${parseRemLengthNumber(codeBlockPaddingRight) * 2}rem`,
+    width: `${parseRemLength(codeBlockPaddingRight) * 2}rem`,
     height: paragraphFontSize.lineHeight,
     background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${codeBlockLineClassName}::after`, {
+    height: paragraphFontSize.lineHeight,
 });
 
 // Turn off sticky right edge gradient on file previews and file views. Since
@@ -961,33 +921,27 @@ export const codeBlockCopyButtonIconClassName = style({
 
 globalStyle(dividerClassName, {
     ...blockStyles,
-    marginTop: spacing[desktopHeading1TopMargin],
-    marginBottom: spacing[desktopHeading1TopMargin],
+    marginTop: spacing[heading1TopMargin.wide],
+    marginBottom: spacing[heading1TopMargin.wide],
     borderColor: colorSchemeVars["grey-10"],
     userSelect: "none",
 });
 
-globalStyle(
-    [
-        `${mobilePlatformSelector} ${dividerClassName}`,
-        `${withMobileLayoutDocClassName} ${dividerClassName}`,
-    ].join(", "),
-    {
-        marginTop: spacing[mobileHeading1TopMargin],
-        marginBottom: spacing[mobileHeading1TopMargin],
-    },
-);
+globalStyle(`${narrowRouteLayoutDocClassName} ${dividerClassName}`, {
+    marginTop: spacing[heading1TopMargin.narrow],
+    marginBottom: spacing[heading1TopMargin.narrow],
+});
 
 const fileMinSize = spacing["20"];
-export const fileMinSizeRem = parseRemLengthNumber(fileMinSize);
+export const fileMinSizeRem = parseRemLength(fileMinSize);
 
 const fileRowMaxHeight = spacing["128"];
-export const fileRowMaxHeightRem = parseRemLengthNumber(fileRowMaxHeight);
+export const fileRowMaxHeightRem = parseRemLength(fileRowMaxHeight);
 
 const fileRowGapWidthSpacing = "2.5";
 export {fileRowGapWidthSpacing as fileRowGapWidth};
 const fileRowGapWidth = spacing[fileRowGapWidthSpacing];
-export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
+export const fileRowGapWidthRem = parseRemLength(fileRowGapWidth);
 
 globalStyle(fileRowClassName, {
     ...blockStyles,
@@ -1013,16 +967,16 @@ globalStyle(`${fileRowClassName} + ${fileRowClassName}`, {
 export const fileFloatMaxWidthPercent = 1 / 3;
 
 const fileFloatLeftMarginX = spacing["5"];
-export const fileFloatLeftMarginXRem = parseRemLengthNumber(fileFloatLeftMarginX);
+export const fileFloatLeftMarginXRem = parseRemLength(fileFloatLeftMarginX);
 
 // We have less horizontal margin for a right float since the text's right
 // ragged edge already creates some whitespace. So let longer lines of text
 // flow closer to the file.
 const fileFloatRightMarginX = spacing["3"];
-export const fileFloatRightMarginXRem = parseRemLengthNumber(fileFloatRightMarginX);
+export const fileFloatRightMarginXRem = parseRemLength(fileFloatRightMarginX);
 
 const fileFloatMarginY = spacing["1"];
-export const fileFloatMarginYRem = parseRemLengthNumber(fileFloatMarginY);
+export const fileFloatMarginYRem = parseRemLength(fileFloatMarginY);
 
 export const fileFloatMinHeightParagraphLineCount = Math.ceil(
     fileMinSizeRem / paragraphLineHeightRem,
@@ -1568,7 +1522,7 @@ globalStyle(
 // in a bottom sheet and disables interactivity with the document. Since
 // clicking a comment is a more disruptive state shift in mobile layouts, we
 // find it useful to give a pointer cursor affordance.
-globalStyle(`${withMobileLayoutDocClassName} ${commentClassName}`, {
+globalStyle(`${narrowRouteLayoutDocClassName} ${commentClassName}`, {
     cursor: "pointer",
 });
 
@@ -1719,27 +1673,27 @@ for (const [lezerHighlightSelector, color] of Object.entries(colorByLezerHighlig
 }
 
 export const commentActiveDynamicCssTemplate = `\
-#$containerId ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+#$containerId .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId ${commentClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+#$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.light.active
 }}
-${darkColorSchemeSelector} #$containerId ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     commentBackgroundColors.dark.active
 }}
-${darkColorSchemeSelector} #$containerId ${commentClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.dark.active
 }}
-#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
-#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
+#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
+#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) .${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}:not([data-comment="$commentThreadId"]):has(${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
+#$containerId :is(.${fileRowClassName}, .${fileFloatClassName}) > .${commentClassName}:not([data-comment="$commentThreadId"]):has(.${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
 ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
     .map(
         highlightColor => `\
-#$containerId ${commentClassName}[data-comment="$commentThreadId"] ${
+#$containerId .${commentClassName}[data-comment="$commentThreadId"] ${
             highlightClassNameByColor[highlightColor]
         } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
             colors["grey-0"],
@@ -1747,7 +1701,7 @@ ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameBy
             colors[colorByHighlightColor[highlightColor]],
             highlightOpacity,
         )}}
-${darkColorSchemeSelector} #$containerId ${commentClassName}[data-comment="$commentThreadId"] ${
+${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] ${
             highlightClassNameByColor[highlightColor]
         } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
             invertedColorsWithShade["grey-0"],
