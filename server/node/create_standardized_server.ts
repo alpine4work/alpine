@@ -114,7 +114,7 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
 
     const init: RequestInit = {
         method: req.method,
-        headers: createStandardizedRequestHeaders(req.headers),
+        headers: createStandardizedHeaders(req.headers),
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -138,7 +138,7 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
  * Convert a Node.js request headers object to a WhatWG fetch request
  * headers object.
  */
-export function createStandardizedRequestHeaders(reqHeaders: IncomingHttpHeaders): Headers {
+export function createStandardizedHeaders(reqHeaders: IncomingHttpHeaders): Headers {
     const headers = new Headers();
 
     for (const [key, values] of Object.entries(reqHeaders)) {
