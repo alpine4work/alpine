@@ -2014,7 +2014,7 @@ Resources:
                           Fn::GetAtt:
                               - GithubRunnersDeployRunnerImageBuilderComponent7CustomAptGetInstallComponent549BBE2D
                               - Arn
-                parentAmi: arn:aws:imagebuilder:us-east-1:aws:image/ubuntu-server-24-lts-x86/x.x.x
+                parentAmi: arn:aws:imagebuilder:us-east-1:aws:image/ubuntu-server-24-lts-arm64/x.x.x
                 tags:
                     GitHubRunners:Stack: CyberworldsLifecycleStack
                     GitHubRunners:Builder: CyberworldsLifecycleStack/GithubRunners/DeployRunnerImageBuilder
@@ -2060,7 +2060,7 @@ Resources:
                           - GithubRunnersDeployRunnerImageBuilderComponent7CustomAptGetInstallComponent549BBE2D
                           - Arn
             Name: CyberworldsLifecycleStack-GithubRunners-DeployRunnerImageBuilder-AmiRecipe-8619ACBA
-            ParentImage: arn:aws:imagebuilder:us-east-1:aws:image/ubuntu-server-24-lts-x86/x.x.x
+            ParentImage: arn:aws:imagebuilder:us-east-1:aws:image/ubuntu-server-24-lts-arm64/x.x.x
             Tags:
                 GitHubRunners:Builder: CyberworldsLifecycleStack/GithubRunners/DeployRunnerImageBuilder
                 GitHubRunners:Stack: CyberworldsLifecycleStack
