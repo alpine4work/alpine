@@ -88,6 +88,21 @@ export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
                         ),
                     );
                 },
+
+                // Playwright tests use this method to make sure we have an empty text
+                // selection so that we don't end up replacing any content.
+                ensureEmptyTextSelection: () => {
+                    if (
+                        !view.state.selection.empty ||
+                        !(view.state.selection instanceof TextSelection)
+                    ) {
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                TextSelection.near(view.state.selection.$head),
+                            ),
+                        );
+                    }
+                },
             };
         }, [viewRef]),
     );
