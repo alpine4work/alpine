@@ -59,11 +59,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {
-    PostContent,
-    PostContentWithReferences,
-    assertPostContent,
-} from "~/shared/forum/post_content_schema.js";
+import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
