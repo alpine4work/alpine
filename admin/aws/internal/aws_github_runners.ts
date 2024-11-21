@@ -13,7 +13,6 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
-import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -64,12 +63,12 @@ export class AwsGithubRunners extends Construct {
         const testInstanceClass = InstanceClass.M7G;
         const testInstanceType = InstanceType.of(testInstanceClass, InstanceSize.XLARGE2);
 
-        // 2 vCPU, 8 GiB memory, Intel Xeon Platinum (x86_64) processor
+        // 2 vCPU, 8 GiB memory, Gravitron (ARM) processor
         //
         // We use the same instance class for our deploy GitHub runners as we do our
         // production services so when building we're building for the right
         // architecture.
-        const deployInstanceClass = awsServiceInstanceClass;
+        const deployInstanceClass = InstanceClass.T4G;
         const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.LARGE);
 
         const createImageBuilderComponents = (
@@ -314,7 +313,7 @@ export class AwsGithubRunners extends Construct {
                 subnetSelection: {subnetType: SubnetType.PUBLIC},
 
                 os: Os.LINUX_UBUNTU,
-                architecture: Architecture.X86_64,
+                architecture: Architecture.ARM64,
                 baseAmi: stack.formatArn({
                     service: "imagebuilder",
                     resource: "image",
@@ -327,10 +326,7 @@ export class AwsGithubRunners extends Construct {
                     instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
                 },
 
-                components: createImageBuilderComponents([
-                    // Required for building `libvpx` and `libaom` on x86_64 architectures.
-                    "yasm",
-                ]),
+                components: createImageBuilderComponents(),
             },
         );
 
