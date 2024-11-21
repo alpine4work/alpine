@@ -202,16 +202,9 @@ test("can write collaboratively at the same time in a document", async ({
                         .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
                 }
 
-                // Make sure we have an empty text selection before typing! In the chaos the
-                // browser sometimes selects some text. This function makes sure we start
-                // typing our string from an empty selection because otherwise we'd replace the
-                // selected content which would mess up our results.
-                await page1.evaluate("dev.contentEditor.ensureEmptyTextSelection()");
-
                 await page1
                     .getByRole("textbox", {name: "Document"})
                     .pressSequentially("123456123456123456", {delay: randomInteger(0, 10)});
-
                 await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
                 if (index === reload1) await page1.reload();
@@ -227,16 +220,9 @@ test("can write collaboratively at the same time in a document", async ({
                         .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
                 }
 
-                // Make sure we have an empty text selection before typing! In the chaos the
-                // browser sometimes selects some text. This function makes sure we start
-                // typing our string from an empty selection because otherwise we'd replace the
-                // selected content which would mess up our results.
-                await page2.evaluate("dev.contentEditor.ensureEmptyTextSelection()");
-
                 await page2
                     .getByRole("textbox", {name: "Document"})
                     .pressSequentially("abcdefabcdefabcdef", {delay: randomInteger(0, 10)});
-
                 await page2.getByRole("textbox", {name: "Document"}).press("Enter");
 
                 if (index === reload2) await page2.reload();
