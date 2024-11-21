@@ -4,11 +4,11 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {TableMap, cellAround, pointsAtCell} from "prosemirror-tables";
 import {Decoration, DecorationSet, EditorView, NodeView} from "prosemirror-view";
 import {
-    TableView,
-    updateColumnsOnResize,
+    ContentEditorTableView,
+    contentEditorUpdateTableColumnsOnResize,
 } from "~/client/content/internal/content_editor_table_node_view.js";
 import {tableNodeTypes} from "~/shared/content/table/content_editor_table_schema.js";
-import {CellAttrs} from "~/shared/content/table/table_utils.js";
+import {type ContentEditorCellAttrs} from "~/shared/content/table/table_utils.js";
 
 export const columnResizingPluginKey = new PluginKey<ResizeState>("tableColumnResizing");
 
@@ -25,7 +25,7 @@ export type ColumnResizingOptions = {
     lastColumnResizable?: boolean;
     /**
      * A custom node view for the rendering table nodes. By default, the plugin
-     * uses the {@link TableView} class. You can explicitly set this to `null` to
+     * uses the {@link ContentEditorTableView} class. You can explicitly set this to `null` to
      * not use a custom node view.
      */
     View?: (new (node: ProsemirrorNode, cellMinWidth: number, view: EditorView) => NodeView) | null;
@@ -37,7 +37,7 @@ export function columnResizing({
     handleWidth = 5,
     cellMinWidth = 25,
     defaultCellMinWidth = 100,
-    View = TableView,
+    View = ContentEditorTableView,
     lastColumnResizable = true,
 }: ColumnResizingOptions = {}): Plugin {
     const plugin = new Plugin<ResizeState>({
@@ -278,7 +278,7 @@ function updateColumnWidth(view: EditorView, cell: number, width: number): void 
         // Rowspanning cell that has already been handled
         if (row && map.map[mapIndex] == map.map[mapIndex - map.width]) continue;
         const pos = map.map[mapIndex]!;
-        const attrs = table.nodeAt(pos)!.attrs as CellAttrs;
+        const attrs = table.nodeAt(pos)!.attrs as ContentEditorCellAttrs;
         const index = attrs.colspan == 1 ? 0 : col - map.colCount(pos);
         if (attrs.colwidth && attrs.colwidth[index] == width) continue;
         const colwidth = attrs.colwidth ? attrs.colwidth.slice() : zeroes(attrs.colspan);
@@ -304,7 +304,7 @@ function displayColumnWidth(
         dom = dom.parentNode;
     }
     if (!dom) return;
-    updateColumnsOnResize(
+    contentEditorUpdateTableColumnsOnResize(
         table,
         dom.firstChild as HTMLTableColElement,
         dom as HTMLTableElement,

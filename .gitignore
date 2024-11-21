@@ -40,4 +40,5 @@ yarn-error.log*
 # generated when running `pnpm patch-commit`.
 _tmp*
 
+# Cursor code editor configuration: you can add your own rules here.
 .cursorrules

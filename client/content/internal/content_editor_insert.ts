@@ -43,9 +43,7 @@ function getInsertPosOrSelection(selection: Selection): number | Selection {
  * - Handling empty vs non-empty selections
  * - Scrolling to show inserted content
  *
- * @param view - The editor view.
- * @param node - The node to insert.
- * @param commandIfNotEmpty - An optional command to run if the node is not empty.
+ * @param commandIfNotEmpty is an optional command to run if the editor selection isn't empty
  */
 function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
     const {state} = view;

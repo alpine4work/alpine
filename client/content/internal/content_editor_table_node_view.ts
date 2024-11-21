@@ -1,44 +1,21 @@
-import classNames from "classnames";
 import {Node} from "prosemirror-model";
-import {addColumnAfter} from "prosemirror-tables";
 import {EditorView, NodeView} from "prosemirror-view";
-import {
-    columnContainerClassName,
-    tableAlignClassName,
-    tableClassName,
-} from "~/shared/content/content_styles.js";
+import {tableClassName} from "~/shared/content/content_styles.js";
+import {type ContentEditorCellAttrs} from "~/shared/content/table/table_utils.js";
 
-export interface CellAttrs {
-    colspan: number;
-    rowspan: number;
-    colwidth: Array<number> | null;
-}
-
-/**
- * @public
- */
-export class TableView implements NodeView {
+export class ContentEditorTableView implements NodeView {
     public dom: HTMLDivElement;
     public table: HTMLTableElement;
     public colgroup: HTMLTableColElement;
     public contentDOM: HTMLTableSectionElement;
-    private columnButtons: HTMLDivElement;
 
     constructor(public node: Node, public defaultCellMinWidth: number, public view: EditorView) {
         this.dom = document.createElement("div");
         this.dom.className = tableClassName;
-        this.dom.style.position = "relative";
-
         this.dom.setAttribute("data-scrollbar", "false");
-        // Create column buttons container
-        this.columnButtons = document.createElement("div");
-        this.dom.appendChild(this.columnButtons);
-
         this.table = this.dom.appendChild(document.createElement("table"));
-
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));
-
-        updateColumnsOnResize(
+        contentEditorUpdateTableColumnsOnResize(
             node,
             this.colgroup,
             this.table,
@@ -46,7 +23,6 @@ export class TableView implements NodeView {
             view,
             undefined,
             undefined,
-            this.columnButtons,
         );
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
     }
@@ -54,7 +30,7 @@ export class TableView implements NodeView {
     update(node: Node): boolean {
         if (node.type != this.node.type) return false;
         this.node = node;
-        updateColumnsOnResize(
+        contentEditorUpdateTableColumnsOnResize(
             node,
             this.colgroup,
             this.table,
@@ -62,7 +38,6 @@ export class TableView implements NodeView {
             this.view,
             undefined,
             undefined,
-            this.columnButtons,
         );
         return true;
     }
@@ -75,10 +50,7 @@ export class TableView implements NodeView {
     }
 }
 
-/**
- * @public
- */
-export function updateColumnsOnResize(
+export function contentEditorUpdateTableColumnsOnResize(
     node: Node,
     colgroup: HTMLTableColElement,
     table: HTMLTableElement,
@@ -86,7 +58,6 @@ export function updateColumnsOnResize(
     view: EditorView,
     overrideCol?: number,
     overrideValue?: number,
-    columnButtons?: HTMLDivElement,
 ): void {
     let totalWidth = 0;
     let fixedWidth = true;
@@ -95,7 +66,7 @@ export function updateColumnsOnResize(
     if (!row) return;
 
     for (let i = 0, col = 0; i < row.childCount; i++) {
-        const {colspan, colwidth} = row.child(i).attrs as CellAttrs;
+        const {colspan, colwidth} = row.child(i).attrs as ContentEditorCellAttrs;
         for (let j = 0; j < colspan; j++, col++) {
             const hasWidth = overrideCol == col ? overrideValue : colwidth && colwidth[j];
             const cssWidth = hasWidth ? hasWidth + "px" : "";

@@ -14,7 +14,6 @@ import {
     addColumnBefore,
     addRowAfter,
     addRowBefore,
-    columnResizing,
     deleteColumn,
     deleteRow,
     deleteTable,
@@ -23,8 +22,6 @@ import {
     mergeCells,
     setCellAttr,
     splitCell,
-    tableEditing,
-    tableNodes,
     toggleHeader,
     toggleHeaderCell,
 } from "prosemirror-tables";
@@ -36,23 +33,6 @@ import {
 } from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-/**
- *  Why some defult values for colspan, rowspan, colwidth are required?
- * The default cell attributes (cellAttrs) are essential for defining the fundamental properties of each table cell in ProseMirror's table schema:
-   - **colspan** (default: 1): Allows cells to span multiple columns.
-   - **rowspan** (default: 1): Allows cells to span multiple rows.
-   - **colwidth** (default: null): Holds information about column widths.
-
-   These defaults ensure:
-   - Regular cells function correctly (1x1 size) without needing explicit attributes.
-   - The schema can effectively parse and serialize HTML tables.
-   - Consistent base values for table operations (e.g., splitting and merging cells).
-
-   Without these defaults, ProseMirror would struggle to manage basic table cell behavior and maintain the integrity of the table structure. The schema utilizes these attributes in the `getCellAttrs()` and `setCellAttrs()` functions to:
-   - Parse HTML tables into ProseMirror's internal format.
-   - Render ProseMirror tables back to HTML.
-   - Facilitate table editing operations.
- */
 const cellAttrs: Record<string, AttributeSpec> = {
     colspan: {default: 1, schema: Schema.integer},
     rowspan: {default: 1, schema: Schema.integer},

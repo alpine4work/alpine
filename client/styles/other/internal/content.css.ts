@@ -2028,63 +2028,52 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
 });
 
 globalStyle(tableHeaderClassName, {
-    border: `1px solid ${colors["grey-20"]}`,
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
     minWidth: spacing[20],
     background: colorSchemeVars["grey-10"],
 });
 globalStyle(tableCellClassName, {
-    border: `1px solid ${colors["grey-20"]}`,
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
     minWidth: spacing[20],
 });
 
 globalStyle(tableClassName, {
-    minWidth: "600px",
-    margin: `${paragraphMarginVar} auto`,
+    position: "relative",
+    minWidth: spacing[160],
+    margin: `${standaloneBlockMarginVar} auto`,
     padding: spacing[5],
-    background: colors["grey-90"],
+    background: colorSchemeVars["grey-5"],
     width: "fit-content",
     maxWidth: "95%",
-    textAlign: "left",
-    borderCollapse: "collapse",
     overflowX: "auto",
-    display: "block",
-    borderRadius: borderRadius[2],
-    // tableLayout: "fixed",
 });
 
 globalStyle(`${tableClassName} table`, {
-    minWidth: "600px",
-    width: "600px",
-    maxWidth: "1000px",
+    minWidth: blockMaxWidthVar,
+    width: spacing[160],
+    maxWidth: spacing[256],
     textAlign: "left",
     borderCollapse: "collapse",
     tableLayout: "fixed",
 });
 
-globalStyle(`${tableClassName} p`, {
-    padding: [spacing[1.5], spacing[2]],
-    margin: spacing[0],
-});
-
-////////////////////////////////////////////////////////////
-
 globalStyle(".resize-cursor", {
     cursor: "col-resize",
 });
 
-globalStyle(".ProseMirror table td, .ProseMirror table th", {
-    border: "2px solid #ced4da",
-    padding: "3px 5px",
+globalStyle(`${tableClassName} td, ${tableClassName} th`, {
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    padding: `${spacing[0.5]} ${spacing[1]}`,
     verticalAlign: "top",
     boxSizing: "border-box",
     position: "relative",
 });
 
-globalStyle(".ProseMirror table > *", {
+globalStyle(`${tableClassName} > *`, {
     marginBottom: "0",
 });
 
-globalStyle(".ProseMirror table .selectedCell:after", {
+globalStyle(`${tableClassName} .selectedCell:after`, {
     zIndex: 2,
     position: "absolute",
     content: '""',
@@ -2092,17 +2081,19 @@ globalStyle(".ProseMirror table .selectedCell:after", {
     right: 0,
     top: 0,
     bottom: 0,
-    background: "rgba(200, 200, 255, 0.4)",
+    // background: "rgba(200, 200, 255, 0.4)",
+    background: colorSchemeVars["blue-60-opacity-60"],
     pointerEvents: "none",
 });
 
-globalStyle(".ProseMirror table .column-resize-handle", {
+globalStyle(`${tableClassName} .column-resize-handle`, {
     position: "absolute",
-    right: "-2px",
+    right: `-${spacing[0.5]}`,
     top: 0,
-    bottom: "-2px",
-    width: "4px",
-    backgroundColor: "#adf",
+    bottom: `-${spacing[0.5]}`,
+    width: spacing[1],
+    backgroundColor: colorSchemeVars["blue-50"],
     pointerEvents: "auto",
     cursor: "col-resize",
+    zIndex: 3,
 });
