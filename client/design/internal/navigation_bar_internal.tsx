@@ -964,7 +964,7 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             justifyContent="center"
                             pointerEvents="auto"
                             style={{
-                                backdropFilter: "blur(2px)",
+                                backdropFilter: "blur(3px)",
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
                         />
