@@ -61,7 +61,7 @@ const cellAttrs: Record<string, AttributeSpec> = {
 
 export const table = {
     name: "table",
-    content: "table_row+",
+    content: "tableRow+",
     group: "block",
     copyable: true,
     selectable: true,
@@ -200,8 +200,8 @@ export const table = {
 };
 
 export const tableRow = {
-    name: "table_row",
-    content: "(table_cell | tableHeader)+",
+    name: "tableRow",
+    content: "(tableCell | tableHeader)+",
     tableRole: "row",
     isolating: true,
     selectable: true,
@@ -213,7 +213,7 @@ export const tableRow = {
 };
 
 export const tableCell = {
-    name: "table_cell",
+    name: "tableCell",
     group: "block",
     content: "block+",
     tableRole: "cell",

@@ -1014,13 +1014,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
-                                                                                        "table_row": {
+                                                                                        "tableRow": {
                                                                                             "type": "Object",
                                                                                             "propertySchemaByKey": {
                                                                                                 "type": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Value",
-                                                                                                        "value": "table_row"
+                                                                                                        "value": "tableRow"
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
@@ -1033,13 +1033,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
-                                                                                        "table_cell": {
+                                                                                        "tableCell": {
                                                                                             "type": "Object",
                                                                                             "propertySchemaByKey": {
                                                                                                 "type": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Value",
-                                                                                                        "value": "table_cell"
+                                                                                                        "value": "tableCell"
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
@@ -2517,13 +2517,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                 },
                                                                                                                                 "referenceId": "23b2aa0b"
                                                                                                                             },
-                                                                                                                            "table_row": {
+                                                                                                                            "tableRow": {
                                                                                                                                 "type": "Object",
                                                                                                                                 "propertySchemaByKey": {
                                                                                                                                     "type": {
                                                                                                                                         "valueSchema": {
                                                                                                                                             "type": "Value",
-                                                                                                                                            "value": "table_row"
+                                                                                                                                            "value": "tableRow"
                                                                                                                                         },
                                                                                                                                         "optional": false
                                                                                                                                     },
@@ -2535,15 +2535,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                         "optional": true
                                                                                                                                     }
                                                                                                                                 },
-                                                                                                                                "referenceId": "936c5e1a"
+                                                                                                                                "referenceId": "456feb94"
                                                                                                                             },
-                                                                                                                            "table_cell": {
+                                                                                                                            "tableCell": {
                                                                                                                                 "type": "Object",
                                                                                                                                 "propertySchemaByKey": {
                                                                                                                                     "type": {
                                                                                                                                         "valueSchema": {
                                                                                                                                             "type": "Value",
-                                                                                                                                            "value": "table_cell"
+                                                                                                                                            "value": "tableCell"
                                                                                                                                         },
                                                                                                                                         "optional": false
                                                                                                                                     },
@@ -2584,7 +2584,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                         "optional": true
                                                                                                                                     }
                                                                                                                                 },
-                                                                                                                                "referenceId": "578d9f54"
+                                                                                                                                "referenceId": "f2e7a24b"
                                                                                                                             },
                                                                                                                             "tableHeader": {
                                                                                                                                 "type": "Object",
@@ -2633,7 +2633,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                         "optional": true
                                                                                                                                     }
                                                                                                                                 },
-                                                                                                                                "referenceId": "cf6dded0"
+                                                                                                                                "referenceId": "d9a2869c"
                                                                                                                             },
                                                                                                                             "heading": {
                                                                                                                                 "type": "Object",
@@ -2910,17 +2910,17 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "23b2aa0b"
                                                                                                 },
-                                                                                                "table_row": {
+                                                                                                "tableRow": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "936c5e1a"
+                                                                                                    "reuseReferenceId": "456feb94"
                                                                                                 },
-                                                                                                "table_cell": {
+                                                                                                "tableCell": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "578d9f54"
+                                                                                                    "reuseReferenceId": "f2e7a24b"
                                                                                                 },
                                                                                                 "tableHeader": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "cf6dded0"
+                                                                                                    "reuseReferenceId": "d9a2869c"
                                                                                                 },
                                                                                                 "heading": {
                                                                                                     "type": "Reference",
@@ -5112,13 +5112,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "table_row": {
+                                                                    "tableRow": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "table_row"
+                                                                                    "value": "tableRow"
                                                                                 },
                                                                                 "optional": false
                                                                             },
@@ -5131,13 +5131,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "table_cell": {
+                                                                    "tableCell": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "table_cell"
+                                                                                    "value": "tableCell"
                                                                                 },
                                                                                 "optional": false
                                                                             },
@@ -9186,13 +9186,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "table_row": {
+                                                                    "tableRow": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "table_row"
+                                                                                    "value": "tableRow"
                                                                                 },
                                                                                 "optional": false
                                                                             },
@@ -9205,13 +9205,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "table_cell": {
+                                                                    "tableCell": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "table_cell"
+                                                                                    "value": "tableCell"
                                                                                 },
                                                                                 "optional": false
                                                                             },

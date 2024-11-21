@@ -466,8 +466,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
 
         table: table,
-        table_row: tableRow,
-        table_cell: tableCell,
+        tableRow: tableRow,
+        tableCell: tableCell,
         tableHeader: tableHeader,
     },
     marks: {

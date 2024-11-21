@@ -86,14 +86,14 @@ function buildPlugins<Content extends ContentWithReferences>({
 
     const hasTableSupport = !!(
         schema.nodes.table &&
-        schema.nodes.table_row &&
-        schema.nodes.table_cell &&
+        schema.nodes.tableRow &&
+        schema.nodes.tableCell &&
         schema.nodes.tableHeader &&
         schema.nodes.table.spec.attrs &&
         schema.nodes.table.spec.attrs.columns !== undefined &&
-        schema.nodes.table_cell.spec.attrs &&
-        schema.nodes.table_cell.spec.attrs.colspan !== undefined &&
-        schema.nodes.table_cell.spec.attrs.rowspan !== undefined
+        schema.nodes.tableCell.spec.attrs &&
+        schema.nodes.tableCell.spec.attrs.colspan !== undefined &&
+        schema.nodes.tableCell.spec.attrs.rowspan !== undefined
     );
 
     assert(hasTableSupport);

@@ -432,12 +432,10 @@ const lineBreakCountByNodeType: {
     // should not be counted as lines for the purpose of snippet cutting
     fileFloat: 0,
     table: 0,
-    table_row: 1,
-    table_cell: 0,
+    tableRow: 1,
+    tableCell: 0,
 };
 
-// YES->
-// NO->
 /**
  * When cutting out a snippet we want the layout of the snippet to be
  * equivalent to the layout of the original doc.
@@ -477,6 +475,6 @@ const dontCutLeadingChildrenByNodeType: {
     heading: true,
     divider: true,
     table: false,
-    table_row: true,
-    table_cell: false,
+    tableRow: true,
+    tableCell: false,
 };
