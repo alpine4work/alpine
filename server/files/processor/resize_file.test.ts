@@ -132,6 +132,7 @@ async function uploadFileForTest(
         const request = new Request(`http://localhost/${session.space.id}/upload`, {
             method: "POST",
             headers: {
+                connection: "close",
                 cookie: `session=${token}`,
                 "content-type": contentType,
                 "content-length": String(body.length),
@@ -198,7 +199,7 @@ test("can't resize an image with a session actor", async () => {
         `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
         {
             method: "GET",
-            headers: {authorization: await authorization(session)},
+            headers: {connection: "close", authorization: await authorization(session)},
         },
     );
 
@@ -239,7 +240,10 @@ test("can't resize an image with a token that's not from edge service", async ()
         `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
         {
             method: "GET",
-            headers: {authorization: await authorization(space, fileProcessorTokenAgent)},
+            headers: {
+                connection: "close",
+                authorization: await authorization(space, fileProcessorTokenAgent),
+            },
         },
     );
 
@@ -257,7 +261,7 @@ test("can't resize an image that doesn't exist", async () => {
         `http://localhost:${port}/${space.id}/resize/${generateChronologicalId()}?width=200`,
         {
             method: "GET",
-            headers: {authorization: await authorization(space)},
+            headers: {connection: "close", authorization: await authorization(space)},
         },
     );
 
@@ -302,7 +306,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -332,7 +336,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -362,7 +366,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -425,7 +429,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -455,7 +459,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -517,7 +521,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -547,7 +551,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -612,7 +616,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                         `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                         {
                             method: "GET",
-                            headers: {authorization: await authorization(space)},
+                            headers: {
+                                connection: "close",
+                                authorization: await authorization(space),
+                            },
                         },
                     );
 
@@ -686,7 +693,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                         `http://localhost:${port}/${space.id}/resize/${file.id}?width=300`,
                         {
                             method: "GET",
-                            headers: {authorization: await authorization(space)},
+                            headers: {
+                                connection: "close",
+                                authorization: await authorization(space),
+                            },
                         },
                     );
 
@@ -760,7 +770,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                         `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                         {
                             method: "GET",
-                            headers: {authorization: await authorization(space)},
+                            headers: {
+                                connection: "close",
+                                authorization: await authorization(space),
+                            },
                         },
                     );
 
@@ -870,7 +883,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -941,7 +954,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1045,7 +1058,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=40`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1119,7 +1132,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=80`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1193,7 +1206,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=120`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1300,7 +1313,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1330,7 +1343,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1360,7 +1373,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=700`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1422,7 +1435,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1452,7 +1465,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1551,7 +1564,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1581,7 +1594,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1611,7 +1624,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1673,7 +1686,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1703,7 +1716,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=400`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1766,7 +1779,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
                     {
                         method: "GET",
-                        headers: {authorization: await authorization(space)},
+                        headers: {connection: "close", authorization: await authorization(space)},
                     },
                 );
 
@@ -1830,7 +1843,7 @@ test("can resize a HEIC image's preview", async () => {
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=200`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -1846,7 +1859,7 @@ test("can resize a HEIC image's preview", async () => {
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=200&variant=preview`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -1876,7 +1889,7 @@ test("can resize a HEIC image's preview", async () => {
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=400&variant=preview`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -1906,7 +1919,7 @@ test("can resize a HEIC image's preview", async () => {
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=600&variant=preview`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -1968,7 +1981,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=100`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -1998,7 +2011,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=300`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -2044,7 +2057,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=500`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -2106,7 +2119,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=600`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -2167,7 +2180,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=800`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 
@@ -2197,7 +2210,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             `http://localhost:${port}/${space.id}/resize/${file.id}?width=1200`,
             {
                 method: "GET",
-                headers: {authorization: await authorization(space)},
+                headers: {connection: "close", authorization: await authorization(space)},
             },
         );
 

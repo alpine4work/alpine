@@ -37,6 +37,7 @@ import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js"
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {
     generateChronologicalId,
@@ -120,7 +121,7 @@ beforeAll(async () => {
                 case "NotFound": {
                     return new Response("404 Not Found", {
                         status: 404,
-                        headers: {"content-type": "text/plain"},
+                        headers: {connection: "close", "content-type": "text/plain"},
                     });
                 }
                 case "Upload": {
@@ -211,7 +212,7 @@ test("must provide an Authorization header to upload route", async () => {
 
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
-        headers: {"content-type": "image/jpeg"},
+        headers: {connection: "close", "content-type": "image/jpeg"},
         body: new Uint8Array(100),
     });
     const responseBody = UploadFileResponseSchema.deserialize(await response.json());
@@ -232,6 +233,7 @@ test("must use session with upload route", async () => {
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(space),
             "content-type": "image/jpeg",
         },
@@ -257,6 +259,7 @@ test("must be authorized to access space to upload", async () => {
     const response = await fetch(`http://localhost:${port}/${otherSpace.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(session),
             "content-type": "image/jpeg",
         },
@@ -280,7 +283,7 @@ test("must use POST method to upload route", async () => {
 
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "GET",
-        headers: {cookie: await sessionCookie(session)},
+        headers: {connection: "close", cookie: await sessionCookie(session)},
     });
     const responseBody = UploadFileResponseSchema.deserialize(await response.json());
 
@@ -300,7 +303,7 @@ test("must provide Content-Type header to upload route", async () => {
 
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
-        headers: {cookie: await sessionCookie(session)},
+        headers: {connection: "close", cookie: await sessionCookie(session)},
         body: new Uint8Array(100),
     });
     const responseBody = UploadFileResponseSchema.deserialize(await response.json());
@@ -322,6 +325,7 @@ test("must provide a valid Content-Type header to upload route", async () => {
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(session),
             "content-type": "application/example",
         },
@@ -336,32 +340,6 @@ test("must provide a valid Content-Type header to upload route", async () => {
     expect(responseBody).toEqual({
         ok: false,
         error: new InvalidArgumentError('Unsupported "Content-Type" header "application/example"'),
-    });
-});
-
-test("can't upload data with a Content-Length header that's too big", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-        method: "POST",
-        headers: {
-            cookie: await sessionCookie(session),
-            "content-type": "image/png",
-        },
-        body: new Uint8Array(2e9),
-    });
-    const responseBody = UploadFileResponseSchema.deserialize(await response.json());
-
-    expect(response.status).toEqual(400);
-    expect(massageHeaders(response.headers)).toEqual({
-        "content-type": "application/json",
-    });
-    expect(responseBody).toEqual({
-        ok: false,
-        error: new InvalidArgumentError(
-            '"Content-Length" of 2 GB is more than our maximum file size of 1 GB',
-        ),
     });
 });
 
@@ -456,6 +434,81 @@ chunk\r\n\
             },
         }),
     );
+});
+
+test("can't upload data with a Content-Length header that's too big", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const socket = net.connect({
+        host: "localhost",
+        port,
+    });
+
+    let socketText = "";
+
+    socket.on("data", chunk => {
+        socketText += chunk.toString("utf8");
+    });
+
+    const socketClosePromise = new Promise<void>((resolve, reject) => {
+        socket.on("close", resolve);
+        socket.on("error", reject);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        socket.on("connect", resolve);
+        socket.on("error", reject);
+    });
+
+    const cookieHeader = await sessionCookie(session);
+
+    const requestBody = new Uint8Array(2e9);
+
+    await new Promise<void>((resolve, reject) => {
+        socket.write(
+            `\
+POST /${space.id}/upload HTTP/1.1\r\n\
+Host: localhost:${port}\r\n\
+Connection: close\r\n\
+Cookie: ${cookieHeader}\r\n\
+Content-Type: image/jpeg\r\n\
+Content-Length: ${requestBody.length}\r\n\
+\r\n\
+`,
+            error => {
+                if (error) reject(error);
+                else resolve();
+            },
+        );
+    });
+
+    // Ignore any `EPIPE` errors from the socket. The server will close the socket
+    // once an error is returned causing our writes to possibly fail.
+    try {
+        await socketClosePromise;
+    } catch (error) {
+        if (!isObject(error) || error.code !== "EPIPE") {
+            throw error;
+        }
+    }
+
+    expect(
+        socketText
+            .replace(/^Date: .*?\r\n/m, "")
+            .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+            .replace(/,"stack":".*"}/m, ',"stack":"..."'),
+    ).toEqual(`\
+HTTP/1.1 400 Bad Request\r\n\
+content-type: application/json\r\n\
+Connection: close\r\n\
+Transfer-Encoding: chunked\r\n\
+\r\n\
+chunk\r\n\
+{"ok":false,"error":{"code":3,"message":"\\"Content-Length\\" of 2 GB is more than our maximum file size of 1 GB","name":"InvalidArgumentError","stack":"..."}}\r\n\
+chunk\r\n\
+\r\n\
+`);
 });
 
 // `http.createServer()` should truncate for us when we write more bytes than
@@ -730,6 +783,7 @@ test("can't process invalid image data", async () => {
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(session),
             "content-type": "image/png",
         },
@@ -788,6 +842,7 @@ test("can't process image with the wrong content type", async () => {
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(session),
             "content-type": "image/png",
         },
@@ -846,6 +901,7 @@ test("can upload and process image", async () => {
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(session),
             "content-type": "image/jpeg",
         },
@@ -903,6 +959,7 @@ test("can upload and process large image", async () => {
     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
         headers: {
+            connection: "close",
             cookie: await sessionCookie(session),
             "content-type": "image/jpeg",
         },
@@ -969,6 +1026,7 @@ test("can upload image with a provided id", async () => {
         {
             method: "POST",
             headers: {
+                connection: "close",
                 cookie: await sessionCookie(session),
                 "content-type": "image/jpeg",
             },
@@ -1032,6 +1090,7 @@ test("can't upload image with the same provided id twice", async () => {
             {
                 method: "POST",
                 headers: {
+                    connection: "close",
                     cookie: await sessionCookie(session),
                     "content-type": "image/jpeg",
                 },
@@ -1089,6 +1148,7 @@ test("can't upload image with the same provided id twice", async () => {
             {
                 method: "POST",
                 headers: {
+                    connection: "close",
                     cookie: await sessionCookie(session),
                     "content-type": "image/jpeg",
                 },
@@ -1121,6 +1181,7 @@ test("can upload image with a provided that has a time way before the current ti
         {
             method: "POST",
             headers: {
+                connection: "close",
                 cookie: await sessionCookie(session),
                 "content-type": "image/jpeg",
             },
@@ -1156,6 +1217,7 @@ test("can upload image with a provided `FileId` that has a time way after the cu
         {
             method: "POST",
             headers: {
+                connection: "close",
                 cookie: await sessionCookie(session),
                 "content-type": "image/jpeg",
             },
