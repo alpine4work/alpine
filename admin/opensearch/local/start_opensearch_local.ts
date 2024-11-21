@@ -1,4 +1,5 @@
 import {spawn} from "child_process";
+import crypto from "crypto";
 import fs from "fs-extra";
 import patchedFs from "fs/promises";
 import getPort from "get-port";
@@ -8,7 +9,7 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -55,6 +56,18 @@ export async function startOpensearchLocal({
     logsPath: string;
     port: number;
 }): Promise<OpensearchLocal> {
+    const opensearchLocalHomeHash = crypto
+        .createHash("sha256")
+        .update(opensearchLocalHomePath)
+        .digest("hex")
+        .slice(0, 32);
+
+    // It's ok if the path of our OpenSearch runfiles directory changes. This could
+    // happen if the `cyberworlds` directory itself moves on the developer's
+    // machine. Add a hash of the OpenSearch runfiles directory to `homePath` so
+    // `cyberworlds` repositories running from different paths don't conflict.
+    homePath = joinPath(homePath, opensearchLocalHomeHash);
+
     const [javaBasePath, transportPort] = await runAllPromises([
         javaBasePathPromise.get(),
         getPort(),
@@ -75,9 +88,11 @@ export async function startOpensearchLocal({
     //
     // We need to set OpenSearch's home directory to a path in a writable
     // directory. Since OpenSearch writes some files (e.g. a [temporary keystore
-    // file][1]) to its home directory on startup. If the home directory is not
-    // writable (e.g. when running tests on our CI Linux server) there will be an
-    // exception that prevents OpenSearch tests from starting.
+    // file][1]) to its home directory on startup. We should not be writing to
+    // Bazel's runfiles directory. Only Bazel should write there. When running
+    // tests on our CI Linux server the OS will successfully block all attempts
+    // at writing to Bazel's runfiles directory. Which prevents OpenSearch tests
+    // from starting.
     //
     // [1]: https://github.com/opensearch-project/OpenSearch/blob/59302a3d5ea255be7f2bb72187b8df1f0aa33572/server/src/main/java/org/opensearch/bootstrap/Bootstrap.java#L275-L277
     await symlinkHome(opensearchLocalHomePath, homePath);
@@ -106,12 +121,21 @@ export async function startOpensearchLocal({
                     } catch (error) {
                         // If the symlink file already exists and is linked to the right place, then we
                         // can ignore this error. Everything's all right.
-                        if (
-                            isObject(error) &&
-                            error.code === "EEXIST" &&
-                            error.path === actualHomeChildPath
-                        ) {
-                            // All good...
+                        if (isObject(error) && error.code === "EEXIST") {
+                            const currentHomeChildPath = await unpatchedFs.readlink(
+                                newHomeChildPath,
+                            );
+                            if (currentHomeChildPath !== actualHomeChildPath) {
+                                throw new FailedPreconditionError(
+                                    quote`OpenSearch home symlink already exists
+
+ Symlink path: ${newHomeChildPath}
+Expected path: ${actualHomeChildPath}
+  Actual path: ${currentHomeChildPath}`,
+                                );
+                            }
+
+                            // Otherwise, all good...
                         } else {
                             throw error;
                         }

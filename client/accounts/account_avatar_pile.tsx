@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
@@ -85,7 +85,7 @@ export function AccountAvatarPile({
             zIndex="0"
             style={{
                 paddingRight: addRemLengths(
-                    spacing[avatarSize],
+                    avatarSize,
                     negateRemLength(spacing[avatarOverlapWidth]),
                 ),
             }}

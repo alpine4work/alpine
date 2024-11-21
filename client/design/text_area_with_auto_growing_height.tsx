@@ -2,7 +2,7 @@ import {Ref, TextareaHTMLAttributes, forwardRef, useRef} from "react";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 
@@ -13,7 +13,7 @@ function TextAreaWithAutoGrowingHeight(
     props: TextareaHTMLAttributes<HTMLTextAreaElement>,
     externalRef: Ref<HTMLTextAreaElement>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const internalRef = useRef<HTMLTextAreaElement>(null);
 
@@ -27,7 +27,7 @@ function TextAreaWithAutoGrowingHeight(
         // Since font sizes will change.
         //
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        isMobile;
+        platform;
 
         const element = assertExists(internalRef.current);
 
@@ -41,7 +41,7 @@ function TextAreaWithAutoGrowingHeight(
         // Undo any scroll the browser may have made. We've observed on iOS WebKit will
         // sometimes scroll the `<textarea>` when you input a character.
         element.scrollTop = 0;
-    }, [isMobile, props.value]);
+    }, [platform, props.value]);
 
     return (
         <>

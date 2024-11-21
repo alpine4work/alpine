@@ -1,5 +1,6 @@
 import {SQSClient, SendMessageBatchCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
 import {JobDescription, JobDescriptionSchema} from "~/server/jobs/core/job_description.js";
+import {JobQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {
     MaintenanceJobDescription,
     MaintenanceJobDescriptionSchema,
@@ -11,6 +12,9 @@ import {UnknownError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
@@ -53,6 +57,13 @@ export const JobQueueMessageBodySchema = Schema.union({
         job: MaintenanceJobDescriptionSchema,
         tracerContext: TracerPropagationContextSchema.nullable(),
     }),
+});
+
+export const FileProcessorJobQueueMessageBodySchema = Schema.object({
+    sendTime: Schema.date,
+    spaceId: Schema.id<SpaceId>(),
+    fileId: Schema.id<FileId>(),
+    tracerContext: TracerPropagationContextSchema.nullable(),
 });
 
 type JobSenderMessageBatch = {
@@ -138,17 +149,39 @@ export interface JobSenderBase {
  * within a short window of time.
  */
 export class JobSender implements JobSenderBase {
-    private readonly _queueUrl: string;
-    private readonly _sqsClient: SQSClient;
+    private readonly _defaultQueueUrl: string;
+    private readonly _defaultSqsClient: SQSClient;
+    private readonly _fileProcessorQueueUrl: string;
+    private readonly _fileProcessorSqsClient: SQSClient;
 
-    private _messageBatch: JobSenderMessageBatch | null = null;
+    private readonly _messageBatchByQueueName = new Map<JobQueueName, JobSenderMessageBatch>();
 
-    constructor({region, queueUrl}: {region: string; queueUrl: string}) {
-        this._queueUrl = queueUrl;
-        this._sqsClient = new SQSClient({
+    constructor({
+        region,
+        queueUrl: defaultQueueUrl,
+        fileProcessorQueueUrl,
+    }: {
+        region: string;
+        queueUrl: string;
+        fileProcessorQueueUrl: string;
+    }) {
+        const defaultEndpoint = new URL("/", defaultQueueUrl).toString();
+        const fileProcessorEndpoint = new URL("/", fileProcessorQueueUrl).toString();
+
+        this._defaultQueueUrl = defaultQueueUrl;
+        this._defaultSqsClient = new SQSClient({
             region,
-            endpoint: new URL("/", queueUrl).toString(),
+            endpoint: defaultEndpoint,
         });
+
+        this._fileProcessorQueueUrl = fileProcessorQueueUrl;
+        this._fileProcessorSqsClient =
+            defaultEndpoint === fileProcessorEndpoint
+                ? this._defaultSqsClient
+                : new SQSClient({
+                      region,
+                      endpoint: fileProcessorEndpoint,
+                  });
     }
 
     public send(
@@ -181,33 +214,38 @@ export class JobSender implements JobSenderBase {
         const tracer = context.tracer.getTracer();
         const promiseResolver = createPromiseResolver();
 
-        if (this._messageBatch === null) {
-            const timeout = createTimeout(() => {
-                this._messageBatch = null;
-                void this._sendBatch(messageBatch.messages);
-            }, sendMessageBatchTimeoutMs);
+        const queueName: JobQueueName = job.type === "ProcessFile" ? "FileProcessor" : "Default";
 
-            const messageBatch: JobSenderMessageBatch = {
-                timeout,
-                messages: [],
-            };
+        const messageBatch = getOrSetDefaultMapValue(
+            this._messageBatchByQueueName,
+            queueName,
+            () => {
+                const timeout = createTimeout(() => {
+                    this._messageBatchByQueueName.delete(queueName);
+                    void this._sendBatch(queueName, messageBatch.messages);
+                }, sendMessageBatchTimeoutMs);
 
-            this._messageBatch = messageBatch;
-        }
+                const messageBatch: JobSenderMessageBatch = {
+                    timeout,
+                    messages: [],
+                };
 
-        this._messageBatch.messages.push({
+                return messageBatch;
+            },
+        );
+
+        messageBatch.messages.push({
             job,
             delaySeconds,
             tracer,
             promiseResolver,
         });
 
-        if (this._messageBatch.messages.length === maxSendMessageBatchCount) {
-            const messageBatch = this._messageBatch;
-            this._messageBatch = null;
+        if (messageBatch.messages.length === maxSendMessageBatchCount) {
+            this._messageBatchByQueueName.delete(queueName);
             messageBatch.timeout.clear();
 
-            void this._sendBatch(messageBatch.messages);
+            void this._sendBatch(queueName, messageBatch.messages);
         }
 
         return promiseResolver.promise;
@@ -221,14 +259,15 @@ export class JobSender implements JobSenderBase {
         const tracer = context.tracer.getTracer();
         const promiseResolver = createPromiseResolver();
 
-        let messages: JobSenderMessageBatch["messages"] = [];
-        if (this._messageBatch !== null) {
-            const messageBatch = this._messageBatch;
-            this._messageBatch = null;
-            messageBatch.timeout.clear();
+        const queueName: JobQueueName = job.type === "ProcessFile" ? "FileProcessor" : "Default";
 
-            messages = messageBatch.messages;
+        const messageBatch = this._messageBatchByQueueName.get(queueName);
+        if (messageBatch !== undefined) {
+            messageBatch.timeout.clear();
+            this._messageBatchByQueueName.delete(queueName);
         }
+
+        const messages = messageBatch?.messages ?? [];
 
         messages.push({
             job,
@@ -237,16 +276,19 @@ export class JobSender implements JobSenderBase {
             promiseResolver,
         });
 
-        void this._sendBatch(messages);
+        void this._sendBatch(queueName, messages);
 
         return promiseResolver.promise;
     }
 
-    private async _sendBatch(originalMessages: JobSenderMessageBatch["messages"]) {
+    private async _sendBatch(
+        queueName: JobQueueName,
+        originalMessages: JobSenderMessageBatch["messages"],
+    ) {
         assert(originalMessages.length > 0);
 
         const messages = originalMessages.map(message => {
-            const {span, finishSpan} = message.tracer.startSpan(`Sent job ${message.job.type}`);
+            const {span, finishSpan} = message.tracer.startSpan(`Send job ${message.job.type}`);
 
             span.addData({
                 jobs: {
@@ -271,9 +313,26 @@ export class JobSender implements JobSenderBase {
         try {
             const currentTime = new Date();
 
-            const output = await this._sqsClient.send(
+            let sqsClient;
+            let queueUrl;
+            switch (queueName) {
+                case "Default": {
+                    sqsClient = this._defaultSqsClient;
+                    queueUrl = this._defaultQueueUrl;
+                    break;
+                }
+                case "FileProcessor": {
+                    sqsClient = this._fileProcessorSqsClient;
+                    queueUrl = this._fileProcessorQueueUrl;
+                    break;
+                }
+                default:
+                    throw exhaustive(queueName);
+            }
+
+            const output = await sqsClient.send(
                 new SendMessageBatchCommand({
-                    QueueUrl: this._queueUrl,
+                    QueueUrl: queueUrl,
                     Entries: messages.map((message, messageIndex) => ({
                         Id: String(messageIndex),
                         MessageBody: JSON.stringify(
@@ -345,9 +404,9 @@ export class JobSender implements JobSenderBase {
                     },
                 });
 
-                const output = await this._sqsClient.send(
+                const output = await this._defaultSqsClient.send(
                     new SendMessageCommand({
-                        QueueUrl: this._queueUrl,
+                        QueueUrl: this._defaultQueueUrl,
                         MessageBody: JSON.stringify(
                             JobQueueMessageBodySchema.serialize({
                                 type: "Maintenance",

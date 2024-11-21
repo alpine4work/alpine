@@ -7,7 +7,6 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
@@ -17,19 +16,20 @@ import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtim
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
+    channelViewAsideMarginTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
-    channelViewMetadataSectionGap,
+    channelViewAsideSectionGap,
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
-    desktopLayoutChannelViewMetadataMarginTop,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
@@ -38,9 +38,8 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
-    spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -60,14 +59,14 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 
 const channelViewAsideEditingDescriptionOffsetTop = `${
-    parseRemLengthNumber(
+    parseRemLength(
         subtractRemLengths(
             addRemLengths(
                 fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
-                spacing[desktopLayoutChannelViewMetadataMarginTop],
+                channelViewAsideMarginTop,
             ),
             // Size of a `md` `<IconButton>`
-            spacing["6"],
+            "6",
         ),
     ) / 2
 }rem`;
@@ -85,9 +84,9 @@ export function ChannelViewAside({
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
 }) {
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
-    const fileSizePx = convertRemLengthToPx(channelViewAsideFileHeight, remPx);
+    const fileSizePx = convertRemLengthToPx(channelViewAsideFileHeight, spacingScale);
 
     let contributors: ChannelContributorsModel | null = null;
     const fileReferences: Array<{postId: PostId; signedUrlSearch: string; file: FileModel}> = [];
@@ -121,12 +120,12 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
-                paddingTop={desktopLayoutChannelViewMetadataMarginTop}
+                paddingTop={channelViewAsideMarginTop}
                 paddingX={screenPaddingX}
                 paddingBottom={screenPaddingX}
                 display="flex"
                 flexDirection="column"
-                gap={channelViewMetadataSectionGap}
+                gap={channelViewAsideSectionGap}
             >
                 {(isEditingDescription || !isContentEmpty(channel.description.doc)) && (
                     <Box
@@ -234,8 +233,6 @@ function ChannelViewAsideDescription({description}: {description: MessageContent
     return (
         <Box paddingTop="1">
             <ContentViewWithSeeMoreToggle
-                // Only rendered on desktop layouts.
-                withMobileLayout={false}
                 content={description}
                 contentSnippet={descriptionSnippet}
             />
@@ -346,8 +343,6 @@ function ChannelViewAsideDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
-                        // Channel view aside is only rendered in desktop layouts.
-                        withMobileLayout={false}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;

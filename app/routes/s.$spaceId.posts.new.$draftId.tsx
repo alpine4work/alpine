@@ -88,7 +88,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function PostCreateRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+export default function PostCreateRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
     const {
         draftId,
@@ -118,7 +118,6 @@ export default function PostCreateRoute({withMobileLayout = false}: {withMobileL
 
     return (
         <PostCreator
-            withMobileLayout={withMobileLayout}
             draftId={draftId}
             displayCreatedTime={displayCreatedTime}
             initialChannel={initialChannel}

@@ -135,7 +135,8 @@ export async function ensureServiceKeys(directoryPath: string) {
                 ]);
             })(),
             (async () => {
-                if (await fs.pathExists(joinPath(directoryPath, "file_upload_service_rsa"))) return;
+                if (await fs.pathExists(joinPath(directoryPath, "file_processor_service_rsa")))
+                    return;
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
@@ -156,8 +157,11 @@ export async function ensureServiceKeys(directoryPath: string) {
                 );
 
                 await runAllPromises([
-                    fs.writeFile(joinPath(directoryPath, "file_upload_service_rsa"), privateKey),
-                    fs.writeFile(joinPath(directoryPath, "file_upload_service_rsa.pub"), publicKey),
+                    fs.writeFile(joinPath(directoryPath, "file_processor_service_rsa"), privateKey),
+                    fs.writeFile(
+                        joinPath(directoryPath, "file_processor_service_rsa.pub"),
+                        publicKey,
+                    ),
                 ]);
             })(),
         ]);

@@ -1,12 +1,13 @@
 import {ReactElement, Ref, RefObject, forwardRef, useLayoutEffect, useMemo, useRef} from "react";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useIsFocusRingVisible} from "~/client/design/use_is_focus_ring_visible.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -260,7 +261,7 @@ export function FocusRingBox({
 
     const ringWidthPx = 2;
 
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
     // Overlay must be focused to render so we know we're on the client and
     // `window` should exist.
@@ -269,7 +270,7 @@ export function FocusRingBox({
             ? -1
             : offset === "inset"
             ? -ringWidthPx
-            : convertRemLengthToPx(spacing[offset], remPx);
+            : convertRemLengthToPx(offset, spacingScale);
 
     // If we are using a border ring offset, we want the focus ring to render on
     // top of the element's 1px border.
@@ -279,11 +280,11 @@ export function FocusRingBox({
     // inside the element.
     if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
 
-    const ringInsetTopPx = convertRemLengthToPx(spacing[insetTop], remPx);
+    const ringInsetTopPx = convertRemLengthToPx(insetTop, spacingScale);
     const ringInsetBottomPx =
-        insetBottom === "border" ? 1 : convertRemLengthToPx(spacing[insetBottom], remPx);
-    const ringInsetLeftPx = convertRemLengthToPx(spacing[insetLeft], remPx);
-    const ringInsetRightPx = convertRemLengthToPx(spacing[insetRight], remPx);
+        insetBottom === "border" ? 1 : convertRemLengthToPx(insetBottom, spacingScale);
+    const ringInsetLeftPx = convertRemLengthToPx(insetLeft, spacingScale);
+    const ringInsetRightPx = convertRemLengthToPx(insetRight, spacingScale);
 
     const ringOffsetTopPx = ringOffsetBasePx - ringInsetTopPx;
     const ringOffsetBottomPx = ringOffsetBasePx - ringInsetBottomPx;
@@ -297,10 +298,19 @@ export function FocusRingBox({
             const targetStyle = getComputedStyle(targetRef.current);
 
             const ringStyle = {
-                borderTopLeftRadius: parseCssLength(targetStyle.borderTopLeftRadius, remPx),
-                borderTopRightRadius: parseCssLength(targetStyle.borderTopRightRadius, remPx),
-                borderBottomLeftRadius: parseCssLength(targetStyle.borderBottomLeftRadius, remPx),
-                borderBottomRightRadius: parseCssLength(targetStyle.borderBottomRightRadius, remPx),
+                borderTopLeftRadius: parseCssLength(targetStyle.borderTopLeftRadius, spacingScale),
+                borderTopRightRadius: parseCssLength(
+                    targetStyle.borderTopRightRadius,
+                    spacingScale,
+                ),
+                borderBottomLeftRadius: parseCssLength(
+                    targetStyle.borderBottomLeftRadius,
+                    spacingScale,
+                ),
+                borderBottomRightRadius: parseCssLength(
+                    targetStyle.borderBottomRightRadius,
+                    spacingScale,
+                ),
             };
 
             // Tweak border radius because of our ring offset. Using formula:
@@ -368,7 +378,7 @@ export function FocusRingBox({
         return () => {
             isCancelled = true;
         };
-    }, [remPx, ringOffsetBasePx, targetRef]);
+    }, [ringOffsetBasePx, spacingScale, targetRef]);
 
     return (
         <div
@@ -386,7 +396,7 @@ export function FocusRingBox({
     );
 }
 
-function parseCssLength(cssLength: string, remPx: number): number | string {
+function parseCssLength(cssLength: string, spacingScale: SpacingScale): number | string {
     if (cssLength.endsWith("px")) {
         const cssLengthPx = parseInt(cssLength.slice(0, -2), 10);
         return isNaN(cssLengthPx) ? cssLength : cssLengthPx;
@@ -394,7 +404,7 @@ function parseCssLength(cssLength: string, remPx: number): number | string {
 
     if (cssLength.endsWith("rem")) {
         const cssLengthRem = parseInt(cssLength.slice(0, -3), 10);
-        return isNaN(cssLengthRem) ? cssLength : cssLengthRem * remPx;
+        return isNaN(cssLengthRem) ? cssLength : cssLengthRem * remPxBySpacingScale[spacingScale];
     }
 
     return cssLength;

@@ -1,34 +1,34 @@
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 
-// On desktop, we want button hit size to be 24x24 or larger.
-export const desktopTouchSlopBySpacing: {
-    [Key in "4" | "5" | "6" | "7" | "8" | "full"]: {
-        readonly slop: Spacing;
-        readonly sizeWithSlop: Spacing | "full";
+export const touchSlopBySpacing: {
+    readonly [Key in Platform]: {
+        readonly [Key in "4" | "5" | "6" | "7" | "8" | "full"]: {
+            readonly slop: Spacing;
+            readonly sizeWithSlop: Spacing | "full";
+        };
     };
 } = {
-    "8": {slop: "0", sizeWithSlop: "8"},
-    "7": {slop: "0", sizeWithSlop: "7"},
-    "6": {slop: "0", sizeWithSlop: "6"},
-    "5": {slop: "0.5", sizeWithSlop: "6"},
-    "4": {slop: "1", sizeWithSlop: "6"},
-    full: {slop: "0", sizeWithSlop: "full"},
-};
+    // On desktop, we want button hit size to be 24x24 or larger.
+    desktop: {
+        "8": {slop: "0", sizeWithSlop: "8"},
+        "7": {slop: "0", sizeWithSlop: "7"},
+        "6": {slop: "0", sizeWithSlop: "6"},
+        "5": {slop: "0.5", sizeWithSlop: "6"},
+        "4": {slop: "1", sizeWithSlop: "6"},
+        full: {slop: "0", sizeWithSlop: "full"},
+    },
 
-// On mobile, we want button hit size to be 44x44 or larger.
-export const mobileTouchSlopBySpacing: {
-    [Key in "4" | "5" | "6" | "7" | "8" | "full"]: {
-        readonly slop: Spacing;
-        readonly sizeWithSlop: Spacing | "full";
-    };
-} = {
-    "8": {slop: "0.5", sizeWithSlop: "9"},
-    "7": {slop: "1", sizeWithSlop: "9"},
-    "6": {slop: "1.5", sizeWithSlop: "9"},
-    "5": {slop: "2", sizeWithSlop: "9"},
-    "4": {slop: "2.5", sizeWithSlop: "9"},
-    full: {slop: "0", sizeWithSlop: "full"},
+    // On mobile, we want button hit size to be 44x44 or larger.
+    mobile: {
+        "8": {slop: "0.5", sizeWithSlop: "9"},
+        "7": {slop: "1", sizeWithSlop: "9"},
+        "6": {slop: "1.5", sizeWithSlop: "9"},
+        "5": {slop: "2", sizeWithSlop: "9"},
+        "4": {slop: "2.5", sizeWithSlop: "9"},
+        full: {slop: "0", sizeWithSlop: "full"},
+    },
 };
 
 type MaybeWithPlatform<T> = T | {mobile: T; desktop: T};
@@ -50,8 +50,6 @@ export function useTouchSlop(spacing: MaybeWithPlatform<"4" | "5" | "6" | "7" | 
     slop: Spacing;
     sizeWithSlop: Spacing | "full";
 } {
-    const isMobile = useIsMobile();
-    return isMobile
-        ? mobileTouchSlopBySpacing[typeof spacing === "object" ? spacing.mobile : spacing]
-        : desktopTouchSlopBySpacing[typeof spacing === "object" ? spacing.desktop : spacing];
+    const platform = usePlatform();
+    return touchSlopBySpacing[platform][typeof spacing === "object" ? spacing.mobile : spacing];
 }

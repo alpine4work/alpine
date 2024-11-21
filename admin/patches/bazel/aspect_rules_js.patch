@@ -1,8 +1,72 @@
+diff --git a/js/private/coverage/merger.bzl b/js/private/coverage/merger.bzl
+index b41acfa6..86864854 100644
+--- a/js/private/coverage/merger.bzl
++++ b/js/private/coverage/merger.bzl
+@@ -31,10 +31,13 @@ def _coverage_merger_impl(ctx):
+         # TODO(3.0): drop support for deprecated toolchain attributes
+         node_path = _deprecated_target_tool_path_to_short_path(nodeinfo.target_tool_path)
+ 
+-    # The '_' avoids collisions with another file matching the label name.
+-    # For example, test and test/my.spec.ts. This naming scheme is borrowed from rules_go:
+-    # https://github.com/bazelbuild/rules_go/blob/f3cc8a2d670c7ccd5f45434ab226b25a76d44de1/go/private/context.bzl#L144
+-    bash_launcher = ctx.actions.declare_file("{}_/{}".format(ctx.label.name, ctx.label.name))
++    # NOTE(calebmer): Revert [breaking change which removes `.sh` extension][1]
++    # from binary executable file. Instead `rules_js` chose to use a weird
++    # `{label}_/{label}` format. We don't find the argument for making this change
++    # compelling and we're worried about how this will break our code.
++    #
++    # [1]: https://github.com/aspect-build/rules_js/pull/1586
++    bash_launcher = ctx.actions.declare_file("{}.sh".format(ctx.label.name))
+     ctx.actions.expand_template(
+         template = ctx.file._launcher_template,
+         output = bash_launcher,
+diff --git a/js/private/js_binary.bzl b/js/private/js_binary.bzl
+index 8aa233e4..381263cd 100644
+--- a/js/private/js_binary.bzl
++++ b/js/private/js_binary.bzl
+@@ -486,10 +486,13 @@ def _bash_launcher(ctx, nodeinfo, entry_point_path, log_prefix_rule_set, log_pre
+         "{{workspace_name}}": ctx.workspace_name,
+     }
+ 
+-    # The '_' avoids collisions with another file matching the label name.
+-    # For example, test and test/my.spec.ts. This naming scheme is borrowed from rules_go:
+-    # https://github.com/bazelbuild/rules_go/blob/f3cc8a2d670c7ccd5f45434ab226b25a76d44de1/go/private/context.bzl#L144
+-    launcher = ctx.actions.declare_file("{}_/{}".format(ctx.label.name, ctx.label.name))
++    # NOTE(calebmer): Revert [breaking change which removes `.sh` extension][1]
++    # from binary executable file. Instead `rules_js` chose to use a weird
++    # `{label}_/{label}` format. We don't find the argument for making this change
++    # compelling and we're worried about how this will break our code.
++    #
++    # [1]: https://github.com/aspect-build/rules_js/pull/1586
++    launcher = ctx.actions.declare_file("{}.sh".format(ctx.label.name))
+     ctx.actions.expand_template(
+         template = ctx.file._launcher_template,
+         output = launcher,
+diff --git a/js/private/js_image_layer.bzl b/js/private/js_image_layer.bzl
+index cc451794..2d1b4cf6 100644
+--- a/js/private/js_image_layer.bzl
++++ b/js/private/js_image_layer.bzl
+@@ -267,7 +267,14 @@ source {real_binary_path}
+ 
+ def _write_laucher(ctx, real_binary_path):
+     "Creates a call-through shell entrypoint which sets BAZEL_BINDIR to '.' then immediately invokes the original entrypoint."
+-    launcher = ctx.actions.declare_file("%s_launcher" % ctx.label.name)
++
++    # NOTE(calebmer): Revert [breaking change which removes `.sh` extension][1]
++    # from binary executable file. Instead `rules_js` chose to use a weird
++    # `{label}_/{label}` format. We don't find the argument for making this change
++    # compelling and we're worried about how this will break our code.
++    #
++    # [1]: https://github.com/aspect-build/rules_js/pull/1586
++    launcher = ctx.actions.declare_file("%s_launcher.sh" % ctx.label.name)
+     ctx.actions.write(
+         output = launcher,
+         content = _LAUNCHER_TMPL.format(real_binary_path = real_binary_path),
 diff --git a/js/private/js_run_binary.bzl b/js/private/js_run_binary.bzl
-index 7eff984c..15febc93 100644
+index 95f58d17..71515024 100644
 --- a/js/private/js_run_binary.bzl
 +++ b/js/private/js_run_binary.bzl
-@@ -374,7 +374,9 @@ See https://github.com/aspect-build/rules_js/tree/main/docs#using-binaries-publi
+@@ -401,7 +401,9 @@ See https://github.com/aspect-build/rules_js/tree/main/docs#using-binaries-publi
      _run_binary(
          name = name,
          tool = tool,
@@ -14,10 +78,10 @@ index 7eff984c..15febc93 100644
          outs = outs + extra_outs,
          out_dirs = out_dirs,
 diff --git a/npm/private/npm_import.bzl b/npm/private/npm_import.bzl
-index d71b5ef4..e87b0018 100644
+index 641a3125..87cdc56c 100644
 --- a/npm/private/npm_import.bzl
 +++ b/npm/private/npm_import.bzl
-@@ -122,6 +122,23 @@ def npm_imported_package_store(name):
+@@ -110,6 +110,23 @@ def npm_imported_package_store(name):
      )
  """
  
@@ -41,11 +105,11 @@ index d71b5ef4..e87b0018 100644
  _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
      lc_deps = {lc_deps}
  
-@@ -189,7 +206,17 @@ _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
+@@ -169,7 +186,17 @@ _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
          execution_requirements = {lifecycle_hooks_execution_requirements},
          mnemonic = "NpmLifecycleHook",
          progress_message = "Running lifecycle hooks on npm package {package}@{version}",
--        env = {lifecycle_hooks_env},{maybe_use_default_shell_env}
+-        env = {lifecycle_hooks_env},
 +        env = {lifecycle_hooks_env} | select({{
 +            "@aspect_rules_js//platforms/os:linux_host_and_cpu_arm64": {{
 +                "CC": "/usr/bin/aarch64-linux-gnu-gcc",
@@ -56,10 +120,10 @@ index d71b5ef4..e87b0018 100644
 +                "CXX": "/usr/bin/x86_64-linux-gnu-g++",
 +            }},
 +            "//conditions:default": {{}},
-+        }}),{maybe_use_default_shell_env}
++        }}),
+         use_default_shell_env = {use_default_shell_env},
      )
  
-     # post-lifecycle npm_package
 diff --git a/platforms/os/BUILD.bazel b/platforms/os/BUILD.bazel
 index 9cc3129b..874795a2 100644
 --- a/platforms/os/BUILD.bazel

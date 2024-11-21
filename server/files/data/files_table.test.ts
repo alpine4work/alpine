@@ -1,37 +1,41 @@
 import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
+    FileAuthorizer,
     FileUploader,
     attachFileAsUploader,
     attachFileFromAttachment,
     detachFile,
+    finishUploadingAndStartProcessingFile,
     getFileAsUploader,
     getFileFromAttachment,
+    getFileUploaderAsUploader,
     getPostDraftFileAttachments,
-    startUploadingAndProcessingFile,
+    startUploadingFile,
 } from "~/server/files/data/files_table.js";
 import {FilePostAuthorizer, createOrReplacePostDraft} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
+    FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
-const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
+const fileImagePreviewPlaceholder1 = new FileImagePreviewPlaceholder([
     [
         {r: 255, g: 0, b: 0},
         {r: 255, g: 0, b: 0},
@@ -49,7 +53,25 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     ],
 ]);
 
-const fileCodePreviewContent = new FileCodePreviewContent([
+const fileImagePreviewPlaceholder2 = new FileImagePreviewPlaceholder([
+    [
+        {r: 0, g: 255, b: 0},
+        {r: 0, g: 255, b: 0},
+        {r: 0, g: 255, b: 0},
+    ],
+    [
+        {r: 0, g: 255, b: 0},
+        {r: 0, g: 255, b: 0},
+        {r: 0, g: 255, b: 0},
+    ],
+    [
+        {r: 0, g: 255, b: 0},
+        {r: 0, g: 255, b: 0},
+        {r: 0, g: 255, b: 0},
+    ],
+]);
+
+const fileCodePreviewContent1 = new FileCodePreviewContent([
     {type: "String", classes: "tok-keyword", string: "let"},
     {type: "String", classes: "", string: " "},
     {type: "String", classes: "tok-variableName tok-definition", string: "a"},
@@ -80,6 +102,63 @@ const fileCodePreviewContent = new FileCodePreviewContent([
     {type: "String", classes: "tok-punctuation", string: ";"},
 ]);
 
+const fileCodePreviewContent2 = new FileCodePreviewContent([
+    {type: "String", classes: "tok-keyword", string: "let"},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-variableName tok-definition", string: "b"},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-operator", string: "="},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-number", string: "2"},
+    {type: "String", classes: "tok-punctuation", string: ";"},
+    {type: "Newline"},
+    {type: "String", classes: "tok-keyword", string: "let"},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-variableName tok-definition", string: "a"},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-operator", string: "="},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-number", string: "1"},
+    {type: "String", classes: "tok-punctuation", string: ";"},
+    {type: "Newline"},
+    {type: "String", classes: "tok-variableName", string: "console"},
+    {type: "String", classes: "tok-operator", string: "."},
+    {type: "String", classes: "tok-propertyName", string: "log"},
+    {type: "String", classes: "tok-punctuation", string: "("},
+    {type: "String", classes: "tok-variableName", string: "b"},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-variableName", string: "a"},
+    {type: "String", classes: "", string: " "},
+    {type: "String", classes: "tok-punctuation", string: ")"},
+    {type: "String", classes: "tok-punctuation", string: ";"},
+]);
+
+async function uploadAndStartProcessingFile(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        contentType,
+        contentLength,
+        attachTargetAuthorizer,
+    }: {
+        spaceId: SpaceId;
+        contentType: FileContentType;
+        contentLength: number;
+        attachTargetAuthorizer?: FileAuthorizer;
+    },
+) {
+    const {fileId} = await startUploadingFile(context, {
+        spaceId,
+        contentType,
+        contentLength,
+        attachTargetAuthorizer,
+    });
+
+    await finishUploadingAndStartProcessingFile(context, {spaceId, fileId});
+
+    return getFileUploaderAsUploader(context, spaceId, fileId);
+}
+
 test("can start uploading and processing files", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -87,12 +166,10 @@ test("can start uploading and processing files", async () => {
     {
         const startTime = Date.now();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
 
         const endTime = Date.now();
@@ -109,7 +186,7 @@ test("can start uploading and processing files", async () => {
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -124,12 +201,10 @@ test("can start uploading and processing files", async () => {
     {
         const startTime = Date.now();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
 
         const endTime = Date.now();
@@ -146,7 +221,7 @@ test("can start uploading and processing files", async () => {
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -161,12 +236,10 @@ test("can start uploading and processing files", async () => {
     {
         const startTime = Date.now();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
 
         const endTime = Date.now();
@@ -183,7 +256,7 @@ test("can start uploading and processing files", async () => {
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -202,12 +275,10 @@ test("can only start uploading and processing a file if you have access to the s
     const session = await space.createSession();
 
     await expect(
-        startUploadingAndProcessingFile(session.action(), {
+        uploadAndStartProcessingFile(session.action(), {
             spaceId: otherSpace.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         }),
     ).rejects.toThrow(PermissionDeniedError);
 });
@@ -216,37 +287,47 @@ test("can't start uploading and processing files that exceed byte limit", async 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await startUploadingAndProcessingFile(session.action(), {
+    await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
-        contentLength: 2e9,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+        contentLength: 1e9,
     });
 
-    await startUploadingAndProcessingFile(session.action(), {
+    await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
-        contentLength: 2e9,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+        contentLength: 1e9,
     });
 
-    await startUploadingAndProcessingFile(session.action(), {
+    await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
-        contentLength: 2e9,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+        contentLength: 1e9,
+    });
+
+    await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 1e9,
+    });
+
+    await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 1e9,
+    });
+
+    await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 1e9,
     });
 
     await expect(
-        startUploadingAndProcessingFile(session.action(), {
+        uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
-            contentLength: 2e9,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+            contentLength: 1e9,
         }),
     ).rejects.toThrow(InvalidArgumentError);
 });
@@ -255,12 +336,10 @@ test("can finish file processing preview size and preview placeholder", async ()
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -268,7 +347,7 @@ test("can finish file processing preview size and preview placeholder", async ()
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -291,7 +370,7 @@ test("can finish file processing preview size and preview placeholder", async ()
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -304,7 +383,7 @@ test("can finish file processing preview size and preview placeholder", async ()
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -312,14 +391,14 @@ test("can finish file processing preview size and preview placeholder", async ()
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
@@ -329,12 +408,10 @@ test("can finish file processing preview size and preview placeholder in any ord
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -342,7 +419,7 @@ test("can finish file processing preview size and preview placeholder in any ord
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -355,7 +432,7 @@ test("can finish file processing preview size and preview placeholder in any ord
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -363,13 +440,13 @@ test("can finish file processing preview size and preview placeholder in any ord
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
                 size: "Processing",
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
@@ -386,14 +463,14 @@ test("can finish file processing preview size and preview placeholder in any ord
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
@@ -404,12 +481,10 @@ test("can't finish file preview processing with a different account", async () =
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -417,7 +492,7 @@ test("can't finish file preview processing with a different account", async () =
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -440,7 +515,7 @@ test("can't finish file preview processing with a different account", async () =
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
             otherSession.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
 
@@ -449,7 +524,7 @@ test("can't finish file preview processing with a different account", async () =
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -465,20 +540,18 @@ test("can't finish file preview processing for files without a preview", async (
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -496,33 +569,31 @@ test("can't finish file preview processing for files without a preview", async (
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         ),
     ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
     );
 });
 
-test("can't finish file preview processing if file processing has already completely finished", async () => {
+test("can finish file preview processing if file processing has already completely finished", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
 
         await fileUploader.finishProcessingImagePreviewSize(session.action(), {
@@ -534,7 +605,7 @@ test("can't finish file preview processing if file processing has already comple
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -544,37 +615,50 @@ test("can't finish file preview processing if file processing has already comple
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                 },
             }),
         );
 
-        await expect(
-            fileUploader.finishProcessingImagePreviewSize(session.action(), {
-                width: 100,
-                height: 100,
-                scale: 1,
-                hasAlpha: false,
+        await fileUploader.finishProcessingImagePreviewSize(session.action(), {
+            width: 120,
+            height: 120,
+            scale: 1,
+            hasAlpha: false,
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: false,
+                    ok: true,
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                    placeholder: fileImagePreviewPlaceholder1,
+                },
             }),
-        ).rejects.toThrow(
-            new InternalError("File has already finished processing its image preview"),
         );
     }
 
     {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
 
         await fileUploader.finishProcessingImagePreviewSize(session.action(), {
@@ -586,7 +670,7 @@ test("can't finish file preview processing if file processing has already comple
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -596,41 +680,72 @@ test("can't finish file preview processing if file processing has already comple
                 id: fileUploader.fileId,
                 contentType: "image/png",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                 },
             }),
         );
 
-        await expect(
-            fileUploader.finishProcessingImagePreviewPlaceholder(
-                session.action(),
-                fileImagePreviewPlaceholder,
-            ),
-        ).rejects.toThrow(
-            new InternalError("File has already finished processing its image preview"),
+        await fileUploader.finishProcessingImagePreviewPlaceholder(
+            session.action(),
+            fileImagePreviewPlaceholder2,
+        );
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: false,
+                    ok: true,
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                    placeholder: fileImagePreviewPlaceholder1,
+                },
+            }),
         );
     }
 });
 
-test("can't finish file preview processing for the same data twice", async () => {
+test("can finish file preview processing for the same data twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: "Processing",
+                },
+            }),
+        );
 
         await fileUploader.finishProcessingImagePreviewSize(session.action(), {
             width: 100,
@@ -639,39 +754,119 @@ test("can't finish file preview processing for the same data twice", async () =>
             hasAlpha: false,
         });
 
-        await expect(
-            fileUploader.finishProcessingImagePreviewSize(session.action(), {
-                width: 100,
-                height: 100,
-                scale: 1,
-                hasAlpha: false,
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: true,
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                    placeholder: "Processing",
+                },
             }),
-        ).rejects.toThrow(
-            new InternalError("File has already finished processing its image preview size"),
+        );
+
+        await fileUploader.finishProcessingImagePreviewSize(session.action(), {
+            width: 120,
+            height: 120,
+            scale: 1,
+            hasAlpha: false,
+        });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: true,
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                    placeholder: "Processing",
+                },
+            }),
         );
     }
 
     {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/png",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         });
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: "Processing",
+                },
+            }),
+        );
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
-        await expect(
-            fileUploader.finishProcessingImagePreviewPlaceholder(
-                session.action(),
-                fileImagePreviewPlaceholder,
-            ),
-        ).rejects.toThrow(
-            new InternalError("File has already finished processing its image preview placeholder"),
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: fileImagePreviewPlaceholder1,
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingImagePreviewPlaceholder(
+            session.action(),
+            fileImagePreviewPlaceholder2,
+        );
+
+        expect(
+            await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId),
+        ).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/png",
+                contentLength: 100,
+                isUploading: false,
+                alternative: null,
+                preview: {
+                    type: "Image",
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: fileImagePreviewPlaceholder1,
+                },
+            }),
         );
     }
 });
@@ -680,20 +875,18 @@ test("can finish file processing preview size, preview placeholder, and preview 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -715,9 +908,9 @@ test("can finish file processing preview size, preview placeholder, and preview 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -731,21 +924,21 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: "Processing",
             },
         }),
@@ -760,16 +953,16 @@ test("can finish file processing preview size, preview placeholder, and preview 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {
                     contentType: "image/jpeg",
                     contentLength: 110,
@@ -784,12 +977,10 @@ test("can finish file processing preview size, preview placeholder, and preview 
     const session = await space.createSession();
 
     {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -797,9 +988,9 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -822,9 +1013,9 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -841,7 +1032,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -849,15 +1040,15 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: true,
                     size: "Processing",
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {
                         contentType: "image/jpeg",
                         contentLength: 110,
@@ -878,16 +1069,16 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {
                         contentType: "image/jpeg",
                         contentLength: 110,
@@ -898,12 +1089,10 @@ test("can finish file processing preview size, preview placeholder, and preview 
     }
 
     {
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -911,9 +1100,9 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -936,9 +1125,9 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -965,9 +1154,9 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -984,7 +1173,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -992,16 +1181,16 @@ test("can finish file processing preview size, preview placeholder, and preview 
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "application/pdf",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {
                         contentType: "image/jpeg",
                         contentLength: 110,
@@ -1017,20 +1206,18 @@ test("can't finish file preview image processing with a different account", asyn
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1053,9 +1240,9 @@ test("can't finish file preview image processing with a different account", asyn
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1072,20 +1259,18 @@ test("can't finish file preview image processing for files without a preview", a
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -1102,9 +1287,9 @@ test("can't finish file preview image processing for files without a preview", a
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -1115,12 +1300,10 @@ test("can't finish file preview image processing for files without a preview ima
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -1128,7 +1311,7 @@ test("can't finish file preview image processing for files without a preview ima
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1152,7 +1335,7 @@ test("can't finish file preview image processing for files without a preview ima
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1164,16 +1347,14 @@ test("can't finish file preview image processing for files without a preview ima
     );
 });
 
-test("can't finish file preview image processing if file processing has already completely finished", async () => {
+test("can finish file preview image processing if file processing has already completely finished", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     await fileUploader.finishProcessingImagePreviewSize(session.action(), {
@@ -1185,7 +1366,7 @@ test("can't finish file preview image processing if file processing has already 
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     await fileUploader.finishProcessingImagePreviewContent(session.action(), {
@@ -1197,56 +1378,123 @@ test("can't finish file preview image processing if file processing has already 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {contentType: "image/jpeg", contentLength: 110},
             },
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewContent(session.action(), {
-            contentType: "image/jpeg",
-            contentLength: 110,
-            isAlternative: false,
+    await fileUploader.finishProcessingImagePreviewContent(session.action(), {
+        contentType: "image/jpeg",
+        contentLength: 120,
+        isAlternative: false,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                placeholder: fileImagePreviewPlaceholder1,
+                content: {contentType: "image/jpeg", contentLength: 110},
+            },
         }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
+    );
 });
 
-test("can't finish file preview image processing for the same data twice", async () => {
+test("can finish file preview image processing for the same data twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
     await fileUploader.finishProcessingImagePreviewContent(session.action(), {
-        contentType: "image/jpeg",
+        contentType: "application/pdf",
         contentLength: 110,
         isAlternative: false,
     });
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewContent(session.action(), {
-            contentType: "image/jpeg",
-            contentLength: 110,
-            isAlternative: false,
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: {
+                    contentType: "application/pdf",
+                    contentLength: 110,
+                },
+            },
         }),
-    ).rejects.toThrow(
-        new InternalError("File has already finished processing its image preview content"),
+    );
+
+    await fileUploader.finishProcessingImagePreviewContent(session.action(), {
+        contentType: "application/pdf",
+        contentLength: 120,
+        isAlternative: false,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: {
+                    contentType: "application/pdf",
+                    contentLength: 110,
+                },
+            },
+        }),
     );
 });
 
@@ -1254,20 +1502,18 @@ test("can finish file processing preview size, preview placeholder, preview imag
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "video/webm",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1290,9 +1536,9 @@ test("can finish file processing preview size, preview placeholder, preview imag
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1307,21 +1553,21 @@ test("can finish file processing preview size, preview placeholder, preview imag
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: "Processing",
                 videoDuration: "Processing",
             },
@@ -1337,15 +1583,15 @@ test("can finish file processing preview size, preview placeholder, preview imag
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {
                     contentType: "image/jpeg",
                     contentLength: 110,
@@ -1360,16 +1606,16 @@ test("can finish file processing preview size, preview placeholder, preview imag
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {
                     contentType: "image/jpeg",
                     contentLength: 110,
@@ -1392,7 +1638,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
         (fileUploader, session) =>
             fileUploader.finishProcessingImagePreviewPlaceholder(
                 session.action(),
-                fileImagePreviewPlaceholder,
+                fileImagePreviewPlaceholder1,
             ),
         (fileUploader, session) =>
             fileUploader.finishProcessingImagePreviewContent(session.action(), {
@@ -1435,12 +1681,10 @@ test("can finish file processing preview size, preview placeholder, preview imag
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
         });
 
         expect(
@@ -1448,9 +1692,9 @@ test("can finish file processing preview size, preview placeholder, preview imag
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "video/webm",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -1472,16 +1716,16 @@ test("can finish file processing preview size, preview placeholder, preview imag
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "video/webm",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {
                         contentType: "image/jpeg",
                         contentLength: 110,
@@ -1497,20 +1741,18 @@ test("can finish file processing preview size (and video duration), preview plac
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "video/webm",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1537,9 +1779,9 @@ test("can finish file processing preview size (and video duration), preview plac
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1554,21 +1796,21 @@ test("can finish file processing preview size (and video duration), preview plac
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: "Processing",
                 videoDuration: 5000,
             },
@@ -1584,16 +1826,16 @@ test("can finish file processing preview size (and video duration), preview plac
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {
                     contentType: "image/jpeg",
                     contentLength: 110,
@@ -1603,26 +1845,21 @@ test("can finish file processing preview size (and video duration), preview plac
         }),
     );
 
-    const {wasUpdated} = await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-        session.action(),
-        5000,
-    );
-
-    expect(wasUpdated).toEqual(false);
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5100);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {
                     contentType: "image/jpeg",
                     contentLength: 110,
@@ -1649,7 +1886,7 @@ test("can finish file processing preview size (including video duration), previe
         (fileUploader, session) =>
             fileUploader.finishProcessingImagePreviewPlaceholder(
                 session.action(),
-                fileImagePreviewPlaceholder,
+                fileImagePreviewPlaceholder1,
             ),
         (fileUploader, session) =>
             fileUploader.finishProcessingImagePreviewContent(session.action(), {
@@ -1690,12 +1927,10 @@ test("can finish file processing preview size (including video duration), previe
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
         });
 
         expect(
@@ -1703,9 +1938,9 @@ test("can finish file processing preview size (including video duration), previe
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "video/webm",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
@@ -1727,16 +1962,16 @@ test("can finish file processing preview size (including video duration), previe
         ).toEqual(
             new FileModel({
                 id: fileUploader.fileId,
-                contentType: "image/tiff",
+                contentType: "video/webm",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {
                         contentType: "image/jpeg",
                         contentLength: 110,
@@ -1753,20 +1988,18 @@ test("can't finish file preview video duration processing with a different accou
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1785,9 +2018,9 @@ test("can't finish file preview video duration processing with a different accou
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1804,20 +2037,18 @@ test("can't finish file preview video duration processing for files without a pr
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -1830,9 +2061,9 @@ test("can't finish file preview video duration processing for files without a pr
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -1843,20 +2074,18 @@ test("can't finish file preview video duration processing for files without a pr
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1875,9 +2104,9 @@ test("can't finish file preview video duration processing for files without a pr
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1894,20 +2123,18 @@ test("can't finish file preview video duration processing for files without a pr
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1935,9 +2162,9 @@ test("can't finish file preview video duration processing for files without a pr
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -1954,12 +2181,10 @@ test("can't finish file preview video duration processing if file processing has
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "video/webm",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
     });
 
     await fileUploader.finishProcessingImagePreviewSize(session.action(), {
@@ -1971,7 +2196,7 @@ test("can't finish file preview video duration processing if file processing has
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     await fileUploader.finishProcessingImagePreviewContent(session.action(), {
@@ -1980,60 +2205,78 @@ test("can't finish file preview video duration processing if file processing has
         isAlternative: false,
     });
 
-    const {wasUpdated: wasUpdated1} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
-
-    expect(wasUpdated1).toEqual(true);
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {contentType: "image/jpeg", contentLength: 110},
                 videoDuration: 5000,
             },
         }),
     );
 
-    const {wasUpdated: wasUpdated2} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5100);
 
-    expect(wasUpdated2).toEqual(false);
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                placeholder: fileImagePreviewPlaceholder1,
+                content: {contentType: "image/jpeg", contentLength: 110},
+                videoDuration: 5000,
+            },
+        }),
+    );
 
-    const {wasUpdated: wasUpdated3} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5200);
 
-    expect(wasUpdated3).toEqual(false);
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                placeholder: fileImagePreviewPlaceholder1,
+                content: {contentType: "image/jpeg", contentLength: 110},
+                videoDuration: 5000,
+            },
+        }),
+    );
 });
 
 test("can't finish file preview video duration processing if file processing has already completely finished with different data", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "video/webm",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
     });
 
     await fileUploader.finishProcessingImagePreviewSize(session.action(), {
@@ -2045,7 +2288,7 @@ test("can't finish file preview video duration processing if file processing has
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     await fileUploader.finishProcessingImagePreviewContent(session.action(), {
@@ -2054,172 +2297,301 @@ test("can't finish file preview video duration processing if file processing has
         isAlternative: false,
     });
 
-    const {wasUpdated: wasUpdated1} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
-
-    expect(wasUpdated1).toEqual(true);
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {contentType: "image/jpeg", contentLength: 110},
                 videoDuration: 5000,
             },
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5001),
-    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5100);
 
-    const {wasUpdated: wasUpdated2} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
-
-    expect(wasUpdated2).toEqual(false);
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                placeholder: fileImagePreviewPlaceholder1,
+                content: {contentType: "image/jpeg", contentLength: 110},
+                videoDuration: 5000,
+            },
+        }),
+    );
 });
 
 test("can finish file preview video duration processing for the same data twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "video/webm",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
     });
 
-    const {wasUpdated: wasUpdated1} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: "Processing",
+            },
+        }),
+    );
 
-    expect(wasUpdated1).toEqual(true);
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000);
 
-    const {wasUpdated: wasUpdated2} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
 
-    expect(wasUpdated2).toEqual(false);
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5100);
 
-    const {wasUpdated: wasUpdated3} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
 
-    expect(wasUpdated3).toEqual(false);
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5200);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
 });
 
 test("can't finish file preview video duration processing for the same data twice (setting second time with preview size)", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "video/webm",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
-    });
-
-    const {wasUpdated: wasUpdated1} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
-
-    expect(wasUpdated1).toEqual(true);
-
-    await expect(
-        fileUploader.finishProcessingImagePreviewSize(
-            session.action(),
-            {
-                width: 100,
-                height: 100,
-                scale: 1,
-                hasAlpha: false,
-            },
-            {alsoPreviewVideoDuration: 5000},
-        ),
-    ).rejects.toThrow(
-        new InternalError("File has already finished processing its image preview video duration"),
-    );
-});
-
-test("can't finish file preview video duration processing for the same data twice if the data is different", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "image/tiff",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: true},
-    });
-
-    const {wasUpdated: wasUpdated1} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
-
-    expect(wasUpdated1).toEqual(true);
-
-    await expect(
-        fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5001),
-    ).rejects.toThrow(
-        new InternalError("File has already finished processing its image preview video duration"),
-    );
-
-    const {wasUpdated: wasUpdated2} =
-        await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
-            session.action(),
-            5000,
-        );
-
-    expect(wasUpdated2).toEqual(false);
-});
-
-test("can finish file processing preview with error", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "image/tiff",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "video/webm",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingImagePreviewSize(
+        session.action(),
+        {
+            width: 100,
+            height: 100,
+            scale: 1,
+            hasAlpha: false,
+        },
+        {alsoPreviewVideoDuration: 5100},
+    );
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
+});
+
+test("can finish file preview video duration processing for the same data twice even when the data is different", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "video/webm",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5100);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "video/webm",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+                videoDuration: 5000,
+            },
+        }),
+    );
+});
+
+test("can finish file processing image preview with error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/pdf",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2231,26 +2603,22 @@ test("can finish file processing preview with error", async () => {
         }),
     );
 
-    await fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-        code: ErrorCode.InvalidArgument,
-        displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2263,20 +2631,18 @@ test("can finish file processing preview with error after processing preview siz
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2298,9 +2664,9 @@ test("can finish file processing preview with error after processing preview siz
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2312,26 +2678,22 @@ test("can finish file processing preview with error after processing preview siz
         }),
     );
 
-    await fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-        code: ErrorCode.InvalidArgument,
-        displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Error",
                 content: "Error",
@@ -2340,24 +2702,22 @@ test("can finish file processing preview with error after processing preview siz
     );
 });
 
-test("can't finish file with processed preview size after processing preview error", async () => {
+test("can finish file with processed preview size after processing preview error", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2369,26 +2729,22 @@ test("can't finish file with processed preview size after processing preview err
         }),
     );
 
-    await fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-        code: ErrorCode.InvalidArgument,
-        displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2396,30 +2752,25 @@ test("can't finish file with processed preview size after processing preview err
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewSize(session.action(), {
-            width: 100,
-            height: 100,
-            scale: 1,
-            hasAlpha: false,
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
+    await fileUploader.finishProcessingImagePreviewSize(session.action(), {
+        width: 100,
+        height: 100,
+        scale: 1,
+        hasAlpha: false,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2428,24 +2779,22 @@ test("can't finish file with processed preview size after processing preview err
     );
 });
 
-test("can't finish file with processed preview placeholder after processing preview error", async () => {
+test("can finish file with processed preview placeholder after processing preview error", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2457,26 +2806,22 @@ test("can't finish file with processed preview placeholder after processing prev
         }),
     );
 
-    await fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-        code: ErrorCode.InvalidArgument,
-        displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2484,28 +2829,23 @@ test("can't finish file with processed preview placeholder after processing prev
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewPlaceholder(
-            session.action(),
-            fileImagePreviewPlaceholder,
-        ),
-    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
+    await fileUploader.finishProcessingImagePreviewPlaceholder(
+        session.action(),
+        fileImagePreviewPlaceholder1,
+    );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2514,24 +2854,22 @@ test("can't finish file with processed preview placeholder after processing prev
     );
 });
 
-test("can't finish file with processed preview image after processing preview error", async () => {
+test("can finish file with processed preview image after processing preview error", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2543,26 +2881,22 @@ test("can't finish file with processed preview image after processing preview er
         }),
     );
 
-    await fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-        code: ErrorCode.InvalidArgument,
-        displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2570,29 +2904,24 @@ test("can't finish file with processed preview image after processing preview er
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewContent(session.action(), {
-            contentType: "image/jpeg",
-            contentLength: 110,
-            isAlternative: false,
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
+    await fileUploader.finishProcessingImagePreviewContent(session.action(), {
+        contentType: "image/jpeg",
+        contentLength: 110,
+        isAlternative: false,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2601,24 +2930,22 @@ test("can't finish file with processed preview image after processing preview er
     );
 });
 
-test("can't finish file processing preview with error twice", async () => {
+test("can finish file processing preview with error twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2630,26 +2957,22 @@ test("can't finish file processing preview with error twice", async () => {
         }),
     );
 
-    await fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-        code: ErrorCode.InvalidArgument,
-        displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2657,28 +2980,22 @@ test("can't finish file processing preview with error twice", async () => {
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-            code: ErrorCode.InvalidArgument,
-            displayMessage: errorDisplayMessage`Yikes!`,
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "Unknown",
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: false,
-                error: {
-                    code: ErrorCode.InvalidArgument,
-                    displayMessage: errorDisplayMessage`Uh oh!`,
-                },
+                error: {type: "PasswordProtected"},
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
@@ -2692,20 +3009,18 @@ test("can't finish file preview processing with error with a different account",
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2718,18 +3033,17 @@ test("can't finish file preview processing with error with a different account",
     );
 
     await expect(
-        fileUploader.finishProcessingImagePreviewAfterAcceptableError(otherSession.action(), {
-            code: ErrorCode.InvalidArgument,
-            displayMessage: errorDisplayMessage`Uh oh!`,
+        fileUploader.finishProcessingPreviewWithError(otherSession.action(), {
+            type: "PasswordProtected",
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -2746,54 +3060,145 @@ test("can't finish file preview processing with error for files without a previe
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/png",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
     );
 
     await expect(
-        fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-            code: ErrorCode.InvalidArgument,
-            displayMessage: errorDisplayMessage`Uh oh!`,
+        fileUploader.finishProcessingPreviewWithError(session.action(), {
+            type: "PasswordProtected",
         }),
     ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/png",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
     );
 });
 
-test("can't finish file preview processing with error if file processing has already completely finished", async () => {
+test("can finish file processing audio preview with error", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "image/tiff",
+        contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+                metadata: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+                duration: "Error",
+                metadata: "Error",
+            },
+        }),
+    );
+});
+
+test("can finish file processing code preview with error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "text/javascript",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "text/javascript",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Code",
+                isProcessing: true,
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "text/javascript",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Code",
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+                content: "Error",
+            },
+        }),
+    );
+});
+
+test("can finish file preview processing with error if file processing has already completely finished", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/pdf",
+        contentLength: 100,
     });
 
     await fileUploader.finishProcessingImagePreviewSize(session.action(), {
@@ -2805,7 +3210,7 @@ test("can't finish file preview processing with error if file processing has alr
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     await fileUploader.finishProcessingImagePreviewContent(session.action(), {
@@ -2817,62 +3222,88 @@ test("can't finish file preview processing with error if file processing has alr
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "image/tiff",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {contentType: "image/jpeg", contentLength: 110},
             },
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewAfterAcceptableError(session.action(), {
-            code: ErrorCode.InvalidArgument,
-            displayMessage: errorDisplayMessage`Uh oh!`,
+    await fileUploader.finishProcessingPreviewWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/pdf",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
+                placeholder: fileImagePreviewPlaceholder1,
+                content: {contentType: "image/jpeg", contentLength: 110},
+            },
         }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    );
 });
 
 test("can finish file uploading", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const {fileId} = await startUploadingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: fileId,
             contentType: "image/png",
             contentLength: 100,
             isUploading: true,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
-    await fileUploader.finishUploading(session.action());
+    await finishUploadingAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        fileId,
+    });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: fileId,
             contentType: "image/png",
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -2881,39 +3312,55 @@ test("can't finish file uploading twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const {fileId} = await startUploadingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: fileId,
             contentType: "image/png",
             contentLength: 100,
             isUploading: true,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
-    await fileUploader.finishUploading(session.action());
+    await finishUploadingAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        fileId,
+    });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: fileId,
             contentType: "image/png",
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
-    await expect(fileUploader.finishUploading(session.action())).rejects.toThrow(InternalError);
+    await expect(
+        finishUploadingAndStartProcessingFile(session.action(), {
+            spaceId: space.id,
+            fileId,
+        }),
+    ).rejects.toThrow(new FailedPreconditionError("File has already finished uploading"));
 });
 
 test("can't finish file uploading as a different account", async () => {
@@ -2921,37 +3368,48 @@ test("can't finish file uploading as a different account", async () => {
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const {fileId} = await startUploadingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: fileId,
             contentType: "image/png",
             contentLength: 100,
             isUploading: true,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
-    await expect(fileUploader.finishUploading(otherSession.action())).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    await expect(
+        finishUploadingAndStartProcessingFile(otherSession.action(), {
+            spaceId: space.id,
+            fileId,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
 
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
-            id: fileUploader.fileId,
+            id: fileId,
             contentType: "image/png",
             contentLength: 100,
             isUploading: true,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -2960,13 +3418,13 @@ test("can finish file processing then finish file uploading", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const {fileId} = await startUploadingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
+
+    const fileUploader = await getFileUploaderAsUploader(session.action(), space.id, fileId);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3009,7 +3467,7 @@ test("can finish file processing then finish file uploading", async () => {
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3024,12 +3482,15 @@ test("can finish file processing then finish file uploading", async () => {
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
 
-    await fileUploader.finishUploading(session.action());
+    await finishUploadingAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        fileId: fileUploader.fileId,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3043,7 +3504,7 @@ test("can finish file processing then finish file uploading", async () => {
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
@@ -3053,13 +3514,13 @@ test("can finish file uploading then finish file processing", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const {fileId} = await startUploadingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
+
+    const fileUploader = await getFileUploaderAsUploader(session.action(), space.id, fileId);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3077,7 +3538,10 @@ test("can finish file uploading then finish file processing", async () => {
         }),
     );
 
-    await fileUploader.finishUploading(session.action());
+    await finishUploadingAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        fileId: fileUploader.fileId,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3120,7 +3584,7 @@ test("can finish file uploading then finish file processing", async () => {
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3135,7 +3599,7 @@ test("can finish file uploading then finish file processing", async () => {
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
@@ -3145,13 +3609,13 @@ test("can finish uploading interleaved with finishing file processing", async ()
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const {fileId} = await startUploadingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
+
+    const fileUploader = await getFileUploaderAsUploader(session.action(), space.id, fileId);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3192,112 +3656,10 @@ test("can finish uploading interleaved with finishing file processing", async ()
         }),
     );
 
-    await fileUploader.finishUploading(session.action());
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
-            contentType: "image/png",
-            contentLength: 100,
-            isUploading: false,
-            alternative: null,
-            preview: {
-                type: "Image",
-                isProcessing: true,
-                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: "Processing",
-            },
-        }),
-    );
-
-    await fileUploader.finishProcessingImagePreviewPlaceholder(
-        session.action(),
-        fileImagePreviewPlaceholder,
-    );
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
-            contentType: "image/png",
-            contentLength: 100,
-            isUploading: false,
-            alternative: null,
-            preview: {
-                type: "Image",
-                isProcessing: false,
-                ok: true,
-                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
-            },
-        }),
-    );
-});
-
-test("can finish file processing even if a different process updates file uploading", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "image/png",
-        contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
-    });
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
-            contentType: "image/png",
-            contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Image",
-                isProcessing: true,
-                size: "Processing",
-                placeholder: "Processing",
-            },
-        }),
-    );
-
-    await fileUploader.finishProcessingImagePreviewSize(session.action(), {
-        width: 100,
-        height: 100,
-        scale: 1,
-        hasAlpha: false,
-    });
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
-            contentType: "image/png",
-            contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Image",
-                isProcessing: true,
-                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: "Processing",
-            },
-        }),
-    );
-
-    const otherFileUploader = new FileUploader({
-        partitionType: "Space",
-        sortRangeType: "File",
+    await finishUploadingAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         fileId: fileUploader.fileId,
-        uploaderId: session.account.id,
-        contentType: "image/png",
-        contentLength: 100,
-        isUploading: true,
-        alternative: null,
-        preview: {type: "Image", isProcessing: true, size: "Processing", placeholder: "Processing"},
     });
-
-    await otherFileUploader.finishUploading(session.action());
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -3317,7 +3679,7 @@ test("can finish file processing even if a different process updates file upload
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3332,7 +3694,7 @@ test("can finish file processing even if a different process updates file upload
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
             },
         }),
     );
@@ -3342,12 +3704,10 @@ test("can finish processing file alternative", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "application/msword",
         contentLength: 100,
-        hasAlternative: true,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3355,7 +3715,7 @@ test("can finish processing file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -3377,9 +3737,10 @@ test("can finish processing file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -3406,9 +3767,10 @@ test("can finish processing file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -3425,7 +3787,7 @@ test("can finish processing file alternative", async () => {
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3433,9 +3795,10 @@ test("can finish processing file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -3444,7 +3807,7 @@ test("can finish processing file alternative", async () => {
                 type: "Image",
                 isProcessing: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: "Processing",
             },
         }),
@@ -3461,9 +3824,10 @@ test("can finish processing file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -3473,7 +3837,7 @@ test("can finish processing file alternative", async () => {
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {contentType: "image/avif", contentLength: 110},
             },
         }),
@@ -3485,12 +3849,10 @@ test("can finish processing file alternative in any order", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "application/msword",
             contentLength: 100,
-            hasAlternative: true,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -3500,7 +3862,7 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -3526,7 +3888,7 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -3550,9 +3912,10 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "application/pdf",
                     contentLength: 120,
                     isImagePreviewContent: false,
@@ -3569,7 +3932,7 @@ test("can finish processing file alternative in any order", async () => {
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -3579,9 +3942,10 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "application/pdf",
                     contentLength: 120,
                     isImagePreviewContent: false,
@@ -3590,7 +3954,7 @@ test("can finish processing file alternative in any order", async () => {
                     type: "Image",
                     isProcessing: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: "Processing",
                 },
             }),
@@ -3609,9 +3973,10 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "application/pdf",
                     contentLength: 120,
                     isImagePreviewContent: false,
@@ -3621,7 +3986,7 @@ test("can finish processing file alternative in any order", async () => {
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
             }),
@@ -3632,12 +3997,10 @@ test("can finish processing file alternative in any order", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "application/msword",
             contentLength: 100,
-            hasAlternative: true,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -3647,7 +4010,7 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -3673,7 +4036,7 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -3687,7 +4050,7 @@ test("can finish processing file alternative in any order", async () => {
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -3697,13 +4060,13 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
                     isProcessing: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: "Processing",
                 },
             }),
@@ -3721,9 +4084,10 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "application/pdf",
                     contentLength: 120,
                     isImagePreviewContent: false,
@@ -3732,7 +4096,7 @@ test("can finish processing file alternative in any order", async () => {
                     type: "Image",
                     isProcessing: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: "Processing",
                 },
             }),
@@ -3751,9 +4115,10 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "application/pdf",
                     contentLength: 120,
                     isImagePreviewContent: false,
@@ -3763,7 +4128,7 @@ test("can finish processing file alternative in any order", async () => {
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
             }),
@@ -3774,12 +4139,10 @@ test("can finish processing file alternative in any order", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "application/msword",
             contentLength: 100,
-            hasAlternative: true,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -3789,7 +4152,7 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -3815,7 +4178,7 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -3829,7 +4192,7 @@ test("can finish processing file alternative in any order", async () => {
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -3839,13 +4202,13 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
                     isProcessing: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: "Processing",
                 },
             }),
@@ -3864,14 +4227,14 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
             }),
@@ -3889,9 +4252,10 @@ test("can finish processing file alternative in any order", async () => {
                 id: fileUploader.fileId,
                 contentType: "application/msword",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "application/pdf",
                     contentLength: 120,
                     isImagePreviewContent: false,
@@ -3901,7 +4265,7 @@ test("can finish processing file alternative in any order", async () => {
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
             }),
@@ -3913,12 +4277,10 @@ test("can finish processing preview image file alternative", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/heif",
         contentLength: 100,
-        hasAlternative: true,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3926,7 +4288,7 @@ test("can finish processing preview image file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -3950,7 +4312,7 @@ test("can finish processing preview image file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -3964,7 +4326,7 @@ test("can finish processing preview image file alternative", async () => {
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         session.action(),
-        fileImagePreviewPlaceholder,
+        fileImagePreviewPlaceholder1,
     );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3972,13 +4334,13 @@ test("can finish processing preview image file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
                 isProcessing: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: "Processing",
             },
         }),
@@ -3995,9 +4357,10 @@ test("can finish processing preview image file alternative", async () => {
             id: fileUploader.fileId,
             contentType: "image/heif",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "image/avif",
                 contentLength: 110,
                 isImagePreviewContent: true,
@@ -4007,7 +4370,7 @@ test("can finish processing preview image file alternative", async () => {
                 isProcessing: false,
                 ok: true,
                 size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                placeholder: fileImagePreviewPlaceholder,
+                placeholder: fileImagePreviewPlaceholder1,
                 content: {contentType: "image/avif", contentLength: 110},
             },
         }),
@@ -4019,12 +4382,10 @@ test("can finish processing preview image file alternative in any order", async 
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/heif",
             contentLength: 100,
-            hasAlternative: true,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -4034,7 +4395,7 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -4060,7 +4421,7 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -4085,9 +4446,10 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "image/avif",
                     contentLength: 110,
                     isImagePreviewContent: true,
@@ -4104,7 +4466,7 @@ test("can finish processing preview image file alternative in any order", async 
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -4114,9 +4476,10 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "image/avif",
                     contentLength: 110,
                     isImagePreviewContent: true,
@@ -4126,7 +4489,7 @@ test("can finish processing preview image file alternative in any order", async 
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
             }),
@@ -4137,12 +4500,10 @@ test("can finish processing preview image file alternative in any order", async 
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "image/heif",
             contentLength: 100,
-            hasAlternative: true,
-            hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
         });
 
         expect(
@@ -4152,7 +4513,7 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {isProcessing: true},
                 preview: {
                     type: "Image",
@@ -4177,9 +4538,10 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "image/avif",
                     contentLength: 110,
                     isImagePreviewContent: true,
@@ -4208,9 +4570,10 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "image/avif",
                     contentLength: 110,
                     isImagePreviewContent: true,
@@ -4227,7 +4590,7 @@ test("can finish processing preview image file alternative in any order", async 
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         );
 
         expect(
@@ -4237,9 +4600,10 @@ test("can finish processing preview image file alternative in any order", async 
                 id: fileUploader.fileId,
                 contentType: "image/heif",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: {
                     isProcessing: false,
+                    ok: true,
                     contentType: "image/avif",
                     contentLength: 110,
                     isImagePreviewContent: true,
@@ -4249,7 +4613,7 @@ test("can finish processing preview image file alternative in any order", async 
                     isProcessing: false,
                     ok: true,
                     size: {width: 100, height: 100, scale: 1, hasAlpha: false},
-                    placeholder: fileImagePreviewPlaceholder,
+                    placeholder: fileImagePreviewPlaceholder1,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
             }),
@@ -4262,12 +4626,10 @@ test("can't finish processing file alternative as another account", async () => 
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "application/msword",
         contentLength: 100,
-        hasAlternative: true,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4275,7 +4637,7 @@ test("can't finish processing file alternative as another account", async () => 
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -4299,7 +4661,7 @@ test("can't finish processing file alternative as another account", async () => 
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -4312,16 +4674,14 @@ test("can't finish processing file alternative as another account", async () => 
     );
 });
 
-test("can't finish processing file alternative twice", async () => {
+test("can finish processing file alternative twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "application/msword",
         contentLength: 100,
-        hasAlternative: true,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4329,7 +4689,7 @@ test("can't finish processing file alternative twice", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -4351,9 +4711,10 @@ test("can't finish processing file alternative twice", async () => {
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -4368,21 +4729,20 @@ test("can't finish processing file alternative twice", async () => {
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingAlternative(session.action(), {
-            contentType: "application/pdf",
-            contentLength: 120,
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its alternative"));
+    await fileUploader.finishProcessingAlternative(session.action(), {
+        contentType: "application/pdf",
+        contentLength: 130,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -4402,20 +4762,18 @@ test("can't finish processing file alternative for a file with no alternative", 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "application/msword",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "application/msword",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -4437,9 +4795,9 @@ test("can't finish processing file alternative for a file with no alternative", 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "application/msword",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -4456,20 +4814,18 @@ test("can't finish processing an alternative preview image for a file with no al
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "application/msword",
+        contentType: "application/pdf",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "application/msword",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -4492,9 +4848,9 @@ test("can't finish processing an alternative preview image for a file with no al
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "application/msword",
+            contentType: "application/pdf",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -4507,16 +4863,14 @@ test("can't finish processing an alternative preview image for a file with no al
     );
 });
 
-test("can't finish processing file alternative if preview image is alternative", async () => {
+test("can finish processing file alternative if preview image is alternative", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "application/msword",
         contentLength: 100,
-        hasAlternative: true,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4524,7 +4878,7 @@ test("can't finish processing file alternative if preview image is alternative",
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -4547,9 +4901,10 @@ test("can't finish processing file alternative if preview image is alternative",
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "image/avif",
                 contentLength: 110,
                 isImagePreviewContent: true,
@@ -4564,21 +4919,20 @@ test("can't finish processing file alternative if preview image is alternative",
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingAlternative(session.action(), {
-            contentType: "application/pdf",
-            contentLength: 120,
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its alternative"));
+    await fileUploader.finishProcessingAlternative(session.action(), {
+        contentType: "application/pdf",
+        contentLength: 120,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "image/avif",
                 contentLength: 110,
                 isImagePreviewContent: true,
@@ -4594,16 +4948,14 @@ test("can't finish processing file alternative if preview image is alternative",
     );
 });
 
-test("can't finish processing file alternative preview image if alternative is already processed", async () => {
+test("can finish processing file alternative preview image if alternative is already processed", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "application/msword",
         contentLength: 100,
-        hasAlternative: true,
-        hasPreview: {type: "Image", hasContent: true, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4611,7 +4963,7 @@ test("can't finish processing file alternative preview image if alternative is a
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {isProcessing: true},
             preview: {
                 type: "Image",
@@ -4633,9 +4985,10 @@ test("can't finish processing file alternative preview image if alternative is a
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
@@ -4650,26 +5003,478 @@ test("can't finish processing file alternative preview image if alternative is a
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingImagePreviewContent(session.action(), {
-            contentType: "image/avif",
-            contentLength: 110,
-            isAlternative: true,
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its alternative"));
+    await fileUploader.finishProcessingImagePreviewContent(session.action(), {
+        contentType: "image/avif",
+        contentLength: 110,
+        isAlternative: true,
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "application/msword",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: {
                 isProcessing: false,
+                ok: true,
                 contentType: "application/pdf",
                 contentLength: 120,
                 isImagePreviewContent: false,
             },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: {
+                    contentType: "image/avif",
+                    contentLength: 110,
+                },
+            },
+        }),
+    );
+});
+
+test("can finish processing file alternative with error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternativeWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can finish processing file alternative with error twice", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternativeWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternativeWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can finish processing file alternative with error after finished processing alternative", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternative(session.action(), {
+        contentType: "image/avif",
+        contentLength: 120,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: true,
+                contentType: "image/avif",
+                contentLength: 120,
+                isImagePreviewContent: false,
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternativeWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: true,
+                contentType: "image/avif",
+                contentLength: 120,
+                isImagePreviewContent: false,
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can finish processing file alternative after finished processing alternative with error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternativeWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "Unknown"},
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternative(session.action(), {
+        contentType: "image/avif",
+        contentLength: 120,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "Unknown"},
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file alternative with error as the wrong session", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAlternativeWithError(session2.action(), {
+            type: "PasswordProtected",
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can finish processing file alternative with error as the right system actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAlternativeWithError(space.systemAction(), {
+        type: "PasswordProtected",
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {
+                isProcessing: false,
+                ok: false,
+                error: {type: "PasswordProtected"},
+            },
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file alternative with error as the wrong system actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSpace = await TestSpace.create(context);
+
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "application/msword",
+        contentLength: 100,
+    });
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAlternativeWithError(otherSpace.systemAction(), {
+            type: "PasswordProtected",
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("System actor is not for the file's space"));
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "application/msword",
+            contentLength: 100,
+            isUploading: false,
+            alternative: {isProcessing: true},
             preview: {
                 type: "Image",
                 isProcessing: true,
@@ -4686,12 +5491,10 @@ test("can finish processing file audio preview", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "audio/mpeg",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Audio"},
         });
 
         expect(
@@ -4701,7 +5504,7 @@ test("can finish processing file audio preview", async () => {
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Audio",
@@ -4721,7 +5524,7 @@ test("can finish processing file audio preview", async () => {
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Audio",
@@ -4745,11 +5548,12 @@ test("can finish processing file audio preview", async () => {
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Audio",
                     isProcessing: false,
+                    ok: true,
                     duration: 2000,
                     metadata: {
                         title: "A",
@@ -4765,12 +5569,10 @@ test("can finish processing file audio preview", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
-        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        const fileUploader = await uploadAndStartProcessingFile(session.action(), {
             spaceId: space.id,
             contentType: "audio/mpeg",
             contentLength: 100,
-            hasAlternative: false,
-            hasPreview: {type: "Audio"},
         });
 
         expect(
@@ -4780,7 +5582,7 @@ test("can finish processing file audio preview", async () => {
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Audio",
@@ -4804,7 +5606,7 @@ test("can finish processing file audio preview", async () => {
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Audio",
@@ -4828,11 +5630,12 @@ test("can finish processing file audio preview", async () => {
                 id: fileUploader.fileId,
                 contentType: "audio/mpeg",
                 contentLength: 100,
-                isUploading: true,
+                isUploading: false,
                 alternative: null,
                 preview: {
                     type: "Audio",
                     isProcessing: false,
+                    ok: true,
                     duration: 2000,
                     metadata: {
                         title: "A",
@@ -4850,12 +5653,10 @@ test("can't finish processing file audio preview duration with the wrong session
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4863,7 +5664,7 @@ test("can't finish processing file audio preview duration with the wrong session
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -4883,7 +5684,7 @@ test("can't finish processing file audio preview duration with the wrong session
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -4895,16 +5696,14 @@ test("can't finish processing file audio preview duration with the wrong session
     );
 });
 
-test("can't finish processing file audio preview duration twice", async () => {
+test("can finish processing file audio preview duration twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4912,7 +5711,7 @@ test("can't finish processing file audio preview duration twice", async () => {
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -4930,7 +5729,7 @@ test("can't finish processing file audio preview duration twice", async () => {
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -4941,18 +5740,14 @@ test("can't finish processing file audio preview duration twice", async () => {
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
-    ).rejects.toThrow(
-        new InternalError("File has already finished processing its audio preview duration"),
-    );
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2100);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -4964,16 +5759,14 @@ test("can't finish processing file audio preview duration twice", async () => {
     );
 });
 
-test("can't finish processing file audio preview duration when preview is finished processing", async () => {
+test("can finish processing file audio preview duration when preview is finished processing", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -4981,7 +5774,7 @@ test("can't finish processing file audio preview duration when preview is finish
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -4999,7 +5792,7 @@ test("can't finish processing file audio preview duration when preview is finish
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5021,11 +5814,12 @@ test("can't finish processing file audio preview duration when preview is finish
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
+                ok: true,
                 duration: 2000,
                 metadata: {
                     title: "A",
@@ -5036,20 +5830,19 @@ test("can't finish processing file audio preview duration when preview is finish
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2100);
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
+                ok: true,
                 duration: 2000,
                 metadata: {
                     title: "A",
@@ -5065,20 +5858,18 @@ test("can't finish processing file audio preview duration for file without previ
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "audio/mpeg",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "audio/mpeg",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -5091,9 +5882,9 @@ test("can't finish processing file audio preview duration for file without previ
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "audio/mpeg",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -5104,12 +5895,10 @@ test("can't finish processing file audio preview duration for file with an image
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5117,7 +5906,7 @@ test("can't finish processing file audio preview duration for file with an image
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -5137,7 +5926,7 @@ test("can't finish processing file audio preview duration for file with an image
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -5154,12 +5943,10 @@ test("can't finish processing file audio preview metadata with the wrong session
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5167,7 +5954,7 @@ test("can't finish processing file audio preview metadata with the wrong session
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5191,7 +5978,7 @@ test("can't finish processing file audio preview metadata with the wrong session
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5203,16 +5990,14 @@ test("can't finish processing file audio preview metadata with the wrong session
     );
 });
 
-test("can't finish processing file audio preview metadata twice", async () => {
+test("can finish processing file audio preview metadata twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5220,7 +6005,7 @@ test("can't finish processing file audio preview metadata twice", async () => {
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5232,9 +6017,9 @@ test("can't finish processing file audio preview metadata twice", async () => {
     );
 
     await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
-        title: "A",
-        artist: "B",
-        album: "C",
+        title: "A1",
+        artist: "B1",
+        album: "C1",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5242,62 +6027,56 @@ test("can't finish processing file audio preview metadata twice", async () => {
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
                 metadata: {
-                    title: "A",
-                    artist: "B",
-                    album: "C",
+                    title: "A1",
+                    artist: "B1",
+                    album: "C1",
                 },
             },
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
-            title: "A",
-            artist: "B",
-            album: "C",
-        }),
-    ).rejects.toThrow(
-        new InternalError("File has already finished processing its audio preview metadata"),
-    );
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A2",
+        artist: "B2",
+        album: "C2",
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
                 isProcessing: true,
                 duration: "Processing",
                 metadata: {
-                    title: "A",
-                    artist: "B",
-                    album: "C",
+                    title: "A1",
+                    artist: "B1",
+                    album: "C1",
                 },
             },
         }),
     );
 });
 
-test("can't finish processing file audio preview metadata when preview is finished processing", async () => {
+test("can finish processing file audio preview metadata when preview is finished processing", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5305,7 +6084,7 @@ test("can't finish processing file audio preview metadata when preview is finish
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5323,7 +6102,7 @@ test("can't finish processing file audio preview metadata when preview is finish
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5335,9 +6114,9 @@ test("can't finish processing file audio preview metadata when preview is finish
     );
 
     await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
-        title: "A",
-        artist: "B",
-        album: "C",
+        title: "A1",
+        artist: "B1",
+        album: "C1",
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5345,44 +6124,44 @@ test("can't finish processing file audio preview metadata when preview is finish
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
+                ok: true,
                 duration: 2000,
                 metadata: {
-                    title: "A",
-                    artist: "B",
-                    album: "C",
+                    title: "A1",
+                    artist: "B1",
+                    album: "C1",
                 },
             },
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
-            title: "A",
-            artist: "B",
-            album: "C",
-        }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    await fileUploader.finishProcessingAudioPreviewMetadata(session.action(), {
+        title: "A2",
+        artist: "B2",
+        album: "C2",
+    });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
                 isProcessing: false,
+                ok: true,
                 duration: 2000,
                 metadata: {
-                    title: "A",
-                    artist: "B",
-                    album: "C",
+                    title: "A1",
+                    artist: "B1",
+                    album: "C1",
                 },
             },
         }),
@@ -5393,20 +6172,18 @@ test("can't finish processing file audio preview metadata for file without previ
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "audio/mpeg",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "audio/mpeg",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -5423,9 +6200,9 @@ test("can't finish processing file audio preview metadata for file without previ
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "audio/mpeg",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -5436,12 +6213,10 @@ test("can't finish processing file audio preview metadata for file with an image
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5449,7 +6224,7 @@ test("can't finish processing file audio preview metadata for file with an image
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -5473,7 +6248,7 @@ test("can't finish processing file audio preview metadata for file with an image
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -5489,12 +6264,10 @@ test("can't finish processing file image preview size for file with an audio pre
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5502,7 +6275,7 @@ test("can't finish processing file image preview size for file with an audio pre
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5527,7 +6300,7 @@ test("can't finish processing file image preview size for file with an audio pre
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5543,12 +6316,10 @@ test("can't finish processing file image preview placeholder for file with an au
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5556,7 +6327,7 @@ test("can't finish processing file image preview placeholder for file with an au
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5570,7 +6341,7 @@ test("can't finish processing file image preview placeholder for file with an au
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
-            fileImagePreviewPlaceholder,
+            fileImagePreviewPlaceholder1,
         ),
     ).rejects.toThrow(new InternalError("File doesn't have an image preview"));
 
@@ -5579,7 +6350,7 @@ test("can't finish processing file image preview placeholder for file with an au
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5595,12 +6366,10 @@ test("can't finish processing file image preview content for file with an audio 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5608,7 +6377,7 @@ test("can't finish processing file image preview content for file with an audio 
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5632,7 +6401,7 @@ test("can't finish processing file image preview content for file with an audio 
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5648,12 +6417,10 @@ test("can't finish processing file image preview video duration for file with an
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "audio/mpeg",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Audio"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5661,7 +6428,7 @@ test("can't finish processing file image preview video duration for file with an
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5681,7 +6448,7 @@ test("can't finish processing file image preview video duration for file with an
             id: fileUploader.fileId,
             contentType: "audio/mpeg",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Audio",
@@ -5697,12 +6464,10 @@ test("can finish processing file code preview content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "text/javascript",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Code"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5710,7 +6475,7 @@ test("can finish processing file code preview content", async () => {
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
@@ -5720,19 +6485,23 @@ test("can finish processing file code preview content", async () => {
         }),
     );
 
-    await fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent);
+    await fileUploader.finishProcessingCodePreviewContent(
+        session.action(),
+        fileCodePreviewContent1,
+    );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
-                content: fileCodePreviewContent,
+                ok: true,
+                content: fileCodePreviewContent1,
             },
         }),
     );
@@ -5743,12 +6512,10 @@ test("can't finish processing file code preview content with the wrong session",
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "text/javascript",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Code"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5756,7 +6523,7 @@ test("can't finish processing file code preview content with the wrong session",
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
@@ -5769,7 +6536,7 @@ test("can't finish processing file code preview content with the wrong session",
     await expect(
         fileUploader.finishProcessingCodePreviewContent(
             otherSession.action(),
-            fileCodePreviewContent,
+            fileCodePreviewContent1,
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
 
@@ -5778,7 +6545,7 @@ test("can't finish processing file code preview content with the wrong session",
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
@@ -5789,16 +6556,14 @@ test("can't finish processing file code preview content with the wrong session",
     );
 });
 
-test("can't finish processing code preview content duration twice", async () => {
+test("can finish processing code preview content duration twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "text/javascript",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Code"},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5806,7 +6571,7 @@ test("can't finish processing code preview content duration twice", async () => 
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
@@ -5816,38 +6581,44 @@ test("can't finish processing code preview content duration twice", async () => 
         }),
     );
 
-    await fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent);
+    await fileUploader.finishProcessingCodePreviewContent(
+        session.action(),
+        fileCodePreviewContent1,
+    );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
-                content: fileCodePreviewContent,
+                ok: true,
+                content: fileCodePreviewContent1,
             },
         }),
     );
 
-    await expect(
-        fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    await fileUploader.finishProcessingCodePreviewContent(
+        session.action(),
+        fileCodePreviewContent2,
+    );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
             contentType: "text/javascript",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Code",
                 isProcessing: false,
-                content: fileCodePreviewContent,
+                ok: true,
+                content: fileCodePreviewContent1,
             },
         }),
     );
@@ -5857,35 +6628,33 @@ test("can't finish processing file code preview content for file without preview
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "text/javascript",
+        contentType: "application/octet-stream",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "text/javascript",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
     );
 
     await expect(
-        fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent),
+        fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent1),
     ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
             id: fileUploader.fileId,
-            contentType: "text/javascript",
+            contentType: "application/octet-stream",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: null,
         }),
@@ -5896,12 +6665,10 @@ test("can't finish processing file code preview content for file with an image p
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5909,7 +6676,7 @@ test("can't finish processing file code preview content for file with an image p
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -5921,7 +6688,7 @@ test("can't finish processing file code preview content for file with an image p
     );
 
     await expect(
-        fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent),
+        fileUploader.finishProcessingCodePreviewContent(session.action(), fileCodePreviewContent1),
     ).rejects.toThrow(new InternalError("File doesn't have a code preview"));
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -5929,7 +6696,7 @@ test("can't finish processing file code preview content for file with an image p
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
+            isUploading: false,
             alternative: null,
             preview: {
                 type: "Image",
@@ -5946,26 +6713,11 @@ test("system action from the wrong space can't access file", async () => {
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
-            contentType: "image/png",
-            contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: null,
-        }),
-    );
-
-    await fileUploader.finishUploading(session.action());
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -5974,7 +6726,12 @@ test("system action from the wrong space can't access file", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -5988,12 +6745,10 @@ test("only the uploader account can access their file", async () => {
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -6001,22 +6756,14 @@ test("only the uploader account can access their file", async () => {
             id: fileUploader.fileId,
             contentType: "image/png",
             contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: null,
-        }),
-    );
-
-    await fileUploader.finishUploading(session.action());
-
-    expect(await getFileAsUploader(session.action(), space.id, fileUploader.fileId)).toEqual(
-        new FileModel({
-            id: fileUploader.fileId,
-            contentType: "image/png",
-            contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -6029,15 +6776,11 @@ test("can get file from attachment after it's been attached", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session1.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session1.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session1.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6074,7 +6817,12 @@ test("can get file from attachment after it's been attached", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -6104,15 +6852,11 @@ test("can't get file from attachment if you don't have access to the attachment 
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session1.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session1.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session1.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6144,7 +6888,9 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
+    );
 
     await expect(
         getFileFromAttachment(
@@ -6176,7 +6922,12 @@ test("can't get file from attachment if you don't have access to the attachment 
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -6196,7 +6947,9 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
+    );
 
     await expect(
         getFileFromAttachment(
@@ -6214,15 +6967,11 @@ test("can't attach file as uploader if not the uploader", async () => {
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
 
-    const fileUploader = await startUploadingAndProcessingFile(session1.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session1.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session1.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6254,7 +7003,9 @@ test("can't attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
+    );
 
     await expect(
         attachFileAsUploader(
@@ -6279,15 +7030,11 @@ test("can't attach file if you don't have view access to the target", async () =
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const fileUploader = await startUploadingAndProcessingFile(session3.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session3.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session3.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6326,15 +7073,11 @@ test("can't attach file if you don't have edit access to the target", async () =
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const channel = await TestChannel.create(session1);
     const post1 = await channel.createPost(session1);
@@ -6397,7 +7140,12 @@ test("can't attach file if you don't have edit access to the target", async () =
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -6406,15 +7154,11 @@ test("can attach file to new target", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6475,7 +7219,12 @@ test("can attach file to new target", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -6484,15 +7233,11 @@ test("can attach file to new target as the uploader", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6553,7 +7298,12 @@ test("can attach file to new target as the uploader", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -6562,15 +7312,11 @@ test("can't attach file to new target if you don't have edit access", async () =
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6591,6 +7337,15 @@ test("can't attach file to new target if you don't have edit access", async () =
 
     await expect(
         attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
+            from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+            to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError("File isn't attached to target (and 1 other error)"),
+    );
+
+    await expect(
+        attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
             from: FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
             to: FilePostAuthorizer.bind({type: "Post", postId: post.id}),
         }),
@@ -6633,15 +7388,11 @@ test("can't attach file to new target you don't have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6699,19 +7450,174 @@ test("can't attach file to new target you don't have access to", async () => {
     });
 });
 
+test("can get file from attachment after it's been attached when starting upload", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const fileUploader = await uploadAndStartProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        attachTargetAuthorizer: FileChatAuthorizer.bind({
+            type: "ChatMessage",
+            chatId,
+            messageIndex: 0,
+        }),
+    });
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't get file from attachment if you don't have access to the attachment target after attach when starting upload", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const fileUploader = await uploadAndStartProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        attachTargetAuthorizer: FileChatAuthorizer.bind({
+            type: "ChatMessage",
+            chatId,
+            messageIndex: 0,
+        }),
+    });
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session3.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+
+    await expect(
+        getFileFromAttachment(
+            otherSession.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            otherSpace.systemAction(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind({type: "ChatMessage", chatId, messageIndex: 0}),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+});
+
+test("can't attach file when uploading if you don't have view access to the target", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        uploadAndStartProcessingFile(session3.action(), {
+            spaceId: space.id,
+            contentType: "image/png",
+            contentLength: 100,
+            attachTargetAuthorizer: FileChatAuthorizer.bind({
+                type: "ChatMessage",
+                chatId,
+                messageIndex: 0,
+            }),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+});
+
+test("can't attach file when uploading if you don't have edit access to the target", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1);
+    const post1 = await channel.createPost(session1);
+
+    await expect(
+        uploadAndStartProcessingFile(session2.action(), {
+            spaceId: space.id,
+            contentType: "image/png",
+            contentLength: 100,
+            attachTargetAuthorizer: FilePostAuthorizer.bind({type: "Post", postId: post1.id}),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have edit access to post"));
+});
+
 test("can detach file as uploader", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6748,7 +7654,12 @@ test("can detach file as uploader", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -6773,15 +7684,11 @@ test("can detach file as non-uploader", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6818,7 +7725,12 @@ test("can detach file as non-uploader", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -6843,15 +7755,11 @@ test("can't detach file without view access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const chatId = await getOrCreateChatForAccounts(session2.action(), {
         spaceId: space.id,
@@ -6888,7 +7796,12 @@ test("can't detach file without view access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -6915,7 +7828,12 @@ test("can't detach file without view access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 });
@@ -6924,15 +7842,11 @@ test("can't detach file without edit access", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
-    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+    const fileUploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await fileUploader.finishUploading(session2.action());
 
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session2);
@@ -6967,7 +7881,12 @@ test("can't detach file without edit access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -6994,7 +7913,12 @@ test("can't detach file without edit access", async () => {
             contentLength: 100,
             isUploading: false,
             alternative: null,
-            preview: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
         }),
     );
 
@@ -7024,37 +7948,29 @@ test("can get all files attached to post draft", async () => {
         otherAccountIds: [session1.account.id],
     });
 
-    const file1Uploader = await startUploadingAndProcessingFile(session2.action(), {
+    const file1Uploader = await uploadAndStartProcessingFile(session2.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
 
-    await file1Uploader.finishUploading(session2.action());
-
-    const file2Uploader = await startUploadingAndProcessingFile(session1.action(), {
+    const file2Uploader = await uploadAndStartProcessingFile(session1.action(), {
         spaceId: space.id,
         contentType: "image/png",
         contentLength: 100,
-        hasAlternative: false,
-        hasPreview: null,
     });
-
-    await file2Uploader.finishUploading(session1.action());
 
     const draftId = generateChronologicalId<PostDraftId>();
 
-    await expect(
-        getPostDraftFileAttachments(
+    expect(
+        await getPostDraftFileAttachments(
             session1.action(),
             space.id,
             session1.account.id,
             draftId,
             FilePostAuthorizer,
         ),
-    ).rejects.toThrow(new NotFoundError("Post draft not found"));
+    ).toEqual([]);
 
     await createOrReplacePostDraft(session1.action(), space.id, session1.account.id, draftId, {
         channelId: null,

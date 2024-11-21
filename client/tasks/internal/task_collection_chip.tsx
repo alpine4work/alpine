@@ -1,5 +1,5 @@
 import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 /**
@@ -7,7 +7,7 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
  * the amount of gap between chips.
  */
 export const taskCollectionChipContainerMaxWidth = `max(calc(50% - ${spacing["2.5"]}), ${
-    (parseRemLengthNumber(spacing["96"]) - parseRemLengthNumber(spacing["2.5"])) / 2
+    (parseRemLength("96") - parseRemLength("2.5")) / 2
 }rem)`;
 
 export function TaskCollectionChip({

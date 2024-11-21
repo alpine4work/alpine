@@ -3,6 +3,7 @@ import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
@@ -11,14 +12,14 @@ import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_
 import {TaskQueryPriorityFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryPriorityFilterOperationEditor({
-    withMobileLayout,
     filter,
     onFilterChange,
 }: {
-    withMobileLayout: boolean;
     filter: TaskQueryPriorityFilter;
     onFilterChange: (filter: TaskQueryPriorityFilter) => void;
 }) {
+    const routeLayout = useRouteLayout();
+
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
     const {hoverProps, isHovered} = useHover({});
@@ -59,7 +60,6 @@ export function TaskQueryPriorityFilterOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
-                withMobileLayout={withMobileLayout}
                 operatorLabel={filter.operation.type === "OneOf" ? "is" : "is not"}
                 allOperators={[
                     {
@@ -221,14 +221,14 @@ export function TaskQueryPriorityFilterOperationEditor({
                                 zIndex: "0",
                                 flexShrink: "1",
                                 height: "full",
-                                overflow: withMobileLayout ? "hidden" : undefined,
+                                overflow: routeLayout === "narrow" ? "hidden" : undefined,
                             })}
                             style={{
                                 paddingTop: 1,
                                 paddingBottom: 1,
                             }}
                         >
-                            {withMobileLayout && (
+                            {routeLayout === "narrow" && (
                                 <span
                                     className={sprinkles({
                                         position: "absolute",

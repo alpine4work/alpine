@@ -15,7 +15,7 @@ export const serviceCloudflareR2Options = {
     cloudflareAccountId: {type: "string"},
     cloudflareR2AccessKeyId: {type: "string"},
     cloudflareR2SecretAccessKey: {type: "string"},
-    fileUploadServiceHostname: {type: "string"},
+    fileProcessorServiceUrl: {type: "string"},
 } as const;
 
 /**
@@ -31,7 +31,7 @@ export function createServiceCloudflareR2ContextModule(options: {
     cloudflareAccountId?: string;
     cloudflareR2AccessKeyId?: string;
     cloudflareR2SecretAccessKey?: string;
-    fileUploadServiceHostname?: string;
+    fileProcessorServiceUrl?: string;
 }) {
     return new CloudflareR2ContextModule(
         process.env.NODE_ENV !== "production"
@@ -54,9 +54,9 @@ export function createServiceCloudflareR2ContextModule(options: {
                   );
 
                   return new MiniflareR2Client({
-                      fileUploadServiceHostname: assertExists(
-                          options.fileUploadServiceHostname,
-                          "`fileUploadServiceHostname` option is required in development",
+                      fileProcessorServiceUrl: assertExists(
+                          options.fileProcessorServiceUrl,
+                          "`fileProcessorServiceUrl` option is required in development",
                       ),
                       bucketByName,
                   });

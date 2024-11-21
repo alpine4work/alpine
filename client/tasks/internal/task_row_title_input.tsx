@@ -21,7 +21,6 @@ import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} fro
 import * as Y from "yjs";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -29,7 +28,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    useSpacingScale,
+} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentStyles,
@@ -38,7 +41,10 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/client/styles/styles.js";
-import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
+import {
+    taskRowTitleInputPaddingY,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
@@ -50,7 +56,8 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -66,15 +73,7 @@ import {
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
-const taskRowTitleInputSingleLineHeightRem = parseRemLengthNumber(
-    spacing[taskRowTitleInputSingleLineHeight],
-);
-
-export const taskRowTitleInputPaddingY: RemLength = `${
-    (parseRemLengthNumber(spacing[taskRowViewMinHeight]) -
-        parseRemLengthNumber(contentStyles.paragraphFontSize.lineHeight)) /
-    2
-}rem`;
+const taskRowTitleInputSingleLineHeightRem = parseRemLength(taskRowTitleInputSingleLineHeight);
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
@@ -181,8 +180,8 @@ const marginRightContainerClassName = sprinkles({
     justifyContent: "flex-end",
 });
 
-const taskRowTitleInputMultilineAfterWidthRem = parseRemLengthNumber(
-    spacing[tasksStyles.rowTitleInputMultilineAfterWidth],
+const taskRowTitleInputMultilineAfterWidthRem = parseRemLength(
+    tasksStyles.rowTitleInputMultilineAfterWidth,
 );
 
 const marginRightContentContainerClassName = sprinkles({
@@ -309,7 +308,7 @@ function TaskRowTitleInput(
 
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {isAppleDevice} = useClientInfo();
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
     const isInitialAppRender = useIsInitialAppRender();
 
     // Title input is in dual modality mode if:
@@ -493,13 +492,13 @@ function TaskRowTitleInput(
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
     const isReadOnlyRef = useRef(capabilities.isReadOnly);
-    const remPxRef = useRef(remPx);
+    const spacingScaleRef = useRef(spacingScale);
     const isDualModalityRef = useRef(isDualModality);
     useInsertionEffect(() => {
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
         isReadOnlyRef.current = capabilities.isReadOnly;
-        remPxRef.current = remPx;
+        spacingScaleRef.current = spacingScale;
         isDualModalityRef.current = isDualModality;
     });
 
@@ -844,10 +843,13 @@ function TaskRowTitleInput(
                 const rootRect = rootElement.getBoundingClientRect();
                 let newMultilineState: TaskRowTitleInputMultilineState | null = null;
 
+                const spacingScale = getSpacingScaleWithoutListening();
+                const remPx = remPxBySpacingScale[spacingScale];
+
                 if (
                     state.doc.nodeSize > 2 &&
                     // Make sure the input has more than one line...
-                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPxRef.current
+                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPx
                 ) {
                     const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
                     const remainingWidth = rootRect.left + rootRect.width - endCoords.left;
@@ -855,10 +857,7 @@ function TaskRowTitleInput(
                     // If there's less width than our "after width" that means our after class will
                     // have broken out a new line. So our margin right content should render at the
                     // start of that new line.
-                    if (
-                        remainingWidth <
-                        taskRowTitleInputMultilineAfterWidthRem * remPxRef.current
-                    ) {
+                    if (remainingWidth < taskRowTitleInputMultilineAfterWidthRem * remPx) {
                         newMultilineState = {
                             remainingWidth: rootRect.width,
                             withoutMarginLeft: true,
@@ -1093,6 +1092,7 @@ function TaskRowTitleInput(
             isInitialAppRender,
             titleYDoc,
             hasMultilineTitleAndShouldShowMarginRightContent,
+            spacingScale,
         ],
     );
 

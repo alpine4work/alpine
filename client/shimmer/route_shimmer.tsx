@@ -2,16 +2,17 @@ import {ArrowLeft, Check, SpinnerGap} from "phosphor-react";
 import {ComponentType, ReactNode, memo} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
-    mobileNavigationBarGap,
     navigationBarHeight,
+    navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     ContentParagraphShimmer1,
@@ -22,6 +23,7 @@ import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
+import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
 import {
@@ -37,27 +39,22 @@ import {
     channelFilesViewMaxWidth,
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
+    channelViewAsideMarginTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
-    channelViewMetadataSectionGap,
+    channelViewAsideSectionGap,
+    channelViewHeaderNarrowRouteLayoutMarginTop,
+    channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
-    desktopLayoutChannelViewMetadataMarginTop,
-    desktopLayoutPostFauxInputCreateButtonMarginTop,
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    mobileLayoutChannelViewMetadataMarginTop,
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobileLayoutPostFauxInputCreateButtonMarginTop,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
+    postFauxInputCreateButtonMarginTop,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
     postViewFlex,
+    postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     desktopLayoutInboxBannerHeight,
@@ -87,13 +84,6 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
-    desktopTaskDetailViewNavigationBarSpacerMarginBottom,
-    desktopTaskDetailViewStatusButtonSize,
-    desktopTaskNotepadViewActiveSectionMarginBottom,
-    mobileTaskDetailViewStatusButtonPaddingBottom,
-    mobileTaskDetailViewStatusButtonPaddingTop,
-    mobileTaskDetailViewStatusButtonSize,
-    mobileTaskNotepadViewActiveSectionMarginBottom,
     taskCardViewMaxWidth,
     taskCommentsHeaderNavigationBarSpacing,
     taskDetailNotesFieldLabelPaddingBottom,
@@ -101,10 +91,14 @@ import {
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
     taskDetailViewSectionGap,
+    taskDetailViewStatusButtonMobilePaddingBottom,
+    taskDetailViewStatusButtonMobilePaddingTop,
+    taskDetailViewStatusButtonSize,
     taskDetailViewSubtasksFieldLabelPaddingBottom,
     taskDetailViewTitleFontSize,
     taskGridViewColumnHeaderExtraPaddingBottomPx,
     taskGridViewColumnHeaderHeight,
+    taskNotepadViewActiveSectionActualMarginBottom,
     taskNotepadViewActiveSectionCardGap,
     taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
     taskNotepadViewActiveSectionMarginTop,
@@ -120,20 +114,22 @@ import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
+    taskRowViewDragHandleWidthRem,
+    taskRowViewExpandButtonWidthRem,
     taskRowViewFirstColumnPaddingLeft,
     taskRowViewFirstColumnWidth,
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {
-    RemLength,
     Spacing,
     convertRemLengthToPx,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
@@ -149,7 +145,7 @@ const shimmerOptionsByRouteId: {
     readonly [key: string]:
         | {
               inboxBannerMaxWidth?: Spacing | "full";
-              component: ComponentType<{withMobileLayout: boolean}>;
+              component: ComponentType<{}>;
           }
         | false;
 } = {
@@ -214,13 +210,13 @@ export {RouteShimmerMemo as RouteShimmer};
 
 function RouteShimmer({
     routeId,
-    withMobileLayout,
     withInboxBanner,
 }: {
     routeId: string | null;
-    withMobileLayout: boolean;
     withInboxBanner: boolean;
 }) {
+    const routeLayout = useRouteLayout();
+
     const shimmerOptions = routeId
         ? shimmerOptionsByRouteId[routeId.replace(".peek.", ".")]
         : undefined;
@@ -240,7 +236,7 @@ function RouteShimmer({
                 <SpinnerGap
                     className={spinAnimationClassName}
                     color={colorSchemeVars["grey-70"]}
-                    size={spacing[withMobileLayout ? "6" : "8"]}
+                    size={spacing[routeLayout === "narrow" ? "6" : "8"]}
                 />
             </Box>
         );
@@ -249,7 +245,7 @@ function RouteShimmer({
     if (!withInboxBanner) {
         return (
             <Box ref={containerRef} width="full" height="full" overflow="hidden">
-                <shimmerOptions.component withMobileLayout={withMobileLayout} />
+                <shimmerOptions.component />
             </Box>
         );
     } else {
@@ -265,7 +261,7 @@ function RouteShimmer({
                     // like it.
                     "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${
                         spacing[
-                            withMobileLayout
+                            routeLayout === "narrow"
                                 ? mobileLayoutInboxBannerHeight
                                 : desktopLayoutInboxBannerHeight
                         ]
@@ -286,7 +282,7 @@ function RouteShimmer({
                         marginX="center"
                         maxWidth={shimmerOptions.inboxBannerMaxWidth ?? "full"}
                         height={
-                            withMobileLayout
+                            routeLayout === "narrow"
                                 ? mobileLayoutInboxBannerHeight
                                 : desktopLayoutInboxBannerHeight
                         }
@@ -320,7 +316,7 @@ function RouteShimmer({
                     </Box>
                 </Box>
                 <Box width="full" height="full" overflow="hidden">
-                    <shimmerOptions.component withMobileLayout={withMobileLayout} />
+                    <shimmerOptions.component />
                 </Box>
             </Box>
         );
@@ -347,8 +343,9 @@ function MobileBackButtonSpacer() {
     return <Spacer space="7" />;
 }
 
-function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function ChannelRouteShimmer() {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" display="flex" justifyContent="center">
@@ -357,23 +354,23 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                     <Box height="safe-area-inset-top" />
                     <Box
                         display="flex"
-                        justifyContent={isMobile ? "space-between" : undefined}
+                        justifyContent={platform === "mobile" ? "space-between" : undefined}
                         alignItems="center"
                         height={navigationBarHeight}
                     >
-                        {isMobile && <MobileBackButton />}
+                        {platform === "mobile" && <MobileBackButton />}
                         <TextShimmer
-                            width={isMobile ? "24" : "32"}
-                            fontSize={isMobile ? "100" : "400"}
+                            width={platform === "mobile" ? "24" : "32"}
+                            fontSize={platform === "mobile" ? "100" : "400"}
                         />
-                        {isMobile && <MobileBackButtonSpacer />}
+                        {platform === "mobile" && <MobileBackButtonSpacer />}
                     </Box>
-                    {withMobileLayout && (
+                    {routeLayout === "narrow" && (
                         <Box
-                            paddingTop={mobileLayoutChannelViewMetadataMarginTop}
+                            paddingTop={channelViewHeaderNarrowRouteLayoutMarginTop}
                             display="flex"
                             flexDirection="column"
-                            gap={channelViewMetadataSectionGap}
+                            gap={channelViewHeaderSectionGap}
                         >
                             <Box>
                                 <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
@@ -400,13 +397,7 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                             </Box>
                         </Box>
                     )}
-                    <Box
-                        height={
-                            withMobileLayout
-                                ? mobileLayoutPostFauxInputCreateButtonMarginTop
-                                : desktopLayoutPostFauxInputCreateButtonMarginTop
-                        }
-                    />
+                    <Box height={postFauxInputCreateButtonMarginTop[routeLayout]} />
                     <Box
                         className={pulseAnimationClassName}
                         display="flex"
@@ -443,7 +434,7 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 <PostShimmer />
                 <PostShimmer />
             </Box>
-            {!withMobileLayout && (
+            {routeLayout !== "narrow" && (
                 <Box
                     width="full"
                     maxWidth={postListViewAsideMaxWidth}
@@ -453,11 +444,11 @@ function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                     <Box height={navigationBarHeight} />
                     <Box
                         paddingX={screenPaddingX}
-                        paddingTop={desktopLayoutChannelViewMetadataMarginTop}
+                        paddingTop={channelViewAsideMarginTop}
                         paddingBottom={screenPaddingX}
                         display="flex"
                         flexDirection="column"
-                        gap={channelViewMetadataSectionGap}
+                        gap={channelViewAsideSectionGap}
                     >
                         <Box>
                             <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
@@ -530,22 +521,23 @@ function ChannelRouteContributorsAccountAvatarShimmer({
     );
 }
 
-function ChannelFilesRouteShimmer({}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function ChannelFilesRouteShimmer() {
+    const platform = usePlatform();
     const clientInfo = useClientInfo();
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
+    const remPx = remPxBySpacingScale[spacingScale];
 
     const [containerRef, containerSize] = useResizeObserver();
 
-    const maxWidth = channelFilesViewMaxWidth[isMobile ? "mobile" : "desktop"];
+    const maxWidth = channelFilesViewMaxWidth[platform];
 
     const fileSizePx = clamp(
-        convertRemLengthToPx(spacing[channelFilesViewFileMinSize], remPx),
+        convertRemLengthToPx(spacing[channelFilesViewFileMinSize], spacingScale),
         ((containerSize?.width ?? clientInfo.screenWidth) -
-            screenPaddingXRem[isMobile ? "mobile" : "desktop"] * 2 * remPx -
+            screenPaddingXRem[platform] * 2 * remPx -
             contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1) * remPx) /
             channelFilesViewFileRowFileCount,
-        convertRemLengthToPx(spacing[channelFilesViewFileMaxSize], remPx),
+        convertRemLengthToPx(spacing[channelFilesViewFileMaxSize], spacingScale),
     );
 
     return (
@@ -560,7 +552,7 @@ function ChannelFilesRouteShimmer({}: {withMobileLayout: boolean}) {
                         display="flex"
                         flexDirection="column"
                         justifyContent="center"
-                        alignItems={!isMobile ? "flex-start" : "center"}
+                        alignItems={platform !== "mobile" ? "flex-start" : "center"}
                         width="full"
                         maxWidth={messageViewMaxWidth}
                         height="full"
@@ -597,18 +589,18 @@ function ChannelFilesRouteShimmer({}: {withMobileLayout: boolean}) {
 }
 
 function ChatRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
                 <Box position="relative" height={navigationBarHeight}>
-                    {isMobile && (
+                    {platform === "mobile" && (
                         <Box
                             position="absolute"
                             top="0"
                             bottom="0"
-                            left={mobileNavigationBarGap}
+                            left={navigationBarMobileGap}
                             display="flex"
                             alignItems="center"
                         >
@@ -617,10 +609,10 @@ function ChatRouteShimmer() {
                     )}
                     <Box
                         display="flex"
-                        flexDirection={!isMobile ? "row" : "column"}
-                        justifyContent={!isMobile ? "flex-start" : "center"}
+                        flexDirection={platform !== "mobile" ? "row" : "column"}
+                        justifyContent={platform !== "mobile" ? "flex-start" : "center"}
                         alignItems="center"
-                        gap={!isMobile ? "2" : "1"}
+                        gap={platform !== "mobile" ? "2" : "1"}
                         width="full"
                         maxWidth={messageViewMaxWidth}
                         height="full"
@@ -636,8 +628,8 @@ function ChatRouteShimmer() {
                             borderRadius="full"
                         />
                         <TextShimmer
-                            fontSize={!isMobile ? "200" : "50"}
-                            width={isMobile ? "12" : "32"}
+                            fontSize={platform !== "mobile" ? "200" : "50"}
+                            width={platform === "mobile" ? "12" : "32"}
                         />
                     </Box>
                 </Box>
@@ -648,15 +640,15 @@ function ChatRouteShimmer() {
 }
 
 function NewChatRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
-                {isMobile && (
+                {platform === "mobile" && (
                     <Box
                         height={navigationBarHeight}
-                        paddingX={mobileNavigationBarGap}
+                        paddingX={navigationBarMobileGap}
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
@@ -666,7 +658,7 @@ function NewChatRouteShimmer() {
                         <MobileBackButtonSpacer />
                     </Box>
                 )}
-                <Box height={!isMobile ? "12" : "10"}>
+                <Box height={platform !== "mobile" ? "12" : "10"}>
                     <Box
                         display="flex"
                         alignItems="center"
@@ -676,7 +668,7 @@ function NewChatRouteShimmer() {
                         marginX="center"
                         paddingX={screenPaddingX}
                     >
-                        <TextShimmer fontSize={!isMobile ? "100" : "50"} width="32" />
+                        <TextShimmer fontSize={platform !== "mobile" ? "100" : "50"} width="32" />
                     </Box>
                 </Box>
             </Box>
@@ -806,13 +798,13 @@ function MessageInputShimmer({
 }: {
     paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <Box
             flexShrink="0"
             backgroundColor="grey-0"
-            style={{height: messageInputMinHeight[isMobile ? "mobile" : "desktop"]}}
+            style={{height: messageInputMinHeight[platform]}}
         >
             <Box
                 display="flex"
@@ -822,10 +814,10 @@ function MessageInputShimmer({
                 height="full"
                 marginX="center"
                 paddingX={paddingX}
-                paddingTop={isMobile ? "2" : "0"}
+                paddingTop={platform === "mobile" ? "2" : "0"}
                 gap="2"
             >
-                {!isMobile && (
+                {platform !== "mobile" && (
                     <Box
                         className={pulseAnimationClassName}
                         flexShrink="0"
@@ -840,7 +832,7 @@ function MessageInputShimmer({
                     flexGrow="1"
                     border="grey-10"
                     borderRadius={messageViewBubbleBorderRadius}
-                    style={{height: messageViewBubbleMinHeight[isMobile ? "mobile" : "desktop"]}}
+                    style={{height: messageViewBubbleMinHeight[platform]}}
                 />
                 <Box
                     className={pulseAnimationClassName}
@@ -859,18 +851,12 @@ function MessageInputShimmer({
 // load very fast given they don't have any data they need to load from the
 // server. Create route shimmers mostly exist for completeness and to make sure
 // a route like `/create/more` has a back button in its shimmer.
-function CreateRouteShimmer({
-    withBackButton,
-}: {
-    withBackButton?: boolean;
-    // We don't use this, it's only to appease TypeScript.
-    withMobileLayout?: boolean;
-}) {
-    const isMobile = useIsMobile();
+function CreateRouteShimmer({withBackButton}: {withBackButton?: boolean}) {
+    const platform = usePlatform();
 
-    withBackButton &&= isMobile;
+    withBackButton &&= platform === "mobile";
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (
         <Box width="full" height="full">
@@ -878,7 +864,7 @@ function CreateRouteShimmer({
                 <Box
                     width="full"
                     height={navigationBarHeight}
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                     display="flex"
                     justifyContent={withBackButton ? "space-between" : "center"}
                     alignItems="center"
@@ -896,23 +882,22 @@ function CreateMoreRouteShimmer() {
     return <CreateRouteShimmer withBackButton />;
 }
 
-function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function DocumentRouteShimmer() {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
-    const titleFontSize = withMobileLayout
-        ? contentStyles.mobileTitleFontSize
-        : contentStyles.desktopTitleFontSize;
+    const titleFontSize = contentStyles.titleFontSize[routeLayout];
 
     return (
         <Box position="relative" paddingX={screenPaddingX}>
-            {isMobile && (
+            {platform === "mobile" && (
                 <Box position="absolute" top="0" left="0" right="0">
                     <Box height="safe-area-inset-top" />
                     <Box
                         height={navigationBarHeight}
                         display="flex"
                         alignItems="center"
-                        paddingX={mobileNavigationBarGap}
+                        paddingX={navigationBarMobileGap}
                     >
                         <MobileBackButton />
                     </Box>
@@ -921,74 +906,42 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
             <Box
                 marginX="center"
                 width="full"
-                paddingRight={withMobileLayout ? "8" : "12"}
-                style={{maxWidth: contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"]}}
+                paddingRight={routeLayout === "narrow" ? "8" : "12"}
+                style={{maxWidth: contentStyles.blockMaxWidth[platform]}}
             >
                 <Box height="safe-area-inset-top" />
                 <Box
                     style={{
-                        height: isMobile
-                            ? contentStyles.mobilePlatformTitlePaddingTop
-                            : withMobileLayout
-                            ? contentStyles.mobileLayoutTitlePaddingTop
-                            : contentStyles.desktopTitlePaddingTop,
+                        height: contentStyles.titlePaddingTop[
+                            getPlatformRouteLayout(platform, routeLayout)
+                        ],
                     }}
                 />
                 <TextShimmer width="96" ragRight="8" fontSize={titleFontSize} />
                 <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer1 />
-                <Box
-                    height={
-                        isMobile
-                            ? contentStyles.mobileHeading1TopMargin
-                            : contentStyles.desktopHeading1TopMargin
-                    }
-                />
+                <Box height={contentStyles.heading1TopMargin[routeLayout]} />
                 <TextShimmer
                     width="48"
-                    fontSize={
-                        isMobile
-                            ? contentStyles.mobileHeadingLevel1FontSize
-                            : contentStyles.desktopHeadingLevel1FontSize
-                    }
+                    fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
                 />
                 <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer2 />
                 <Box height={contentStyles.paragraphMargin} />
                 <ContentParagraphShimmer3 />
-                {!withMobileLayout && (
+                {routeLayout !== "narrow" && (
                     <>
-                        <Box
-                            height={
-                                isMobile
-                                    ? contentStyles.mobileHeading1TopMargin
-                                    : contentStyles.desktopHeading1TopMargin
-                            }
-                        />
+                        <Box height={contentStyles.heading1TopMargin[routeLayout]} />
                         <TextShimmer
                             width="64"
-                            fontSize={
-                                isMobile
-                                    ? contentStyles.mobileHeadingLevel1FontSize
-                                    : contentStyles.desktopHeadingLevel1FontSize
-                            }
+                            fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
                         />
                         <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer1 />
-                        <Box
-                            height={
-                                isMobile
-                                    ? contentStyles.mobileHeading2TopMargin
-                                    : contentStyles.desktopHeading2TopMargin
-                            }
-                        />
+                        <Box height={contentStyles.heading2TopMargin[routeLayout]} />
                         <TextShimmer
                             width="96"
-                            fontSize={
-                                isMobile
-                                    ? contentStyles.mobileHeadingLevel2FontSize
-                                    : contentStyles.desktopHeadingLevel2FontSize
-                            }
+                            fontSize={contentStyles.headingLevel2FontSize[routeLayout]}
                         />
                         <Box height={contentStyles.paragraphMargin} />
                         <ContentParagraphShimmer3 />
@@ -1002,19 +955,19 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
 }
 
 function DocumentCommentThreadRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             <Box flexGrow="1" overflow="hidden">
                 <Box height="safe-area-inset-top" />
-                {isMobile && (
+                {platform === "mobile" && (
                     <Box
                         height={navigationBarHeight}
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
-                        paddingX={mobileNavigationBarGap}
+                        paddingX={navigationBarMobileGap}
                     >
                         <MobileBackButton />
                         <TextShimmer fontSize="100" width="32" />
@@ -1022,7 +975,9 @@ function DocumentCommentThreadRouteShimmer() {
                     </Box>
                 )}
                 <Box width="full" maxWidth={documentCommentThreadListViewMaxWidth} marginX="center">
-                    <Box height={isMobile ? "3" : documentCommentThreadHeaderPaddingY} />
+                    <Box
+                        height={platform === "mobile" ? "3" : documentCommentThreadHeaderPaddingY}
+                    />
                     <Box paddingX={screenPaddingX}>
                         <Box
                             height={documentCommentThreadActionsHeight}
@@ -1080,9 +1035,9 @@ function DocumentCommentThreadRouteShimmer() {
 }
 
 function InboxRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
-    if (isMobile) {
+    if (platform === "mobile") {
         return (
             <Box width="full">
                 <Box height="safe-area-inset-top" />
@@ -1091,7 +1046,7 @@ function InboxRouteShimmer() {
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                 >
                     <TextShimmer fontSize="100" width="16" />
                 </Box>
@@ -1143,7 +1098,6 @@ function InboxRouteShimmer() {
                     <Box flexGrow="1" overflow="hidden">
                         <RouteShimmer
                             routeId="routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration"
-                            withMobileLayout={false}
                             withInboxBanner={true}
                         />
                     </Box>
@@ -1154,9 +1108,9 @@ function InboxRouteShimmer() {
 }
 
 function MoreRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (
         <Box width="full" height="full">
@@ -1219,9 +1173,9 @@ function MoreRouteShimmer() {
 }
 
 function MoreSwitchSpaceRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (
         <Box width="full" height="full">
@@ -1229,7 +1183,7 @@ function MoreSwitchSpaceRouteShimmer() {
                 <Box
                     width="full"
                     height={navigationBarHeight}
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                     display="flex"
                     justifyContent="space-between"
                     alignItems="center"
@@ -1285,17 +1239,17 @@ function MoreSwitchSpaceSettingsRowShimmer({
 }
 
 function ChannelPostsNotificationRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box height="safe-area-inset-top" />
-            {isMobile && (
+            {platform === "mobile" && (
                 <Box
                     height={navigationBarHeight}
                     display="flex"
                     alignItems="center"
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                 >
                     <MobileBackButton />
                     <Box flexGrow="1" display="flex" justifyContent="center">
@@ -1310,7 +1264,7 @@ function ChannelPostsNotificationRouteShimmer() {
                 maxWidth={contentStyles.contentMaxWidth}
                 marginX="center"
             >
-                {isMobile && (
+                {platform === "mobile" && (
                     <Box
                         position="absolute"
                         left={screenPaddingX}
@@ -1327,28 +1281,37 @@ function ChannelPostsNotificationRouteShimmer() {
     );
 }
 
-function PostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function PostRouteShimmer() {
+    const platform = usePlatform();
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             <Box flexGrow="1" overflow="hidden">
                 <Box height="safe-area-inset-top" />
-                {isMobile && (
-                    <Box
-                        style={{
-                            height: `${mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput}rem`,
-                        }}
-                    >
+                {platform === "mobile" ? (
+                    <Box style={{height: postViewNavigationBarSpace[platform]}}>
                         <Box
                             height={navigationBarHeight}
                             display="flex"
                             alignItems="center"
-                            paddingX={mobileNavigationBarGap}
+                            paddingX={navigationBarMobileGap}
                         >
                             <MobileBackButton />
                             <Box flexGrow="1">
                                 <PostShimmerHeader avatarSize="7" />
+                            </Box>
+                        </Box>
+                    </Box>
+                ) : (
+                    <Box
+                        width="full"
+                        maxWidth={contentStyles.contentMaxWidth}
+                        marginX="center"
+                        style={{height: postViewNavigationBarSpace[platform]}}
+                    >
+                        <Box height={navigationBarHeight} display="flex" alignItems="center">
+                            <Box flexGrow="1">
+                                <PostShimmerHeader avatarSize="8" />
                             </Box>
                         </Box>
                     </Box>
@@ -1358,17 +1321,8 @@ function PostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                     width="full"
                     maxWidth={contentStyles.contentMaxWidth}
                     marginX="center"
-                    style={{
-                        marginTop:
-                            !isMobile && withMobileLayout
-                                ? `${
-                                      mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar -
-                                      desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar
-                                  }rem`
-                                : undefined,
-                    }}
                 >
-                    <PostShimmer withoutHeader={isMobile}>
+                    <PostShimmer withoutHeader={true}>
                         <ContentParagraphShimmer3 />
                     </PostShimmer>
                 </Box>
@@ -1383,8 +1337,8 @@ function PostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
     );
 }
 
-function NewPostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function NewPostRouteShimmer() {
+    const platform = usePlatform();
 
     return (
         <Box width="full" height="full" overflow="hidden">
@@ -1395,38 +1349,42 @@ function NewPostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 marginX="center"
             >
                 <Box height="safe-area-inset-top" />
-                {isMobile && (
+                {platform === "mobile" ? (
+                    <>
+                        <Box
+                            height={navigationBarHeight}
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            paddingX={navigationBarMobileGap}
+                        >
+                            <MobileBackButton />
+                            <TextShimmer fontSize="100" width="16" />
+                            <MobileBackButtonSpacer />
+                        </Box>
+                        <PostShimmerHeader />
+                    </>
+                ) : (
                     <Box
                         height={navigationBarHeight}
                         display="flex"
                         justifyContent="space-between"
                         alignItems="center"
-                        paddingX={mobileNavigationBarGap}
                     >
-                        <MobileBackButton />
-                        <TextShimmer fontSize="100" width="16" />
-                        <MobileBackButtonSpacer />
+                        <Box width="full">
+                            <PostShimmerHeader />
+                        </Box>
                     </Box>
                 )}
-                <Box
-                    style={{
-                        height: withMobileLayout
-                            ? isMobile
-                                ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                            : `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
-                    }}
-                />
-                <PostShimmerHeader />
             </Box>
         </Box>
     );
 }
 
 function SearchRouteShimmer() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     return (
         <Box width="full" maxWidth={maxWidth} marginX="center">
@@ -1437,7 +1395,7 @@ function SearchRouteShimmer() {
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                 >
                     <TextShimmer fontSize="100" width="16" />
                 </Box>
@@ -1481,8 +1439,10 @@ function SearchRouteShimmer() {
     );
 }
 
-function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function TaskDetailRouteShimmer() {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
+    const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
     return (
         <Box width="full" height="full" overflow="hidden">
@@ -1505,37 +1465,28 @@ function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean})
                     position="relative"
                 >
                     <Box height="safe-area-inset-top" />
-                    <Box
-                        height={navigationBarHeight}
-                        display="flex"
-                        alignItems="center"
-                        marginBottom={
-                            !isMobile
-                                ? desktopTaskDetailViewNavigationBarSpacerMarginBottom
-                                : undefined
-                        }
-                    >
-                        {isMobile && <MobileBackButton />}
-                        {!isMobile && (
+                    <Box height={navigationBarHeight} display="flex" alignItems="center">
+                        {platform === "mobile" && <MobileBackButton />}
+                        {platform !== "mobile" && (
                             <Box
                                 className={pulseAnimationClassName}
                                 backgroundColor="grey-10"
-                                width={desktopTaskDetailViewStatusButtonSize}
-                                height={desktopTaskDetailViewStatusButtonSize}
+                                width={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                                height={taskDetailViewStatusButtonSize[platformRouteLayout]}
                                 borderRadius="full"
                             />
                         )}
                     </Box>
-                    {isMobile && (
+                    {platform === "mobile" && (
                         <Box
-                            paddingTop={mobileTaskDetailViewStatusButtonPaddingTop}
-                            paddingBottom={mobileTaskDetailViewStatusButtonPaddingBottom}
+                            paddingTop={taskDetailViewStatusButtonMobilePaddingTop}
+                            paddingBottom={taskDetailViewStatusButtonMobilePaddingBottom}
                         >
                             <Box
                                 className={pulseAnimationClassName}
                                 backgroundColor="grey-10"
-                                width={mobileTaskDetailViewStatusButtonSize}
-                                height={mobileTaskDetailViewStatusButtonSize}
+                                width={taskDetailViewStatusButtonSize[platformRouteLayout]}
+                                height={taskDetailViewStatusButtonSize[platformRouteLayout]}
                                 borderRadius="full"
                             />
                         </Box>
@@ -1578,14 +1529,14 @@ function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean})
                         borderBottom="grey-5"
                     />
                 </Box>
-                {!withMobileLayout && (
+                {routeLayout !== "narrow" && (
                     <Box
                         flexShrink="0"
                         width={taskDetailViewCommentSidebarWidth}
                         borderLeft="grey-10"
                         overflow="hidden"
                     >
-                        <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} />
+                        <TaskCommentsViewShimmer />
                     </Box>
                 )}
             </Box>
@@ -1593,18 +1544,13 @@ function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean})
     );
 }
 
-function TaskCommentsRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    return <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} withNavigationBar={true} />;
+function TaskCommentsRouteShimmer() {
+    return <TaskCommentsViewShimmer withNavigationBar={true} />;
 }
 
-export function TaskCommentsViewShimmer({
-    withMobileLayout,
-    withNavigationBar,
-}: {
-    withMobileLayout: boolean;
-    withNavigationBar?: boolean;
-}) {
-    const isMobile = useIsMobile();
+export function TaskCommentsViewShimmer({withNavigationBar}: {withNavigationBar?: boolean}) {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
@@ -1619,7 +1565,7 @@ export function TaskCommentsViewShimmer({
                             display="flex"
                             flexDirection="column"
                             justifyContent="center"
-                            alignItems={!isMobile ? "flex-start" : "center"}
+                            alignItems={platform !== "mobile" ? "flex-start" : "center"}
                             width="full"
                             maxWidth={messageViewMaxWidth}
                             height="full"
@@ -1637,35 +1583,34 @@ export function TaskCommentsViewShimmer({
                 messages="few"
                 // Slightly reduce the amount of margin on messages in a desktop comment thread
                 // because we have less space in the sidebar.
-                paddingX={!withMobileLayout ? "4" : undefined}
+                paddingX={routeLayout !== "narrow" ? "4" : undefined}
             />
         </Box>
     );
 }
 
 function TaskGridRouteShimmer({
-    withMobileLayout,
     titleWidth,
     notepadActiveSection,
     customizationBar,
 }: {
-    withMobileLayout: boolean;
     titleWidth?: Spacing;
     notepadActiveSection?: ReactNode;
     customizationBar?: ReactNode;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box height="safe-area-inset-top" />
-            {notepadActiveSection && isMobile && (
+            {notepadActiveSection && platform === "mobile" && (
                 <Box
                     height={navigationBarHeight}
                     display="flex"
                     alignItems="center"
                     justifyContent="space-between"
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                 >
                     <MobileBackButton />
                     <TextShimmer fontSize="100" width="24" />
@@ -1673,19 +1618,26 @@ function TaskGridRouteShimmer({
                 </Box>
             )}
             {notepadActiveSection}
-            {!notepadActiveSection || !isMobile ? (
+            {!notepadActiveSection || platform !== "mobile" ? (
                 <Box
                     height={navigationBarHeight}
                     display="flex"
-                    justifyContent={!notepadActiveSection && isMobile ? "space-between" : undefined}
+                    justifyContent={
+                        !notepadActiveSection && platform === "mobile" ? "space-between" : undefined
+                    }
                     alignItems="center"
                     paddingX={
-                        !notepadActiveSection && isMobile ? mobileNavigationBarGap : screenPaddingX
+                        !notepadActiveSection && platform === "mobile"
+                            ? navigationBarMobileGap
+                            : screenPaddingX
                     }
                 >
-                    {!notepadActiveSection && isMobile && <MobileBackButton />}
-                    <TextShimmer fontSize="200" width={titleWidth ?? (isMobile ? "24" : "48")} />
-                    {!notepadActiveSection && isMobile && <MobileBackButtonSpacer />}
+                    {!notepadActiveSection && platform === "mobile" && <MobileBackButton />}
+                    <TextShimmer
+                        fontSize="200"
+                        width={titleWidth ?? (platform === "mobile" ? "24" : "48")}
+                    />
+                    {!notepadActiveSection && platform === "mobile" && <MobileBackButtonSpacer />}
                 </Box>
             ) : (
                 <Box paddingY="2">
@@ -1694,7 +1646,7 @@ function TaskGridRouteShimmer({
             )}
             <Box position="relative" paddingX={screenPaddingX}>
                 {customizationBar}
-                {withMobileLayout && notepadActiveSection && !isMobile && (
+                {routeLayout === "narrow" && notepadActiveSection && platform !== "mobile" && (
                     <Box style={{height: taskGridViewColumnHeaderExtraPaddingBottomPx}} />
                 )}
                 <Box
@@ -1702,134 +1654,94 @@ function TaskGridRouteShimmer({
                     bottom="0"
                     left={screenPaddingX}
                     right={screenPaddingX}
-                    borderBottom={withMobileLayout ? "grey-5" : undefined}
+                    borderBottom={routeLayout === "narrow" ? "grey-5" : undefined}
                 />
             </Box>
-            <Box paddingX={screenPaddingX}>
-                {!withMobileLayout && (
-                    <Box
-                        borderBottom="grey-5"
-                        style={{
-                            height: `calc(${spacing[taskGridViewColumnHeaderHeight]} + ${taskGridViewColumnHeaderExtraPaddingBottomPx}px)`,
-                        }}
-                    >
+            {routeLayout !== "narrow" && (
+                <Box
+                    paddingRight={screenPaddingX}
+                    borderBottom="grey-5"
+                    style={{
+                        height: `calc(${spacing[taskGridViewColumnHeaderHeight]} + ${taskGridViewColumnHeaderExtraPaddingBottomPx}px)`,
+                    }}
+                >
+                    <Box height={taskGridViewColumnHeaderHeight} display="flex" alignItems="center">
                         <Box
-                            height={taskGridViewColumnHeaderHeight}
-                            display="flex"
-                            alignItems="center"
+                            flexGrow="1"
+                            style={{
+                                paddingLeft: `${
+                                    taskRowViewDragHandleWidthRem + taskRowViewExpandButtonWidthRem
+                                }rem`,
+                            }}
                         >
-                            <Box flexGrow="1">
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                style={{
-                                    width: taskRowViewFirstColumnWidth,
-                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                }}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingX={taskRowViewColumnPaddingX}
-                                style={{width: taskRowViewColumnWidth}}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                paddingLeft={taskRowViewColumnPaddingX}
-                                paddingRight={taskRowViewLastColumnPaddingRight}
-                                style={{width: taskRowViewCollectionsColumnWidth}}
-                            >
-                                <TextShimmer fontSize="50" width="12" />
-                            </Box>
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingX={taskRowViewColumnPaddingX}
+                            style={{
+                                width: taskRowViewFirstColumnWidth,
+                                paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                            }}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingX={taskRowViewColumnPaddingX}
+                            style={{width: taskRowViewColumnWidth}}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingX={taskRowViewColumnPaddingX}
+                            style={{width: taskRowViewColumnWidth}}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            paddingLeft={taskRowViewColumnPaddingX}
+                            paddingRight={taskRowViewLastColumnPaddingRight}
+                            style={{width: taskRowViewCollectionsColumnWidth}}
+                        >
+                            <TextShimmer fontSize="50" width="12" />
                         </Box>
                     </Box>
-                )}
-                <TaskRowShimmer width="128" ragRight="2" />
-                <TaskRowShimmer width="64" ragRight="6" />
-                <TaskRowShimmer width="96" ragRight="4" />
-                <TaskRowShimmer width="128" ragRight="12" />
-                <TaskRowShimmer width="64" ragRight="10" />
-                <TaskRowShimmer width="160" />
-                <TaskRowShimmer width="96" ragRight="8" />
-                {!withMobileLayout && (
-                    <>
-                        <TaskRowShimmer width="128" ragRight="2" />
-                        <TaskRowShimmer width="64" ragRight="6" />
-                        <TaskRowShimmer width="96" ragRight="4" />
-                        <TaskRowShimmer width="128" ragRight="12" />
-                        <TaskRowShimmer width="64" ragRight="10" />
-                        <TaskRowShimmer width="160" />
-                        <TaskRowShimmer width="96" ragRight="8" />
-                    </>
-                )}
-            </Box>
-        </Box>
-    );
-}
-
-function TaskRowShimmer({width, ragRight}: {width: Spacing; ragRight?: Spacing}) {
-    const isMobile = useIsMobile();
-
-    const marginLeft: RemLength = `${
-        parseRemLengthNumber(spacing[isMobile ? "2" : "5"]) +
-        parseRemLengthNumber(spacing[isMobile ? "7" : "6"])
-    }rem`;
-
-    return (
-        <Box height={taskRowViewMinHeight} display="flex" borderBottom="grey-5">
-            <Box
-                flexShrink="0"
-                style={{width: marginLeft}}
-                display="flex"
-                justifyContent="flex-end"
-                alignItems="center"
-                height={taskRowViewMinHeight}
-            >
-                <Box width={isMobile ? "7" : "6"} paddingRight="2">
-                    <Box
-                        width={isMobile ? "5" : "4"}
-                        height={isMobile ? "5" : "4"}
-                        borderRadius="full"
-                        border="grey-10"
-                    />
                 </Box>
-            </Box>
-            <Box height={taskRowViewMinHeight} flexGrow="1" display="flex" alignItems="center">
-                <Box
-                    className={pulseAnimationClassName}
-                    width="full"
-                    maxWidth={width}
-                    height="3"
-                    backgroundColor="grey-5"
-                    borderRadius="full"
-                    marginRight={ragRight}
-                />
-            </Box>
+            )}
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="128" ragRight="2" />
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="64" ragRight="6" />
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="96" ragRight="4" />
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="128" ragRight="12" />
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="64" ragRight="10" />
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="160" />
+            <TaskRowShimmer hasColumns={routeLayout !== "narrow"} width="96" ragRight="8" />
+            {routeLayout !== "narrow" && (
+                <>
+                    <TaskRowShimmer hasColumns={true} width="128" ragRight="2" />
+                    <TaskRowShimmer hasColumns={true} width="64" ragRight="6" />
+                    <TaskRowShimmer hasColumns={true} width="96" ragRight="4" />
+                    <TaskRowShimmer hasColumns={true} width="128" ragRight="12" />
+                    <TaskRowShimmer hasColumns={true} width="64" ragRight="10" />
+                    <TaskRowShimmer hasColumns={true} width="160" />
+                    <TaskRowShimmer hasColumns={true} width="96" ragRight="8" />
+                </>
+            )}
         </Box>
     );
 }
 
-function TaskQueryRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function TaskQueryRouteShimmer() {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
     return (
         <TaskGridRouteShimmer
-            withMobileLayout={withMobileLayout}
             customizationBar={
-                withMobileLayout &&
-                (isMobile ? (
+                routeLayout === "narrow" &&
+                (platform === "mobile" ? (
                     <Box paddingBottom={taskQueryViewCustomizationMobileSectionMarginBottom}>
                         <Box
                             width="full"
@@ -1890,37 +1802,33 @@ function TaskQueryRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) 
     );
 }
 
-function TaskNotepadRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
-    const isMobile = useIsMobile();
+function TaskNotepadRouteShimmer() {
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
 
     // Fake the spacing for 3 cards.
     const cardCount = 3;
 
     // There's less horizontal space on mobile for cards than in peeks on desktop.
-    const cardCountAboveTheFold = isMobile ? 1 : withMobileLayout ? 2 : 3;
+    const cardCountAboveTheFold = platform === "mobile" ? 1 : routeLayout === "narrow" ? 2 : 3;
 
     const cardWidthStyle = `calc(${(1 / cardCountAboveTheFold) * 100}% - ${
-        parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
+        parseRemLength(taskNotepadViewActiveSectionCardGap) *
             ((cardCountAboveTheFold - 1) / cardCountAboveTheFold) +
         (Math.max(cardCount, cardCountAboveTheFold) > cardCountAboveTheFold
-            ? parseRemLengthNumber(spacing[cardCountAboveTheFold <= 1 ? "16" : "4"])
+            ? parseRemLength(cardCountAboveTheFold <= 1 ? "16" : "4")
             : 0)
     }rem)`;
 
     return (
         <TaskGridRouteShimmer
-            withMobileLayout={withMobileLayout}
             titleWidth="20"
             notepadActiveSection={
                 <>
                     <Box height={taskNotepadViewActiveSectionMarginTop} />
                     <Box paddingX={screenPaddingX}>
                         <TextShimmer
-                            fontSize={
-                                taskNotepadViewActiveSectionTitleFontSize[
-                                    isMobile ? "mobile" : "desktop"
-                                ]
-                            }
+                            fontSize={taskNotepadViewActiveSectionTitleFontSize[platform]}
                             width="20"
                         />
                     </Box>
@@ -1963,11 +1871,7 @@ function TaskNotepadRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}
                         />
                     </Box>
                     <Box
-                        style={{
-                            height: isMobile
-                                ? mobileTaskNotepadViewActiveSectionMarginBottom
-                                : desktopTaskNotepadViewActiveSectionMarginBottom,
-                        }}
+                        style={{height: taskNotepadViewActiveSectionActualMarginBottom[platform]}}
                     />
                     <Box height="safe-area-inset-top" />
                 </>

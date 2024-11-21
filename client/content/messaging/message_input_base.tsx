@@ -28,7 +28,6 @@ import {
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
@@ -47,8 +46,9 @@ import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getMessageBubbleMarginLeft,
@@ -71,7 +71,7 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -99,7 +99,6 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     messageStartOfSentenceNoun?: string;
     sendButtonVerb?: string;
     placeholder?: string;
-    withMobileLayout: boolean;
     state: ContentEditorState<MessageContentWithReferences>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onSend: () => void;
@@ -149,7 +148,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     {
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
-        withMobileLayout,
         state,
         onChange,
         onSend: onSendProp,
@@ -180,7 +178,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     }: MessageInputBaseProps<RoomKey, Message>,
     ref: Ref<MessageInputRef>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -336,7 +334,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // keyboard opens whether the keyboard opened from the message input or
     // something else (e.g. `<ChatAccountPicker>` element).
     const {isTextInputFocused: isKeyboardToolbarVisible} = useIsTextInputFocused({
-        isDisabled: !isMobile || !isBottomBar,
+        isDisabled: platform !== "mobile" || !isBottomBar,
     });
 
     const [isKeyboardToolbarCompletelyHiddenFromState, setIsKeyboardToolbarCompletelyHidden] =
@@ -501,7 +499,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
-    const avatarPaddingY = messageInputAccountAvatarPaddingY[isMobile ? "mobile" : "desktop"];
+    const avatarPaddingY = messageInputAccountAvatarPaddingY[platform];
 
     return (
         <Box
@@ -524,12 +522,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 backgroundColor="grey-0"
                 style={{
                     minHeight: !isBottomBar
-                        ? messageInputMinHeight[isMobile ? "mobile" : "desktop"]
+                        ? messageInputMinHeight[platform]
                         : `calc(${
-                              isMobile
+                              platform === "mobile"
                                   ? addRemLengths(
                                         messageInputMinHeight.mobile,
-                                        spacing[mobileBottomBarKeyboardToolbarHeight],
+                                        mobileBottomBarKeyboardToolbarHeight,
                                     )
                                   : messageInputMinHeight.desktop
                           } + var(--window-safe-area-inset-bottom, 0px))`,
@@ -542,9 +540,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         isBottomBar && clientInfo.isNativeMobile
                             ? `-${addRemLengths(
                                   bottomBarBackgroundSlopBottom,
-                                  spacing[mobileBottomBarKeyboardToolbarHeight],
+                                  mobileBottomBarKeyboardToolbarHeight,
                               )}`
-                            : isBottomBar && isMobile
+                            : isBottomBar && platform === "mobile"
                             ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
                             : undefined,
                     // Our native mobile wrapper looks for compositing layers created from an
@@ -609,18 +607,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 paddingTop={messageInputPaddingY}
                                 color="grey-80"
                                 style={{
-                                    paddingLeft: isMobile
-                                        ? spacing["3"]
-                                        : getMessageBubbleMarginLeft(
-                                              typeof paddingX === "string"
-                                                  ? paddingX
-                                                  : paddingX.desktop,
-                                          ),
-                                    paddingRight: addRemLengths(
-                                        spacing["2"],
-                                        spacing["7"],
-                                        spacing["5"],
-                                    ),
+                                    paddingLeft:
+                                        platform === "mobile"
+                                            ? spacing["3"]
+                                            : getMessageBubbleMarginLeft(
+                                                  typeof paddingX === "string"
+                                                      ? paddingX
+                                                      : paddingX.desktop,
+                                              ),
+                                    paddingRight: addRemLengths("2", "7", "5"),
                                 }}
                             >
                                 <Box
@@ -655,16 +650,14 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         {replyingToMessage &&
                             (() => {
                                 const height = addRemLengths(
-                                    spacing["1.5"],
+                                    "1.5",
                                     contentViewStyles.truncatedHeight,
-                                    spacing["1.5"],
+                                    "1.5",
                                 );
 
                                 const scaledHeight = `${
                                     Math.round(
-                                        parseRemLengthNumber(height) *
-                                            messageViewReplyPreviewScale *
-                                            16,
+                                        parseRemLength(height) * messageViewReplyPreviewScale * 16,
                                     ) / 16
                                 }rem`;
 
@@ -674,18 +667,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         paddingTop={messageInputPaddingY}
                                         paddingBottom="1"
                                         style={{
-                                            paddingLeft: isMobile
-                                                ? spacing["3"]
-                                                : getMessageBubbleMarginLeft(
-                                                      typeof paddingX === "string"
-                                                          ? paddingX
-                                                          : paddingX.desktop,
-                                                  ),
-                                            paddingRight: addRemLengths(
-                                                spacing["2"],
-                                                spacing["7"],
-                                                spacing["5"],
-                                            ),
+                                            paddingLeft:
+                                                platform === "mobile"
+                                                    ? spacing["3"]
+                                                    : getMessageBubbleMarginLeft(
+                                                          typeof paddingX === "string"
+                                                              ? paddingX
+                                                              : paddingX.desktop,
+                                                      ),
+                                            paddingRight: addRemLengths("2", "7", "5"),
                                         }}
                                     >
                                         <Box
@@ -787,7 +777,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                             isInert={true}
                                                             isTruncated={true}
                                                             isBackgroundColorGrey5={true}
-                                                            withMobileLayout={withMobileLayout}
                                                             content={
                                                                 replyingToMessage.truncatedContent
                                                             }
@@ -806,7 +795,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             paddingY={messageInputPaddingY}
                             gap="2"
                         >
-                            {!isMobile && (
+                            {platform !== "mobile" && (
                                 <Box display="flex" alignItems="flex-end">
                                     <Box
                                         width={messageInputAccountAvatarSize}
@@ -856,27 +845,25 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     <Box
                                         ref={useScrollbar({
                                             insetY: borderRadius[
-                                                messageViewBubbleBorderRadius[
-                                                    isMobile ? "mobile" : "desktop"
-                                                ]
+                                                messageViewBubbleBorderRadius[platform]
                                             ],
                                         })}
-                                        maxHeight={isMobile || withMobileMaxHeight ? "48" : "96"}
+                                        maxHeight={
+                                            platform === "mobile" || withMobileMaxHeight
+                                                ? "48"
+                                                : "96"
+                                        }
                                         position="relative"
                                         zIndex="0"
                                         overflowX="hidden"
                                         overflowY="auto"
                                         borderRadius={messageViewBubbleBorderRadius}
                                         style={{
-                                            minHeight:
-                                                messageViewBubbleMinHeight[
-                                                    isMobile ? "mobile" : "desktop"
-                                                ],
+                                            minHeight: messageViewBubbleMinHeight[platform],
                                         }}
                                     >
                                         <ContentEditor
                                             ref={editorRef}
-                                            withMobileLayout={withMobileLayout}
                                             state={state}
                                             onChange={(state, transaction) => {
                                                 onChange(state);
@@ -960,7 +947,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             </Box>
                         </Box>
                     </Box>
-                    {isMobile && isBottomBar && (
+                    {platform === "mobile" && isBottomBar && (
                         <MessageInputMobileKeyboardToolbar
                             state={state._getInternalState()}
                             viewRef={viewRef}

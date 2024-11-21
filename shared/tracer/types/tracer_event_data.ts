@@ -146,6 +146,16 @@ export type TracerEventExceptionDataBase = {
     readonly displayMessage?: string;
 };
 
+export type TracerEventExceptionDataBaseWithCause = TracerEventExceptionDataBase & {
+    /**
+     * If this error was caused by another error, we'll include the cause's
+     * information here nested underneath. Can include up to two causes.
+     */
+    readonly cause?: TracerEventExceptionDataBase & {
+        readonly cause?: TracerEventExceptionDataBase;
+    };
+};
+
 /**
  * The data present in an event logged by our tracer.
  */
@@ -228,21 +238,8 @@ export type TracerEventData = {
         readonly userAgent?: string;
 
         readonly request?: {
-            /**
-             * The size of the request payload body in bytes. This is the number of bytes
-             * transferred excluding headers and is often, but not always, present as the
-             * `Content-Length` header. For requests using transport encoding, this should
-             * be the compressed size.
-             */
-            readonly contentLength?: number;
-
-            /**
-             * The size of the request payload body in bytes without compression.
-             */
-            readonly uncompressedContentLength?: number;
-
             /** HTTP request headers. */
-            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string};
+            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string | number};
 
             /**
              * If this request had a `Cookie` header this is an obfuscated approximation of
@@ -253,21 +250,8 @@ export type TracerEventData = {
         };
 
         readonly response?: {
-            /**
-             * The size of the response payload body in bytes. This is the number of bytes
-             * transferred excluding headers and is often, but not always, present as the
-             * `Content-Length` header. For requests using transport encoding, this should
-             * be the compressed size.
-             */
-            readonly contentLength?: number;
-
-            /**
-             * The size of the response payload body in bytes without compression.
-             */
-            readonly uncompressedContentLength?: number;
-
             /** HTTP response headers. */
-            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string};
+            readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string | number};
 
             /**
              * If this request had a `Set-Cookie` header this is an obfuscated
@@ -339,7 +323,7 @@ export type TracerEventData = {
      *
      * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
-    readonly exception?: TracerEventExceptionDataBase & {
+    readonly exception?: TracerEventExceptionDataBaseWithCause & {
         /**
          * Is this an original exception? True if this is the first span we're adding
          * this exception to and undefined if this exception has been propagated.
@@ -366,12 +350,34 @@ export type TracerEventData = {
         };
 
         /**
-         * If this error was caused by another error, we'll include the cause's
-         * information here nested underneath. Can include up to two causes.
+         * If this is an aggregate error then this is the first of five errors
+         * included in tracing.
          */
-        readonly cause?: TracerEventExceptionDataBase & {
-            readonly cause?: TracerEventExceptionDataBase;
-        };
+        readonly aggregated1?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the second of five errors
+         * included in tracing.
+         */
+        readonly aggregated2?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the third of five errors
+         * included in tracing.
+         */
+        readonly aggregated3?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the fourth of five errors
+         * included in tracing.
+         */
+        readonly aggregated4?: TracerEventExceptionDataBaseWithCause;
+
+        /**
+         * If this is an aggregate error then this is the fifth of five errors
+         * included in tracing.
+         */
+        readonly aggregated5?: TracerEventExceptionDataBaseWithCause;
     };
 
     /**
@@ -984,6 +990,15 @@ export type TracerEventData = {
          * of time the job spent in the queue is `queueDurationMs` + `delaySeconds`.
          */
         readonly queueDurationMs?: number;
+
+        /**
+         * Will we retry this job? True if the job threw an error. You can't look at
+         * whether our span has an `exception.type` attribute to know if the job will
+         * retry. Since sometimes we add an exception to jobs that are considered
+         * completed (e.g. if we fail to process a corrupt file in the `ProcessFile`
+         * job we'll add the processing error to the job span but won't retry the job.)
+         */
+        readonly willRetry?: boolean;
     };
 
     /**
@@ -1060,6 +1075,9 @@ export type TracerEventData = {
 
                 /** The content type of our Cloudflare R2 object. */
                 readonly contentType?: string;
+
+                /** The content length of our Cloudflare R2 object. */
+                readonly contentLength?: number;
             };
         };
     };
@@ -1186,6 +1204,21 @@ export type TracerEventData = {
 
             /** If this is code, how long is the `FileCodePreviewContent` binary data? */
             readonly codeContentLength?: number;
+        };
+
+        /**
+         * Information from `FileProcessorService` typically concerning processing
+         * state.
+         */
+        readonly processing?: {
+            readonly alternativeDurationMs?: number;
+            readonly imagePreviewSizeDurationMs?: number;
+            readonly imagePreviewPlaceholderDurationMs?: number;
+            readonly imagePreviewContentDurationMs?: number;
+            readonly imagePreviewVideoDurationDurationMs?: number;
+            readonly audioPreviewDurationDurationMs?: number;
+            readonly audioPreviewMetadataDurationMs?: number;
+            readonly codePreviewContentDurationMs?: number;
         };
     };
 

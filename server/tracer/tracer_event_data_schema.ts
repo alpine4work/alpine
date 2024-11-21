@@ -57,6 +57,14 @@ const TracerEventExceptionDataBaseSchema = {
     displayMessage: Schema.string,
 };
 
+const TracerEventExceptionDataBaseWithCauseSchema = {
+    ...TracerEventExceptionDataBaseSchema,
+    cause: {
+        ...TracerEventExceptionDataBaseSchema,
+        cause: TracerEventExceptionDataBaseSchema,
+    },
+};
+
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
  * since we don't want it to eat into client bundle size. Likewise
@@ -109,23 +117,19 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         flavor: LabelStringSchema,
         userAgent: LabelStringSchema,
         request: {
-            contentLength: Schema.float,
-            uncompressedContentLength: Schema.float,
             header: Object.fromEntries(
                 mapIterable(tracerEventHttpHeaderNames, headerName => [
                     headerName,
-                    LabelStringSchema,
+                    headerName === "content-length" ? Schema.integer : LabelStringSchema,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
             obfuscatedCookieHeader: Schema.string,
         },
         response: {
-            contentLength: Schema.float,
-            uncompressedContentLength: Schema.float,
             header: Object.fromEntries(
                 mapIterable(tracerEventHttpHeaderNames, headerName => [
                     headerName,
-                    LabelStringSchema,
+                    headerName === "content-length" ? Schema.integer : LabelStringSchema,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
             obfuscatedSetCookieHeader: Schema.string,
@@ -148,17 +152,18 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         fetchDurationMs: Schema.float,
     },
     exception: {
-        ...TracerEventExceptionDataBaseSchema,
+        ...TracerEventExceptionDataBaseWithCauseSchema,
         isOriginal: Schema.enum([true]),
         original: {
             time: DateStringSchema,
             traceId: Schema.id<TraceId>(),
             spanId: Schema.id<TraceSpanId>(),
         },
-        cause: {
-            ...TracerEventExceptionDataBaseSchema,
-            cause: TracerEventExceptionDataBaseSchema,
-        },
+        aggregated1: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated2: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated3: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated4: TracerEventExceptionDataBaseWithCauseSchema,
+        aggregated5: TracerEventExceptionDataBaseWithCauseSchema,
     },
     common: {
         type: IdentifierStringSchema,
@@ -333,6 +338,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         batchSize: Schema.integer,
         delaySeconds: Schema.float,
         queueDurationMs: Schema.float,
+        willRetry: Schema.boolean,
     },
     cohere: {
         textCount: Schema.integer,
@@ -355,6 +361,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             object: {
                 key: Schema.string,
                 contentType: Schema.string,
+                contentLength: Schema.integer,
             },
         },
     },
@@ -398,6 +405,16 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             imageVideoDurationMs: Schema.float,
             audioDurationMs: Schema.float,
             codeContentLength: Schema.integer,
+        },
+        processing: {
+            alternativeDurationMs: Schema.float,
+            imagePreviewSizeDurationMs: Schema.float,
+            imagePreviewPlaceholderDurationMs: Schema.float,
+            imagePreviewContentDurationMs: Schema.float,
+            imagePreviewVideoDurationDurationMs: Schema.float,
+            audioPreviewDurationDurationMs: Schema.float,
+            audioPreviewMetadataDurationMs: Schema.float,
+            codePreviewContentDurationMs: Schema.float,
         },
     },
     libreoffice: {

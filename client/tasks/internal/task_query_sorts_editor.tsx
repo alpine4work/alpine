@@ -18,6 +18,7 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -28,16 +29,16 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQuerySortsEditor({
-    withMobileLayout,
     sortsWithId,
     onSortsWithIdChange,
     defaultOrderSentence,
 }: {
-    withMobileLayout: boolean;
     sortsWithId: Array<{id: number; sort: TaskQuerySort}>;
     onSortsWithIdChange: (sorts: Array<{id: number; sort: TaskQuerySort}>) => void;
     defaultOrderSentence: string;
 }) {
+    const routeLayout = useRouteLayout();
+
     // By default `<DndContext>` uses `PointerSensor` and `KeyboardSensor` but
     // `PointerSensor` can't stop scroll when dragging with touch. So instead we
     // want to directly use `MouseSensor` and `TouchSensor`.
@@ -48,7 +49,7 @@ export function TaskQuerySortsEditor({
     );
 
     return sortsWithId.length === 0 ? (
-        !withMobileLayout ? (
+        routeLayout !== "narrow" ? (
             <Box color="grey-50">No sorts. {defaultOrderSentence}</Box>
         ) : (
             <Box
@@ -85,20 +86,17 @@ export function TaskQuerySortsEditor({
             }}
         >
             <SortableContext items={sortsWithId}>
-                <TaskQuerySortsEditorDragPortals
-                    sortsWithId={sortsWithId}
-                    withMobileLayout={withMobileLayout}
-                />
+                <TaskQuerySortsEditorDragPortals sortsWithId={sortsWithId} />
                 <Box
                     position="relative"
                     zIndex="0"
-                    marginY={!withMobileLayout ? "-2" : undefined}
-                    marginX={!withMobileLayout ? "-2.5" : undefined}
+                    marginY={routeLayout !== "narrow" ? "-2" : undefined}
+                    marginX={routeLayout !== "narrow" ? "-2.5" : undefined}
                 >
                     {sortsWithId.map(({sort, id}, index) => (
                         <Fragment key={id}>
                             {index !== 0 &&
-                                (withMobileLayout ? (
+                                (routeLayout === "narrow" ? (
                                     <Box
                                         position="relative"
                                         zIndex="10" // Renders under rows
@@ -116,7 +114,6 @@ export function TaskQuerySortsEditor({
                                 id={id}
                                 sort={sort}
                                 isDragOverlay={false}
-                                withMobileLayout={withMobileLayout}
                                 onSortChange={newSort => {
                                     const newSortsWithKey = [...sortsWithId];
                                     newSortsWithKey[index] = {id, sort: newSort};
@@ -138,10 +135,8 @@ export function TaskQuerySortsEditor({
 
 function TaskQuerySortsEditorDragPortals({
     sortsWithId,
-    withMobileLayout,
 }: {
     sortsWithId: Array<{id: Key; sort: TaskQuerySort}>;
-    withMobileLayout: boolean;
 }) {
     const {active, activatorEvent} = useDndContext();
 
@@ -166,7 +161,6 @@ function TaskQuerySortsEditorDragPortals({
                                 ).sort
                             }
                             isDragOverlay={true}
-                            withMobileLayout={withMobileLayout}
                             onSortChange={noop}
                             onSortDelete={noop}
                         />
@@ -181,14 +175,12 @@ function TaskQuerySortsEditorRow({
     id,
     sort,
     isDragOverlay,
-    withMobileLayout,
     onSortChange,
     onSortDelete,
 }: {
     id: Key;
     sort: TaskQuerySort;
     isDragOverlay: boolean;
-    withMobileLayout: boolean;
     onSortChange: (sort: TaskQuerySort) => void;
     onSortDelete: () => void;
 }) {
@@ -200,12 +192,10 @@ function TaskQuerySortsEditorRow({
                     name="Status"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowStatusDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -217,12 +207,10 @@ function TaskQuerySortsEditorRow({
                     name="Priority"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowPriorityDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -234,12 +222,10 @@ function TaskQuerySortsEditorRow({
                     name="Assignee"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowAccountMissing
                         missing={sort.missing}
                         onMissingChange={missing => onSortChange({...sort, missing})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -251,7 +237,6 @@ function TaskQuerySortsEditorRow({
                     name="Creator"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 />
             );
         }
@@ -262,12 +247,10 @@ function TaskQuerySortsEditorRow({
                     name="Assigner"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowAccountMissing
                         missing={sort.missing}
                         onMissingChange={missing => onSortChange({...sort, missing})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -279,12 +262,10 @@ function TaskQuerySortsEditorRow({
                     name="Due date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -296,12 +277,10 @@ function TaskQuerySortsEditorRow({
                     name="Created date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -313,12 +292,10 @@ function TaskQuerySortsEditorRow({
                     name="Assigned date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -330,12 +307,10 @@ function TaskQuerySortsEditorRow({
                     name="Closed date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -347,12 +322,10 @@ function TaskQuerySortsEditorRow({
                     name="Active date"
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
-                    withMobileLayout={withMobileLayout}
                 >
                     <TaskQuerySortsEditorRowDateDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
-                        withMobileLayout={withMobileLayout}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -367,16 +340,16 @@ function TaskQuerySortsEditorRowBase({
     name,
     onDelete,
     isDragOverlay,
-    withMobileLayout,
     children,
 }: {
     id: Key;
     name: string;
     onDelete: () => void;
     isDragOverlay: boolean;
-    withMobileLayout: boolean;
     children?: ReactNode;
 }) {
+    const routeLayout = useRouteLayout();
+
     const {
         attributes: sortableAttributes,
         listeners: sortableListeners,
@@ -392,19 +365,19 @@ function TaskQuerySortsEditorRowBase({
             className={greyElevated2ClassName}
             position="relative"
             zIndex="20" // Renders over dividers
-            paddingLeft={withMobileLayout ? "3" : "2.5"}
-            paddingRight={withMobileLayout ? "1.5" : "2.5"}
+            paddingLeft={routeLayout === "narrow" ? "3" : "2.5"}
+            paddingRight={routeLayout === "narrow" ? "1.5" : "2.5"}
             display="flex"
             alignItems="center"
             backgroundColor={isDragOverlay ? "grey-0" : undefined}
             boxShadow={
                 isDragOverlay
-                    ? withMobileLayout
+                    ? routeLayout === "narrow"
                         ? "elevation-20-with-grey-10-border"
                         : "elevation-30"
                     : undefined
             }
-            borderRadius={withMobileLayout || isDragOverlay ? "1" : undefined}
+            borderRadius={routeLayout === "narrow" || isDragOverlay ? "1" : undefined}
             style={{
                 transform: sortableTransform
                     ? `translate(${sortableTransform.x}px, ${sortableTransform.y}px)`
@@ -412,45 +385,49 @@ function TaskQuerySortsEditorRowBase({
                 transition: sortableTransition,
                 opacity: isDragging ? 0 : undefined,
 
-                height: withMobileLayout
-                    ? spacing["9"]
-                    : // Add 2px of height when this is a drag overlay so it covers the dividers.
-                    isDragOverlay
-                    ? `calc(${spacing["8"]} + 2px)`
-                    : spacing["8"],
-                marginTop: isDragOverlay && !withMobileLayout ? -1 : 0,
+                height:
+                    routeLayout === "narrow"
+                        ? spacing["9"]
+                        : // Add 2px of height when this is a drag overlay so it covers the dividers.
+                        isDragOverlay
+                        ? `calc(${spacing["8"]} + 2px)`
+                        : spacing["8"],
+                marginTop: isDragOverlay && routeLayout !== "narrow" ? -1 : 0,
 
                 boxShadow:
-                    withMobileLayout && !isDragOverlay
+                    routeLayout === "narrow" && !isDragOverlay
                         ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
                         : undefined,
             }}
         >
             <Box flexShrink="0">{name}</Box>
-            {!withMobileLayout && <Box flexGrow="1" />}
+            {routeLayout !== "narrow" && <Box flexGrow="1" />}
             {children && (
                 <Box
                     flexShrink="0"
-                    paddingLeft={withMobileLayout ? "1" : "2"}
-                    style={{height: withMobileLayout ? `calc(${spacing["9"]} - 4px)` : undefined}}
+                    paddingLeft={routeLayout === "narrow" ? "1" : "2"}
+                    style={{
+                        height:
+                            routeLayout === "narrow" ? `calc(${spacing["9"]} - 4px)` : undefined,
+                    }}
                 >
                     {children}
                 </Box>
             )}
-            {withMobileLayout && <Box flexGrow="1" />}
+            {routeLayout === "narrow" && <Box flexGrow="1" />}
             <Box
                 flexShrink="0"
                 display="flex"
                 alignItems="center"
-                gap={withMobileLayout ? "1" : "0.5"}
+                gap={routeLayout === "narrow" ? "1" : "0.5"}
                 paddingLeft="3"
             >
                 <button
                     {...mergeProps(sortableAttributes, sortableListeners ?? {})}
                     className={sprinkles({
-                        width: withMobileLayout ? "9" : "4",
-                        height: withMobileLayout ? "9" : "4",
-                        margin: withMobileLayout ? "-1.5" : undefined,
+                        width: routeLayout === "narrow" ? "9" : "4",
+                        height: routeLayout === "narrow" ? "9" : "4",
+                        margin: routeLayout === "narrow" ? "-1.5" : undefined,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -462,11 +439,11 @@ function TaskQuerySortsEditorRowBase({
                     // not done with tab navigation.
                     tabIndex={-1}
                 >
-                    <DotsSixVertical size={spacing[withMobileLayout ? "4" : "3"]} />
+                    <DotsSixVertical size={spacing[routeLayout === "narrow" ? "4" : "3"]} />
                 </button>
                 <IconButton
-                    size={withMobileLayout ? "md" : "xs"}
-                    borderRadius={withMobileLayout ? "0.5" : undefined}
+                    size={routeLayout === "narrow" ? "md" : "xs"}
+                    borderRadius={routeLayout === "narrow" ? "0.5" : undefined}
                     description="Delete"
                     withoutTooltip={true}
                     onPress={onDelete}
@@ -481,12 +458,12 @@ function TaskQuerySortsEditorRowBase({
 function TaskQuerySortsEditorRowStatusDirection({
     direction,
     onDirectionChange,
-    withMobileLayout,
 }: {
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
-    withMobileLayout: boolean;
 }) {
+    const routeLayout = useRouteLayout();
+
     const ascendingLabel = "Open → Closed";
     const descendingLabel = "Closed → Open";
 
@@ -507,8 +484,8 @@ function TaskQuerySortsEditorRowStatusDirection({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "full" : "5"}
-                paddingX={withMobileLayout ? "2" : "1.5"}
+                height={routeLayout === "narrow" ? "full" : "5"}
+                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -521,12 +498,12 @@ function TaskQuerySortsEditorRowStatusDirection({
 function TaskQuerySortsEditorRowPriorityDirection({
     direction,
     onDirectionChange,
-    withMobileLayout,
 }: {
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
-    withMobileLayout: boolean;
 }) {
+    const routeLayout = useRouteLayout();
+
     const ascendingLabel = "Low → High";
     const descendingLabel = "High → Low";
 
@@ -547,8 +524,8 @@ function TaskQuerySortsEditorRowPriorityDirection({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "full" : "5"}
-                paddingX={withMobileLayout ? "2" : "1.5"}
+                height={routeLayout === "narrow" ? "full" : "5"}
+                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -561,12 +538,12 @@ function TaskQuerySortsEditorRowPriorityDirection({
 function TaskQuerySortsEditorRowAccountMissing({
     missing,
     onMissingChange,
-    withMobileLayout,
 }: {
     missing: "First" | "Last";
     onMissingChange: (missing: "First" | "Last") => void;
-    withMobileLayout: boolean;
 }) {
+    const routeLayout = useRouteLayout();
+
     return (
         <MenuButton
             actions={[
@@ -584,8 +561,8 @@ function TaskQuerySortsEditorRowAccountMissing({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "full" : "5"}
-                paddingX={withMobileLayout ? "2" : "1.5"}
+                height={routeLayout === "narrow" ? "full" : "5"}
+                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >
@@ -601,12 +578,12 @@ function TaskQuerySortsEditorRowAccountMissing({
 function TaskQuerySortsEditorRowDateDirection({
     direction,
     onDirectionChange,
-    withMobileLayout,
 }: {
     direction: "Ascending" | "Descending";
     onDirectionChange: (direction: "Ascending" | "Descending") => void;
-    withMobileLayout: boolean;
 }) {
+    const routeLayout = useRouteLayout();
+
     const ascendingLabel = "Jan 1 → Dec 31";
     const descendingLabel = "Dec 31 → Jan 1";
 
@@ -627,8 +604,8 @@ function TaskQuerySortsEditorRowDateDirection({
         >
             <Button
                 variant="quieter"
-                height={withMobileLayout ? "full" : "5"}
-                paddingX={withMobileLayout ? "2" : "1.5"}
+                height={routeLayout === "narrow" ? "full" : "5"}
+                paddingX={routeLayout === "narrow" ? "2" : "1.5"}
                 icon={<CaretDown />}
                 iconPlacement="end"
             >

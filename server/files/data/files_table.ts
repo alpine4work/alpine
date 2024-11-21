@@ -1,10 +1,7 @@
 import prettyBytes from "pretty-bytes";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     ServerActionContext,
-    ServerActionContextModules,
     ServerSessionActionContext,
-    ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -15,10 +12,9 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
-import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
+import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -26,9 +22,8 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
 import {
     FileAttachmentTarget,
     FileAttachmentTargetByArea,
@@ -36,18 +31,19 @@ import {
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
+import {FileModel, maxFileContentLength} from "~/shared/files/file_model.js";
 import {
     FileAudioPreviewMetadata,
-    FileHasPreview,
     FileImagePreviewSize,
     FilePreview,
     FilePreviewSchema,
 } from "~/shared/files/file_preview.js";
+import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -438,14 +434,20 @@ function getFileAttachmentTargetItemKey(
 const maxFileTotalContentLengthForSpace = 5e9;
 
 /**
- * Reserve space for a file you're going to upload. You're only allowed to
- * upload a file if it's within your space's file size limits. So we check that
- * you're within your space's file size limits before we start uploading the
- * file.
+ * Called by `EdgeService` before writing our file to Cloudflare R2. Makes sure
+ * the space has enough storage for the file and creates a file item in
+ * DynamoDB containing information about the file.
  *
- * Returns a `FileUploader` object which the file uploading action uses to
- * update the file item in DynamoDB as we hit certain milestones. (e.g. When
- * `preview.size` has finished processing.)
+ * Throws an error if not called by `EdgeService`. A complete file upload is
+ * orchestrated by `EdgeService` and involves three parts:
+ *
+ * 1. `startUploadFile()`
+ * 2. Uploading the file to Cloudflare R2
+ * 3. `finishUploadingAndStartProcessingFile()` (which submits a job to our job
+ *    queue to process the file)
+ *
+ * If there's an error and we don't complete one of those three steps the
+ * resulting file item in DynamoDB won't be very useful.
  */
 // TODO(calebmer, #files): Build file cleanup script (maybe via
 // `MigrationService`) which runs monthly that:
@@ -457,25 +459,37 @@ const maxFileTotalContentLengthForSpace = 5e9;
 //    out.
 //
 // 3. Garbage collects files that are no longer referenced by any content.
-export async function startUploadingAndProcessingFile(
+export async function startUploadingFile(
     context: ServerSessionActionContext,
     {
         spaceId,
         fileId: providedFileId = null,
         contentType,
         contentLength,
-        hasAlternative,
-        hasPreview,
+        attachTargetAuthorizer = null,
     }: {
         spaceId: SpaceId;
         fileId?: FileId | null;
         contentType: FileContentType;
         contentLength: number;
-        hasAlternative: boolean;
-        hasPreview: FileHasPreview | null;
+        attachTargetAuthorizer?: FileAuthorizer | null;
     },
-): Promise<FileUploader> {
-    await authorizeSpaceAccess(context, spaceId);
+): Promise<{fileId: FileId}> {
+    // If we're attaching the file to a target as a part of the upload, verify we
+    // have edit access to the target.
+    await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
+
+    if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
+        throw new PermissionDeniedError('Only "EdgeService" can upload files');
+    }
+
+    if (!(0 < contentLength && contentLength <= maxFileContentLength)) {
+        throw new InvalidArgumentError(
+            `File content length must be between 0 and ${prettyBytes(maxFileContentLength)}`,
+        );
+    }
+
+    const {hasAlternative, hasPreview} = fileProcessorDeclarationByContentType[contentType];
 
     let fileId: FileId;
     if (providedFileId === null) {
@@ -588,14 +602,123 @@ export async function startUploadingAndProcessingFile(
                 count: fileTotalsItem.count + 1,
                 contentLength: fileTotalsItem.contentLength + contentLength,
             }),
+
             // Don't allow creating duplicate files when providing a `FileId`.
             providedFileId
                 ? FilesTable.transactionCreateItem(fileItem)
                 : FilesTable.transactionCreateOrReplaceItem(fileItem),
+
+            ...(attachTargetAuthorizer
+                ? [
+                      FilesTable.transactionCreateOrReplaceItem({
+                          ...getFileAttachmentTargetItemKey(
+                              spaceId,
+                              fileId,
+                              attachTargetAuthorizer.target,
+                          ),
+                          createdTime: new Date(),
+                      }),
+                  ]
+                : []),
         ]);
 
-        return new FileUploader(fileItem);
+        return {fileId};
     });
+}
+
+/**
+ * Once `EdgeService` has finished uploading a file to Cloudflare R2 it calls
+ * this function which marks the file as uploaded and starts processing the
+ * file. Throws an error if not called by `EdgeService`. See the documentation
+ * on `startUploadingFile()` for more information.
+ */
+export async function finishUploadingAndStartProcessingFile(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        fileId,
+    }: {
+        spaceId: SpaceId;
+        fileId: FileId;
+    },
+): Promise<FileModel> {
+    if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
+        throw new PermissionDeniedError('Only "EdgeService" can upload files');
+    }
+
+    return context.dynamo.retryTransaction(async context => {
+        let item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+            consistency: "Eventual",
+        });
+
+        // In case there's an eventual consistency lag, retry reading the item with
+        // strong consistency.
+        if (!item) {
+            item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+                consistency: "Strong",
+            });
+        }
+
+        if (!item) {
+            throw new NotFoundError("File not found");
+        }
+
+        if (!item.isUploading) {
+            throw new FailedPreconditionError("File has already finished uploading");
+        }
+
+        item = {
+            ...item,
+            isUploading: false,
+        };
+
+        await FilesTable.directlyUpdateItem(context, item);
+
+        const {hasAlternative, hasPreview} =
+            fileProcessorDeclarationByContentType[item.contentType];
+
+        if (hasAlternative || hasPreview) {
+            // Now that the file has finished uploading we can start processing it. Wait
+            // for the message to be added to our queue. If sending the process file
+            // message fails we want to fail the entire upload.
+            await context.jobs.sendImmediately({
+                type: "ProcessFile",
+                spaceId,
+                fileId,
+                contentType: item.contentType,
+            });
+        }
+
+        return createFileModelFromItem(item);
+    });
+}
+
+/**
+ * Get an instance of `FileUploader` we can use for finishing a file upload.
+ * Only an uploader may get an instance of the `FileUploader` class.
+ */
+export async function getFileUploaderAsUploader(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+): Promise<FileUploader> {
+    let fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+        consistency: "Eventual",
+    });
+
+    // If we weren't able to find a file that might be because of eventual
+    // consistency lag. Try again with strong consistency.
+    if (!fileItem) {
+        fileItem = await getFileItemIfExistsAsUploader(context, spaceId, fileId, {
+            consistency: "Strong",
+        });
+    }
+
+    if (!fileItem) {
+        throw new NotFoundError("File not found");
+    }
+
+    return new FileUploader(fileItem);
 }
 
 /**
@@ -618,18 +741,43 @@ export class FileUploader {
         this._item = new MutexValue(item);
     }
 
+    public getContentType() {
+        return this._item.getWithoutLock().contentType;
+    }
+
+    public getContentLength() {
+        return this._item.getWithoutLock().contentLength;
+    }
+
+    private _authorize(context: ServerActionContext) {
+        switch (context.actor.type) {
+            case "Session": {
+                if (this.uploaderId !== context.actor.getAccountId()) {
+                    throw new PermissionDeniedError("Account is not the file's uploader account");
+                }
+                break;
+            }
+            case "System": {
+                if (this.spaceId !== context.actor.getSpaceId()) {
+                    throw new PermissionDeniedError("System actor is not for the file's space");
+                }
+                break;
+            }
+            default:
+                throw exhaustive(context.actor);
+        }
+    }
+
     /**
      * Finish processing the file's alternative if the file has an alternative. If
      * the file was not declared to have an alternative upon creation then this
      * method will throw an error.
      */
     public async finishProcessingAlternative(
-        context: ServerSessionActionContext,
-        alternative: {contentType: FileContentType; contentLength: number},
+        context: ServerActionContext,
+        alternative: {contentType: FileContentType; contentLength: number} | null,
     ) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -642,22 +790,32 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.alternative) {
+                        // Noop if we've already finished processing the alternative. This makes the
+                        // function idempotent.
+                        //
+                        // We'll still error if we try to finish with a non-null `alternative` but
+                        // there's no non-null `alternative` in the file as a precaution.
+                        if (alternative === null) return item;
+
                         throw new InternalError("File doesn't have an alternative");
                     }
-                    if (!item.alternative.isProcessing) {
-                        throw new InternalError(
-                            "File has already finished processing its alternative",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the alternative. This makes the
+                    // function idempotent.
+                    if (!item.alternative.isProcessing) return item;
 
                     return {
                         ...item,
-                        alternative: {
-                            isProcessing: false,
-                            contentType: alternative.contentType,
-                            contentLength: alternative.contentLength,
-                            isImagePreviewContent: false,
-                        },
+                        alternative:
+                            alternative !== null
+                                ? {
+                                      isProcessing: false,
+                                      ok: true,
+                                      contentType: alternative.contentType,
+                                      contentLength: alternative.contentLength,
+                                      isImagePreviewContent: false,
+                                  }
+                                : null,
                     };
                 },
                 {initialItem: itemRef.current},
@@ -675,13 +833,11 @@ export class FileUploader {
      * is provided as an option.
      */
     public async finishProcessingImagePreviewSize(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         size: FileImagePreviewSize,
         {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -699,30 +855,19 @@ export class FileUploader {
                     if (item.preview.type !== "Image") {
                         throw new InternalError("File doesn't have an image preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError(
-                            "File has already finished processing its image preview",
-                        );
-                    }
-                    if (item.preview.size !== "Processing") {
-                        throw new InternalError(
-                            "File has already finished processing its image preview size",
-                        );
-                    }
-                    if (alsoPreviewVideoDuration !== undefined) {
-                        if (item.preview.videoDuration === undefined) {
-                            throw new InternalError(
-                                "File doesn't have a image preview video duration",
-                            );
-                        }
-                        if (item.preview.videoDuration !== "Processing") {
-                            throw new InternalError(
-                                "File has already finished processing its image preview video duration",
-                            );
-                        }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (!item.preview.isProcessing) return item;
+
+                    if (
+                        alsoPreviewVideoDuration !== undefined &&
+                        item.preview.videoDuration === undefined
+                    ) {
+                        throw new InternalError("File doesn't have a image preview video duration");
                     }
 
-                    return {
+                    const newItem: FileItem = {
                         ...item,
                         preview:
                             item.preview.placeholder !== "Processing" &&
@@ -733,22 +878,53 @@ export class FileUploader {
                                       type: "Image",
                                       isProcessing: false,
                                       ok: true,
-                                      size,
+                                      // Only update if size is processing. If we've already finished
+                                      // processing size then we want to leave the old size in
+                                      // place. This makes the function idempotent.
+                                      size:
+                                          item.preview.size === "Processing"
+                                              ? size
+                                              : item.preview.size,
                                       placeholder: item.preview.placeholder,
                                       content: item.preview.content,
-                                      videoDuration: (alsoPreviewVideoDuration ??
-                                          item.preview.videoDuration) as number | undefined,
+                                      videoDuration:
+                                          // Only update if video duration is processing. If we've already finished
+                                          // processing video duration then we want to leave the old video duration in
+                                          // place. This makes the function idempotent.
+                                          (item.preview.videoDuration === "Processing"
+                                              ? alsoPreviewVideoDuration ??
+                                                item.preview.videoDuration
+                                              : item.preview.videoDuration) as number | undefined,
                                   }
                                 : {
                                       type: "Image",
                                       isProcessing: true,
-                                      size,
+                                      // Only update if size is processing. If we've already finished
+                                      // processing size then we want to leave the old size in
+                                      // place. This makes the function idempotent.
+                                      size:
+                                          item.preview.size === "Processing"
+                                              ? size
+                                              : item.preview.size,
                                       placeholder: item.preview.placeholder,
                                       content: item.preview.content,
                                       videoDuration:
-                                          alsoPreviewVideoDuration ?? item.preview.videoDuration,
+                                          // Only update if video duration is processing. If we've already finished
+                                          // processing video duration then we want to leave the old video duration in
+                                          // place. This makes the function idempotent.
+                                          item.preview.videoDuration === "Processing"
+                                              ? alsoPreviewVideoDuration ??
+                                                item.preview.videoDuration
+                                              : item.preview.videoDuration,
                                   },
                     };
+
+                    // Optimization: If we left both `item.preview.size` alone and
+                    // `item.preview.videoDuration` alone then return the old item to skip a
+                    // DynamoDB write.
+                    if (isDeepEqual(newItem, item)) return item;
+
+                    return newItem;
                 },
                 {initialItem: itemRef.current},
             );
@@ -762,12 +938,10 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewPlaceholder(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         placeholder: FileImagePreviewPlaceholder,
     ) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -785,16 +959,11 @@ export class FileUploader {
                     if (item.preview.type !== "Image") {
                         throw new InternalError("File doesn't have an image preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError(
-                            "File has already finished processing its image preview",
-                        );
-                    }
-                    if (item.preview.placeholder !== "Processing") {
-                        throw new InternalError(
-                            "File has already finished processing its image preview placeholder",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.placeholder !== "Processing") return item;
 
                     return {
                         ...item,
@@ -833,7 +1002,7 @@ export class FileUploader {
      * `preview.isProcessing` to false.
      */
     public async finishProcessingImagePreviewContent(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         {
             contentType,
             contentLength,
@@ -844,9 +1013,7 @@ export class FileUploader {
             isAlternative: boolean;
         },
     ) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -857,70 +1024,71 @@ export class FileUploader {
                     spaceId: this.spaceId,
                     fileId: this.fileId,
                 },
-                item => {
+                (item): FileItem => {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
                     }
                     if (item.preview.type !== "Image") {
                         throw new InternalError("File doesn't have an image preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError(
-                            "File has already finished processing its image preview",
-                        );
+                    if (item.preview.content === undefined) {
+                        throw new InternalError("File doesn't have image preview content");
                     }
-                    if (item.preview.content !== "Processing") {
-                        if (item.preview.content === undefined) {
-                            throw new InternalError("File doesn't have image preview content");
-                        } else {
-                            throw new InternalError(
-                                "File has already finished processing its image preview content",
-                            );
-                        }
-                    }
-                    if (isAlternative) {
-                        if (!item.alternative) {
-                            throw new InternalError("File doesn't have an alternative");
-                        }
-                        if (!item.alternative.isProcessing) {
-                            throw new InternalError(
-                                "File has already finished processing its alternative",
-                            );
-                        }
+                    if (isAlternative && !item.alternative) {
+                        throw new InternalError("File doesn't have an alternative");
                     }
 
-                    return {
+                    const newItem: FileItem = {
                         ...item,
-                        alternative: isAlternative
-                            ? {
-                                  isProcessing: false,
-                                  contentType,
-                                  contentLength,
-                                  isImagePreviewContent: true,
-                              }
-                            : item.alternative,
-                        preview:
-                            item.preview.size !== "Processing" &&
-                            item.preview.placeholder !== "Processing" &&
-                            item.preview.videoDuration !== "Processing"
+                        alternative:
+                            // Only update if the alternative is processing. If we've already finished
+                            // processing the alternative then we want to leave the old alternative in
+                            // place. This makes the function idempotent.
+                            isAlternative &&
+                            item.alternative?.isProcessing &&
+                            (item.preview.content === "Processing" ||
+                                item.preview.content !== undefined)
                                 ? {
-                                      type: "Image",
                                       isProcessing: false,
                                       ok: true,
-                                      size: item.preview.size,
-                                      placeholder: item.preview.placeholder,
-                                      content: {contentType, contentLength},
-                                      videoDuration: item.preview.videoDuration,
+                                      contentType,
+                                      contentLength,
+                                      isImagePreviewContent: true,
                                   }
-                                : {
-                                      type: "Image",
-                                      isProcessing: true,
-                                      size: item.preview.size,
-                                      placeholder: item.preview.placeholder,
-                                      content: {contentType, contentLength},
-                                      videoDuration: item.preview.videoDuration,
-                                  },
+                                : item.alternative,
+                        preview:
+                            // Only update if preview content is processing. If we've already finished
+                            // processing the alternative then we want to leave the old alternative in
+                            // place. This makes the function idempotent.
+                            item.preview.isProcessing && item.preview.content === "Processing"
+                                ? item.preview.size !== "Processing" &&
+                                  item.preview.placeholder !== "Processing" &&
+                                  item.preview.videoDuration !== "Processing"
+                                    ? {
+                                          type: "Image",
+                                          isProcessing: false,
+                                          ok: true,
+                                          size: item.preview.size,
+                                          placeholder: item.preview.placeholder,
+                                          content: {contentType, contentLength},
+                                          videoDuration: item.preview.videoDuration,
+                                      }
+                                    : {
+                                          type: "Image",
+                                          isProcessing: true,
+                                          size: item.preview.size,
+                                          placeholder: item.preview.placeholder,
+                                          content: {contentType, contentLength},
+                                          videoDuration: item.preview.videoDuration,
+                                      }
+                                : item.preview,
                     };
+
+                    // Optimization: If we left both `item.preview.content` alone and
+                    // `item.alternative` alone then return the old item to skip a DynamoDB write.
+                    if (isDeepEqual(newItem, item)) return item;
+
+                    return newItem;
                 },
                 {initialItem: itemRef.current},
             );
@@ -938,12 +1106,10 @@ export class FileUploader {
      * write the video duration with the preview size.
      */
     public async finishProcessingImagePreviewVideoDurationIfNeeded(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         videoDuration: number,
-    ): Promise<{wasUpdated: boolean}> {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+    ): Promise<void> {
+        this._authorize(context);
 
         return this._item.withLock(async itemRef => {
             if (!itemRef.current.preview) {
@@ -951,15 +1117,6 @@ export class FileUploader {
             }
             if (itemRef.current.preview.type !== "Image") {
                 throw new InternalError("File doesn't have an image preview");
-            }
-
-            // If we've already updated the item with our expected video duration then we
-            // don't need to update DynamoDB again.
-            if (
-                !(!itemRef.current.preview.isProcessing && !itemRef.current.preview.ok) &&
-                itemRef.current.preview.videoDuration === videoDuration
-            ) {
-                return {wasUpdated: false};
             }
 
             itemRef.current = await FilesTable.updateItem(
@@ -977,19 +1134,18 @@ export class FileUploader {
                     if (item.preview.type !== "Image") {
                         throw new InternalError("File doesn't have an image preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError(
-                            "File has already finished processing its image preview",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (!item.preview.isProcessing) return item;
+
                     if (item.preview.videoDuration === undefined) {
                         throw new InternalError("File doesn't have a image preview video duration");
                     }
-                    if (item.preview.videoDuration !== "Processing") {
-                        throw new InternalError(
-                            "File has already finished processing its image preview video duration",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (item.preview.videoDuration !== "Processing") return item;
 
                     return {
                         ...item,
@@ -1018,8 +1174,6 @@ export class FileUploader {
                 },
                 {initialItem: itemRef.current},
             );
-
-            return {wasUpdated: true};
         });
     }
 
@@ -1028,12 +1182,10 @@ export class FileUploader {
      * preview this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         duration: number,
     ): Promise<void> {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         return this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -1051,14 +1203,11 @@ export class FileUploader {
                     if (item.preview.type !== "Audio") {
                         throw new InternalError("File doesn't have an audio preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
-                    }
-                    if (item.preview.duration !== "Processing") {
-                        throw new InternalError(
-                            "File has already finished processing its audio preview duration",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.duration !== "Processing") return item;
 
                     return {
                         ...item,
@@ -1067,6 +1216,7 @@ export class FileUploader {
                                 ? {
                                       type: "Audio",
                                       isProcessing: false,
+                                      ok: true,
                                       duration,
                                       metadata: item.preview.metadata,
                                   }
@@ -1088,12 +1238,10 @@ export class FileUploader {
      * preview this function is called.
      */
     public async finishProcessingAudioPreviewMetadata(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         metadata: FileAudioPreviewMetadata,
     ): Promise<void> {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         return this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -1111,14 +1259,11 @@ export class FileUploader {
                     if (item.preview.type !== "Audio") {
                         throw new InternalError("File doesn't have an audio preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
-                    }
-                    if (item.preview.metadata !== "Processing") {
-                        throw new InternalError(
-                            "File has already finished processing its audio preview metadata",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.metadata !== "Processing") return item;
 
                     return {
                         ...item,
@@ -1127,6 +1272,7 @@ export class FileUploader {
                                 ? {
                                       type: "Audio",
                                       isProcessing: false,
+                                      ok: true,
                                       duration: item.preview.duration,
                                       metadata,
                                   }
@@ -1150,12 +1296,10 @@ export class FileUploader {
      * this function is called.
      */
     public async finishProcessingCodePreviewContent(
-        context: ServerSessionActionContext,
+        context: ServerActionContext,
         content: FileCodePreviewContent,
     ): Promise<void> {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
 
         return this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -1173,20 +1317,18 @@ export class FileUploader {
                     if (item.preview.type !== "Code") {
                         throw new InternalError("File doesn't have a code preview");
                     }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
-                    }
-                    if (item.preview.content !== "Processing") {
-                        throw new InternalError(
-                            "File has already finished processing its code preview content",
-                        );
-                    }
+
+                    // Noop if we've already finished processing the preview. This makes the
+                    // function idempotent.
+                    if (!item.preview.isProcessing) return item;
+                    if (item.preview.content !== "Processing") return item;
 
                     return {
                         ...item,
                         preview: {
                             type: "Code",
                             isProcessing: false,
+                            ok: true,
                             content,
                         },
                     };
@@ -1196,40 +1338,49 @@ export class FileUploader {
         });
     }
 
-    /**
-     * If there was an acceptable error while processing the file then we want to
-     * finish uploading the file but mark the preview with an error so the user
-     * knows why there's no preview.
-     *
-     * There are two types of errors when uploading files:
-     *
-     * 1. Unacceptable errors that abort the upload
-     * 2. Acceptable errors where the upload finishes but without a processed
-     *    preview
-     *
-     * An example of an unacceptable error is the user tries to upload a
-     * `image/jpeg` file which has a corrupted format. In this case we stop the
-     * upload and show an error to the user in the UI that their file upload didn't
-     * work.
-     *
-     * An example of an acceptable error is if the user tries to upload an
-     * `application/pdf` file with a password. In this case we can't show a preview
-     * since we can't read a password protected PDF since it's encrypted. We allow
-     * the upload to finish and instead of showing a preview we show the user some
-     * text along the lines of "can't show a password protected PDF".
-     *
-     * Acceptable errors call this function and leave a `FileItem` in the database.
-     * The user can still download the file we just can't preview it. Unacceptable
-     * errors should end up deleting the `FileItem` from DynamoDB altogether with
-     * the `cleanupAfterUnacceptableError()` function.
-     */
-    public async finishProcessingImagePreviewAfterAcceptableError(
-        context: ServerSessionActionContext,
-        error: {code: ErrorCode; displayMessage: ErrorDisplayMessage},
+    public async finishProcessingAlternativeWithError(
+        context: ServerActionContext,
+        error: FileProcessorError,
     ) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
+        this._authorize(context);
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.alternative) {
+                        throw new InternalError("File doesn't have an alternative");
+                    }
+
+                    // Noop if we've already finished processing the alternative. This makes the
+                    // function idempotent.
+                    if (!item.alternative.isProcessing) return item;
+
+                    return {
+                        ...item,
+                        alternative: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    public async finishProcessingPreviewWithError(
+        context: ServerActionContext,
+        error: FileProcessorError,
+    ) {
+        this._authorize(context);
 
         await this._item.withLock(async itemRef => {
             itemRef.current = await FilesTable.updateItem(
@@ -1244,150 +1395,89 @@ export class FileUploader {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
                     }
-                    if (item.preview.type !== "Image") {
-                        throw new InternalError("File doesn't have an image preview");
-                    }
-                    if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
-                    }
 
-                    return {
-                        ...item,
-                        preview: {
-                            type: "Image",
-                            isProcessing: false,
-                            ok: false,
-                            error,
-                            size: item.preview.size === "Processing" ? "Error" : item.preview.size,
-                            placeholder:
-                                item.preview.placeholder === "Processing"
-                                    ? "Error"
-                                    : item.preview.placeholder,
-                            content:
-                                item.preview.content === "Processing"
-                                    ? "Error"
-                                    : item.preview.content,
-                            videoDuration:
-                                item.preview.videoDuration === "Processing"
-                                    ? "Error"
-                                    : item.preview.videoDuration,
-                        },
-                    };
+                    switch (item.preview.type) {
+                        case "Image": {
+                            // Noop if we've already finished processing the preview. This makes the
+                            // function idempotent.
+                            if (!item.preview.isProcessing) return item;
+
+                            return {
+                                ...item,
+                                preview: {
+                                    type: "Image",
+                                    isProcessing: false,
+                                    ok: false,
+                                    error,
+                                    size:
+                                        item.preview.size === "Processing"
+                                            ? "Error"
+                                            : item.preview.size,
+                                    placeholder:
+                                        item.preview.placeholder === "Processing"
+                                            ? "Error"
+                                            : item.preview.placeholder,
+                                    content:
+                                        item.preview.content === "Processing"
+                                            ? "Error"
+                                            : item.preview.content,
+                                    videoDuration:
+                                        item.preview.videoDuration === "Processing"
+                                            ? "Error"
+                                            : item.preview.videoDuration,
+                                },
+                            };
+                        }
+                        case "Audio": {
+                            // Noop if we've already finished processing the preview. This makes the
+                            // function idempotent.
+                            if (!item.preview.isProcessing) return item;
+
+                            return {
+                                ...item,
+                                preview: {
+                                    type: "Audio",
+                                    isProcessing: false,
+                                    ok: false,
+                                    error,
+                                    duration:
+                                        item.preview.duration === "Processing"
+                                            ? "Error"
+                                            : item.preview.duration,
+                                    metadata:
+                                        item.preview.metadata === "Processing"
+                                            ? "Error"
+                                            : item.preview.metadata,
+                                },
+                            };
+                        }
+                        case "Code": {
+                            // Noop if we've already finished processing the preview. This makes the
+                            // function idempotent.
+                            if (!item.preview.isProcessing) return item;
+
+                            return {
+                                ...item,
+                                preview: {
+                                    type: "Code",
+                                    isProcessing: false,
+                                    ok: false,
+                                    error,
+                                    content:
+                                        item.preview.content === "Processing"
+                                            ? "Error"
+                                            : item.preview.content,
+                                },
+                            };
+                        }
+                        default:
+                            throw exhaustive(item.preview);
+                    }
                 },
                 {initialItem: itemRef.current},
             );
         });
     }
-
-    /**
-     * When we're done uploading a file, this `finishUploading()` method should be
-     * called. It'll set the `isUploading` flag on the file to false.
-     */
-    public async finishUploading(context: ServerSessionActionContext) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
-
-        await this._item.withLock(async itemRef => {
-            itemRef.current = await FilesTable.updateItem(
-                context,
-                {
-                    partitionType: "Space",
-                    sortRangeType: "File",
-                    spaceId: this.spaceId,
-                    fileId: this.fileId,
-                },
-                item => {
-                    if (!item.isUploading) {
-                        throw new InternalError("File has already finished uploading");
-                    }
-                    return {...item, isUploading: false};
-                },
-                {initialItem: itemRef.current},
-            );
-        });
-    }
-
-    /**
-     * If there was an error while uploading a file then this function is called to
-     * cleanup our database. It deletes the associated Cloudflare R2 object,
-     * deletes the file DynamoDB item, and updates the `FileTotals` item counters.
-     */
-    public async cleanupAfterUnacceptableError(
-        context: Context<ServerSessionActionContextModules & {r2: CloudflareR2ContextModule}>,
-    ) {
-        if (this.uploaderId !== context.actor.getAccountId()) {
-            throw new PermissionDeniedError("Account is not the file's uploader account");
-        }
-
-        await this._item.withLock(async itemRef => {
-            await actuallyCleanupFileItem(context, itemRef.current);
-        });
-    }
-}
-
-async function actuallyCleanupFileItem(
-    context: Context<ServerActionContextModules & {r2: CloudflareR2ContextModule}>,
-    fileItem: FileItem,
-) {
-    const {spaceId, fileId} = fileItem;
-
-    // Make sure the R2 object associated with the file is deleted if an object
-    // exists. `DeleteObject` is idempotent. It won't throw an error if the object
-    // doesn't exist.
-    //
-    // We unconditionally try and delete the alternative object and preview object
-    // since `fileItem` may not have successfully updated after the objects were
-    // uploaded.
-    await runAllPromises([
-        context.r2.DeleteObject({
-            Bucket: filesBucketName,
-            Key: `${spaceId}/${fileId}`,
-        }),
-        context.r2.DeleteObject({
-            Bucket: filesBucketName,
-            Key: `${spaceId}/${fileId}-alternative`,
-        }),
-        context.r2.DeleteObject({
-            Bucket: filesBucketName,
-            Key: `${spaceId}/${fileId}-preview`,
-        }),
-    ]);
-
-    let hasAttempted = false;
-    const initialFileItem = fileItem;
-
-    // Delete the file item from DynamoDB and remove its allocated `contentLength`
-    // from `FileTotals` so it doesn't count against the space's file upload limit.
-    await context.dynamo.retryTransaction(async context => {
-        const isInitialAttempt = !hasAttempted;
-        hasAttempted = true;
-
-        const [fileTotalsItem, fileItem] = await runAllPromises([
-            FilesTable.getItem(context, {
-                partitionType: "Space",
-                sortRangeType: "FileTotals",
-                spaceId,
-            }),
-            isInitialAttempt
-                ? initialFileItem
-                : FilesTable.getItem(context, {
-                      partitionType: "Space",
-                      sortRangeType: "File",
-                      spaceId,
-                      fileId,
-                  }),
-        ]);
-
-        await DynamoTableSchema.executeTransaction(context, [
-            FilesTable.transactionDirectlyUpdateItem({
-                ...fileTotalsItem,
-                count: fileTotalsItem.count - 1,
-                contentLength: fileTotalsItem.contentLength - fileItem.contentLength,
-            }),
-            FilesTable.transactionDeleteItemIfExists(fileItem),
-        ]);
-    });
 }
 
 const FileItemContextCache = new ContextCache<`${SpaceId}:${FileId}`, FileItem | null>();
@@ -1434,24 +1524,13 @@ function getFileItemIfExistsWithCache(
     }
 }
 
-/**
- * Get a file as the file's uploader. Returns null if the file doesn't exist.
- * Throws an error if you're not the account that upload the file. If we have
- * a system actor then the system actor may read all files.
- *
- * Prefer calling `getFileIfExistsFromAttachment()` since that will work for
- * all accounts with access to the file.
- */
-export async function getFileIfExistsAsUploader(
+async function getFileItemIfExistsAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<FileModel | null> {
-    const [, item] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId),
-        getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
-    ]);
+): Promise<FileItem | null> {
+    const item = await getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency});
     if (!item) return null;
 
     switch (context.actor.type) {
@@ -1471,14 +1550,26 @@ export async function getFileIfExistsAsUploader(
             throw exhaustive(context.actor);
     }
 
-    return new FileModel({
-        id: item.fileId,
-        contentType: item.contentType,
-        contentLength: item.contentLength,
-        isUploading: item.isUploading,
-        alternative: item.alternative,
-        preview: item.preview,
-    });
+    return item;
+}
+
+/**
+ * Get a file as the file's uploader. Returns null if the file doesn't exist.
+ * Throws an error if you're not the account that upload the file. If we have
+ * a system actor then the system actor may read all files.
+ *
+ * Prefer calling `getFileIfExistsFromAttachment()` since that will work for
+ * all accounts with access to the file.
+ */
+export async function getFileIfExistsAsUploader(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<FileModel | null> {
+    const item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, options);
+    if (!item) return null;
+    return createFileModelFromItem(item);
 }
 
 /**
@@ -1682,23 +1773,25 @@ export async function getFileIfExistsFromAttachment(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    fileAuthorizer: FileAuthorizer,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    targetAuthorizer: FileAuthorizer,
+    {
+        consistency = "Eventual",
+        accessLevel = "View",
+    }: {consistency?: DynamoReadConsistency; accessLevel?: "View" | "Edit"} = {},
 ): Promise<FileModel | null> {
-    const [item, , , targetItem] = await runAllPromises([
+    const [item, , targetItem] = await runAllPromises([
+        // 1. Make sure we have access to the space the file is in
+        //    (`authorizeSpaceAccess()` is called by this function)
         getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
 
-        // 1. Make sure we have access to the space the file is in
-        authorizeSpaceAccess(context, spaceId),
-
         // 2. Make sure we have access to the file's attachment target
-        fileAuthorizer.authorizeTargetAccess(context, spaceId, "View"),
+        targetAuthorizer.authorizeTargetAccess(context, spaceId, accessLevel),
 
         // 3. Make sure the file is actually attached to the provided target
         (async () => {
             let targetItem = await FilesTable.getItemIfExists(
                 context,
-                getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+                getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
                 {
                     consistency,
                     // It's ok to call this function when expecting strong read consistency.
@@ -1711,7 +1804,7 @@ export async function getFileIfExistsFromAttachment(
             if (!targetItem && consistency !== "Strong") {
                 targetItem = await FilesTable.getItemIfExists(
                     context,
-                    getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+                    getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
                     {consistency: "Strong"},
                 );
             }
@@ -1754,14 +1847,14 @@ export async function getFileFromAttachment(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    fileAuthorizer: FileAuthorizer,
-    options?: {consistency?: DynamoReadConsistency},
+    targetAuthorizer: FileAuthorizer,
+    options?: {consistency?: DynamoReadConsistency; accessLevel?: "View" | "Edit"},
 ): Promise<FileModel> {
     const file = await getFileIfExistsFromAttachment(
         context,
         spaceId,
         fileId,
-        fileAuthorizer,
+        targetAuthorizer,
         options,
     );
     if (!file) throw new NotFoundError("File not found");
@@ -1785,7 +1878,7 @@ export async function attachFileAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    fileAuthorizer: FileAuthorizer,
+    targetAuthorizer: FileAuthorizer,
 ): Promise<FileModel> {
     const [file] = await runAllPromises([
         // Make sure the file exists and our actor is the uploader.
@@ -1803,12 +1896,13 @@ export async function attachFileAsUploader(
                 consistency: "Strong",
             });
         })(),
+
         // Make sure we have access to the new file authorizer.
-        fileAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
+        targetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
     ]);
 
     await FilesTable.createOrReplaceItem(context, {
-        ...getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
         createdTime: new Date(),
     });
 
@@ -1827,17 +1921,20 @@ export async function attachFileFromAttachment(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    {from: fromFileAuthorizer, to: toFileAuthorizer}: {from: FileAuthorizer; to: FileAuthorizer},
+    {
+        from: fromTargetAuthorizer,
+        to: toTargetAuthorizer,
+    }: {from: FileAuthorizer; to: FileAuthorizer},
 ): Promise<FileModel> {
     const [file] = await runAllPromises([
         // Make sure the file exists with the provided authorizer.
-        getFileFromAttachment(context, spaceId, fileId, fromFileAuthorizer),
+        getFileFromAttachment(context, spaceId, fileId, fromTargetAuthorizer),
         // Make sure we have access to the new file authorizer.
-        toFileAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
+        toTargetAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
     ]);
 
     await FilesTable.createOrReplaceItem(context, {
-        ...getFileAttachmentTargetItemKey(spaceId, fileId, toFileAuthorizer.target),
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, toTargetAuthorizer.target),
         createdTime: new Date(),
     });
 
@@ -1852,17 +1949,14 @@ export async function detachFile(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    fileAuthorizer: FileAuthorizer,
+    targetAuthorizer: FileAuthorizer,
 ): Promise<void> {
-    await runAllPromises([
-        // Make sure the file exists with the provided authorizer.
-        getFileFromAttachment(context, spaceId, fileId, fileAuthorizer),
-        // Make sure we have edit access through the file authorizer.
-        fileAuthorizer.authorizeTargetAccess(context, spaceId, "Edit"),
-    ]);
+    // Make sure the file exists with the provided authorizer. This will call
+    // `targetAuthorizer.authorizeTargetAccess()`.
+    await getFileFromAttachment(context, spaceId, fileId, targetAuthorizer, {accessLevel: "Edit"});
 
     await FilesTable.deleteItemWithKeyIfExists(context, {
-        ...getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, targetAuthorizer.target),
         createdTime: new Date(),
     });
 }
@@ -1875,9 +1969,9 @@ export async function getPostDraftFileAttachments(
     spaceId: SpaceId,
     accountId: AccountId,
     draftId: PostDraftId,
-    fileAuthorizer: FileAuthorizerUnbound<"Post">,
+    targetUnboundAuthorizer: FileAuthorizerUnbound<"Post">,
 ): Promise<Array<FileId>> {
-    await fileAuthorizer
+    await targetUnboundAuthorizer
         .bind({type: "PostDraft", accountId, draftId})
         .authorizeTargetAccess(context, spaceId, "View");
 

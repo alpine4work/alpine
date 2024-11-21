@@ -14,7 +14,7 @@ import {
     S3Client,
 } from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
-import {ErrorBase, UnknownError} from "~/shared/error/error.js";
+import {CancelledError, ErrorBase, UnknownError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -39,7 +39,11 @@ export interface CloudflareR2ClientBase {
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
      */
-    GetObject(tracer: TracerBase, input: GetObjectCommandInput): Promise<GetObjectCommandOutput>;
+    GetObject(
+        tracer: TracerBase,
+        input: GetObjectCommandInput,
+        options?: {signal?: AbortSignal},
+    ): Promise<GetObjectCommandOutput>;
 
     /**
      * S3 [`HeadObject`][1] action. See [Cloudflare R2 S3 API compatibility
@@ -114,14 +118,30 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
         accountId,
         accessKeyId,
         secretAccessKey,
+        endpointOverrideForTest,
     }: {
         accountId: string;
         accessKeyId: string;
         secretAccessKey: string;
+        endpointOverrideForTest?: string;
     }) {
+        if (!import.meta.jest) {
+            assert(endpointOverrideForTest === undefined);
+        }
+
         this._client = new S3Client({
             region: "auto",
-            endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+            endpoint: endpointOverrideForTest ?? `https://${accountId}.r2.cloudflarestorage.com`,
+            ...(endpointOverrideForTest !== undefined
+                ? {
+                      endpointProvider: params => ({
+                          url: new URL(
+                              params.Bucket !== undefined ? `/${params.Bucket}` : "/",
+                              endpointOverrideForTest,
+                          ),
+                      }),
+                  }
+                : {}),
             credentials: {
                 accessKeyId,
                 secretAccessKey,
@@ -131,6 +151,11 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
 
     public isMiniflare() {
         return false;
+    }
+
+    public destroyForTest() {
+        assert(import.meta.jest);
+        this._client.destroy();
     }
 
     /**
@@ -143,6 +168,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
     public GetObject(
         tracer: TracerBase,
         input: GetObjectCommandInput,
+        {signal}: {signal?: AbortSignal} = {},
     ): Promise<GetObjectCommandOutput> {
         let spanName = "Cloudflare R2 GetObject";
 
@@ -164,7 +190,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
             });
 
             const output = await this._client
-                .send(new GetObjectCommand(input))
+                .send(new GetObjectCommand(input), {abortSignal: signal})
                 .catch(rethrowClassifiedCloudflareR2Error);
 
             span.addData({
@@ -172,6 +198,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: output.ContentType,
+                            contentLength: output.ContentLength,
                         },
                     },
                 },
@@ -220,6 +247,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: output.ContentType,
+                            contentLength: output.ContentLength,
                         },
                     },
                 },
@@ -256,6 +284,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                         object: {
                             key: input.Key,
                             contentType: input.ContentType,
+                            contentLength: input.ContentLength,
                         },
                     },
                 },
@@ -346,6 +375,14 @@ function rethrowClassifiedCloudflareR2Error(error: unknown): never {
 }
 
 function classifyCloudflareR2Error(error: unknown): ErrorBase {
+    if (
+        isObject(error) &&
+        typeof error.message === "string" &&
+        error.message.startsWith("Request aborted")
+    ) {
+        return new CancelledError(error.message);
+    }
+
     const originalErrorCode = isObject(error) && typeof error.Code === "string" ? error.Code : null;
 
     let errorCode: ErrorCode | null = null;
@@ -353,6 +390,11 @@ function classifyCloudflareR2Error(error: unknown): ErrorBase {
         errorCode = ErrorCode.NotFound;
     } else if (originalErrorCode === "InternalError") {
         errorCode = ErrorCode.Internal;
+    } else if (
+        originalErrorCode === "PreconditionFailed" ||
+        originalErrorCode === "ConditionalRequestConflict"
+    ) {
+        errorCode = ErrorCode.FailedPrecondition;
     }
 
     const message = `Cloudflare R2 ${
@@ -393,6 +435,37 @@ export function isCloudflareR2NoSuchKeyError(error: unknown): boolean {
     // property.
     if (error instanceof Error && "cause" in error)
         return isCloudflareR2NoSuchKeyError(error.cause);
+
+    return false;
+}
+
+/**
+ * Is this an error generated by a conflict for an `If-None-Match: *` header?
+ *
+ * The [AWS S3 documentation for `PutObject()`][1] says we could get a
+ * "412 PreconditionFailed" or a "409 ConditionalRequestConflict" error from
+ * the `If-None-Match: *` header. The [Cloudflare R2 documentation for
+ * `PutObject()` extensions][2] says we could get a a "412 PreconditionFailed"
+ * error from the `If-None-Match: *` header.
+ *
+ * This function looks for all possible errors codes.
+ *
+ * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html#API_PutObject_RequestSyntax
+ * [2]: https://developers.cloudflare.com/r2/api/s3/extensions/#conditional-operations-in-putobject
+ */
+export function isCloudflareR2ConditionConflictError(error: unknown): boolean {
+    if (
+        isObject(error) &&
+        (error.Code === "PreconditionFailed" || error.Code === "ConditionalRequestConflict")
+    ) {
+        return true;
+    }
+
+    // Recurse into the error's cause if there is one.
+    // `classifyCloudflareR2Error()` puts put the original error in the cause
+    // property.
+    if (error instanceof Error && "cause" in error)
+        return isCloudflareR2ConditionConflictError(error.cause);
 
     return false;
 }

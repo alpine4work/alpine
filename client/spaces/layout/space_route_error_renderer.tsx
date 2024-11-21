@@ -5,11 +5,11 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
-    mobileNavigationBarGap,
     navigationBarHeight,
+    navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getWebMobileTabFromPathname} from "~/client/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
@@ -20,7 +20,7 @@ import {
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -31,8 +31,8 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     // tab location and null otherwise. Even though the function was not made for
     // this purpose it still gets the job done.
     const isTabRootLocation = useMemo(
-        () => !!(isMobile ? getWebMobileTabFromPathname(location.pathname) : null),
-        [isMobile, location.pathname],
+        () => !!(platform === "mobile" ? getWebMobileTabFromPathname(location.pathname) : null),
+        [platform, location.pathname],
     );
 
     // It appears that Remix does not `useMemo()` its error object. So stabilize
@@ -42,10 +42,10 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
 
     return (
         <Box width="full" paddingY="safe-area-inset">
-            {isMobile && (
+            {platform === "mobile" && (
                 <Box
                     height={navigationBarHeight}
-                    paddingX={mobileNavigationBarGap}
+                    paddingX={navigationBarMobileGap}
                     display="flex"
                     alignItems="center"
                 >

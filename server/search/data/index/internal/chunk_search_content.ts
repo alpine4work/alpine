@@ -624,8 +624,8 @@ function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
                         ? previousHeadingNodes[previousHeadingNodes.length - 1]!
                         : null,
                 headingFragment:
-                    previousHeadingNodes.length > 0 ? new Fragment(previousHeadingNodes) : null,
-                fragment: new Fragment(previousNodes),
+                    previousHeadingNodes.length > 0 ? Fragment.from(previousHeadingNodes) : null,
+                fragment: Fragment.from(previousNodes),
             };
 
             previousHeadingNodes = [];
@@ -653,8 +653,8 @@ function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
                     ? previousHeadingNodes[previousHeadingNodes.length - 1]!
                     : null,
             headingFragment:
-                previousHeadingNodes.length > 0 ? new Fragment(previousHeadingNodes) : null,
-            fragment: new Fragment(previousNodes),
+                previousHeadingNodes.length > 0 ? Fragment.from(previousHeadingNodes) : null,
+            fragment: Fragment.from(previousNodes),
         };
     }
     // If we have only heading nodes then emit a fragment with just heading nodes.
@@ -662,7 +662,7 @@ function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
         yield {
             sectionHeadingNode: null,
             headingFragment: null,
-            fragment: new Fragment(previousHeadingNodes),
+            fragment: Fragment.from(previousHeadingNodes),
         };
     }
 }
@@ -683,15 +683,15 @@ function* chunkSearchContentByParagraphs(fragment: Fragment): IterableIterator<F
         }
 
         if (previousListItemNodes.length > 0) {
-            yield new Fragment(previousListItemNodes);
+            yield Fragment.from(previousListItemNodes);
             previousListItemNodes = [];
         }
 
-        yield new Fragment([node]);
+        yield Fragment.from([node]);
     }
 
     if (previousListItemNodes.length > 0) {
-        yield new Fragment(previousListItemNodes);
+        yield Fragment.from(previousListItemNodes);
         previousListItemNodes = [];
     }
 }
@@ -776,7 +776,7 @@ function* chunkSearchContentByListItems(
                 state.previousNodes.push(node);
             } else {
                 yield chunkSearchContentByListItems(
-                    new Fragment([state.parentListItemNode, ...state.childListItemNodes]),
+                    Fragment.from([state.parentListItemNode, ...state.childListItemNodes]),
                     // We know the first node is a `listItem`. Skip it to avoid infinite recursion.
                     {shouldSkipFirstNode: true},
                 );
@@ -791,7 +791,7 @@ function* chunkSearchContentByListItems(
 
             if (!state.isWithinListItem) {
                 if (state.previousNodes.length > 0) {
-                    yield new Fragment(state.previousNodes);
+                    yield Fragment.from(state.previousNodes);
                 }
 
                 state = {
@@ -804,7 +804,7 @@ function* chunkSearchContentByListItems(
                 state.childListItemNodes.push(node);
             } else {
                 yield chunkSearchContentByListItems(
-                    new Fragment([state.parentListItemNode, ...state.childListItemNodes]),
+                    Fragment.from([state.parentListItemNode, ...state.childListItemNodes]),
                     // We know the first node is a `listItem`. Skip it to avoid infinite recursion.
                     {shouldSkipFirstNode: true},
                 );
@@ -821,11 +821,11 @@ function* chunkSearchContentByListItems(
 
     if (!state.isWithinListItem) {
         if (state.previousNodes.length > 0) {
-            yield new Fragment(state.previousNodes);
+            yield Fragment.from(state.previousNodes);
         }
     } else {
         yield chunkSearchContentByListItems(
-            new Fragment([state.parentListItemNode, ...state.childListItemNodes]),
+            Fragment.from([state.parentListItemNode, ...state.childListItemNodes]),
             // We know the first node is a `listItem`. Skip it to avoid infinite recursion.
             {shouldSkipFirstNode: true},
         );

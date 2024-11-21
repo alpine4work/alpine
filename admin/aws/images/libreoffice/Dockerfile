@@ -3,10 +3,12 @@
 # We want to use the same Ubuntu version as our GitHub runners which are
 # currently on Ubuntu 24.04 LTS (codename Noble) so that we get the same
 # version of LibreOffice in our GitHub runners and in file upload service.
+# version of LibreOffice in our GitHub runners and in file processor service.
 # Probably all our services should be on the same operating system as our
 # GitHub Runners. We arbitrarily picked `@debian_image` as the base image for
 # `AppService`, didn't consider other options, and have given each new service
 # the same base image.
+# GitHub Runners.
 FROM ubuntu@sha256:99c35190e22d294cdace2783ac55effc69d32896daaa265f0bbedbcde4fbe3e5
 
 # Use `--snapshot` to install a specific, immutable, version of `libreoffice`.

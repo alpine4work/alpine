@@ -1,7 +1,7 @@
 export type PromiseResolver<T> = {
     readonly promise: Promise<T>;
     readonly isSettled: () => boolean;
-    readonly resolve: (value: T) => void;
+    readonly resolve: (value: T | PromiseLike<T>) => void;
     readonly reject: (error: unknown) => void;
 };
 
@@ -12,7 +12,7 @@ export type PromiseResolver<T> = {
  */
 export function createPromiseResolver<T = void>(): PromiseResolver<T> {
     let isSettled = false;
-    let resolve: (value: T) => void;
+    let resolve: (value: T | PromiseLike<T>) => void;
     let reject: (error: unknown) => void;
 
     const promise = new Promise<T>((_resolve, _reject) => {

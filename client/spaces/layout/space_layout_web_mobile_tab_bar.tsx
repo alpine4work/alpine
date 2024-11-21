@@ -1,4 +1,4 @@
-import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {Bell, House, IconContext, List, MagnifyingGlass, Plus} from "phosphor-react";
 import {ReactNode, useCallback, useContext, useMemo} from "react";
 import {usePress} from "react-aria";
@@ -11,8 +11,8 @@ import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_be
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
@@ -49,7 +49,7 @@ export function SpaceLayoutWebMobileTabBar({
     const isInitialAppRender = useIsInitialAppRender();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {isNativeMobile} = useClientInfo();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
     const location = useLocation();
@@ -58,7 +58,7 @@ export function SpaceLayoutWebMobileTabBar({
     // `<SpaceLayoutNativeMobileInboxController>` should render. This assert is a
     // sanity check since we don't want to maintain two separate inbox realtime
     // items which would be inefficient.
-    assert(isMobile && !isNativeMobile);
+    assert(platform === "mobile" && !isNativeMobile);
 
     const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
         isConnected,

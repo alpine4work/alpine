@@ -24,6 +24,9 @@ import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
+// TODO(calebmer, #files): Remove `fileUploadServicePublicKey` from secrets in
+// AWS after deploy. Also from edge service in Cloudflare. Also remove
+// `FileUploadServiceSecrets`.
 export class AwsAppService extends Construct {
     constructor(
         parentConstruct: Construct,
@@ -185,9 +188,9 @@ export class AwsAppService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
-                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                FILE_PROCESSOR_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                     secrets,
-                    "fileUploadServicePublicKey",
+                    "fileProcessorServicePublicKey",
                 ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
@@ -211,6 +214,7 @@ export class AwsAppService extends Construct {
                     "--edgeServiceUrl=https://cyberworlds.dev",
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
@@ -223,7 +227,7 @@ export class AwsAppService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
+                    "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",
@@ -235,7 +239,7 @@ export class AwsAppService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/app/app_production.runfiles/node_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/api/internal/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/app/app_production.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/api/internal/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });
@@ -284,8 +288,15 @@ export class AwsAppService extends Construct {
 
         opensearch.allowConnectionsFrom(service.connections);
 
-        const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", {
+        // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
+        // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
+        // switched to an opinionated `loadBalancerName` in order to do a zero downtime
+        // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
+        // updated our DNS record, waited for all requests to move to `LoadBalancer2`
+        // then deleted `LoadBalancer`.
+        const loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer2", {
             vpc,
+            loadBalancerName: "cyberworlds-app",
             internetFacing: true,
         });
 
@@ -304,6 +315,7 @@ export class AwsAppService extends Construct {
         });
 
         listener.addTargets("TargetGroup", {
+            targetGroupName: "cyberworlds-app-target-group",
             port: port,
             protocol: ApplicationProtocol.HTTP,
             targets: [service],

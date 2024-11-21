@@ -1,7 +1,6 @@
 import {CancelledError, DeadlineExceededError} from "~/shared/error/error.js";
 
 const originalSetTimeout = setTimeout;
-const retrySymbol = Symbol("retry");
 
 /**
  * Retries an action with exponential backoff with jitter. Since we use
@@ -36,10 +35,23 @@ const retrySymbol = Symbol("retry");
 export function retryWithExponentialBackoff<Value>(
     action: (retry: (error?: unknown) => never) => Promise<Value>,
 ): Promise<Value> {
+    const retrySymbol = Symbol("retry");
+
     const retry = (error?: unknown): never => {
         const retryError = new CancelledError("Retry", {cause: error});
         (retryError as any)[retrySymbol] = true;
         throw retryError;
+    };
+
+    const shouldRetry = (error: unknown): boolean => {
+        return (
+            typeof error === "object" &&
+            error !== null &&
+            (!!(error as any)[retrySymbol] ||
+                (error instanceof AggregateError &&
+                    error.errors.length > 0 &&
+                    error.errors.every(shouldRetry)))
+        );
     };
 
     const attempt = async (attemptNumber: number): Promise<Value> => {
@@ -47,8 +59,7 @@ export function retryWithExponentialBackoff<Value>(
             const value = await action(retry);
             return value;
         } catch (error) {
-            // Is this an error we should retry?
-            if (typeof error !== "object" || error === null || !(error as any)[retrySymbol]) {
+            if (!shouldRetry(error)) {
                 throw error;
             }
 

@@ -1,9 +1,8 @@
-import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {Bell} from "phosphor-react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {
     OverlayTriggerButton,
@@ -14,8 +13,9 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToNearestTenMinutes} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {
     SpaceLayoutSideBarInboxOverlay,
@@ -50,11 +50,11 @@ export function SpaceLayoutSideBarInboxButton({
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
     const currentTimeRoundedToNearestTenMinutes = useCurrentTimeRoundedToNearestTenMinutes();
     const context = useAppContext();
     const {space} = useSpaceContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {isNativeMobile} = useClientInfo();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
@@ -65,7 +65,7 @@ export function SpaceLayoutSideBarInboxButton({
     // and `<SpaceLayoutWebMobileTabBar>` for web mobile. This assert is a
     // sanity check since we don't want to maintain two separate inbox realtime
     // items which would be inefficient.
-    assert(!isMobile && !isNativeMobile);
+    assert(platform !== "mobile" && !isNativeMobile);
 
     const {item: inbox} = useDynamoGeneralRealtimeItem(initialInbox, {
         isConnected,
@@ -96,8 +96,8 @@ export function SpaceLayoutSideBarInboxButton({
     // gives the user a bit of space to scroll.
     const initialEntriesLimit = Math.ceil(
         getVirtualizationWindowHeight(
-            convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], remPx),
-        ) / convertRemLengthToPx(inboxEntryViewMinHeight, remPx),
+            convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], spacingScale),
+        ) / convertRemLengthToPx(inboxEntryViewMinHeight, spacingScale),
     );
 
     useEffect(() => {

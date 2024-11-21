@@ -23,6 +23,9 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 #   delete confirmation modals, right click context menus, etc.)
 # - Inline editing states for channel name, channel description, post, task
 #   collection name, etc.
+# - All task filters and sorts.
+# - Editing a post that ends with a file that has an "(edited)" note. We want
+#   to exercise that has the same layout as `<ContentView>`.
 
 ts_playwright_tests(
     name = "integration_tests",
@@ -30,10 +33,10 @@ ts_playwright_tests(
         "//app:app_test",
         "//server/apns:apns_development_certificates",
         "//server/edge",
-        "//server/files/upload",
-        "//server/files/upload:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
-        "//server/files/upload:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
-        "//server/files/upload:test_fixtures/wikimedia_png_transparency_demonstration.png",
+        "//server/files/processor",
+        "//server/files/processor:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+        "//server/files/processor:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
+        "//server/files/processor:test_fixtures/wikimedia_png_transparency_demonstration.png",
         "//server/jobs/queue",
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
         "//server/tasks/realtime",

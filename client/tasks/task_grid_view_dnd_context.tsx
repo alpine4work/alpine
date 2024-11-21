@@ -34,8 +34,8 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -554,7 +554,7 @@ function TaskRowViewDragPortals() {
 }
 
 const taskRowViewDragOverlayScale =
-    fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+    fontSizesBySpacingScale["50"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
 function TaskRowViewDragOverlay({
     dataRef,
@@ -590,7 +590,7 @@ function TaskRowViewDragOverlay({
                             top:
                                 data.overlayPlacement === "ActivatorTouch" && activatorTouchOffset
                                     ? `calc(${activatorTouchOffset.top - 1}px - ${
-                                          parseRemLengthNumber(spacing[taskRowViewMinHeight]) / 2
+                                          parseRemLength(taskRowViewMinHeight) / 2
                                       }rem)`
                                     : -1,
                             transform: [

@@ -25,7 +25,6 @@ export type PostRealtimeProcedures = {
 };
 
 export function PostCommentInput({
-    withMobileLayout,
     isStickyPositioned,
     post,
     viewRef,
@@ -40,7 +39,6 @@ export function PostCommentInput({
     shouldBeConnectedToChannelRealtime,
     onPostRealtimeEventTransaction,
 }: {
-    withMobileLayout: boolean;
     isStickyPositioned: boolean;
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -223,7 +221,6 @@ export function PostCommentInput({
     return (
         <MessageInput
             ref={inputRef}
-            withMobileLayout={withMobileLayout}
             data-testid={`PostCommentInput:${post.id}`}
             messageNoun="comment"
             isNotBottomBar={isStickyPositioned}

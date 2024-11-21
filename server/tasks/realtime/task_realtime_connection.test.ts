@@ -6066,21 +6066,40 @@ test("collections of parent tasks are backfilled when query is initially loaded"
 
     expect(connection.takeEvents()).toEqual([]);
 
-    expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+    const subscribeResult = await connection.procedures.subscribeToQuery(
+        query(session, {
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
-    ).toEqual({
+                },
+            ],
+        }),
+    );
+
+    expect({
+        ...subscribeResult,
+        updateEvent: {
+            ...subscribeResult.updateEvent,
+            // We've found the order of `backfillCollections` to be non-deterministic
+            // causing this test to flake. So sort collections since order here doesn't
+            // matter.
+            backfillCollections: Array.from(subscribeResult.updateEvent!.backfillCollections).sort(
+                (collection1, collection2) =>
+                    defaultCompareStrings(
+                        collection1.type === "Authorized"
+                            ? collection1.collection.id
+                            : collection1.collectionId,
+                        collection2.type === "Authorized"
+                            ? collection2.collection.id
+                            : collection2.collectionId,
+                    ),
+            ),
+        },
+    }).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
@@ -6100,10 +6119,12 @@ test("collections of parent tasks are backfilled when query is initially loaded"
                 expectAuthorizedTask(parentTask2.id),
             ],
             backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection3.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+                {id: collection1.id, build: expectAuthorizedCollection},
+                {id: collection2.id, build: expectAuthorizedCollection},
+                {id: collection3.id, build: expectAuthorizedCollection},
+            ]
+                .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
+                .map(({id, build}) => build(id)),
             referencedAccounts: [await session.get()],
         },
     });
@@ -9309,21 +9330,40 @@ test("may reference unauthorized collections", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    expect(
-        await connection.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+    const subscribeResult = await connection.procedures.subscribeToQuery(
+        query(session1, {
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
-    ).toEqual({
+                },
+            ],
+        }),
+    );
+
+    expect({
+        ...subscribeResult,
+        updateEvent: {
+            ...subscribeResult.updateEvent,
+            // We've found the order of `backfillCollections` to be non-deterministic
+            // causing this test to flake. So sort collections since order here doesn't
+            // matter.
+            backfillCollections: Array.from(subscribeResult.updateEvent!.backfillCollections).sort(
+                (collection1, collection2) =>
+                    defaultCompareStrings(
+                        collection1.type === "Authorized"
+                            ? collection1.collection.id
+                            : collection1.collectionId,
+                        collection2.type === "Authorized"
+                            ? collection2.collection.id
+                            : collection2.collectionId,
+                    ),
+            ),
+        },
+    }).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
@@ -9340,10 +9380,12 @@ test("may reference unauthorized collections", async () => {
                 expectAuthorizedTask(parentTask1.id),
             ],
             backfillCollections: [
-                expectUnauthorizedCollection(collection3.id),
-                expectUnauthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection1.id),
-            ],
+                {id: collection1.id, build: expectAuthorizedCollection},
+                {id: collection2.id, build: expectUnauthorizedCollection},
+                {id: collection3.id, build: expectUnauthorizedCollection},
+            ]
+                .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
+                .map(({id, build}) => build(id)),
             referencedAccounts: [await session1.get()],
         },
     });
@@ -12433,10 +12475,14 @@ test("will lose access to subscribed task upon reauthorization if account remove
         accountId: session2.account.id,
     });
 
-    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
+    await expect(connection.authorize()).rejects.toThrow(
+        "Account doesn't have access to space (and 1 other error)",
+    );
 
     expect(connection.isClosed()).toEqual(true);
-    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
+    expect((connection.getCloseError() as any).message).toEqual(
+        "Account doesn't have access to space (and 1 other error)",
+    );
 
     expect(connection.takeEvents()).toEqual([]);
 

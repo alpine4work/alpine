@@ -89,18 +89,19 @@ export function createTestServices(): {context: TestContext; services: TestServi
         const result2 = await captureResultPromise(async () => {
             appServiceSubprocess?.kill("SIGINT");
             taskRealtimeServiceSubprocess?.kill("SIGINT");
-            fileUploadServiceSubprocess?.kill("SIGINT");
+            fileProcessorServiceSubprocess?.kill("SIGINT");
 
             await runAllPromises([
                 appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
                 taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
-                fileUploadServiceSubprocess && waitForProcessExit(fileUploadServiceSubprocess),
+                fileProcessorServiceSubprocess &&
+                    waitForProcessExit(fileProcessorServiceSubprocess),
             ]);
         });
 
         appServiceSubprocess = undefined;
         taskRealtimeServiceSubprocess = undefined;
-        fileUploadServiceSubprocess = undefined;
+        fileProcessorServiceSubprocess = undefined;
 
         unwrapResult(result1);
         unwrapResult(result2);
@@ -134,7 +135,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
     let jobQueueServiceSubprocess:
         | ChildProcessByStdio<null, ReadableStream, ReadableStream>
         | undefined;
-    let fileUploadServiceSubprocess:
+    let fileProcessorServiceSubprocess:
         | ChildProcessByStdio<null, ReadableStream, ReadableStream>
         | undefined;
 
@@ -149,7 +150,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
         const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
         const ensureLocalCachePath = joinPath(context.getTemporaryDirectoryPath(), "ensure");
         const cloudflareR2LocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "r2");
-        const fileUploadServiceTemporaryDirectoryPath = joinPath(
+        const fileProcessorServiceTemporaryDirectoryPath = joinPath(
             context.getTemporaryDirectoryPath(),
             "files",
         );
@@ -182,13 +183,13 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "job_queue_service_rsa.pub",
         );
 
-        const fileUploadServicePrivateKeyPath = joinPath(
+        const fileProcessorServicePrivateKeyPath = joinPath(
             keysDirectoryPath,
-            "file_upload_service_rsa",
+            "file_processor_service_rsa",
         );
-        const fileUploadServicePublicKeyPath = joinPath(
+        const fileProcessorServicePublicKeyPath = joinPath(
             keysDirectoryPath,
-            "file_upload_service_rsa.pub",
+            "file_processor_service_rsa.pub",
         );
 
         const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
@@ -197,7 +198,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
             edgeServicePort,
             taskRealtimeServicePort,
             appServicePort,
-            fileUploadServicePort,
+            fileProcessorServicePort,
             newAppServiceTokenAgentPrivateSide,
         ] = await runAllPromises([
             edgeServicePortPromise,
@@ -236,13 +237,14 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
@@ -282,10 +284,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--cacheLocalDataPath=${edgeCacheLocalDataPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
             ],
@@ -308,13 +310,14 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
             ],
             {
                 env: process.env,
@@ -335,13 +338,14 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
@@ -358,22 +362,23 @@ export function createTestServices(): {context: TestContext; services: TestServi
         jobQueueServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
         jobQueueServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
-        fileUploadServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/server/files/upload/upload.sh"),
+        fileProcessorServiceSubprocess = spawn(
+            joinPath(runfilesPath, "cyberworlds/server/files/processor/processor.sh"),
             [
-                `--port=${fileUploadServicePort}`,
+                `--port=${fileProcessorServicePort}`,
                 `--appServicePublicKey=${appServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
-                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
-                `--servicePrivateKey=${fileUploadServicePrivateKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
-                `--temporaryDirectoryPath=${fileUploadServiceTemporaryDirectoryPath}`,
+                `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
             ],
             {
                 env: process.env,
@@ -383,21 +388,21 @@ export function createTestServices(): {context: TestContext; services: TestServi
 
         // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
         // write data to stdout/stderr.
-        fileUploadServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
-        fileUploadServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+        fileProcessorServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
+        fileProcessorServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
         await runAllPromises([
             waitForProcessSpawn(appServiceSubprocess),
             waitForProcessSpawn(edgeServiceSubprocess),
             waitForProcessSpawn(taskRealtimeServiceSubprocess),
             waitForProcessSpawn(jobQueueServiceSubprocess),
-            waitForProcessSpawn(fileUploadServiceSubprocess),
+            waitForProcessSpawn(fileProcessorServiceSubprocess),
         ]);
 
         await runAllPromises([
             waitForHttpServer(appServicePort),
             waitForHttpServer(taskRealtimeServicePort),
-            waitForHttpServer(fileUploadServicePort),
+            waitForHttpServer(fileProcessorServicePort),
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing

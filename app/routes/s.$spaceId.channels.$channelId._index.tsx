@@ -9,7 +9,7 @@ import {ChannelView} from "~/client/forum/channel_view.js";
 import {newChannelNamePlaceholder} from "~/client/forum/new_channel_name_placeholder.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -20,6 +20,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {
     authorizeChannelAccess,
     createChannel,
@@ -38,7 +39,6 @@ import {
     createDynamoGeneralRealtimeIndexQuerySchema,
     createDynamoGeneralRealtimeQuerySchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -107,7 +107,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 name: createSearchParam,
             }));
         } catch (error) {
-            if (!(error instanceof FailedPreconditionError)) {
+            if (!isDynamoConditionCheckError(error)) {
                 throw error;
             }
 
@@ -216,14 +216,14 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return defaultShouldRevalidate;
 };
 
-export default function ChannelRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+export default function ChannelRoute() {
     const {channelState} = useLoaderDataWithSchema(LoaderSchema);
     const {channelId} = useParams();
     assert(channelId && isId<ChannelId>(channelId));
     const [searchParams, setSearchParams] = useSearchParams();
 
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
 
@@ -264,11 +264,10 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
                 <ChannelView
                     // Remount when navigating to a different channel.
                     key={channelId}
-                    withMobileLayout={withMobileLayout}
                     initialChannelResult={channelState.channelResult}
                     initialPostsResult={channelState.postsResult}
                 />
-            ) : isMobile ? (
+            ) : platform === "mobile" ? (
                 <ChannelMobileEditor
                     title="Create channel"
                     initiallyFocus="Name"
@@ -336,7 +335,6 @@ export default function ChannelRoute({withMobileLayout = false}: {withMobileLayo
                 />
             ) : (
                 <ChannelDesktopCreator
-                    withMobileLayout={withMobileLayout}
                     channelId={channelId}
                     shouldInitiallyFocusChannelName={shouldInitiallyFocusChannelName}
                     createChannel={async name => {

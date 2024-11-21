@@ -11,7 +11,6 @@ export function useInboxBannerOutletContainer<Children extends ReactNode>(
         ...props
     }: {
         initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-        withMobileLayout: boolean;
         maxWidth: Spacing | "full";
         sidebarRightWidth?: Spacing;
     },

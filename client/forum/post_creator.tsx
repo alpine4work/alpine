@@ -25,15 +25,13 @@ import {
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {sendRpcNavigatorBeacon} from "~/client/rpc/send_rpc_navigator_beacon.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     postContentViewInnerMarginY,
+    postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -47,7 +45,6 @@ import {PostDraftId} from "~/shared/id/types/id_types.js";
 import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function PostCreator({
-    withMobileLayout: withMobileLayoutProp,
     draftId,
     displayCreatedTime,
     initialChannel,
@@ -55,7 +52,6 @@ export function PostCreator({
     shouldReturnBack,
     initiallyFocus,
 }: {
-    withMobileLayout: boolean;
     draftId: PostDraftId;
     displayCreatedTime: Date;
     initialChannel: ChannelPreviewModel | null;
@@ -65,7 +61,7 @@ export function PostCreator({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
 
@@ -73,8 +69,6 @@ export function PostCreator({
     const channelSelectorRef = useRef<PostCreatorChannelSelectorInputRef>(null);
     const editorRef = useRef<ContentEditorRef<PostContentWithReferences>>(null);
     const createButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const [state, setState] = useState(() => ContentEditorState.create(initialContent));
 
@@ -167,7 +161,7 @@ export function PostCreator({
         <Button
             ref={createButtonRef}
             variant="neutral"
-            withoutMinWidth={isMobile}
+            withoutMinWidth={platform === "mobile"}
             isDisabled={isContentEmpty(state.getDoc()) || !channel}
             pressErrorTitle="Couldn’t create post"
             onPress={async () => {
@@ -207,11 +201,10 @@ export function PostCreator({
     );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        isDisabled: !isMobile,
-        withMobileLayout,
+        isDisabled: platform !== "mobile",
         title: "New post",
         withoutDisappearingTitle: true,
-        replaceActions: isMobile && (
+        replaceActions: platform === "mobile" && (
             <Box
                 display="flex"
                 justifyContent="flex-end"
@@ -241,7 +234,7 @@ export function PostCreator({
             display="flex"
             flexDirection="column"
         >
-            {!isMobile && (
+            {platform !== "mobile" && (
                 // No safe area cover on mobile since the navigation bar will act as a safe
                 // area cover.
                 <Box
@@ -276,52 +269,72 @@ export function PostCreator({
                         paddingTop="safe-area-inset"
                     >
                         {navigationBar}
-                        {isMobile && <Box height={navigationBarHeight} />}
-                        <Box
-                            flexShrink="0"
-                            width="full"
-                            maxWidth={contentStyles.contentMaxWidth}
-                            marginX="center"
-                            paddingX={screenPaddingX}
-                            paddingBottom={postContentViewInnerMarginY}
-                            style={{
-                                paddingTop: withMobileLayout
-                                    ? isMobile
-                                        ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                        : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                    : `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
-                            }}
-                        >
-                            <PostContentViewHeaderBase
-                                author={currentAccount}
-                                createdTime={displayCreatedTime}
-                                shouldCreatedTimeExcludeTime
-                                extraAfterCreatedTime={isMobile ? `, in:` : undefined}
-                                channelSelector={
-                                    !isMobile && (
+                        {platform === "desktop" ? (
+                            <Box
+                                position="relative"
+                                flexShrink="0"
+                                width="full"
+                                maxWidth={contentStyles.contentMaxWidth}
+                                marginX="center"
+                                paddingX={screenPaddingX}
+                                marginBottom={postContentViewInnerMarginY}
+                                style={{height: postViewNavigationBarSpace[platform]}}
+                            >
+                                <Box
+                                    position="absolute"
+                                    top="0"
+                                    display="flex"
+                                    alignItems="center"
+                                    height={
+                                        platform === "desktop" ? navigationBarHeight : undefined
+                                    }
+                                >
+                                    <PostContentViewHeaderBase
+                                        author={currentAccount}
+                                        createdTime={displayCreatedTime}
+                                        shouldCreatedTimeExcludeTime
+                                        channelSelector={
+                                            <PostCreatorChannelSelectorInput
+                                                ref={channelSelectorRef}
+                                                channel={channel}
+                                                onChannelChange={setChannel}
+                                                width="full"
+                                            />
+                                        }
+                                    />
+                                </Box>
+                            </Box>
+                        ) : (
+                            <>
+                                <Box height={navigationBarHeight} />
+                                <Box
+                                    flexShrink="0"
+                                    width="full"
+                                    maxWidth={contentStyles.contentMaxWidth}
+                                    marginX="center"
+                                    paddingX={screenPaddingX}
+                                    paddingBottom={postContentViewInnerMarginY}
+                                >
+                                    <PostContentViewHeaderBase
+                                        author={currentAccount}
+                                        createdTime={displayCreatedTime}
+                                        shouldCreatedTimeExcludeTime
+                                        extraAfterCreatedTime=", in:"
+                                    />
+                                    <Box paddingTop="1" paddingLeft="10">
                                         <PostCreatorChannelSelectorInput
                                             ref={channelSelectorRef}
                                             channel={channel}
                                             onChannelChange={setChannel}
+                                            width="full"
                                         />
-                                    )
-                                }
-                            />
-                            {isMobile && (
-                                <Box paddingTop="1" paddingLeft="10">
-                                    <PostCreatorChannelSelectorInput
-                                        ref={channelSelectorRef}
-                                        channel={channel}
-                                        onChannelChange={setChannel}
-                                        width="full"
-                                    />
+                                    </Box>
                                 </Box>
-                            )}
-                        </Box>
+                            </>
+                        )}
                         <ContentEditor
                             ref={editorRef}
                             aria-label="New post"
-                            withMobileLayout={withMobileLayout}
                             state={state}
                             onChange={state => setState(state)}
                             // On mobile, don't allow interactions when unfocused. We're already in an
@@ -358,7 +371,7 @@ export function PostCreator({
                                 assertExists(createButtonRef.current).press();
                             }}
                         />
-                        {!isMobile && (
+                        {platform !== "mobile" && (
                             <Box
                                 marginTop="-12"
                                 flexShrink="0"

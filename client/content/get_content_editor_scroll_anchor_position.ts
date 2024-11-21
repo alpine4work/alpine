@@ -1,6 +1,6 @@
 import {RefObject} from "react";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -59,9 +59,10 @@ export function getContentEditorScrollAnchorPosition<Content extends ContentWith
 
     const coords = editor.coordsAtPos(editorState.getSelection().from);
 
+    const spacingScale = getSpacingScaleWithoutListening();
     const paragraphLineHeight = convertRemLengthToPx(
         contentStyles.paragraphFontSize.lineHeight,
-        getRemPxWithoutListening(),
+        spacingScale,
     );
 
     // Add a paragraph line height in either direction as slop. We consider the

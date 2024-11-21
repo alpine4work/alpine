@@ -23,7 +23,7 @@ import {
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
-import {JobQueueConsumer} from "~/server/jobs/queue/job_queue_consumer.js";
+import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {
     JobQueueServiceProcessContext,
     JobQueueServiceProcessContextModules,
@@ -255,7 +255,13 @@ export async function run({
 
     const consumer = JobQueueConsumer.start(processContext, {
         region: "us-east-1",
+        queueName: "Default",
         queueUrl: jobQueueUrl,
+
+        // We'll run at most 100 jobs at once per Node.js worker.
+        maxConsumeCallMessageCount: 10,
+        maxRunningConsumeCallCount: 10,
+
         processJob: (_actionContext, job, jobStartTime, span) => {
             // Jobs are already processed in a system context so this isn't actually an
             // escalation but we still need it for compatibility.

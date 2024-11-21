@@ -2,7 +2,6 @@ import {Box} from "~/client/design/box.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {DocumentContentView} from "~/client/documents/document_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getDocument} from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -32,15 +31,8 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
     {title: document.getTitle()},
 ]);
 
-export default function DocumentViewRoute({
-    withMobileLayout: withMobileLayoutProp = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function DocumentViewRoute() {
     const {document} = useLoaderDataWithSchema(LoaderSchema);
-
-    const isMobile = useIsMobile();
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     return (
         <Box
@@ -54,7 +46,6 @@ export default function DocumentViewRoute({
             <DocumentContentView
                 // Re-render when the document changes
                 key={document.id}
-                withMobileLayout={withMobileLayout}
                 initialDocument={document}
             />
         </Box>

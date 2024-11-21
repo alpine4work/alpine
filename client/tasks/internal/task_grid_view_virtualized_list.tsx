@@ -16,7 +16,6 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -27,8 +26,12 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    useSpacingScale,
+} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {tasksStyles} from "~/client/styles/styles.js";
 import {
     taskGridViewColumnHeaderExtraPaddingBottomPx,
@@ -48,8 +51,8 @@ import {
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {
-    desktopTaskDateInputCalendarHeight,
-    mobileTaskDateInputCalendarHeight,
+    taskDateInputCalendarDesktopHeight,
+    taskDateInputCalendarMobileHeight,
 } from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -89,6 +92,7 @@ import {
     convertRemLengthToPx,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
@@ -116,12 +120,12 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
 const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
-    spacing[taskRowViewMinHeight],
-    spacing[taskRowViewMinHeight],
-    spacing[taskRowViewMinHeight],
-    spacing["4"],
-    spacing["6"],
-    spacing["4"],
+    taskRowViewMinHeight,
+    taskRowViewMinHeight,
+    taskRowViewMinHeight,
+    "4",
+    "6",
+    "4",
 );
 
 /**
@@ -295,16 +299,16 @@ export function useTaskGridViewVirtualizedList({
     redo: () => void;
 
     /**
-     * (Optional) Returns the current `remPx` value for convenience.
+     * (Optional) Returns the current `SpacingScale` value for convenience.
      */
-    remPx: number;
+    spacingScale: SpacingScale;
 } {
     const initialAppRenderId = useInitialAppRenderId();
     const isInitialAppRender = initialAppRenderId !== null;
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
-    const remPx = useRemPx();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -403,7 +407,7 @@ export function useTaskGridViewVirtualizedList({
     // space for the title text.
     //
     // It's purely a client-side limitation.
-    const maxGridExpandableTaskDepth = isMobile ? 2 : 4;
+    const maxGridExpandableTaskDepth = platform === "mobile" ? 2 : 4;
 
     const stateStore = useMemo(
         () =>
@@ -1006,10 +1010,10 @@ export function useTaskGridViewVirtualizedList({
                     // input, we'll have scrolled to preserve enough onscreen space for the calendar
                     // should it open next.
                     const calendarHeightPx = convertRemLengthToPx(
-                        isMobile
-                            ? mobileTaskDateInputCalendarHeight
-                            : desktopTaskDateInputCalendarHeight,
-                        getRemPxWithoutListening(),
+                        platform === "mobile"
+                            ? taskDateInputCalendarMobileHeight
+                            : taskDateInputCalendarDesktopHeight,
+                        getSpacingScaleWithoutListening(),
                     );
 
                     const top =
@@ -1043,7 +1047,7 @@ export function useTaskGridViewVirtualizedList({
 
             return activeRect;
         },
-        [getAnchorPositionFromProps, isMobile, viewRef],
+        [getAnchorPositionFromProps, platform, viewRef],
     );
 
     // When the keyboard opens, make sure we scroll so that whatever's focused
@@ -1342,8 +1346,8 @@ export function useTaskGridViewVirtualizedList({
                         // We want to keep some overlap between tasks when paging up/down so the user
                         // doesn't completely lose their context.
                         convertRemLengthToPx(
-                            spacing[taskRowViewMinHeight],
-                            getRemPxWithoutListening(),
+                            taskRowViewMinHeight,
+                            getSpacingScaleWithoutListening(),
                         ) *
                             2),
             );
@@ -1465,8 +1469,8 @@ export function useTaskGridViewVirtualizedList({
                         // We want to keep some overlap between tasks when paging up/down so the user
                         // doesn't completely lose their context.
                         convertRemLengthToPx(
-                            spacing[taskRowViewMinHeight],
-                            getRemPxWithoutListening(),
+                            taskRowViewMinHeight,
+                            getSpacingScaleWithoutListening(),
                         ) *
                             2),
             );
@@ -1542,7 +1546,7 @@ export function useTaskGridViewVirtualizedList({
             const anchorBottom = anchorPosition.top + anchorPosition.height;
 
             const clearanceBottom =
-                visibleRect.bottom - convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+                visibleRect.bottom - convertRemLengthToPx("1", getSpacingScaleWithoutListening());
 
             if (anchorBottom <= clearanceBottom) return;
 
@@ -1698,8 +1702,8 @@ export function useTaskGridViewVirtualizedList({
                         const distance = -(
                             (1 + animation.newChildrenCount) *
                             convertRemLengthToPx(
-                                spacing[taskRowViewMinHeight],
-                                getRemPxWithoutListening(),
+                                taskRowViewMinHeight,
+                                getSpacingScaleWithoutListening(),
                             )
                         );
 
@@ -1735,8 +1739,8 @@ export function useTaskGridViewVirtualizedList({
                         const distance =
                             (1 + animation.oldChildrenCount) *
                             convertRemLengthToPx(
-                                spacing[taskRowViewMinHeight],
-                                getRemPxWithoutListening(),
+                                taskRowViewMinHeight,
+                                getSpacingScaleWithoutListening(),
                             );
 
                         const remainingDistance =
@@ -1811,8 +1815,8 @@ export function useTaskGridViewVirtualizedList({
                         // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
                         // height since the height is not a constant in task detail view.
                         const distance = convertRemLengthToPx(
-                            spacing[taskRowViewMinHeight],
-                            getRemPxWithoutListening(),
+                            taskRowViewMinHeight,
+                            getSpacingScaleWithoutListening(),
                         );
 
                         const remainingDistance =
@@ -1914,12 +1918,12 @@ export function useTaskGridViewVirtualizedList({
                 ? {
                       minHeight:
                           typeof columnHeaderControls.minHeight === "string"
-                              ? convertRemLengthToPx(columnHeaderControls.minHeight, remPx)
+                              ? convertRemLengthToPx(columnHeaderControls.minHeight, spacingScale)
                               : columnHeaderControls.minHeight,
                       node: columnHeaderControls.node,
                   }
                 : null,
-        [columnHeaderControls, remPx],
+        [columnHeaderControls, spacingScale],
     );
 
     const renderItem = useMemo(() => {
@@ -1931,7 +1935,7 @@ export function useTaskGridViewVirtualizedList({
                 if (hasColumnHeaderItem) {
                     if (relativeItemIndex === 0) {
                         const minHeight = getTaskGridViewColumnHeaderWithControlsHeight(
-                            remPx,
+                            spacingScale,
                             capabilities,
                             columnHeaderControlsWithMinHeightPx?.minHeight ?? 0,
                         );
@@ -2010,7 +2014,9 @@ export function useTaskGridViewVirtualizedList({
                                         }
                                         // If there are no task rows, the padding just makes our ghost row placeholder
                                         // look misaligned. So remove it.
-                                        withoutPaddingLeft={stateItemCount === 0}
+                                        withoutPaddingLeft={
+                                            !capabilities.hasColumns && stateItemCount === 0
+                                        }
                                         withPaddingBottom={itemIndex === itemCount - 1}
                                         mobileKeyboardToolbarPortalRef={
                                             mobileKeyboardToolbarPortalRef
@@ -2104,7 +2110,9 @@ export function useTaskGridViewVirtualizedList({
                                         }
                                         // If there are no task rows, the padding just makes our ghost row placeholder
                                         // look misaligned. So remove it.
-                                        withoutPaddingLeft={stateItemCount === 0}
+                                        withoutPaddingLeft={
+                                            !capabilities.hasColumns && stateItemCount === 0
+                                        }
                                         withPaddingBottom={itemIndex === itemCount - 1}
                                         mobileKeyboardToolbarPortalRef={
                                             mobileKeyboardToolbarPortalRef
@@ -2243,9 +2251,9 @@ export function useTaskGridViewVirtualizedList({
         itemCountBeforeState,
         loadedState,
         maxGridExpandableTaskDepth,
-        remPx,
         rootQuery,
         rowMaxWidth,
+        spacingScale,
         state,
         stateItemCount,
         stateKey,
@@ -2303,7 +2311,7 @@ export function useTaskGridViewVirtualizedList({
                         onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
                     />
                 )}
-                {!isInitialAppRender && isMobile && !isInert && (
+                {!isInitialAppRender && platform === "mobile" && !isInert && (
                     // The mobile keyboard toolbar is only modal-ish? Maybe we should rename
                     // this prop.
                     <TaskGridViewMobileKeyboardToolbarContainer
@@ -2321,21 +2329,21 @@ export function useTaskGridViewVirtualizedList({
         pushRedoStackEntry: events.pushRedoStackEntry,
         undo,
         redo,
-        remPx,
+        spacingScale,
     };
 }
 
 export function getTaskGridViewColumnHeaderWithControlsHeight(
-    remPx: number,
+    spacingScale: SpacingScale,
     capabilities: TaskGridViewCapabilities,
     columnHeaderControlsHeight: RemLength | number,
 ): number {
     return (
         (typeof columnHeaderControlsHeight === "string"
-            ? convertRemLengthToPx(columnHeaderControlsHeight, remPx)
+            ? convertRemLengthToPx(columnHeaderControlsHeight, spacingScale)
             : columnHeaderControlsHeight) +
         (capabilities.hasColumns
-            ? convertRemLengthToPx(spacing[taskGridViewColumnHeaderHeight], remPx)
+            ? convertRemLengthToPx(taskGridViewColumnHeaderHeight, spacingScale)
             : 0) +
         taskGridViewColumnHeaderExtraPaddingBottomPx
     );

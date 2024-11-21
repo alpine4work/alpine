@@ -23,7 +23,7 @@ beforeAll(async () => {
         edgeServiceFamilyKeyPair,
         taskRealtimeServiceKeyPair,
         jobQueueServiceKeyPair,
-        fileUploadServiceKeyPair,
+        fileProcessorServiceKeyPair,
     ] = await runAllPromises(
         createArrayWithLength(
             5,
@@ -49,7 +49,7 @@ beforeAll(async () => {
     assert(edgeServiceFamilyKeyPair);
     assert(taskRealtimeServiceKeyPair);
     assert(jobQueueServiceKeyPair);
-    assert(fileUploadServiceKeyPair);
+    assert(fileProcessorServiceKeyPair);
 
     const secretBytes = new Uint8Array(32);
     crypto.getRandomValues(secretBytes);
@@ -64,7 +64,7 @@ beforeAll(async () => {
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
-                    fileUploadServicePublicKey: fileUploadServiceKeyPair.publicKey,
+                    fileProcessorServicePublicKey: fileProcessorServiceKeyPair.publicKey,
                     secret,
                 }),
                 TokenAgentAppServicePrivateSide.new({
@@ -80,7 +80,7 @@ beforeAll(async () => {
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
-                    fileUploadServicePublicKey: fileUploadServiceKeyPair.publicKey,
+                    fileProcessorServicePublicKey: fileProcessorServiceKeyPair.publicKey,
                     secret,
                 }),
                 TokenAgentPrivateSide.new({
@@ -96,7 +96,7 @@ beforeAll(async () => {
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
-                    fileUploadServicePublicKey: fileUploadServiceKeyPair.publicKey,
+                    fileProcessorServicePublicKey: fileProcessorServiceKeyPair.publicKey,
                     secret,
                 }),
                 TokenAgentPrivateSide.new({

@@ -32,10 +32,10 @@ async function main() {
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
             jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
-            fileUploadServicePublicKey: fileUploadServicePublicKeyPath,
+            fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
-            fileUploadServiceHostname,
+            fileProcessorServiceUrl,
             cacheLocalDataPath,
             cloudflareR2LocalDataPath,
             honeycombApiKey,
@@ -49,10 +49,10 @@ async function main() {
             edgeServiceFamilyPublicKey: {type: "string"},
             taskRealtimeServicePublicKey: {type: "string"},
             jobQueueServicePublicKey: {type: "string"},
-            fileUploadServicePublicKey: {type: "string"},
+            fileProcessorServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
-            fileUploadServiceHostname: {type: "string"},
+            fileProcessorServiceUrl: {type: "string"},
             cacheLocalDataPath: {type: "string"},
             cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
@@ -72,12 +72,12 @@ async function main() {
     if (!taskRealtimeServicePublicKeyPath)
         throw new Error("Missing `taskRealtimeServicePublicKeyPath` arg");
     if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` arg");
-    if (!fileUploadServicePublicKeyPath)
-        throw new Error("Missing `fileUploadServicePublicKeyPath` arg");
+    if (!fileProcessorServicePublicKeyPath)
+        throw new Error("Missing `fileProcessorServicePublicKeyPath` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
-    if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
+    if (!fileProcessorServiceUrl) throw new Error("Missing `fileProcessorServiceUrl` arg");
     if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
     if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
 
@@ -86,7 +86,7 @@ async function main() {
         edgeServiceFamilyPublicKey,
         taskRealtimeServicePublicKey,
         jobQueueServicePublicKey,
-        fileUploadServicePublicKey,
+        fileProcessorServicePublicKey,
         edgeServiceFamilyPrivateKey,
         tokenAgentSecret,
     ] = await Promise.all([
@@ -94,7 +94,7 @@ async function main() {
         fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
         fs.readFile(taskRealtimeServicePublicKeyPath, "utf8"),
         fs.readFile(jobQueueServicePublicKeyPath, "utf8"),
-        fs.readFile(fileUploadServicePublicKeyPath, "utf8"),
+        fs.readFile(fileProcessorServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
         fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
@@ -122,10 +122,10 @@ async function main() {
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
             JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
-            FILE_UPLOAD_SERVICE_PUBLIC_KEY: fileUploadServicePublicKey,
+            FILE_PROCESSOR_SERVICE_PUBLIC_KEY: fileProcessorServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
-            FILE_UPLOAD_SERVICE_HOSTNAME: fileUploadServiceHostname,
+            FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },
         globals: {

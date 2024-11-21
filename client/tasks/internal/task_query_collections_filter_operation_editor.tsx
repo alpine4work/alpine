@@ -34,14 +34,12 @@ type TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem = {
 };
 
 export function TaskQueryCollectionsFilterOperationEditor({
-    withMobileLayout,
     store,
     filter,
     filterReferences,
     onFilterChange,
     valueTriggerButtonRef,
 }: {
-    withMobileLayout: boolean;
     store: TaskClientStore;
     filter: TaskQueryCollectionsFilter;
     filterReferences: TaskQueryFilterReferences;
@@ -121,7 +119,6 @@ export function TaskQueryCollectionsFilterOperationEditor({
     return (
         <>
             <TaskQueryFilterOperatorEditor
-                withMobileLayout={withMobileLayout}
                 operatorLabel={
                     filter.operation.type === "IncludesOneOf"
                         ? includesOneOfOperatorLabel
@@ -221,7 +218,6 @@ export function TaskQueryCollectionsFilterOperationEditor({
             />
             {filter.operation.type !== "IsEmpty" && (
                 <TaskQueryFilterEditorMultiSelectComboBox<TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem>
-                    withMobileLayout={withMobileLayout}
                     inputLabel="Collection"
                     triggerButtonRef={valueTriggerButtonRef}
                     preview={

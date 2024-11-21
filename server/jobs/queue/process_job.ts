@@ -1,4 +1,5 @@
 import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
 import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
@@ -10,7 +11,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export async function processJob(
     context: JobQueueServiceSystemActionContext,
-    job: JobDescription,
+    job: JobDescription & {type: JobTypeByQueueName["Default"]},
     jobStartTime: Date,
     span: TracerSpan,
 ): Promise<void> {

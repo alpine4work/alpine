@@ -4,7 +4,6 @@ import {usePress} from "react-aria";
 import {ChannelViewFilePreview} from "~/client/content/channel_view_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
 import {getInitialChannelFilesViewFileLoadCount} from "~/client/forum/get_initial_channel_files_view_load_count.js";
@@ -12,7 +11,8 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -39,6 +39,7 @@ import {
     screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {DynamoGeneralRealtimeQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     ChannelModel,
@@ -56,21 +57,18 @@ import {
 } from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelFilesView({
-    withMobileLayout: withMobileLayoutProp,
     initialChannelResult,
     isFromChannelView,
 }: {
-    withMobileLayout: boolean;
     initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     isFromChannelView: boolean;
 }) {
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const clientInfo = useClientInfo();
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
+    const remPx = remPxBySpacingScale[spacingScale];
     const {space} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -211,17 +209,17 @@ export function ChannelFilesView({
     const [containerSizeRef, containerSize] = useResizeObserver();
 
     const fileSizePx = clamp(
-        convertRemLengthToPx(spacing[channelFilesViewFileMinSize], remPx),
+        convertRemLengthToPx(channelFilesViewFileMinSize, spacingScale),
         ((containerSize?.width ?? clientInfo.screenWidth) -
-            screenPaddingXRem[isMobile ? "mobile" : "desktop"] * 2 * remPx -
+            screenPaddingXRem[platform] * 2 * remPx -
             contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1) * remPx) /
             channelFilesViewFileRowFileCount,
-        convertRemLengthToPx(spacing[channelFilesViewFileMaxSize], remPx),
+        convertRemLengthToPx(channelFilesViewFileMaxSize, spacingScale),
     );
 
     const fileRowMinHeight = addRemLengths(
-        spacing[channelFilesViewFileMinSize],
-        spacing[contentStyles.fileRowGapWidth],
+        channelFilesViewFileMinSize,
+        contentStyles.fileRowGapWidth,
     );
 
     const fileRowCount = Math.ceil(files.length / channelFilesViewFileRowFileCount);
@@ -240,7 +238,6 @@ export function ChannelFilesView({
         >
             <Box height="safe-area-inset-top" />
             <NavigationBarContent
-                withMobileLayout={withMobileLayout}
                 title={
                     <ChannelFilesViewNavigationBarTitle
                         title={channel.name}
@@ -265,10 +262,10 @@ export function ChannelFilesView({
                             return {
                                 key: "LoadingIndicator",
                                 minHeight: addRemLengths(
-                                    spacing[channelFilesViewFileMinSize],
-                                    spacing[contentStyles.fileRowGapWidth],
-                                    spacing[channelFilesViewFileMinSize],
-                                    spacing["24"],
+                                    channelFilesViewFileMinSize,
+                                    contentStyles.fileRowGapWidth,
+                                    channelFilesViewFileMinSize,
+                                    "24",
                                 ),
                                 node: (
                                     <>
@@ -282,10 +279,7 @@ export function ChannelFilesView({
                                                 gap={contentStyles.fileRowGapWidth}
                                                 style={{
                                                     height: fileSizePx,
-                                                    maxWidth:
-                                                        channelFilesViewMaxWidth[
-                                                            isMobile ? "mobile" : "desktop"
-                                                        ],
+                                                    maxWidth: channelFilesViewMaxWidth[platform],
                                                 }}
                                             >
                                                 <Box
@@ -315,10 +309,7 @@ export function ChannelFilesView({
                                                 gap={contentStyles.fileRowGapWidth}
                                                 style={{
                                                     height: fileSizePx,
-                                                    maxWidth:
-                                                        channelFilesViewMaxWidth[
-                                                            isMobile ? "mobile" : "desktop"
-                                                        ],
+                                                    maxWidth: channelFilesViewMaxWidth[platform],
                                                 }}
                                             >
                                                 <Box
@@ -377,10 +368,7 @@ export function ChannelFilesView({
                                     gap={contentStyles.fileRowGapWidth}
                                     style={{
                                         height: fileSizePx,
-                                        maxWidth:
-                                            channelFilesViewMaxWidth[
-                                                isMobile ? "mobile" : "desktop"
-                                            ],
+                                        maxWidth: channelFilesViewMaxWidth[platform],
                                     }}
                                 >
                                     {!file1 ? (
@@ -417,7 +405,7 @@ export function ChannelFilesView({
                             ),
                         };
                     },
-                    [fileRowMinHeight, fileSizePx, files, isMobile, loadingIndicatorIndex],
+                    [fileRowMinHeight, fileSizePx, files, loadingIndicatorIndex, platform],
                 )}
             />
         </Box>

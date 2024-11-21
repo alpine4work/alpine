@@ -13,7 +13,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     ContentCodeBlockLanguage,
@@ -43,7 +43,7 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
     selectedLanguageId: ContentCodeBlockLanguageId;
     onSelectedLanguageChange: (languageId: ContentCodeBlockLanguageId) => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <OverlayAnimated
@@ -69,20 +69,20 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
             // keyboard opens. The value was calculated based on the keyboard height in
             // iOS. We may need to change this constant if the keyboard height for iOS
             // changes or the Android keyboard height is bigger.
-            overflowBottom={isMobile ? "18rem" : undefined}
+            overflowBottom={platform === "mobile" ? "18rem" : undefined}
             targetElement={targetElement}
             overlay={
                 <Box
                     ref={useOutsideInteraction(onCloseWithAnimation)}
                     className={greyElevated2ClassName}
                     width="48"
+                    maxHeight={platform === "mobile" ? "32" : "96"}
                     overflow="hidden"
                     borderRadius="1.5"
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     display="flex"
                     flexDirection="column"
-                    style={{maxHeight: isMobile ? spacing["32"] : spacing["96"]}}
                 >
                     <ContentEditorCodeBlockLanguagePickerComboBoxOverlay
                         selectedLanguageId={selectedLanguageId}

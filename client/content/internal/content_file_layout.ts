@@ -6,6 +6,8 @@ import {
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -13,10 +15,20 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 const actuallyLayoutContentFileParent = createCachedFunction(
-    (node: Node, screenWidth: number, isMobile: boolean, ...files: Array<FileModel | null>) => {
+    (
+        node: Node,
+        screenWidth: number,
+        platform: Platform,
+        spacingScale: SpacingScale,
+        ...files: Array<FileModel | null>
+    ) => {
         switch (node.type.name) {
             case "fileRow": {
-                return computeContentFileRowLayout(files, {screenWidth, isMobile});
+                return computeContentFileRowLayout(files, {
+                    screenWidth,
+                    platform,
+                    spacingScale,
+                });
             }
             case "fileFloat": {
                 assert(files.length === 1);
@@ -24,7 +36,8 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 return [
                     computeContentFileFloatLayout(node.attrs.direction, files[0], {
                         screenWidth,
-                        isMobile,
+                        platform,
+                        spacingScale,
                     }),
                 ];
             }
@@ -47,7 +60,11 @@ const actuallyLayoutContentFileParent = createCachedFunction(
 export function layoutContentFileParent(
     references: ContentReferences,
     node: Node,
-    {screenWidth, isMobile}: {screenWidth: number; isMobile: boolean},
+    {
+        screenWidth,
+        platform,
+        spacingScale,
+    }: {screenWidth: number; platform: Platform; spacingScale: SpacingScale},
 ): ReadonlyArray<ContentFileLayout> {
     const files = node.content.content.map(childNode => {
         if (childNode.type.name !== "file") {
@@ -61,7 +78,7 @@ export function layoutContentFileParent(
         return references.fileById.get(fileId)?.file ?? null;
     });
 
-    return actuallyLayoutContentFileParent(node, screenWidth, isMobile, ...files);
+    return actuallyLayoutContentFileParent(node, screenWidth, platform, spacingScale, ...files);
 }
 
 /**
@@ -80,7 +97,7 @@ export function layoutContentFile(
     doc: Node,
     pos: number,
     node: Node,
-    options: {screenWidth: number; isMobile: boolean},
+    options: {screenWidth: number; platform: Platform; spacingScale: SpacingScale},
 ): ContentFileLayout {
     const $pos = doc.resolve(pos);
     assert($pos.nodeAfter && $pos.nodeAfter.eq(node));

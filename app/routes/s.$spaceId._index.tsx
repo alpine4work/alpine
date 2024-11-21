@@ -3,7 +3,7 @@ import {useEffect, useRef} from "react";
 import {useSearchParams} from "react-router-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -17,12 +17,12 @@ export function meta() {
 }
 
 export default function HomeRoute() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const rootNavigate = useRootNavigate();
     const {space} = useSpaceContext();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     useEffect(() => {
         if (space.alphaAccessDefaultChannelId && searchParams.get("navigated") !== "yes") {
@@ -49,7 +49,6 @@ export default function HomeRoute() {
 
     return (
         <SpaceRouteScrollView
-            withMobileLayout={isMobile}
             title="Home"
             withoutDisappearingTitle={true}
             titleJustifyContent="center"

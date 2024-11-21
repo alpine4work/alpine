@@ -6,7 +6,7 @@ import {
     inputPlaceholderStyles,
 } from "~/client/styles/core/styles_core.js";
 import {paragraphMargin, paragraphFontSize} from "~/client/styles/other/internal/content.css.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 export const textCursorNotInheritedClassName = style({
@@ -174,8 +174,7 @@ export const rowTitleInputMultilineAfterClassName = style({
 });
 
 export const detailNotesContentEditorMinHeight = `${
-    parseRemLengthNumber(paragraphFontSize.lineHeight) * 2 +
-    parseRemLengthNumber(spacing[paragraphMargin]) * 1
+    parseRemLength(paragraphFontSize.lineHeight) * 2 + parseRemLength(paragraphMargin) * 1
 }rem`;
 
 export const detailNotesContentEditorClassName = style({

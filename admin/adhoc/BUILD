@@ -3,6 +3,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "adhoc_lib",
+    tags = [
+        # Ignored by `dev check` and `dev test`.
+        "adhoc",
+    ],
     deps = [
         "//:node_modules/@aws-sdk/credential-providers",
         "//:node_modules/@lume/kiwi",

@@ -1,9 +1,9 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import differenceInDays from "date-fns/differenceInDays/index.js";
-import differenceInMonths from "date-fns/differenceInMonths/index.js";
-import differenceInWeeks from "date-fns/differenceInWeeks/index.js";
-import differenceInYears from "date-fns/differenceInYears/index.js";
-import startOfWeek from "date-fns/startOfWeek/index.js";
+import {differenceInDays} from "date-fns/differenceInDays";
+import {differenceInMonths} from "date-fns/differenceInMonths";
+import {differenceInWeeks} from "date-fns/differenceInWeeks";
+import {differenceInYears} from "date-fns/differenceInYears";
+import {startOfWeek} from "date-fns/startOfWeek";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 

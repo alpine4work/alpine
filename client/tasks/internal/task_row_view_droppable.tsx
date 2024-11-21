@@ -1,15 +1,14 @@
 import {useDroppable} from "@dnd-kit/core";
 import {Memo, useId} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
-    desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentationRem,
+    taskRowViewIndentationRem,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {parseRemLengthNumber, screenPaddingXRem, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -114,7 +113,7 @@ export function TaskRowViewDroppable({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
         id: useId(),
@@ -124,15 +123,14 @@ export function TaskRowViewDroppable({
         }),
     });
 
-    const listItemIndent = isMobile
-        ? mobileTaskRowViewIndentationRem
-        : desktopTaskRowViewIndentationRem;
+    const listItemIndent = taskRowViewIndentationRem[platform];
 
-    const droppableListItemIndent = isMobile
-        ? // Use a lot more space on mobile for the droppable list item hit area. Since the visual
-          // indentation we render is really hard to precisely reach with a finger.
-          parseRemLengthNumber(spacing["20"])
-        : desktopTaskRowViewIndentationRem;
+    const droppableListItemIndent =
+        platform === "mobile"
+            ? // Use a lot more space on mobile for the droppable list item hit area. Since the visual
+              // indentation we render is really hard to precisely reach with a finger.
+              parseRemLength("20")
+            : taskRowViewIndentationRem.desktop;
 
     // If collections are expanded then make sure our task row renders on top of
     // all other task rows.
@@ -191,10 +189,7 @@ export function TaskRowViewDroppable({
                 <div
                     className={droppableHorizontalOverIndicatorClassName}
                     style={{
-                        left: `${
-                            screenPaddingXRem[isMobile ? "mobile" : "desktop"] +
-                            listItemIndent * indentation
-                        }rem`,
+                        left: `${screenPaddingXRem[platform] + listItemIndent * indentation}rem`,
                     }}
                 />
             )}
@@ -207,10 +202,7 @@ export function TaskRowViewDroppable({
                     }
                     style={{
                         width: 1,
-                        left: `${
-                            screenPaddingXRem[isMobile ? "mobile" : "desktop"] +
-                            listItemIndent * indentation
-                        }rem`,
+                        left: `${screenPaddingXRem[platform] + listItemIndent * indentation}rem`,
                     }}
                 />
             )}

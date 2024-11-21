@@ -18,12 +18,14 @@ export const serverProcessContextOptions = {
     ensureLocalCachePath: {type: "string"},
     dynamoLocalPort: {type: "string"},
     jobQueueUrl: {type: "string"},
+    fileProcessorJobQueueUrl: {type: "string"},
 } as const;
 
 export type ServerProcessContextOptions = {
     readonly ensureLocalCachePath?: string;
     readonly dynamoLocalPort?: string;
     readonly jobQueueUrl?: string;
+    readonly fileProcessorJobQueueUrl?: string;
 };
 
 /**
@@ -83,6 +85,10 @@ export function createServerProcessContext({
             new JobSender({
                 region: "us-east-1",
                 queueUrl: assertExists(options.jobQueueUrl, "`jobQueueUrl` option is required"),
+                fileProcessorQueueUrl: assertExists(
+                    options.fileProcessorJobQueueUrl,
+                    "`fileProcessorJobQueueUrl` option is required",
+                ),
             }),
         ),
     });

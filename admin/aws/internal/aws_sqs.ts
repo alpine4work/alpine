@@ -6,9 +6,11 @@ import {Construct} from "constructs";
 
 export class AwsSqs {
     private readonly _jobQueue: IQueue;
+    private readonly _fileProcessorJobQueue: IQueue;
 
-    private constructor(jobQueue: IQueue) {
+    private constructor(jobQueue: IQueue, fileProcessorJobQueue: IQueue) {
         this._jobQueue = jobQueue;
+        this._fileProcessorJobQueue = fileProcessorJobQueue;
     }
 
     public static new(parentConstruct: Construct) {
@@ -23,15 +25,35 @@ export class AwsSqs {
             },
         });
 
-        return new AwsSqs(jobQueue);
+        const fileProcessorJobDeadLetterQueue = new Queue(
+            construct,
+            "FileProcessorJobDeadLetterQueue",
+        );
+
+        const fileProcessorJobQueue = new Queue(construct, "FileProcessorJobQueue", {
+            deadLetterQueue: {
+                queue: fileProcessorJobDeadLetterQueue,
+                maxReceiveCount: 5,
+            },
+        });
+
+        return new AwsSqs(jobQueue, fileProcessorJobQueue);
     }
 
     public getJobQueueUrl() {
         return this._jobQueue.queueUrl;
     }
 
+    public getFileProcessorJobQueueUrl() {
+        return this._fileProcessorJobQueue.queueUrl;
+    }
+
     public getJobQueueArn() {
         return this._jobQueue.queueArn;
+    }
+
+    public getFileProcessorJobQueueArn() {
+        return this._fileProcessorJobQueue.queueArn;
     }
 
     public createJobQueueEventTarget(props?: SqsQueueProps) {
@@ -47,7 +69,7 @@ export class AwsSqs {
                     "sqs:DeleteMessage",
                     "sqs:ChangeMessageVisibility",
                 ],
-                resources: [this._jobQueue.queueArn],
+                resources: [this._jobQueue.queueArn, this._fileProcessorJobQueue.queueArn],
             }),
         );
     }
@@ -56,7 +78,21 @@ export class AwsSqs {
         grantee.grantPrincipal.addToPrincipalPolicy(
             new PolicyStatement({
                 actions: ["sqs:SendMessage"],
-                resources: [this._jobQueue.queueArn],
+                resources: [this._jobQueue.queueArn, this._fileProcessorJobQueue.queueArn],
+            }),
+        );
+    }
+
+    public grantSendAndReceiveJobQueueMessagesForOnlyFileProcessorQueue(grantee: IGrantable) {
+        grantee.grantPrincipal.addToPrincipalPolicy(
+            new PolicyStatement({
+                actions: [
+                    "sqs:SendMessage",
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:ChangeMessageVisibility",
+                ],
+                resources: [this._fileProcessorJobQueue.queueArn],
             }),
         );
     }
@@ -67,12 +103,22 @@ export class AwsSqs {
             exportName: `${this._jobQueue.stack.stackName}:JobQueueArn`,
         });
 
+        new CfnOutput(this._jobQueue.stack, "FileProcessorJobQueueArnExport", {
+            value: this._jobQueue.queueArn,
+            exportName: `${this._jobQueue.stack.stackName}:FileProcessorJobQueueArn`,
+        });
+
         return (importStack: Stack) =>
             new AwsSqs(
                 Queue.fromQueueArn(
                     importStack,
                     "JobQueueImport",
                     Fn.importValue(`${this._jobQueue.stack.stackName}:JobQueueArn`),
+                ),
+                Queue.fromQueueArn(
+                    importStack,
+                    "FileProcessorJobQueueImport",
+                    Fn.importValue(`${this._jobQueue.stack.stackName}:FileProcessorJobQueueArn`),
                 ),
             );
     }

@@ -14,6 +14,7 @@ import {
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -30,8 +31,7 @@ export function renderMessageListItem<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 >({
-    isMobile,
-    withMobileLayout,
+    platform,
     messageNoun,
     messageStartOfSentenceNoun,
     messages,
@@ -51,8 +51,7 @@ export function renderMessageListItem<
     paddingX,
     render: customRender,
 }: {
-    isMobile: boolean;
-    withMobileLayout: boolean;
+    platform: Platform;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     messages: MessageList<Message>;
@@ -94,7 +93,6 @@ export function renderMessageListItem<
             ): ReactElement => {
                 return item.type === "Loaded" || item.type === "Optimistic" ? (
                     <MessageView
-                        withMobileLayout={withMobileLayout}
                         messageNoun={messageNoun}
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         message={item.message}
@@ -219,7 +217,7 @@ export function renderMessageListItem<
                             ref,
                             style: {
                                 ...node.props.style,
-                                minHeight: messageViewMinHeight,
+                                minHeight: messageViewMinHeight[platform],
                                 ...(shouldRenderWithRelativePositioning
                                     ? {position: "relative"}
                                     : {

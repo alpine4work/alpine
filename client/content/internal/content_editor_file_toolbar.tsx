@@ -22,7 +22,7 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
@@ -149,7 +149,7 @@ function ContentEditorFileToolbar({
     onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
     onMobileCommentInputOpen: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const toolbarRef = useRef<HTMLDivElement>(null);
     const toolbarId = useId();
@@ -449,7 +449,7 @@ function ContentEditorFileToolbar({
                                 viewRef={viewRef}
                                 isActive={false}
                                 command={(state, dispatch) => {
-                                    if (isMobile) {
+                                    if (platform === "mobile") {
                                         onMobileCommentInputOpen();
                                     } else {
                                         dispatch?.(
@@ -499,7 +499,7 @@ function ContentEditorFileToolbarButton({
     dividerLeft?: boolean;
     dividerRight?: boolean;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const onPress = () => {
         const view = assertExists(viewRef.current);
@@ -556,7 +556,7 @@ function ContentEditorFileToolbarButton({
                     paddingLeft={dividerLeft ? "1" : undefined}
                 >
                     <Box
-                        padding={isMobile ? "2" : "1"}
+                        padding={platform === "mobile" ? "2" : "1"}
                         borderRadius="1"
                         color={isPressed || isActive ? "grey-100" : "grey-70"}
                         backgroundColor={
@@ -572,7 +572,7 @@ function ContentEditorFileToolbarButton({
                         <IconContext.Provider
                             value={{
                                 color: "currentColor",
-                                size: spacing[isMobile ? "5" : "4"],
+                                size: spacing[platform === "mobile" ? "5" : "4"],
                             }}
                         >
                             {children}

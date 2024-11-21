@@ -2,7 +2,8 @@ import {CalendarDate} from "@internationalized/date";
 import chalk from "chalk";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {InternalError, getErrorCode} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -91,7 +92,7 @@ type TaskTaskActionTestArtifacts =
       }
     | {
           actions: Array<TaskTaskAction & {time?: HybridLogicalTime}>;
-          error: {new (...args: Array<any>): Error};
+          error: ErrorCode;
           task?: undefined;
       };
 
@@ -130,7 +131,7 @@ const taskTaskActionTestCases: Array<{
                     creatorTimeZone: defaultTimeZone,
                 },
             ],
-            error: FailedPreconditionError,
+            error: ErrorCode.FailedPrecondition,
         }),
     },
     {
@@ -148,7 +149,7 @@ const taskTaskActionTestCases: Array<{
                     creatorTimeZone: assertTimeZone("America/Denver"),
                 },
             ],
-            error: FailedPreconditionError,
+            error: ErrorCode.FailedPrecondition,
         }),
     },
     {
@@ -1980,7 +1981,7 @@ type TaskActionTestArtifacts =
       }
     | {
           actions: Array<TaskAction>;
-          error: {new (...args: Array<any>): Error};
+          error: ErrorCode;
           task?: undefined;
       };
 
@@ -4715,7 +4716,11 @@ export function testTaskActionPermutations({
                     };
 
                     if (testCaseArtifacts.error) {
-                        await expect(run).rejects.toThrow(testCaseArtifacts.error);
+                        const result = await captureResultPromise(run);
+
+                        expect(result.ok).toEqual(false);
+                        assert(!result.ok);
+                        expect(getErrorCode(result.error)).toEqual(testCaseArtifacts.error);
                     } else {
                         await run();
 

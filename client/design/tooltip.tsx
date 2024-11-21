@@ -29,7 +29,7 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover} from "~/client/remix/platform_context.js";
 import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,

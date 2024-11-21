@@ -1,6 +1,4 @@
-import {ErrorBase} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 
 /**
  * Runs multiple promises in parallel. Should generally be used instead of
@@ -31,63 +29,21 @@ export async function runAllPromises<Value>(
 ): Promise<Array<Awaited<Value>>> {
     const results = await Promise.allSettled(promises);
 
-    let hasError = false;
-    let errorPriority = 0;
-    let error;
+    const errors: Array<unknown> = [];
     const values: Array<Awaited<Value>> = [];
 
     for (const result of results) {
-        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-        // just the first one. Probably by using an `AggregateError`.
-        //
-        // `retryWithExponentialBackoff()` and `context.dynamo.retryTransaction()`
-        // should maybe still be able to detect retries from a `runAllPromises()`
-        // `AggregateError`.
         if (result.status === "rejected") {
-            const newError = result.reason;
-            const newErrorPriority = getAggregateErrorPriority(newError);
-
-            if (!hasError) {
-                hasError = true;
-                errorPriority = newErrorPriority;
-                error = newError;
-            } else if (newErrorPriority > errorPriority) {
-                errorPriority = newErrorPriority;
-                error = newError;
-            }
+            errors.push(result.reason);
             continue;
         }
 
-        if (!hasError) values.push(result.value);
+        if (errors.length === 0) values.push(result.value);
     }
 
-    // Throw the first error with the highest priority we saw.
-    if (hasError) throw error;
+    if (errors.length > 0) throw createAggregateError(errors);
 
     return values;
-}
-
-export function getAggregateErrorPriority(error: unknown) {
-    const isErrorBase = error instanceof ErrorBase;
-
-    let priority = 2;
-
-    // Errors with a display message are higher priority than errors without a
-    // display message.
-    if (isErrorBase && error.displayMessage !== undefined) {
-        priority = 3;
-    }
-    // Cancelled errors (e.g. from `AbortSignal`s) are lower priority than other
-    // errors.
-    else if (isErrorBase && error.code === ErrorCode.Cancelled) {
-        priority = 1;
-    }
-
-    // System errors are highest priority. If an error doesn't have a code then its
-    // code is `ErrorCode.Unknown` which is a system error.
-    if (!isErrorBase || isSystemErrorCode(error.code)) priority += 4;
-
-    return priority;
 }
 
 /**

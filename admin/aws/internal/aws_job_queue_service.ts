@@ -172,9 +172,9 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
-                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                FILE_PROCESSOR_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                     secrets,
-                    "fileUploadServicePublicKey",
+                    "fileProcessorServicePublicKey",
                 ),
                 JOB_QUEUE_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
@@ -214,6 +214,7 @@ export class AwsJobQueueService extends Construct {
                 `/var/www/server/jobs/queue/queue ${[
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
                     `--schedulerJobQueueRoleArn=${schedulerRole.roleArn}`,
                     "--edgeServiceUrl=https://cyberworlds.dev",
@@ -233,7 +234,7 @@ export class AwsJobQueueService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
+                    "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",
@@ -246,7 +247,7 @@ export class AwsJobQueueService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/jobs/queue/queue.runfiles/node_linux_amd64/bin/nodejs/bin/node --input-type module --eval "import fs from 'fs'; if (fs.readFileSync('/var/www-data/server_jobs_queue_healthcheck.txt', 'utf8').trim() !== 'Healthy') { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/jobs/queue/queue.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "import fs from 'fs'; if (fs.readFileSync('/var/www-data/server_jobs_queue_healthcheck.txt', 'utf8').trim() !== 'Healthy') { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });

@@ -40,7 +40,6 @@ import {
 import {Box} from "~/client/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -67,7 +66,11 @@ import {
     usePeekRemixEmbedRouter,
 } from "~/client/peek/peek_remix_embed_router.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {
+    getRemPxWithoutListening,
+    getSpacingScaleWithoutListening,
+} from "~/client/remix/spacing_scale_context.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
@@ -82,7 +85,7 @@ import {
 import {
     addRemLengths,
     convertRemLengthToPx,
-    parseRemLengthNumber,
+    parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
@@ -101,7 +104,7 @@ import {
 } from "~/shared/remix/peek_path_helpers.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const peekHeight = spacing["160"];
+const peekHeight = "38rem";
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];
@@ -303,7 +306,7 @@ function PeekStackContextProvider(
     assert(dataRouterContext, "Expected data router context");
 
     const reporter = useReporter();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space} = useSpaceContext();
 
     const stackRef = useRef<PeekStackRef>(null);
@@ -311,15 +314,15 @@ function PeekStackContextProvider(
         useRef<GlobalKeyDownManualContextProviderRef>(null);
     const [_state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
 
-    const state = isMobile ? initialPeekStackState : _state;
+    const state = platform === "mobile" ? initialPeekStackState : _state;
 
     // If we enter mobile mode with peeks open then immediately close all of them.
     // Peeks are not allowed in mobile.
     useEffect(() => {
-        if (_state !== initialPeekStackState && isMobile) {
+        if (_state !== initialPeekStackState && platform === "mobile") {
             dispatch({type: "Reset"});
         }
-    }, [isMobile, _state]);
+    }, [_state, platform]);
 
     const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
 
@@ -506,7 +509,7 @@ function PeekStackContextProvider(
                 <NavigationEventContextProvider
                     onNavigate={useEvent((to, options) => {
                         // Always perform full page navigations on mobile.
-                        if (isMobile) return;
+                        if (platform === "mobile") return;
 
                         // Only intercept navigation events that want to push a new history entry. We
                         // will instead push a peek.
@@ -613,7 +616,7 @@ function PeekStackContextProvider(
                         />
                     </GlobalKeyDownManualContextProvider>
                 ) : (
-                    !isMobile &&
+                    platform !== "mobile" &&
                     globalLoadingIndicator && (
                         <Box
                             pointerEvents="none"
@@ -672,8 +675,7 @@ const PeekStack = forwardRef(function PeekStack(
                 y: 0,
             };
 
-            const marginX =
-                parseRemLengthNumber(peekUnderlayOffset) * 3.5 * getRemPxWithoutListening();
+            const marginX = parseRemLength(peekUnderlayOffset) * 3.5 * getRemPxWithoutListening();
 
             // Stay within the bounds of the container and some margin.
             if (containerNodeRect && draggingNodeRect) {
@@ -961,8 +963,8 @@ function PeekStackOverlay({
             style={{
                 height: peekHeight,
                 width: peekUnderlayOffset,
-                bottom: `-${parseRemLengthNumber(peekUnderlayOffset) * offset}rem`,
-                right: `-${parseRemLengthNumber(peekUnderlayOffset) * offset}rem`,
+                bottom: `-${parseRemLength(peekUnderlayOffset) * offset}rem`,
+                right: `-${parseRemLength(peekUnderlayOffset) * offset}rem`,
             }}
             // We have no affordance that underlayed peeks are clickable so give them a
             // pointer cursor to let the user know they can click.
@@ -1002,7 +1004,7 @@ function PeekStackOverlay({
                     // independent transforms like `y` with a spring so it can overshoot
                     // correctly.
                     // https://motion.dev/dom/spring
-                    y: [convertRemLengthToPx(translateY, getRemPxWithoutListening()), 0],
+                    y: [convertRemLengthToPx(translateY, getSpacingScaleWithoutListening()), 0],
                 },
                 {
                     easing: spring({
@@ -1055,7 +1057,7 @@ function PeekStackOverlay({
                     // independent transforms like `y` with a spring so it can overshoot
                     // correctly.
                     // https://motion.dev/dom/spring
-                    y: [0, convertRemLengthToPx(translateY, getRemPxWithoutListening())],
+                    y: [0, convertRemLengthToPx(translateY, getSpacingScaleWithoutListening())],
                 },
                 {
                     easing: spring({
@@ -1346,8 +1348,8 @@ function PeekStackOverlay({
 }
 
 function getPeekStackOverlayAnimationStyles(index: number) {
-    const translateX = `${parseRemLengthNumber(peekUnderlayOffset) * Math.max(0, index)}rem`;
-    const translateY = `${parseRemLengthNumber(peekUnderlayOffset) * Math.max(0, index)}rem`;
+    const translateX = `${parseRemLength(peekUnderlayOffset) * Math.max(0, index)}rem`;
+    const translateY = `${parseRemLength(peekUnderlayOffset) * Math.max(0, index)}rem`;
     const transform = `translate(${translateX}, ${translateY})`;
     const opacity = index < 3 ? "1" : "0";
     return {transform, opacity};
@@ -1498,7 +1500,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         event.stopPropagation();
 
                         const spacePath = convertPeekPathToSpacePath(entry.history.location, {
-                            withMobileLayout: false,
+                            routeLayout: "wide",
                         });
                         if (!spacePath) throw new InternalError("Can only expand peek routes");
 
@@ -1606,7 +1608,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                             onPress={async event => {
                                 const spacePath = convertPeekPathToSpacePath(
                                     entry.history.location,
-                                    {withMobileLayout: false},
+                                    {routeLayout: "wide"},
                                 );
                                 if (!spacePath)
                                     throw new InternalError("Can only expand peek routes");
@@ -1649,7 +1651,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         !routerResult.isPending && (
                             <PeekRemixEmbed
                                 peekId={entry.id}
-                                withMobileLayout={true}
+                                layout="narrow"
                                 router={routerResult.value}
                                 onGoBackOverflow={() => dispatch({type: "Pop"})}
                             />

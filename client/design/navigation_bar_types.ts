@@ -33,14 +33,26 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     isDisabled?: boolean;
 
     /**
-     * Should the navigation bar use a mobile layout even while on desktop? This is
-     * typically set to true in peeks. Peeks are visible on desktop but need a
-     * mobile-like layout.
+     * When true, the navigation bar will scroll away when you scroll down and will
+     * scroll back when you scroll up.
      *
-     * We use a mobile layout when in mobile mode regardless of whether this is
-     * true or not.
+     * By default this is `true` on mobile and `false` on desktop. Since scrolling
+     * away the navigation bar feels natural on a touch screen and lets the user
+     * see more content. However, on desktop it doesn't feel natural and we have
+     * enough screen space that it doesn't hurt to always show the navigation bar.
+     *
+     * Another argument for allowing scroll away on mobile but not desktop: on
+     * mobile the user is always focused on one task. Hiding the navigation bar
+     * helps them complete their one task. However, on desktop users are frequently
+     * multitasking. If we hide the navigation bar in a peek, for instance, if the
+     * user's attention leaves the peek when they come back to the peek they may
+     * have forgotten what the subject of the peek is.
+     *
+     * Scroll away behavior is the main purpose of our navigation bar hook. Since
+     * it's a complex interaction. Otherwise it would be easy for every route that
+     * needs a navigation bar to render `<NavigationBarContent>` themselves.
      */
-    withMobileLayout: boolean;
+    withScrollAway?: boolean;
 
     /**
      * The title to display in the navigation bar. It will be truncated based
@@ -189,12 +201,6 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     desktopTitleLeftSlop?: Spacing;
 
     /**
-     * Extra scroll space added above the navigation bar on desktop. Similar to safe
-     * area inset but the navigation bar doesn't cover this area when scrolled.
-     */
-    desktopMarginTop?: Spacing | RemLength;
-
-    /**
      * Don't render a back button on mobile. Only set this to true for top level
      * mobile tab routes.
      */
@@ -210,13 +216,6 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * close the modal instead of calling `navigate(-1)`.
      */
     onMobileCancel?: () => void;
-
-    /**
-     * Provide a property to control when the navigation bar stayes
-     * opaque. In some cases we do not want the navigation bar to become
-     * transparent.
-     */
-    isAlwaysOpaque?: boolean;
 };
 
 export type NavigationBarResult = {

@@ -735,7 +735,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     parentMessageIndex: null,
                     content: content1,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(/not found/);
         });
 
         test("can not create message in a different space", async () => {
@@ -1088,7 +1088,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messageIndex: 42,
                     content: content2,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(/not found/);
         });
 
         test("can not update message that doesn't exist", async () => {
@@ -1383,7 +1383,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: getMissingRoomKey(),
                     messageIndex: 42,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(/not found/);
         });
 
         test("can not delete message that doesn't exist", async () => {
@@ -2046,7 +2046,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     afterMessageIndex: null,
                     beforeMessageIndex: null,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(/not found/);
         });
 
         test("can not get messages for room in a different space", async () => {
@@ -3786,7 +3786,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     afterMessageIndex: null,
                     beforeMessageIndex: null,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(/not found/);
         });
 
         test("can not get messages from end for room in a different space", async () => {
@@ -7394,7 +7394,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(/not found/);
         });
 
         test("can not backfill messages for a room in a different space", async () => {

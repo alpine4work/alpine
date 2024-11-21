@@ -5,10 +5,12 @@ import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "re
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
 import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
@@ -18,7 +20,6 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {addContentFilePreviewBehavior} from "~/client/content/internal/render_content_file_preview.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
@@ -34,7 +35,9 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
@@ -58,7 +61,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -105,12 +108,6 @@ declare global {
 }
 
 export type ContentViewProps<Content extends ContentWithReferences> = {
-    /**
-     * Are we rendering with a mobile layout? True on the mobile platform and true
-     * in peeks on the desktop platform.
-     */
-    withMobileLayout: boolean;
-
     /**
      * The content to render.
      */
@@ -175,6 +172,7 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * colors may change. For example, the code block button's hover background
      * color will change from `grey-5` to `grey-10`.
      */
+    // NOCOMMIT: Delete
     isBackgroundColorGrey5?: boolean;
 
     /**
@@ -233,7 +231,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
  * you want to disable editing of content and only allow reading the content.
  */
 export function ContentView<Content extends ContentWithReferences>({
-    withMobileLayout,
     content,
     onMergeContentReferences,
     contentUpdatedTime,
@@ -265,7 +262,9 @@ export function ContentView<Content extends ContentWithReferences>({
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
     const clientInfo = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
@@ -341,24 +340,10 @@ export function ContentView<Content extends ContentWithReferences>({
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
         if (contentUpdatedTime) {
-            let depthToLastTextblockChild = null;
-            let lastTextblockChild = content.doc.lastChild;
-            let depth = 1;
-
-            while (lastTextblockChild !== null) {
-                if (lastTextblockChild.isTextblock) {
-                    depthToLastTextblockChild = depth;
-                    break;
-                }
-                lastTextblockChild = lastTextblockChild.lastChild;
-                depth++;
-            }
-
-            const depthToLastParagraphChild =
-                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
+            const result = getContentViewLastParagraphChild(content.doc);
 
             let html: HtmlElementGenerator;
-            if (depthToLastParagraphChild !== null) {
+            if (result !== null) {
                 const updatedNoteHtml = new HtmlElementGenerator("span");
                 updatedNoteHtml.setAttribute("id", `${id}-edited`);
                 updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
@@ -380,41 +365,26 @@ export function ContentView<Content extends ContentWithReferences>({
 
             decorations.push({
                 type: "Widget",
-                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                pos: content.doc.nodeSize - ((result?.depth ?? 0) + 1),
                 html,
             });
         }
 
         if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
-            let depthToLastTextblockChild = null;
-            let lastTextblockChild = content.doc.lastChild;
-            let depth = 1;
-
-            while (lastTextblockChild !== null) {
-                if (lastTextblockChild.isTextblock) {
-                    depthToLastTextblockChild = depth;
-                    break;
-                }
-                lastTextblockChild = lastTextblockChild.lastChild;
-                depth++;
-            }
-
-            const depthToLastParagraphChild =
-                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
+            const result = getContentViewLastParagraphChild(content.doc);
 
             const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
 
             let html: HtmlElementGenerator;
             if (
-                depthToLastParagraphChild !== null &&
+                result !== null &&
                 // Always render "See less" on its own line. Don't put it inline with the last
                 // paragraph.
                 !shouldShowSeeLessContentButton
             ) {
                 const shouldAddEllipsis =
-                    lastTextblockChild &&
-                    lastTextblockChild.childCount > 0 &&
-                    !isTextEndedWithPunctuation(lastTextblockChild.lastChild!.text!);
+                    result.node.childCount > 0 &&
+                    !isTextEndedWithPunctuation(result.node.lastChild!.text!);
 
                 const seeButtonContainerHtml = new HtmlElementGenerator("span");
 
@@ -444,7 +414,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
             decorations.push({
                 type: "Widget",
-                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                pos: content.doc.nodeSize - ((result?.depth ?? 0) + 1),
                 html,
             });
         }
@@ -474,11 +444,8 @@ export function ContentView<Content extends ContentWithReferences>({
             fileLayoutScreenWidthFromProps ??
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
-            (withMobileLayout && !isMobile
-                ? convertRemLengthToPx(
-                      spacing[peekMobileLayoutWidth],
-                      remPxByPlatform[isMobile ? "mobile" : "desktop"],
-                  )
+            (routeLayout === "narrow" && platform !== "mobile"
+                ? convertRemLengthToPx(peekMobileLayoutWidth, spacingScale)
                 : clientInfo.screenWidth);
 
         // If we have some initial code block decorations from server-side rendering
@@ -495,7 +462,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
-                    isMobile,
+                    platform,
+                    spacingScale,
                     isInitialAppRender,
                     isInert,
                     withPosAttribute: true,
@@ -526,7 +494,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
-                isMobile,
+                platform,
+                spacingScale,
                 isInitialAppRender,
                 isInert,
                 withPosAttribute: true,
@@ -551,8 +520,9 @@ export function ContentView<Content extends ContentWithReferences>({
         shouldShowSeeLessContentButton,
         content,
         fileLayoutScreenWidthFromProps,
-        withMobileLayout,
-        isMobile,
+        routeLayout,
+        platform,
+        spacingScale,
         clientInfo.screenWidth,
         initialCodeBlockDecorations,
         id,
@@ -614,7 +584,8 @@ export function ContentView<Content extends ContentWithReferences>({
     // reset our state to null.
     if (
         codeBlockCopyButtonTooltipState &&
-        (isMobile || !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
+        (platform === "mobile" ||
+            !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
     ) {
         setCodeBlockCopyButtonTooltipState(null);
     }
@@ -1345,7 +1316,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 ref={ref}
                 className={classNames(
                     contentStyles.docClassName,
-                    withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
+                    routeLayout === "narrow"
+                        ? contentStyles.narrowRouteLayoutDocClassName
+                        : undefined,
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,

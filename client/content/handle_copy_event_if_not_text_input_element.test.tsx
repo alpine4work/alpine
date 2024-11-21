@@ -6,7 +6,7 @@ import {
     getSelectionClipboardData,
     handleCopyEventIfNotTextInputElement,
 } from "~/client/content/handle_copy_event_if_not_text_input_element.js";
-import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/render_content_file_preview.js";
+import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/content_file_preview.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -206,7 +206,6 @@ test("can copy when selection is partially within content view and partially out
                 elit.
             </p>
             <ContentView
-                withMobileLayout={false}
                 content={{
                     doc: createSimplePostContent(
                         "Vivamus sed orci sed mauris fringilla pharetra nec sed ex.",
@@ -224,7 +223,6 @@ test("can copy when selection is partially within content view and partially out
                 </p>
             </div>
             <ContentView
-                withMobileLayout={false}
                 content={{
                     doc: createSimplePostContent(
                         "Pellentesque vitae erat eget ex faucibus consectetur aliquam eget ligula.",

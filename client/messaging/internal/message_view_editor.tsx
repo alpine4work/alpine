@@ -8,7 +8,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     messageViewActionsWidth,
     messageViewBubbleBorderRadius,
@@ -32,14 +32,12 @@ export {MessageViewEditorForwardRef as MessageViewEditor};
 
 function MessageViewEditor<RoomKey extends string>(
     {
-        withMobileLayout,
         messageStartOfSentenceNoun,
         shouldMergeWithPreviousMessage,
         shouldMergeWithNextMessage,
         messageEditing,
     }: {
         ref?: Ref<MessageViewEditorRef>;
-        withMobileLayout: boolean;
         messageStartOfSentenceNoun: string;
         shouldMergeWithPreviousMessage: boolean;
         shouldMergeWithNextMessage: boolean;
@@ -98,7 +96,6 @@ function MessageViewEditor<RoomKey extends string>(
                     }}
                 >
                     <MessageContentEditor
-                        withMobileLayout={withMobileLayout}
                         parentRef={ref}
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         state={state.contentEditorState}
@@ -126,7 +123,6 @@ function MessageViewEditor<RoomKey extends string>(
 }
 
 function MessageContentEditor({
-    withMobileLayout,
     parentRef,
     messageStartOfSentenceNoun,
     state,
@@ -135,7 +131,6 @@ function MessageContentEditor({
     onCancel,
     onSave,
 }: {
-    withMobileLayout: boolean;
     parentRef: Ref<MessageViewEditorRef>;
     messageStartOfSentenceNoun: string;
     state: ContentEditorState<MessageContentWithReferences>;
@@ -144,7 +139,7 @@ function MessageContentEditor({
     onCancel: () => void;
     onSave: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
@@ -173,7 +168,6 @@ function MessageContentEditor({
     return (
         <ContentEditor
             ref={editorRef}
-            withMobileLayout={withMobileLayout}
             state={state}
             onChange={(state, transaction) => {
                 if (isSaving && transaction.docChanged) return;

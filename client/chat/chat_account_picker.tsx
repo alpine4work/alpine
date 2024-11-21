@@ -27,7 +27,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -45,12 +45,7 @@ import {
 } from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {
-    addRemLengths,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -96,7 +91,7 @@ export function ChatAccountPicker({
     suggestedChats: ReadonlyArray<ChatModel>;
     shouldInitiallyFocus: boolean;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const accountStore = useAccountClientStore();
     const {currentAccount} = useSpaceContext();
 
@@ -521,7 +516,7 @@ export function ChatAccountPicker({
                     // selecting the account. On mobile you can only press backspace to delete the
                     // last account, you can't delete a specific account (unless you have an
                     // external keyboard, then you can use arrow keys).
-                    pointerEvents={!isMobile ? undefined : "none"}
+                    pointerEvents={platform !== "mobile" ? undefined : "none"}
                     onKeyDown={handleKeyDown}
                 >
                     <Box paddingLeft="0.5">
@@ -529,12 +524,12 @@ export function ChatAccountPicker({
                     </Box>
                     <Box
                         paddingLeft="1.5"
-                        paddingRight={!isMobile ? "0.5" : "2"}
+                        paddingRight={platform !== "mobile" ? "0.5" : "2"}
                         fontSize={{desktop: "100", mobile: "50"}}
                     >
                         {accountData.name}
                     </Box>
-                    {!isMobile && (
+                    {platform !== "mobile" && (
                         // On mobile this button is too small. So the only way to delete people is via
                         // pressing backspace on the keyboard.
                         <Box paddingRight="0.5">
@@ -548,7 +543,7 @@ export function ChatAccountPicker({
                                 withoutTooltip={true}
                                 onPress={deleteAccount}
                             >
-                                <X size={addRemLengths(spacing["2"], spacing["0.5"])} />
+                                <X size={spacing["2.5"]} />
                             </IconButton>
                         </Box>
                     )}
@@ -615,7 +610,7 @@ export function ChatAccountPicker({
                             display: "flex",
                             alignItems: "center",
                             // Smaller on mobile since we render the navigation bar above.
-                            height: !isMobile ? "12" : "10",
+                            height: platform !== "mobile" ? "12" : "10",
                             paddingLeft: screenPaddingX,
                             paddingRight: {desktop: "3", mobile: "1.5"},
                             fontSize: {desktop: "100", mobile: "50"},
@@ -634,7 +629,7 @@ export function ChatAccountPicker({
                         rowGap="1.5"
                         columnGap={{desktop: "1.5", mobile: "1"}}
                         // Smaller on mobile since we render the navigation bar above.
-                        paddingY={!isMobile ? "3" : "2"}
+                        paddingY={platform !== "mobile" ? "3" : "2"}
                         cursor="text"
                     >
                         <div
@@ -659,13 +654,13 @@ export function ChatAccountPicker({
                             style={{
                                 background: "none",
                                 paddingTop: `${
-                                    (parseRemLengthNumber(spacing["6"]) -
-                                        parseRemLengthNumber(fontSizes["100"].lineHeight)) /
+                                    (parseRemLength("6") -
+                                        parseRemLength(fontSizes["100"].lineHeight)) /
                                     2
                                 }rem`,
                                 paddingBottom: `${
-                                    (parseRemLengthNumber(spacing["6"]) -
-                                        parseRemLengthNumber(fontSizes["100"].lineHeight)) /
+                                    (parseRemLength("6") -
+                                        parseRemLength(fontSizes["100"].lineHeight)) /
                                     2
                                 }rem`,
                             }}
@@ -722,7 +717,7 @@ export function ChatAccountPicker({
                     <Box
                         flexShrink="0"
                         // Smaller on mobile since we render the navigation bar above.
-                        height={!isMobile ? "12" : "10"}
+                        height={platform !== "mobile" ? "12" : "10"}
                         paddingLeft={{desktop: "3", mobile: "1.5"}}
                         paddingRight={{mobile: screenPaddingX.mobile, desktop: "4"}}
                         display="flex"
@@ -743,7 +738,7 @@ export function ChatAccountPicker({
                             // input to open the dropdown.
                             //
                             // We still need it in the DOM, though, or else `react-aria` gets confused.
-                            display={isMobile ? "none" : undefined}
+                            display={platform === "mobile" ? "none" : undefined}
                         >
                             <IconButton
                                 {...buttonProps}

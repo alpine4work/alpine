@@ -31,15 +31,15 @@ import {
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentProsemirrorSchema,
     contentCodeBlockIndentationSpaceCount,
 } from "~/shared/content/content_schema.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Command = (
@@ -1817,15 +1817,15 @@ export function buildContentEditorKeymapPlugin(
                                         ? nextRect.top + 1
                                         : fileRect.bottom +
                                           convertRemLengthToPx(
-                                              spacing[contentStyles.paragraphMargin],
-                                              getRemPxWithoutListening(),
+                                              contentStyles.paragraphMargin,
+                                              getSpacingScaleWithoutListening(),
                                           )
                                     : nextRect
                                     ? nextRect.bottom - 1
                                     : fileRect.top -
                                       convertRemLengthToPx(
-                                          spacing[contentStyles.paragraphMargin],
-                                          getRemPxWithoutListening(),
+                                          contentStyles.paragraphMargin,
+                                          getSpacingScaleWithoutListening(),
                                       ),
                         });
 
@@ -1932,15 +1932,15 @@ export function buildContentEditorKeymapPlugin(
                                         ? fileRowRect.top + 1
                                         : coords.bottom +
                                           convertRemLengthToPx(
-                                              spacing[contentStyles.paragraphMargin],
-                                              getRemPxWithoutListening(),
+                                              contentStyles.paragraphMargin,
+                                              getSpacingScaleWithoutListening(),
                                           )
                                     : fileRowRect
                                     ? fileRowRect.bottom - 1
                                     : coords.top -
                                       convertRemLengthToPx(
-                                          spacing[contentStyles.paragraphMargin],
-                                          getRemPxWithoutListening(),
+                                          contentStyles.paragraphMargin,
+                                          getSpacingScaleWithoutListening(),
                                       ),
                         };
 

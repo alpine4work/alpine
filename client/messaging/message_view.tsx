@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
+import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {timeline} from "motion";
 import {ArrowArcLeft, SpinnerGap, Trash} from "phosphor-react";
 import {
@@ -18,7 +18,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
@@ -41,8 +40,9 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     getMessageBubbleMarginLeft,
     messageView2AccountNameFontSize,
@@ -87,7 +87,7 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
-    parseRemLengthNumber,
+    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
@@ -123,13 +123,11 @@ export const bufferedMessageViewHeight: RemLength = "4rem";
 const mergeMessageMinuteLimit = 5;
 
 const messageViewTouchReplyIconSize = "5";
-const messageViewTouchReplyIconSizeRem = parseRemLengthNumber(
-    spacing[messageViewTouchReplyIconSize],
-);
+const messageViewTouchReplyIconSizeRem = parseRemLength(messageViewTouchReplyIconSize);
 
 const messageViewTouchReplyIconStartOffset = "1.5";
-const messageViewTouchReplyIconStartOffsetRem = parseRemLengthNumber(
-    spacing[messageViewTouchReplyIconStartOffset],
+const messageViewTouchReplyIconStartOffsetRem = parseRemLength(
+    messageViewTouchReplyIconStartOffset,
 );
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -159,7 +157,6 @@ function shouldMergeMessages(message1: MessageModelBase, message2: MessageModelB
 }
 
 export function MessageView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
-    withMobileLayout,
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
@@ -178,7 +175,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     paddingX = screenPaddingX,
     centeringMarginRight,
 }: {
-    withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
@@ -197,7 +193,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     centeringMarginRight?: Spacing;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -252,13 +248,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     //
     // NOCOMMIT: Or is focus within?
     const [isHovered, setIsHovered] = useState(false);
-    if (isMobile && isHovered) setIsHovered(false);
+    if (platform === "mobile" && isHovered) setIsHovered(false);
 
     // NOTE(calebmer): This can't be `onPointerEnter` or `onPointerLeave` props.
     // I've found that React doesn't call `onPointerLeave` when the
     // `<MessageViewActions>` menu closes.
     useEffect(() => {
-        if (isMobile) return;
+        if (platform === "mobile") return;
 
         const containerElement = assertExists(containerRef.current);
 
@@ -282,12 +278,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             containerElement.removeEventListener("pointerenter", handlePointerEnter);
             containerElement.removeEventListener("pointerleave", handlePointerLeave);
         };
-    }, [isMobile]);
+    }, []);
 
     const messageEditingForThisMessage =
         // If we're on a mobile device (with keyboard toolbars) then instead of editing
         // a message inline, we edit it within the sticky `<MessageInput>`.
-        !isMobile &&
+        platform !== "mobile" &&
         messageEditing.state.isEditing &&
         !message.isOptimistic &&
         messageEditing.state.messageRoomKey === message.getRoomKey() &&
@@ -301,7 +297,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // If we're currently editing a message on mobile then cancel editing when
         // trying to reply to a message. Otherwise `<MessageInput>` will override the
         // reply state with editing state.
-        if (isMobile && messageEditing.state.isEditing) {
+        if (platform === "mobile" && messageEditing.state.isEditing) {
             messageEditing.dispatch({type: "CancelEditing"});
         }
 
@@ -826,13 +822,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <ContentView
                 isBackgroundColorGrey5={true}
-                withMobileLayout={withMobileLayout}
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdatedTime}
                 withUserSelectNone={!canPrimaryInputHover}
             />
         );
-    }, [canPrimaryInputHover, message.payload, messageTextForBigEmojiMessage, withMobileLayout]);
+    }, [canPrimaryInputHover, message.payload, messageTextForBigEmojiMessage]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
@@ -871,7 +866,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths(spacing["1.5"], contentViewStyles.truncatedHeight);
+        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
 
         // NOCOMMIT:
         //
@@ -949,16 +944,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 </div>
             </FocusRing>
         );
-    }, [
-        canPrimaryInputHover,
-        isMobile,
-        messageStartOfSentenceNoun,
-        messageTextForBigEmojiMessage,
-        onJumpToMessage,
-        paddingX,
-        parentMessage,
-        withMobileLayout,
-    ]);
+    }, [messageNoun, onJumpToMessage, parentMessage]);
 
     const timestampDividerNode = useMemo(() => {
         const shouldShowTimestampBeforeMessage = isFirstMessage
@@ -1204,7 +1190,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 </div> */
                                 <MessageViewEditor
                                     ref={messageEditorRef}
-                                    withMobileLayout={withMobileLayout}
                                     messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                                     shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                                     shouldMergeWithNextMessage={shouldMergeWithNextMessage}
@@ -1215,7 +1200,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             deletedPayloadNode
                         )}
                     </div>
-                    {!isMobile &&
+                    {platform !== "mobile" &&
                         !message.isOptimistic &&
                         message.payload.type === "Content" &&
                         !disableExpensiveFeaturesDuringScroll && (

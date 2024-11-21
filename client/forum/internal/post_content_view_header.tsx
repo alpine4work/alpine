@@ -4,7 +4,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     postContentViewHeaderAvatarSize,
@@ -51,13 +51,17 @@ export function PostContentViewHeaderBase({
     channelSelector?: ReactNode;
     withNavigationBarLayout?: boolean;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         <Box height={postContentViewHeaderHeight} display="flex" alignItems="center">
             <AccountAvatar
                 account={author}
-                size={withNavigationBarLayout && isMobile ? "7" : postContentViewHeaderAvatarSize}
+                size={
+                    withNavigationBarLayout && platform === "mobile"
+                        ? "7"
+                        : postContentViewHeaderAvatarSize
+                }
             />
             <Box paddingLeft={{mobile: "2", desktop: "3"}} overflow="hidden">
                 <Box fontSize="75" fontStyle="truncate" color="grey-70">
@@ -77,7 +81,7 @@ export function PostContentViewHeaderBase({
             </Box>
             {channelSelector && (
                 <Box
-                    flexGrow={isMobile ? "1" : undefined}
+                    flexGrow={platform === "mobile" ? "1" : undefined}
                     flexShrink="0"
                     display="flex"
                     alignItems="center"

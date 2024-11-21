@@ -1,5 +1,5 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
-import roundToNearestMinutes from "date-fns/roundToNearestMinutes/index.js";
+import {roundToNearestMinutes} from "date-fns/roundToNearestMinutes";
 import {useContext} from "react";
 import {
     CurrentDateContext,

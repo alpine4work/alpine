@@ -12,15 +12,21 @@ import {
 // source files in production. We're just using the types in this module.
 import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
-import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
+import {Readable as ReadableStream, Transform as TransformStream} from "stream";
 import {Headers} from "undici";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
-import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -28,21 +34,21 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * tests.
  */
 export class MiniflareR2Client implements CloudflareR2ClientBase {
-    private readonly _fileUploadServiceHostname: string;
+    private readonly _fileProcessorServiceUrl: string;
     private readonly _bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
 
     constructor({
-        fileUploadServiceHostname,
+        fileProcessorServiceUrl,
         bucketByName,
     }: {
-        fileUploadServiceHostname: string;
+        fileProcessorServiceUrl: string;
         bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
     }) {
         // Miniflare should not be used in production! It's only used to store files in
         // development.
         assert(process.env.NODE_ENV !== "production");
 
-        this._fileUploadServiceHostname = fileUploadServiceHostname;
+        this._fileProcessorServiceUrl = fileProcessorServiceUrl;
         this._bucketByName = bucketByName;
     }
 
@@ -120,6 +126,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: object?.httpMetadata.contentType,
+                            contentLength: object?.size,
                         },
                     },
                 },
@@ -212,6 +219,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     r2: {
                         object: {
                             contentType: object.httpMetadata.contentType,
+                            contentLength: object.size,
                         },
                     },
                 },
@@ -243,10 +251,12 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             Key: key,
             Body: untypedBody,
             ContentType: contentType,
+            ContentLength: contentLength,
             ContentLanguage: contentLanguage,
             ContentDisposition: contentDisposition,
             ContentEncoding: contentEncoding,
             CacheControl: cacheControl,
+            IfNoneMatch: ifNoneMatch,
             ...unrecognizedInputs
         }: PutObjectCommandInput,
         {signal}: {signal?: AbortSignal} = {},
@@ -266,6 +276,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                         object: {
                             key,
                             contentType,
+                            contentLength,
                         },
                     },
                 },
@@ -283,14 +294,27 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             let body = untypedBody as NodeJsRuntimeStreamingBlobPayloadInputTypes | undefined;
             assert(body);
 
+            let streamContentLength = 0;
+
             if (body instanceof ReadableStream) {
+                if (typeof contentLength !== "number") {
+                    throw new InternalError(
+                        '"Content-Length" header is required when calling `PutObject()` with a stream body',
+                    );
+                }
+
                 body = body.pipe(
                     // NOTE(calebmer): I have no idea why but sometimes `put()` calls for
                     // large audio files aren't finishing even though the stream has been fully
                     // read unless there's a pass-through stream here. My best guess is Miniflare
                     // is checking to see if the stream is an HTTP request stream and doing
                     // something differently that isn't terminating?
-                    new PassThroughStream(),
+                    new TransformStream({
+                        transform: (chunk: Buffer, encoding, callback) => {
+                            streamContentLength += chunk.length;
+                            callback(null, chunk);
+                        },
+                    }),
                 );
 
                 signal?.addEventListener("abort", () => {
@@ -303,6 +327,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 assertExists(key),
                 body instanceof ReadableStream ? ReadableStream.toWeb(body) : body,
                 {
+                    onlyIf: ifNoneMatch ? new Headers([["If-None-Match", "*"]]) : undefined,
                     httpMetadata: {
                         contentType,
                         contentLanguage,
@@ -312,6 +337,12 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     },
                 },
             );
+
+            if (body instanceof ReadableStream && streamContentLength !== contentLength) {
+                throw new InternalError(
+                    quote`"Content-Length" header is ${contentLength} byte(s) but the stream body had ${streamContentLength} byte(s)`,
+                );
+            }
 
             return {
                 get $metadata(): never {
@@ -407,10 +438,10 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
 
             const expirationTimeString = serializeDateString(expirationTime);
 
-            // `FileUploadService` has an internal route for mocking signed URLs in
+            // `FileProcessorService` has an internal route for mocking signed URLs in
             // development. This route is completely insecure and must not work in
             // production. In production we'll generate actual S3 compatible signed URLs.
-            return `http://${this._fileUploadServiceHostname}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
+            return `${this._fileProcessorServiceUrl}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
         });
     }
 }

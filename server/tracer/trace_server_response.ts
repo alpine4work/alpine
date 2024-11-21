@@ -1,16 +1,15 @@
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {isId} from "~/shared/id/id.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {
+    getHeadersTracerData,
     obfuscateCookieHeader,
     obfuscateSetCookieHeaders,
 } from "~/shared/tracer/fetch_with_tracer.js";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 import {tracerEventHttpSearchParamNameByServiceName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
 import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -33,10 +32,6 @@ export function createTraceServerResponseHandleSpanName(
  *
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
- *
- * `FileUploadService` reimplements the same tracer span data we add here
- * because it doesn't use `createStandardizedServer()`. So if you make a change
- * here, you may also need to update `FileUploadService`.
  */
 export async function traceServerResponse(
     tracer: TracerRoot,
@@ -72,138 +67,50 @@ export async function traceServerResponse(
     });
 
     try {
-        addRequestTracerSpanData({
-            tracer,
-            span,
-            route,
-            method: request.method,
-            url: requestUrl,
-            headers: request.headers,
-        });
-
-        // Measure the uncompressed request body size by creating an intermediate
-        // readable stream on top of the request body.
-        if (request.body) {
-            let requestUncompressedContentLength = 0;
-            const requestBodyReader = request.body.getReader();
-
-            const newRequestBody = new ReadableStream<Uint8Array>({
-                type: "bytes",
-                start: controller => {
-                    const read = () => {
-                        requestBodyReader.read().then(
-                            ({done, value}) => {
-                                if (done) {
-                                    controller.close();
-
-                                    // Add the uncompressed content length to the span once we have it.
-                                    if (!span.isFinished()) {
-                                        span.addData({
-                                            http: {
-                                                request: {
-                                                    uncompressedContentLength:
-                                                        requestUncompressedContentLength,
-                                                },
-                                            },
-                                        });
-                                    }
-                                } else {
-                                    requestUncompressedContentLength += value.length;
-                                    controller.enqueue(value);
-                                    read();
-                                }
-                            },
-                            error => controller.error(error),
-                        );
-                    };
-
-                    read();
-                },
-            });
-
-            request = new Request(request, {
-                body: newRequestBody,
-                // Node.js appears not to be copying `headers` from the original request after
-                // v20.9.0. This is a bug.
-                // https://github.com/nodejs/node/issues/50490
-                headers: request.headers,
-                // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-                // @ts-ignore: Expected by the WhatWG fetch API when `body` is a
-                // `ReadableStream` but it's not supported in the types yet.
-                // https://github.com/nodejs/node/issues/46221
-                duplex: "half",
-            });
+        const spanSearch: {[key: string]: string} = {};
+        const validSpanSearchParamNames =
+            tracerEventHttpSearchParamNameByServiceName[tracer.serviceName];
+        for (const [searchParamName, searchParamValue] of requestUrl.searchParams) {
+            if (validSpanSearchParamNames?.has(searchParamName as any)) {
+                spanSearch[searchParamName] = searchParamValue;
+            }
         }
 
-        let response = await action(span, request);
+        span.addData({
+            http: {
+                route,
+                method: request.method,
+                scheme: requestUrl.protocol.slice(0, -1),
+                target: `${requestUrl.pathname}${requestUrl.search}`,
+                search: spanSearch,
+                // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
+                // our request to get the IP address.
+                // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
+                clientIp:
+                    request.headers.get("x-real-ip") ??
+                    request.headers.get("cf-connecting-ip") ??
+                    undefined,
+                userAgent: request.headers.get("user-agent") ?? undefined,
+                request: {
+                    header: getHeadersTracerData(request.headers),
+                    obfuscatedCookieHeader: obfuscateCookieHeader(request.headers),
+                },
+            },
+        });
+
+        const response = await action(span, request);
 
         span.addData({
             http: {
                 statusCode: response.status,
                 response: {
-                    header: Object.fromEntries(
-                        filterIterable(response.headers, ([headerName]) =>
-                            tracerEventHttpHeaderNames.has(headerName),
-                        ),
-                    ),
+                    header: getHeadersTracerData(response.headers),
                     obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(response.headers),
                 },
             },
         });
 
-        // Measure the uncompressed response body size by creating an intermediate
-        // readable stream on top of the response body.
-        //
-        // Also, we want to finish the span when the body stops streaming. Not when the
-        // `action()` function resolves.
-        if (!response.body) {
-            finishSpan();
-        } else {
-            let responseUncompressedContentLength = 0;
-            const responseBodyReader = response.body.getReader();
-
-            const actuallyFinishSpan = () => {
-                if (span.isFinished()) return;
-
-                span.addData({
-                    http: {
-                        response: {
-                            uncompressedContentLength: responseUncompressedContentLength,
-                        },
-                    },
-                });
-
-                finishSpan();
-            };
-
-            const newResponseBody = new ReadableStream<Uint8Array>({
-                type: "bytes",
-                start: controller => {
-                    const read = () => {
-                        responseBodyReader.read().then(
-                            ({done, value}) => {
-                                if (done) {
-                                    controller.close();
-                                    actuallyFinishSpan();
-                                } else {
-                                    responseUncompressedContentLength += value.length;
-                                    controller.enqueue(value);
-                                    read();
-                                }
-                            },
-                            error => controller.error(error),
-                        );
-                    };
-
-                    read();
-                },
-                cancel: () => {
-                    actuallyFinishSpan();
-                },
-            });
-
-            response = new Response(newResponseBody, response);
-        }
+        finishSpan();
 
         return response;
     } catch (error) {
@@ -261,63 +168,4 @@ export function startTracerSpanFromPropagationContextHeader(
         tracer.getRoot().logUncaughtException("Invalid trace propagation context", error);
         return tracer.startSpan(name);
     }
-}
-
-/**
- * Add all data associated with an HTTP request to a span from the request's
- * decomposed parts except `http.request.uncompressedContentLength` since we
- * don't have the request's body in this function.
- */
-export function addRequestTracerSpanData({
-    tracer,
-    span,
-    route,
-    method,
-    url,
-    headers,
-}: {
-    tracer: TracerRoot;
-    span: TracerSpan;
-    route: string;
-    method: string;
-    url: URL;
-    headers: Headers;
-}) {
-    const requestContentLengthHeader = headers.get("content-length");
-    const requestContentLengthHeaderNumber = requestContentLengthHeader
-        ? parseInt(requestContentLengthHeader, 10)
-        : null;
-
-    const spanSearch: {[key: string]: string} = {};
-    const validSpanSearchParamNames =
-        tracerEventHttpSearchParamNameByServiceName[tracer.serviceName];
-    for (const [searchParamName, searchParamValue] of url.searchParams) {
-        if (validSpanSearchParamNames?.has(searchParamName as any)) {
-            spanSearch[searchParamName] = searchParamValue;
-        }
-    }
-
-    span.addData({
-        http: {
-            route,
-            method,
-            scheme: url.protocol.slice(0, -1),
-            target: `${url.pathname}${url.search}`,
-            search: spanSearch,
-            // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
-            // our request to get the IP address.
-            // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
-            clientIp: headers.get("x-real-ip") ?? headers.get("cf-connecting-ip") ?? undefined,
-            userAgent: headers.get("user-agent") ?? undefined,
-            request: {
-                contentLength: requestContentLengthHeaderNumber ?? undefined,
-                header: Object.fromEntries(
-                    filterIterable(headers, ([headerName]) =>
-                        tracerEventHttpHeaderNames.has(headerName),
-                    ),
-                ),
-                obfuscatedCookieHeader: obfuscateCookieHeader(headers),
-            },
-        },
-    });
 }

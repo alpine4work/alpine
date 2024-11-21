@@ -1,7 +1,6 @@
 import {CaretLeft, CaretRight} from "phosphor-react";
 import {MutableRefObject, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -15,10 +14,11 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {
-    getInitialAppRenderIsMobile,
-    getIsMobileWithoutListening,
-    useIsMobile,
-} from "~/client/remix/use_is_mobile.js";
+    getInitialAppRenderPlatform,
+    getPlatformWithoutListening,
+    usePlatform,
+} from "~/client/remix/platform_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -90,19 +90,17 @@ export async function loader({params, request, context: unauthenticatedContext}:
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
+    const clientInfo = context.loader.getClientInfo();
+
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
         await runAllPromises([
             getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
                 spaceId,
                 documentId,
                 bucketGeneration,
-                commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                commentLimit: getInitialLoadMessageCount(clientInfo),
                 commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[
-                        getInitialAppRenderIsMobile(context.loader.getClientInfo())
-                            ? "mobile"
-                            : "desktop"
-                    ],
+                    documentCommentThreadCountAgainstLimit[getInitialAppRenderPlatform(clientInfo)],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
@@ -140,31 +138,20 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {document, commentT
     },
 ]);
 
-export default function DocumentNewCommentThreadsRoute({
-    withMobileLayout = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function DocumentNewCommentThreadsRoute() {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <DocumentNewCommentThreadsRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-            withMobileLayout={withMobileLayout}
         />
     );
 }
 
-function DocumentNewCommentThreadsRouteInner({
-    withMobileLayout: withMobileLayoutProp,
-}: {
-    withMobileLayout: boolean;
-}) {
-    const isMobile = useIsMobile();
+function DocumentNewCommentThreadsRouteInner() {
+    const platform = usePlatform();
     const rootNavigate = useRootNavigate();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
         document: initialDocument,
@@ -214,9 +201,10 @@ function DocumentNewCommentThreadsRouteInner({
 
     const [mobileCommentThreadIndexFromState, setMobileCommentThreadIndex] = useState<number>(0);
 
-    const mobileCommentThreadIndex = isMobile
-        ? clamp(0, mobileCommentThreadIndexFromState, commentThreadCount - 1)
-        : 0;
+    const mobileCommentThreadIndex =
+        platform === "mobile"
+            ? clamp(0, mobileCommentThreadIndexFromState, commentThreadCount - 1)
+            : 0;
     if (mobileCommentThreadIndex !== mobileCommentThreadIndexFromState) {
         setMobileCommentThreadIndex(mobileCommentThreadIndex);
     }
@@ -234,7 +222,7 @@ function DocumentNewCommentThreadsRouteInner({
     // and after that mobile will need to fill in the blanks when the user switches
     // comment threads.
     const switchMobileCommentThreadIndex = async (commentThreadIndex: number) => {
-        if (!isMobile) return;
+        if (platform !== "mobile") return;
 
         switchMobileCommentThreadIndexAbortControllerRef.current?.abort();
         switchMobileCommentThreadIndexAbortControllerRef.current = null;
@@ -248,17 +236,13 @@ function DocumentNewCommentThreadsRouteInner({
 
         const initialCommentThreadResult = initialCommentThreadResults[commentThreadIndex]!;
 
-        const remPx = getRemPxWithoutListening();
+        const spacingScale = getSpacingScaleWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
-        const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
+        const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, spacingScale);
 
         const loadCommentCount =
             Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
-            Math.floor(
-                documentCommentThreadCountAgainstLimit[
-                    getIsMobileWithoutListening() ? "mobile" : "desktop"
-                ],
-            );
+            Math.floor(documentCommentThreadCountAgainstLimit[getPlatformWithoutListening()]);
 
         if (
             initialCommentThreadResult.comments.length <
@@ -315,8 +299,7 @@ function DocumentNewCommentThreadsRouteInner({
     };
 
     const navigationBar = useNavigationBar({
-        isDisabled: !isMobile,
-        withMobileLayout,
+        isDisabled: platform !== "mobile",
         title:
             commentThreadCount === 1 ? (
                 "New comment thread"
@@ -360,8 +343,7 @@ function DocumentNewCommentThreadsRouteInner({
             // When rendering for mobile, we render one comment thread at a time. Instead of
             // rendering them all in a list. Since our sticky comment input UI pattern
             // doesn't work particularly well on mobile.
-            key={isMobile ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
-            withMobileLayout={withMobileLayout}
+            key={platform === "mobile" ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
             documentId={initialDocument.id}
             content={documentContent}
             isConnected={isConnected}
@@ -377,7 +359,7 @@ function DocumentNewCommentThreadsRouteInner({
                 // - Navigate the peek we are rendered in
                 rootNavigate(
                     `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
-                        isMobile
+                        platform === "mobile"
                             ? // On mobile, only scroll to where the comment lives in the document. Don't open
                               // up the comment overlay.
                               `scroll=comments-${commentThreadId}`
@@ -388,20 +370,20 @@ function DocumentNewCommentThreadsRouteInner({
             initialCommentThreadResults={useMemo(
                 () =>
                     // Show one comment thread at a time on mobile.
-                    isMobile
+                    platform === "mobile"
                         ? [initialCommentThreadResults[mobileCommentThreadIndex]!]
                         : initialCommentThreadResults,
-                [initialCommentThreadResults, isMobile, mobileCommentThreadIndex],
+                [initialCommentThreadResults, mobileCommentThreadIndex, platform],
             )}
             navigationBar={navigationBar}
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.
-            withSafeAreaInsetTop={!isMobile}
+            withSafeAreaInsetTop={platform !== "mobile"}
             header={useMemo(() => {
-                if (!isMobile) return undefined;
+                if (platform !== "mobile") return undefined;
 
                 return {
-                    minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    minHeight: spacing[navigationBarHeight],
                     node: (
                         <Box
                             position="relative"
@@ -414,14 +396,13 @@ function DocumentNewCommentThreadsRouteInner({
                         </Box>
                     ),
                 };
-            }, [isMobile])}
+            }, [platform])}
         />
     );
 
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            withMobileLayout: withMobileLayout,
             maxWidth: documentCommentThreadListViewMaxWidth,
         },
         node,

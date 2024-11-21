@@ -2,7 +2,7 @@ import {useEffect} from "react";
 import {colorSchemeEventEmitter} from "~/client/helpers/internal/color_scheme_event_emitter.js";
 
 const initializeColorSchemeScript =
-    'var colorScheme = localStorage.getItem("colorScheme"); var isDarkColorScheme = colorScheme === "dark" || !colorScheme && window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.dataset.colorScheme = isDarkColorScheme ? "dark" : "light";';
+    'var colorScheme = localStorage.getItem("colorScheme"); var isDarkColorScheme = colorScheme === "dark" || !colorScheme && window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.setAttribute("data-color", isDarkColorScheme ? "dark" : "light");';
 
 /**
  * Manages the color scheme for the page. Importantly, contains a script that
@@ -33,8 +33,8 @@ export function ColorSchemeManager() {
 
             const colorScheme = isDarkColorScheme ? "dark" : "light";
 
-            if (colorScheme !== document.documentElement.dataset.colorScheme) {
-                document.documentElement.dataset.colorScheme = colorScheme;
+            if (colorScheme !== document.documentElement.getAttribute("data-color")) {
+                document.documentElement.setAttribute("data-color", colorScheme);
 
                 colorSchemeEventEmitter.emit(colorScheme);
             }

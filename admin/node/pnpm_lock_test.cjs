@@ -13,29 +13,29 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // Our `wrangler` dependency has an old version of `esbuild` we allow since we
     // should be bundling our code with a newer version of `esbuild` before it gets
     // to `wrangler`.
-    ["esbuild", ["0.16.3", "0.21.5"]],
-    ["@esbuild/android-arm64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/android-arm", ["0.16.3", "0.21.5"]],
-    ["@esbuild/android-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/darwin-arm64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/darwin-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/freebsd-arm64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/freebsd-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-arm64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-arm", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-ia32", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-loong64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-mips64el", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-ppc64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-riscv64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-s390x", ["0.16.3", "0.21.5"]],
-    ["@esbuild/linux-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/netbsd-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/openbsd-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/sunos-x64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/win32-arm64", ["0.16.3", "0.21.5"]],
-    ["@esbuild/win32-ia32", ["0.16.3", "0.21.5"]],
-    ["@esbuild/win32-x64", ["0.16.3", "0.21.5"]],
+    ["esbuild", ["0.17.19", "0.21.5"]],
+    ["@esbuild/android-arm64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/android-arm", ["0.17.19", "0.21.5"]],
+    ["@esbuild/android-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/darwin-arm64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/darwin-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/freebsd-arm64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/freebsd-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-arm64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-arm", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-ia32", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-loong64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-mips64el", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-ppc64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-riscv64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-s390x", ["0.17.19", "0.21.5"]],
+    ["@esbuild/linux-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/netbsd-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/openbsd-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/sunos-x64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/win32-arm64", ["0.17.19", "0.21.5"]],
+    ["@esbuild/win32-ia32", ["0.17.19", "0.21.5"]],
+    ["@esbuild/win32-x64", ["0.17.19", "0.21.5"]],
 
     // Incompatible versions from AWS dependencies. Mostly stemming from
     // `@aws-sdk/client-s3`'s dependency on `@aws-crypto/sha1-browser`.
@@ -47,7 +47,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // a Node.js environment instead of a custom JavaScript VM (backed by
     // `workerd`). This makes programs running with Miniflare v2 easier to debug
     // since we can use the usual Node.js debugging processes.
-    ["miniflare", ["2.14.2", "3.20230628.0"]],
+    ["miniflare", ["2.14.4", "3.20241106.0"]],
 
     // NOTE(calebmer, 2024-08-13): Duplicate packages after adding dependencies
     // for `aws-cdk` to `packageExtensions` that we can't easily resolve but
@@ -67,8 +67,14 @@ const allowedDuplicatePackageVersionsByName = new Map([
 
     // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same`
     // that we can't easily resolve but shouldn't cause issues.
-    ["fs-extra", ["11.2.0", "8.1.0"]],
+    ["fs-extra", ["8.1.0", "11.2.0"]],
     ["jsonfile", ["4.0.0", "6.1.0"]],
+
+    // NOTE(calebmer, 2024-11-15): Duplicate packages after upgrading `miniflare`
+    // v3 that we can't easily resolve but shouldn't cause issues.
+    ["chokidar", ["3.6.0", "4.0.1"]],
+    ["readdirp", ["3.6.0", "4.0.2"]],
+    ["@jridgewell/trace-mapping", ["0.3.25", "0.3.9"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
@@ -115,7 +121,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["doctrine", ["2.1.0", "3.0.0"]],
     ["domhandler", ["3.3.0", "4.3.1"]],
     ["dotenv", ["10.0.0", "16.0.3"]],
-    ["emoji-regex", ["10.2.1", "8.0.0", "9.2.2"]],
+    ["emoji-regex", ["8.0.0", "9.2.2", "10.2.1"]],
     ["entities", ["2.2.0", "4.5.0"]],
     ["escape-string-regexp", ["1.0.5", "2.0.0", "4.0.0"]],
     ["eslint-scope", ["5.1.1", "7.2.2"]],
@@ -128,7 +134,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["fs-minipass", ["2.1.0", "3.0.3"]],
     ["fsevents", ["2.3.2", "2.3.3"]],
     ["glob-parent", ["5.1.2", "6.0.2"]],
-    ["glob", ["10.3.15", "7.2.3", "8.0.3"]],
+    ["glob", ["7.2.3", "8.0.3", "10.3.15"]],
     ["globals", ["11.12.0", "13.24.0"]],
     ["globby", ["11.1.0", "13.1.3"]],
     ["has-flag", ["3.0.0", "4.0.0"]],
@@ -149,7 +155,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["kleur", ["3.0.3", "4.1.5"]],
     ["locate-path", ["5.0.0", "6.0.0"]],
     ["lower-case", ["1.1.4", "2.0.2"]],
-    ["lru-cache", ["10.2.2", "4.1.5", "5.1.1", "6.0.0", "7.18.3"]],
+    ["lru-cache", ["4.1.5", "5.1.1", "6.0.0", "7.18.3", "10.2.2"]],
     ["mdast-util-from-markdown", ["1.2.0", "2.0.0"]],
     ["mdast-util-to-markdown", ["1.3.0", "2.1.0"]],
     ["mdast-util-to-string", ["3.1.0", "4.0.0"]],
@@ -188,7 +194,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["param-case", ["2.1.1", "3.0.4"]],
     ["parse5", ["6.0.1", "7.1.2"]],
     ["path-key", ["3.1.1", "4.0.0"]],
-    ["path-to-regexp", ["0.1.7", "6.2.1"]],
+    ["path-to-regexp", ["0.1.7", "6.3.0"]],
     ["pretty-format", ["27.5.1", "29.6.3"]],
     ["pump", ["2.0.1", "3.0.0"]],
     ["punycode", ["1.3.2", "2.3.1"]],
@@ -196,7 +202,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["readable-stream", ["2.3.7", "3.6.0"]],
     ["regenerator-runtime", ["0.10.5", "0.13.11"]],
     ["resolve-from", ["4.0.0", "5.0.0"]],
-    ["resolve", ["1.22.1", "2.0.0-next.5"]],
+    ["resolve", ["1.22.8", "2.0.0-next.5"]],
     ["safe-buffer", ["5.1.2", "5.2.1"]],
     ["scheduler", ["0.20.2", "0.23.0"]],
     ["semver", ["5.7.2", "6.3.1", "7.6.3"]],
@@ -204,20 +210,19 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["slash", ["3.0.0", "4.0.0"]],
     ["source-map-support", ["0.5.13", "0.5.21"]],
     ["source-map", ["0.6.1", "0.7.4"]],
-    ["ssri", ["10.0.6", "8.0.1"]],
+    ["ssri", ["8.0.1", "10.0.6"]],
     ["string-width", ["4.2.3", "5.1.2"]],
     ["string_decoder", ["1.1.1", "1.3.0"]],
     ["strip-ansi", ["6.0.1", "7.1.0"]],
     ["strip-bom", ["3.0.0", "4.0.0"]],
     ["strip-final-newline", ["2.0.0", "3.0.0"]],
-    ["strip-json-comments", ["2.0.1", "3.1.1"]],
     ["supports-color", ["5.5.0", "7.2.0", "8.1.1"]],
     ["tr46", ["0.0.3", "3.0.0"]],
     ["tsconfig-paths", ["3.14.1", "4.1.0"]],
     ["tslib", ["1.14.1", "2.4.0", "2.6.3"]],
     ["type-fest", ["0.20.2", "0.21.3"]],
     ["type", ["1.2.0", "2.7.2"]],
-    ["undici", ["5.28.2", "6.17.0"]],
+    ["undici", ["5.28.4", "6.17.0"]],
     ["unique-filename", ["1.1.1", "3.0.0"]],
     ["unique-slug", ["2.0.2", "4.0.0"]],
     ["unist-util-is", ["5.1.1", "6.0.0"]],
@@ -229,10 +234,10 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["uuid", ["8.0.0", "8.3.2", "9.0.1"]],
     ["validate-npm-package-name", ["4.0.0", "5.0.1"]],
     ["webidl-conversions", ["3.0.1", "7.0.0"]],
-    ["whatwg-url", ["11.0.0", "5.0.0"]],
+    ["whatwg-url", ["5.0.0", "11.0.0"]],
     ["which", ["2.0.2", "3.0.1"]],
     ["wrap-ansi", ["6.2.0", "7.0.0", "8.1.0"]],
-    ["ws", ["7.5.9", "8.13.0"]],
+    ["ws", ["7.5.9", "8.18.0"]],
     ["yallist", ["2.1.2", "3.1.1", "4.0.0"]],
     ["yargs-parser", ["20.2.9", "21.1.1"]],
     ["yargs", ["16.2.0", "17.6.2"]],
@@ -252,7 +257,7 @@ async function main() {
         const match = packageKey.startsWith("file:")
             ? [packageKey, pnpmLock.packages[packageKey].name, packageKey]
             : packageKey.match(
-                  /^\/((?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*)@(\d+\.\d+\.\d+(?:-[a-z0-9-~][a-z0-9-._~]*)?)(?:$|\()/,
+                  /^((?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*)@(\d+\.\d+\.\d+(?:-[a-z0-9-~][a-z0-9-._~]*)?|file:[^(]*)(?:$|\()/,
               );
         if (!match) {
             throw new Error(`Unexpected package key format: ${JSON.stringify(packageKey)}`);
@@ -292,6 +297,29 @@ async function main() {
 
     for (const [packageName, packageVersions] of packageVersionsByName) {
         if (packageVersions.length === 1) continue;
+
+        packageVersions.sort((a, b) => {
+            const aMatch = a.match(/^\d+\.\d+\.\d+/);
+            const bMatch = b.match(/^\d+\.\d+\.\d+/);
+
+            if (!aMatch && !bMatch) return defaultCompareStrings(a, b);
+            if (!aMatch) return -1;
+            if (!bMatch) return 1;
+
+            const a1 = parseInt(aMatch[0], 10);
+            const a2 = parseInt(aMatch[1], 10);
+            const a3 = parseInt(aMatch[2], 10);
+
+            const b1 = parseInt(bMatch[0], 10);
+            const b2 = parseInt(bMatch[1], 10);
+            const b3 = parseInt(bMatch[2], 10);
+
+            if (a1 !== b1) return a1 - b1;
+            if (a2 !== b2) return a2 - b2;
+            if (a3 !== b3) return a3 - b3;
+
+            return defaultCompareStrings(a.slice(aMatch[0].length), b.slice(bMatch[0].length));
+        });
 
         const allowedDuplicatePackageVersions =
             allowedDuplicatePackageVersionsByName.get(packageName);
@@ -386,4 +414,10 @@ function areArraysEqual(array1, array2) {
     }
 
     return true;
+}
+
+function defaultCompareStrings(string1, string2) {
+    if (string1 < string2) return -1;
+    if (string1 > string2) return 1;
+    return 0;
 }

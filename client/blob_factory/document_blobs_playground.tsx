@@ -105,7 +105,6 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
                     >
                         <DocumentBlobFactory settings={settings} containerId={id} />
                         <ContentView
-                            withMobileLayout={false}
                             content={content}
                             className={sprinkles({paddingBottom: "24"})}
                             onMergeContentReferences={references => {

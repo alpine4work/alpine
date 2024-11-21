@@ -11,7 +11,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     TaskAssigneeInputItem,
@@ -33,7 +33,7 @@ export function TaskAssigneeInputListBox({
     listBoxProps: AriaListBoxOptions<TaskAssigneeInputItem>;
     selectedKey: string;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
@@ -61,7 +61,7 @@ export function TaskAssigneeInputListBox({
             style={{
                 // On mobile the height needs to be less than half of the available space when
                 // the keyboard and navigation bar are open.
-                maxHeight: isMobile ? "10rem" : spacing["64"],
+                maxHeight: platform === "mobile" ? "10rem" : spacing["64"],
             }}
         >
             <ul {...listBoxProps} ref={listBoxRef}>

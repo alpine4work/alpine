@@ -3,7 +3,7 @@ import {Key, KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef} from "
 import {mergeProps, useHover, usePress} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
@@ -81,7 +81,7 @@ function TaskRowTitleChildTasksButton(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const navigate = useNavigate();
 
     const buttonRef = useRef<HTMLDivElement>(null);
@@ -104,14 +104,14 @@ function TaskRowTitleChildTasksButton(
     useImperativeHandle(
         ref,
         () => ({
-            isFocusable: () => !isMobile,
+            isFocusable: () => platform !== "mobile",
             focus: () => {
-                if (!isMobile) {
+                if (platform !== "mobile") {
                     assertExists(buttonRef.current).focus();
                 }
             },
         }),
-        [isMobile],
+        [platform],
     );
 
     return (
@@ -138,7 +138,7 @@ function TaskRowTitleChildTasksButton(
                     // Ideally this could be focusable on mobile but we prevent moving focus and
                     // closing the keyboard with `event.preventDefault()` but this doesn't seem
                     // possible.
-                    tabIndex={!isMobile ? -1 : undefined}
+                    tabIndex={platform !== "mobile" ? -1 : undefined}
                     style={{
                         paddingRight: isMaxExpandedTaskDepth ? spacing["1.5"] : undefined,
                         backgroundColor: isPressed

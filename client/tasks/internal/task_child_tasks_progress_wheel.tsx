@@ -1,6 +1,6 @@
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -54,11 +54,13 @@ export function TaskChildTasksProgressWheel({
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const spacingScale = useSpacingScale();
+
     const fraction = Math.max(closedChildTaskCount / childTaskCount, 0.1);
 
     const size: Spacing = "3";
 
-    const viewBoxSize = useSpacingPx(size);
+    const viewBoxSize = convertRemLengthToPx(size, spacingScale);
     const strokeWidth = 2;
     const diameter = viewBoxSize - strokeWidth;
     const radius = diameter / 2;

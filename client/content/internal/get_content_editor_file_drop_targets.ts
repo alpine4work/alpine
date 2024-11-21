@@ -1,8 +1,9 @@
 import {Node} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 export type ContentEditorFileDropTarget = {
     readonly offsetParent: Element | null;
@@ -69,7 +70,8 @@ export function getContentEditorFileDropTargets(
 
     const $draggingFilePos = draggingFilePos !== null ? doc.resolve(draggingFilePos) : null;
 
-    const remPx = getRemPxWithoutListening();
+    const spacingScale = getSpacingScaleWithoutListening();
+    const remPx = remPxBySpacingScale[spacingScale];
     const nodeCount = doc.content.content.length;
     let seekBackwardsCount = 1;
     let seekForwardsCount = 2;
@@ -93,7 +95,7 @@ export function getContentEditorFileDropTargets(
     }
 
     const defaultDropTargetOffsetY =
-        convertRemLengthToPx(spacing[contentStyles.paragraphMargin], remPx) / 2;
+        convertRemLengthToPx(contentStyles.paragraphMargin, spacingScale) / 2;
     let previousDropTargetOffsetY = defaultDropTargetOffsetY;
 
     let nextPos = 0;

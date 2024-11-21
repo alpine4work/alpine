@@ -177,58 +177,79 @@ export function createFontStyles({
     } as const;
 }
 
-export type FontSize = keyof typeof fontSizesByPlatform;
+export type FontSize = keyof typeof fontSizesBySpacingScale;
 
 /**
  * Font scale computed with the following:
  * https://www.desmos.com/calculator/rewoqdxtac
  */
-export const fontSizesByPlatform = {
+export const fontSizesBySpacingScale = {
     "25": {
-        desktop: {
+        small: {
             fontSize: 10,
             letterSpacing: "0.01em",
             lineHeight: "0.75rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 11,
+            letterSpacing: "0.0048em",
+            lineHeight: "0.75rem",
+        },
+        large: {
             fontSize: 13,
             letterSpacing: "-0.0032em",
             lineHeight: "0.75rem",
         },
     },
     "50": {
-        desktop: {
+        small: {
             fontSize: 11,
             letterSpacing: "0.0048em",
             lineHeight: "0.875rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 12,
+            letterSpacing: "0.0005em",
+            lineHeight: "0.875rem",
+        },
+        large: {
             fontSize: 14,
             letterSpacing: "-0.0062em",
             lineHeight: "0.875rem",
         },
     },
     "75": {
-        desktop: {
+        small: {
             fontSize: 12,
             letterSpacing: "0.0005em",
             lineHeight: "1rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 14,
+            letterSpacing: "-0.0062em",
+            lineHeight: "1rem",
+        },
+        large: {
             fontSize: 15,
             letterSpacing: "-0.0088em",
             lineHeight: "1rem",
         },
     },
     "100": {
-        desktop: {
+        small: {
             fontSize: 14,
             letterSpacing: "-0.0062em",
             lineHeight: "1.25rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 16,
+            letterSpacing: "-0.011em",
+            lineHeight: "1.25rem",
+        },
+        large: {
             // 17px is the default size for text on iOS according to the [Human Interface
-            // Guidelines][1].
+            // Guidelines][1]. According to our font scale math this value should be 18px
+            // but that looks a little too large so we manually adjust down to 17px.
             //
             // [1]: https://developer.apple.com/design/human-interface-guidelines/typography#Specifications
             fontSize: 17,
@@ -237,24 +258,34 @@ export const fontSizesByPlatform = {
         },
     },
     "200": {
-        desktop: {
+        small: {
             fontSize: 16,
             letterSpacing: "-0.011em",
             lineHeight: "1.5rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 18,
+            letterSpacing: "-0.0143em",
+            lineHeight: "1.5rem",
+        },
+        large: {
             fontSize: 20,
             letterSpacing: "-0.0167em",
             lineHeight: "1.5rem",
         },
     },
     "300": {
-        desktop: {
+        small: {
             fontSize: 18,
             letterSpacing: "-0.0143em",
             lineHeight: "1.625rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 20,
+            letterSpacing: "-0.0167em",
+            lineHeight: "1.625rem",
+        },
+        large: {
             fontSize: 22,
             letterSpacing: "-0.0183em",
             lineHeight: "1.625rem",
@@ -263,133 +294,188 @@ export const fontSizesByPlatform = {
     // Font size in between 300 and 400 used for our heading scale on mobile.
     // Should only be used for mobile headings, not considered a part of our
     // general typography scale.
-    "mobile-heading-350": {
-        desktop: {
+    "350-narrow-heading": {
+        small: {
             fontSize: 19,
             letterSpacing: "-0.0156em",
             lineHeight: "1.625rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 21,
+            letterSpacing: "-0.0176em",
+            lineHeight: "1.625rem",
+        },
+        large: {
             fontSize: 23,
             letterSpacing: "-0.019em",
             lineHeight: "1.625rem",
         },
     },
     "400": {
-        desktop: {
+        small: {
             fontSize: 20,
             letterSpacing: "-0.0167em",
             lineHeight: "1.75rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 22,
+            letterSpacing: "-0.0183em",
+            lineHeight: "1.75rem",
+        },
+        large: {
             fontSize: 25,
             letterSpacing: "-0.0199em",
             lineHeight: "1.75rem",
         },
     },
     "500": {
-        desktop: {
+        small: {
             fontSize: 22,
             letterSpacing: "-0.0183em",
             lineHeight: "1.875rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 25,
+            letterSpacing: "-0.0199em",
+            lineHeight: "1.875rem",
+        },
+        large: {
             fontSize: 28,
             letterSpacing: "-0.0209em",
             lineHeight: "1.875rem",
         },
     },
     "600": {
-        desktop: {
+        small: {
             fontSize: 25,
             letterSpacing: "-0.0199em",
             lineHeight: "2.125rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 28,
+            letterSpacing: "-0.0209em",
+            lineHeight: "2.125rem",
+        },
+        large: {
             fontSize: 31,
             letterSpacing: "-0.0215em",
             lineHeight: "2.125rem",
         },
     },
     "700": {
-        desktop: {
+        small: {
             fontSize: 28,
             letterSpacing: "-0.0209em",
             lineHeight: "2.25rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 32,
+            letterSpacing: "-0.0216em",
+            lineHeight: "2.25rem",
+        },
+        large: {
             fontSize: 35,
             letterSpacing: "-0.0219em",
             lineHeight: "2.25rem",
         },
     },
     "800": {
-        desktop: {
+        small: {
             fontSize: 32,
             letterSpacing: "-0.0216em",
             lineHeight: "2.5rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 36,
+            letterSpacing: "-0.022em",
+            lineHeight: "2.5rem",
+        },
+        large: {
             fontSize: 40,
             letterSpacing: "-0.0221em",
             lineHeight: "2.5rem",
         },
     },
     "900": {
-        desktop: {
+        small: {
             fontSize: 36,
             letterSpacing: "-0.022em",
             lineHeight: "2.75rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 40,
+            letterSpacing: "-0.0221em",
+            lineHeight: "2.75rem",
+        },
+        large: {
             fontSize: 45,
             letterSpacing: "-0.0222em",
             lineHeight: "2.75rem",
         },
     },
     "1000": {
-        desktop: {
+        small: {
             fontSize: 40,
             letterSpacing: "-0.0221em",
             lineHeight: "3rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 45,
+            letterSpacing: "-0.0222em",
+            lineHeight: "3rem",
+        },
+        large: {
             fontSize: 50,
             letterSpacing: "-0.0223em",
             lineHeight: "3rem",
         },
     },
     "1100": {
-        desktop: {
+        small: {
             fontSize: 45,
             letterSpacing: "-0.0222em",
             lineHeight: "3.375rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 51,
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.375rem",
+        },
+        large: {
             fontSize: 56,
             letterSpacing: "-0.0223em",
             lineHeight: "3.375rem",
         },
     },
     "1200": {
-        desktop: {
+        small: {
             fontSize: 50,
             letterSpacing: "-0.0223em",
             lineHeight: "3.75rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 56,
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.75rem",
+        },
+        large: {
             fontSize: 62,
             letterSpacing: "-0.0223em",
             lineHeight: "3.75rem",
         },
     },
     "1300": {
-        desktop: {
+        small: {
             fontSize: 60,
             letterSpacing: "-0.0223em",
             lineHeight: "4.5rem",
         },
-        mobile: {
+        medium: {
+            fontSize: 68,
+            letterSpacing: "-0.0223em",
+            lineHeight: "4.5rem",
+        },
+        large: {
             fontSize: 75,
             letterSpacing: "-0.0223em",
             lineHeight: "4.5rem",

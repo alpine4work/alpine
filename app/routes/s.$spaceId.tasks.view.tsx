@@ -131,19 +131,18 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
     );
 }
 
-export default function TaskQueryRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+export default function TaskQueryRoute() {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <TaskQueryRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
-            withMobileLayout={withMobileLayout}
         />
     );
 }
 
-function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
+function TaskQueryRouteInner() {
     const updateMetaTitle = useUpdateMetaTitle();
 
     const [searchParams, setSearchParams] = useSearchParams();
@@ -179,7 +178,6 @@ function TaskQueryRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
     return (
         <TaskGridViewDndContext store={store}>
             <TaskQueryView
-                withMobileLayout={withMobileLayout}
                 store={store}
                 affinityManager={affinityManager}
                 initialQuery={

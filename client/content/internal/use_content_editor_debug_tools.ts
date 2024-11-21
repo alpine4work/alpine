@@ -4,6 +4,7 @@ import {RefObject, useCallback} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
  * Add a `ContentEditorDebugTools` object with some helpers in debug
@@ -79,14 +80,20 @@ export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
                 // Playwright tests use this method to select text. Removing it will break
                 // those tests.
                 setTextSelection: (from: number, to?: number) => {
-                    view.dispatch(
-                        view.state.tr.setSelection(
-                            new TextSelection(
-                                view.state.doc.resolve(from),
-                                typeof to === "number" ? view.state.doc.resolve(to) : undefined,
-                            ),
-                        ),
-                    );
+                    from = clamp(0, from, view.state.doc.nodeSize - 2);
+
+                    let selection;
+                    if (typeof to !== "number") {
+                        selection = TextSelection.near(view.state.doc.resolve(from));
+                    } else {
+                        to = clamp(0, to, view.state.doc.nodeSize - 2);
+                        selection = TextSelection.between(
+                            view.state.doc.resolve(from),
+                            view.state.doc.resolve(to),
+                        );
+                    }
+
+                    view.dispatch(view.state.tr.setSelection(selection));
                 },
             };
         }, [viewRef]),

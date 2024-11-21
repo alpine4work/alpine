@@ -20,7 +20,6 @@ import {
     unstable_cancelCallback,
     unstable_scheduleCallback,
 } from "scheduler";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {
     ScrollbarInset,
@@ -42,6 +41,7 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollViewState,
@@ -620,7 +620,7 @@ function VirtualizedScrollView(
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
     const {screenHeight} = useClientInfo();
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -648,19 +648,19 @@ function VirtualizedScrollView(
                     ...item,
                     minHeight:
                         typeof item.minHeight === "string"
-                            ? convertRemLengthToPx(item.minHeight, remPx)
+                            ? convertRemLengthToPx(item.minHeight, spacingScale)
                             : item.minHeight,
                     originalMinHeight: item.minHeight,
                 };
             });
-    }, [renderItemProp, remPx]);
+    }, [renderItemProp, spacingScale]);
 
     const bufferedItemHeight = useMemo(
         () =>
             typeof bufferedItemHeightProp === "string"
-                ? convertRemLengthToPx(bufferedItemHeightProp, remPx)
+                ? convertRemLengthToPx(bufferedItemHeightProp, spacingScale)
                 : bufferedItemHeightProp,
-        [bufferedItemHeightProp, remPx],
+        [bufferedItemHeightProp, spacingScale],
     );
 
     const initializeState = (): VirtualizedScrollViewActualState => {
@@ -670,7 +670,7 @@ function VirtualizedScrollView(
                 state: VirtualizedScrollViewState.initializeFromTop({
                     initialViewHeight:
                         typeof initialViewHeight === "string"
-                            ? convertRemLengthToPx(initialViewHeight, remPx)
+                            ? convertRemLengthToPx(initialViewHeight, spacingScale)
                             : initialViewHeight ?? screenHeight,
                     bufferedItemHeight,
                     itemCount,
@@ -687,7 +687,7 @@ function VirtualizedScrollView(
                 state: VirtualizedScrollViewState.initializeFromBottom({
                     initialViewHeight:
                         typeof initialViewHeight === "string"
-                            ? convertRemLengthToPx(initialViewHeight, remPx)
+                            ? convertRemLengthToPx(initialViewHeight, spacingScale)
                             : initialViewHeight ?? screenHeight,
                     bufferedItemHeight,
                     itemCount,
@@ -1980,16 +1980,33 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
     // If the item is already partially visible, we make sure it is fully visible
     // and don't scroll anymore.
     if (areRangesOverlapping(offset, offset + height, viewTop, viewBottom)) {
-        // If the item is bigger than the screen, don't change scroll position.
-        if (offset < viewTop && offset + height > viewBottom) {
+        // If the item is bigger than the screen (excluding margins), don't change
+        // scroll position.
+        if (offset < viewTop + margin && offset + height > viewBottom - margin) {
             return {scrollOffset, position};
         }
 
-        if (offset < viewTop) {
-            return {scrollOffset: offset - margin, position};
+        // If the item is visible but its top is out of the scroll view then figure out
+        // the smallest scroll to make the item fully visible (either scrolling to top
+        // or scrolling to bottom).
+        if (offset < viewTop + margin) {
+            const scrollOffset1 = offset - margin;
+            const scrollOffset2 = offset + height - viewHeight + margin;
+            const scrollDelta1 = Math.abs(scrollOffset - scrollOffset1);
+            const scrollDelta2 = Math.abs(scrollOffset - scrollOffset2);
+
+            // Don't bother scrolling if we have a subpixel scroll delta. It's likely due
+            // to a rounding error somewhere.
+            if (scrollDelta1 < 1) return {scrollOffset, position};
+            if (scrollDelta2 < 1) return {scrollOffset, position};
+
+            return {
+                scrollOffset: scrollDelta2 < scrollDelta1 ? scrollOffset2 : scrollOffset1,
+                position,
+            };
         }
 
-        if (offset + height > viewBottom) {
+        if (offset + height > viewBottom - margin) {
             return {
                 scrollOffset: offset + height - viewHeight + margin,
                 position,

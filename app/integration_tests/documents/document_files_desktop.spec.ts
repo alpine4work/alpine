@@ -41,7 +41,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     const file1Contents = await sharp(
         joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+            "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         ),
     )
         // When we wrote the tests we weren't rendering files at half their size. So
@@ -173,7 +173,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     const file2Contents = await sharp(
         joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            "cyberworlds/server/files/processor/test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         ),
     )
         // When we wrote the tests we weren't rendering files at half their size. So
@@ -378,7 +378,7 @@ Ut tempus ipsum nisi, quis cursus tortor auctor id. Maecenas pharetra sagittis e
     const file3Contents = await sharp(
         joinPath(
             runfilesPath,
-            "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.png",
+            "cyberworlds/server/files/processor/test_fixtures/wikimedia_png_transparency_demonstration.png",
         ),
     )
         .resize(672, 504)

@@ -3,7 +3,7 @@ import {darkColorSchemeSelector} from "~/client/styles/core/styles_core.js";
 import {
     docClassName,
     mentionClassName,
-    withMobileLayoutDocClassName,
+    narrowRouteLayoutDocClassName,
 } from "~/client/styles/other/internal/content.css.js";
 import {
     commentClassName,
@@ -88,7 +88,7 @@ globalStyle(`${shiftKeyOrAltKeyDownClassName} a${linkClassName}`, {
 });
 
 globalStyle(
-    `${withMobileLayoutDocClassName} ${shiftKeyOrAltKeyDownClassName} ${commentClassName}`,
+    `${narrowRouteLayoutDocClassName} ${shiftKeyOrAltKeyDownClassName} ${commentClassName}`,
     {
         cursor: "inherit",
     },

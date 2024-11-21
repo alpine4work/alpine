@@ -3432,7 +3432,9 @@ test("can not authorize which accounts are in the chat if session does not have 
             message.chatId,
             scenario.sessionX3.account.id,
         ),
-    ).rejects.toThrow(PermissionDeniedError);
+    ).rejects.toThrow(
+        new AggregateError([], "Account doesn't have access to chat (and 1 other error)"),
+    );
 
     await expect(
         authorizeChatAccessForAccount(
@@ -3440,7 +3442,9 @@ test("can not authorize which accounts are in the chat if session does not have 
             message.chatId,
             scenario.sessionB1.account.id,
         ),
-    ).rejects.toThrow(PermissionDeniedError);
+    ).rejects.toThrow(
+        new AggregateError([], "Account doesn't have access to chat (and 1 other error)"),
+    );
 });
 
 test("correctly authorizes which accounts are in the chat as system", async () => {

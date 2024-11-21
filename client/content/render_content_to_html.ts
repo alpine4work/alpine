@@ -6,8 +6,8 @@ import {
     layoutContentFile,
     layoutContentFileParent,
 } from "~/client/content/internal/content_file_layout.js";
+import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
-import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
@@ -18,6 +18,8 @@ import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_la
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -50,7 +52,8 @@ export function renderContentToHtmlStore(
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
-        isMobile: boolean;
+        platform: Platform;
+        spacingScale: SpacingScale;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
@@ -85,7 +88,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
         accountStore,
         currentAccount,
         screenWidth,
-        isMobile,
+        platform,
+        spacingScale,
         isInitialAppRender,
         withPosAttribute,
         isInert,
@@ -98,7 +102,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
-        isMobile: boolean;
+        platform: Platform;
+        spacingScale: SpacingScale;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         isInert?: boolean;
@@ -312,7 +317,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                     const layouts = layoutContentFileParent(content.references, node, {
                         screenWidth,
-                        isMobile,
+                        platform,
+                        spacingScale,
                     });
 
                     html.setAttribute(
@@ -342,7 +348,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                     const layouts = layoutContentFileParent(content.references, node, {
                         screenWidth,
-                        isMobile,
+                        platform,
+                        spacingScale,
                     });
 
                     html.setAttribute(
@@ -365,7 +372,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                     const layout = layoutContentFile(content.references, content.doc, pos, node, {
                         screenWidth,
-                        isMobile,
+                        platform,
+                        spacingScale,
                     });
 
                     const html = renderContentFilePreview(get, {
@@ -374,7 +382,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         reference: fileReference,
                         layout,
                         screenWidth,
-                        isMobile,
+                        platform,
+                        spacingScale,
                         isInitialAppRender,
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                     });

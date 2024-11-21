@@ -1,6 +1,7 @@
 import {SpinnerGap} from "phosphor-react";
 import {useRef} from "react";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -33,6 +34,13 @@ export function ContentFileVideoViewerMobile({
     expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
 }) {
+    if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
+        throw new ContentFileProcessorError(file.contentType, file.alternative.error);
+    }
+    if (file.preview && !file.preview.isProcessing && !file.preview.ok) {
+        throw new ContentFileProcessorError(file.contentType, file.preview.error);
+    }
+
     const loaderDataResult = usePromise(loaderDataPromise);
 
     assert(loaderDataResult.isPending || loaderDataResult.value?.type === "VideoMobile");

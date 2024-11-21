@@ -18,7 +18,6 @@ import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 export function DocumentCommentThreadHeader({
-    withMobileLayout,
     commentThread,
     unpersistedIsResolved,
     resolveCommentThread,
@@ -29,7 +28,6 @@ export function DocumentCommentThreadHeader({
     onCommentThreadSnippetPress,
     previewFileLayoutScreenWidthRem,
 }: {
-    withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
     resolveCommentThread: () => Promise<void>;
@@ -115,7 +113,6 @@ export function DocumentCommentThreadHeader({
                 <>
                     <Spacer space={documentCommentThreadHeaderPaddingY} />
                     <DocumentCommentThreadPreview
-                        withMobileLayout={withMobileLayout}
                         commentThread={commentThread}
                         unpersistedIsResolved={unpersistedIsResolved}
                         contentSnippet={contentSnippet}

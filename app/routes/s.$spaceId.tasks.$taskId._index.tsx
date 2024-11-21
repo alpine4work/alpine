@@ -10,7 +10,8 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getInitialAppRenderPlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
@@ -74,7 +75,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
     const url = new URL(request.url);
 
     const clientInfo = context.loader.getClientInfo();
-    const isMobile = getInitialAppRenderIsMobile(clientInfo);
+    const platform = getInitialAppRenderPlatform(clientInfo);
 
     const childrenQuery: {
         limit: number;
@@ -123,7 +124,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
             taskIds: [taskId],
             collectionIds: [],
         }),
-        isMobile
+        platform === "mobile"
             ? getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null}))
             : getTaskNotesContentAndInitialComments(context, {
                   taskId,
@@ -177,11 +178,7 @@ export async function loader({params, context: _context, request}: LoaderArgs) {
     );
 }
 
-export default function TaskRoute({
-    withMobileLayout: withMobileLayoutProp = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function TaskRoute() {
     const {taskId, spaceId} = useParams();
     const [searchParams] = useSearchParams();
     assert(taskId && isId<TaskId>(taskId));
@@ -200,8 +197,7 @@ export default function TaskRoute({
     } = useTaskStoreLoaderDataWithoutRetaining();
     assert(childrenQuery && taskSubscription);
 
-    const isMobile = useIsMobile();
-    const withMobileLayout = withMobileLayoutProp || isMobile;
+    const routeLayout = useRouteLayout();
 
     // Retain our queries so they aren't destroyed while we're using them.
     useEffect(() => {
@@ -319,7 +315,6 @@ export default function TaskRoute({
                 <TaskDetailView
                     // Remount when the `TaskId` changes.
                     key={taskSubscription.taskId}
-                    withMobileLayout={withMobileLayout}
                     taskSubscription={taskSubscription}
                     childrenQuery={childrenQuery}
                     affinityManager={affinityManager}
@@ -327,7 +322,7 @@ export default function TaskRoute({
                     notesClient={notesClient}
                 />
             </TaskGridViewDndContext>
-            {!withMobileLayout && (
+            {routeLayout !== "narrow" && (
                 <Box
                     flexShrink="0"
                     borderLeft="grey-10"
@@ -338,7 +333,6 @@ export default function TaskRoute({
                     <TaskCommentsView
                         key={taskId}
                         taskId={taskId}
-                        withMobileLayout={withMobileLayout}
                         initialComments={initialComments}
                         initialScrollToCommentIndex={commentIndex}
                         getCommentUrl={getCommentUrl}
@@ -354,7 +348,6 @@ export default function TaskRoute({
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            withMobileLayout: withMobileLayout,
             maxWidth: "full",
             sidebarRightWidth: taskDetailViewCommentSidebarWidth,
         },

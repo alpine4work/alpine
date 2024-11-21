@@ -1,6 +1,5 @@
 import {Memo, RefCallback, useCallback} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -10,8 +9,9 @@ import {
     removeResizeListenerForElement,
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {scrollbarStyles, sprinkles} from "~/client/styles/styles.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -34,12 +34,10 @@ const scrollbarThumbInteractiveMargin = "1.5";
 const scrollbarThumbWidth = "1.5";
 const minScrollbarThumbHeight = "6";
 
-const scrollbarThumbMarginRem = parseRemLengthNumber(spacing[scrollbarThumbMargin]);
-const scrollbarThumbInteractiveMarginRem = parseRemLengthNumber(
-    spacing[scrollbarThumbInteractiveMargin],
-);
-const scrollbarThumbWidthRem = parseRemLengthNumber(spacing[scrollbarThumbWidth]);
-const minScrollbarThumbHeightRem = parseRemLengthNumber(spacing[minScrollbarThumbHeight]);
+const scrollbarThumbMarginRem = parseRemLength(scrollbarThumbMargin);
+const scrollbarThumbInteractiveMarginRem = parseRemLength(scrollbarThumbInteractiveMargin);
+const scrollbarThumbWidthRem = parseRemLength(scrollbarThumbWidth);
+const minScrollbarThumbHeightRem = parseRemLength(minScrollbarThumbHeight);
 
 const scrollbarThumbHitWidthRem =
     scrollbarThumbInteractiveMarginRem + scrollbarThumbWidthRem + scrollbarThumbMarginRem;
@@ -56,7 +54,7 @@ export const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNo
 ]);
 
 export function convertScrollbarInsetToPx(inset: ScrollbarInset, remPx: number) {
-    return typeof inset === "string" ? parseRemLengthNumber(inset) * remPx : inset;
+    return typeof inset === "string" ? parseRemLength(inset) * remPx : inset;
 }
 
 export function convertScrollbarInsetDynamicToPx(
@@ -505,7 +503,7 @@ export function initializeScrollbar(
         insetRight !== 0
             ? typeof insetRight === "number"
                 ? `calc(${scrollbarThumbHitWidthRem}rem + ${insetRight}px)`
-                : `${scrollbarThumbHitWidthRem + parseRemLengthNumber(insetRight)}rem`
+                : `${scrollbarThumbHitWidthRem + parseRemLength(insetRight)}rem`
             : `${scrollbarThumbHitWidthRem}rem`;
 
     // For our scrollbar implementation, we scale up the scrollbar track so the
@@ -540,7 +538,7 @@ export function initializeScrollbar(
         insetRight !== 0
             ? typeof insetRight === "number"
                 ? `calc(${scrollbarThumbMarginRem}rem + ${insetRight}px)`
-                : `${scrollbarThumbMarginRem + parseRemLengthNumber(insetRight)}rem`
+                : `${scrollbarThumbMarginRem + parseRemLength(insetRight)}rem`
             : `${scrollbarThumbMarginRem}rem`;
 
     scrollbarThumbElement.className = scrollbarThumbClassName;

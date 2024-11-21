@@ -46,13 +46,12 @@ jobs:
                   path: |
                       ~/.cache/bazelisk
                       ~/.cache/bazel
-                  # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. The workflows
-                  # run on different architectures so we can't share the cache but the cache
-                  # invalidation logic should still be the same.
+                  # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. We want to
+                  # share our cache between the two workflows.
                   key: |
-                      bazel-deploy-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
                   restore-keys: |
-                      bazel-deploy-${{ runner.os }}-${{ runner.arch }}-
+                      bazel-${{ runner.os }}-${{ runner.arch }}-
 
             # If we don't have an exact cache entry match then we need to fetch
             # repositories we'll need for our build. We also build `//:node_modules` which
@@ -116,4 +115,5 @@ jobs:
                       --cloudflareR2SecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_R2_SECRET_ACCESS_KEY }} \
                       --cloudflareWorkersToken=${{ secrets.DEPLOY_CLOUDFLARE_WORKERS_TOKEN }} \
                       "--cloudflareAccountId=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).cloudflareAccountId)")" \
-                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")"
+                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
+                      "--fileProcessorJobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).fileProcessorJobQueueUrl)")"

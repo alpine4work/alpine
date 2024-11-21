@@ -11,10 +11,9 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.js";
 import {convertSnakeCaseToCamelCase} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 
 export type GithubContextModuleAuth = (
     request: RequestInterface,
@@ -116,11 +115,7 @@ export class GithubContextModule extends GithubContextModuleBase {
                             method: init?.method ?? "GET",
                             userAgent: request.headers.get("user-agent") ?? undefined,
                             request: {
-                                header: Object.fromEntries(
-                                    filterIterable(request.headers, ([headerName]) =>
-                                        tracerEventHttpHeaderNames.has(headerName),
-                                    ),
-                                ),
+                                header: getHeadersTracerData(request.headers),
                             },
                         },
                     });
@@ -132,22 +127,12 @@ export class GithubContextModule extends GithubContextModuleBase {
 
                     const fetchEndTime = span.clock.now();
 
-                    const responseContentLengthHeader = response.headers.get("content-length");
-                    const responseContentLengthHeaderNumber = responseContentLengthHeader
-                        ? parseInt(responseContentLengthHeader, 10)
-                        : null;
-
                     span.addData({
                         http: {
                             fetchDurationMs: fetchEndTime - fetchStartTime,
                             statusCode: response.status,
                             response: {
-                                header: Object.fromEntries(
-                                    filterIterable(response.headers, ([headerName]) =>
-                                        tracerEventHttpHeaderNames.has(headerName),
-                                    ),
-                                ),
-                                contentLength: responseContentLengthHeaderNumber ?? undefined,
+                                header: getHeadersTracerData(response.headers),
                             },
                         },
                     });

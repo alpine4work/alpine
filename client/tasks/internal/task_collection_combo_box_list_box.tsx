@@ -105,10 +105,10 @@ export function TaskCollectionComboBoxListBox({
                             alignItems="center"
                             style={{
                                 height: addRemLengths(
-                                    spacing["1.5"],
+                                    "1.5",
                                     fontSizes["75"].lineHeight,
                                     fontSizes["50"].lineHeight,
-                                    spacing["1.5"],
+                                    "1.5",
                                 ),
                             }}
                         >
