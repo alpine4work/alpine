@@ -555,6 +555,14 @@ http_archive(
     url = "https://zlib.net/zlib-1.3.1.tar.gz",
 )
 
+http_archive(
+    name = "openssl",
+    build_file = "@//admin/bazel:third_party/BUILD.openssl.bazel",
+    integrity = "sha256-4V3agv4v6BOdwqwho21MoB1TE8dfmfRsTooncJtylL8=",
+    strip_prefix = "openssl-3.4.0",
+    url = "https://github.com/openssl/openssl/releases/download/openssl-3.4.0/openssl-3.4.0.tar.gz",
+)
+
 # NOTE(calebmer, 2024-11-07): Unfortunately we're using the `zig` nightly
 # 0.14.0 build for now because it has a fix we need that's not in 0.13.0. `zig`
 # releases appear to be every 6 months so we should be able to update this
