@@ -70,7 +70,10 @@ function wrapWithTraceServerResponse<Route>(
                     process.env.NODE_ENV === "production" || !(error instanceof Error)
                         ? `${statusCode} ${statusMessage}`
                         : `${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`,
-                    {status: statusCode},
+                    {
+                        status: statusCode,
+                        headers: {"content-type": "text/plain"},
+                    },
                 );
             }
         });
