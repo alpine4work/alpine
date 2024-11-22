@@ -77,9 +77,12 @@ export class HoneycombTracerClient {
                         // is a detached JWS (see `dangerouslySignShortLivedUrl()`). So look for any
                         // base64 characters or `.`.
                         //
-                        // TODO(calebmer, #files): Make sure this works.
+                        // Also if we see an [AWS S3 signed URL][1] we want to redact the amazon
+                        // signature.
+                        //
+                        // [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
                         bodyString = bodyString.replaceAll(
-                            /([?&]sig=)[A-Za-z0-9+/\-_=.]+/g,
+                            /([?&](?:sig|X-Amz-Signature)=)[A-Za-z0-9+/\-_=.]+/gi,
                             `$1${debugRedactedString}`,
                         );
 
