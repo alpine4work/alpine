@@ -514,7 +514,7 @@ function renderContentFileProcessorErrorPreview(
             throw exhaustive(error);
     }
 
-    errorTitleHtml.appendChild(new HtmlElementGenerator(title));
+    errorTitleHtml.appendChild(new HtmlTextGenerator(title));
 
     const errorMessageHtml = new HtmlElementGenerator("div");
     errorHtml.appendChild(errorMessageHtml);
