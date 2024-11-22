@@ -439,7 +439,7 @@ function renderContentFileProcessorErrorPreview(
 
     // Width at which we need to shrinking the error message so that it's still
     // readable.
-    const minWidth = 250;
+    const minWidth = 300;
 
     const errorHtml = new HtmlElementGenerator("div");
     containerHtml.appendChild(errorHtml);
