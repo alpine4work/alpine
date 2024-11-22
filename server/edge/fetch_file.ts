@@ -9,6 +9,11 @@ import {
 } from "~/shared/files/get_file_preview_image_resize_width.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    getHeadersTracerData,
+    obfuscateCookieHeader,
+    obfuscateSetCookieHeaders,
+} from "~/shared/tracer/fetch_with_tracer.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -82,6 +87,9 @@ export async function fetchFile(
         const subrequestUrl = new URL(
             `${fileProcessorServiceUrl}/${route.spaceId}/resize/${route.fileId}`,
         );
+
+        const subrequestServiceName = "FileProcessorService";
+        const subrequestRoute = "/:spaceId/resize/:fileId";
 
         if (variant !== null) subrequestUrl.searchParams.set("variant", variant);
         if (width !== null) subrequestUrl.searchParams.set("width", String(width));
@@ -157,8 +165,8 @@ export async function fetchFile(
         let response: Response;
 
         // If a `width` search param wasn't provided then we return the file as-is
-        // without resizing. So if `width` is non null then execute our resize
-        // request against file upload service. Otherwise directly read the file
+        // without resizing. So if `width` was provided then execute our resize
+        // request against file processor service. Otherwise directly read the file
         // from R2.
         //
         // We use the resize request as a cache key regardless of whether we actually
@@ -245,7 +253,7 @@ export async function fetchFile(
 
         // Cloudflare doesn't support caching partial responses. So make sure we
         // have a non-206 status code before writing to the cache.
-        if (response.status !== 206) {
+        if (response.ok && response.status !== 206) {
             // Replace the `private` `cache-control` directive with `public`. It's safe to
             // cache files in `filesCache` since in order to access `filesCache` you must
             // have a valid signed URL when accessing this endpoint. We'll only generate
@@ -253,7 +261,7 @@ export async function fetchFile(
             const cachedResponse = response.clone();
 
             executionContext.waitUntil(
-                (async () => {
+                span.withSpan("Caching fetched file", async cacheSpan => {
                     const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
                     if (cacheControlResponseHeader) {
                         cachedResponse.headers.set(
@@ -265,8 +273,39 @@ export async function fetchFile(
                         );
                     }
 
+                    // Make sure to remove any `set-cookie` header that might be set by our AWS
+                    // load balancer since it'll break Cloudflare caching.
+                    //
+                    // https://developers.cloudflare.com/cache/concepts/default-cache-behavior
+                    cachedResponse.headers.delete("set-cookie");
+
+                    // We use the resize request as a cache key regardless of whether we actually
+                    // need to execute the resize. Which is why the URL will be
+                    // `/:spaceId/resize/:fileId` even if we're not resizing the file and instead
+                    // reading directly from Cloudflare R2.
+                    cacheSpan.addData({
+                        http: {
+                            service: {name: subrequestServiceName},
+                            route: subrequestRoute,
+                            url: subrequest.url,
+                            method: subrequest.method,
+                            userAgent: subrequest.headers.get("user-agent") ?? undefined,
+                            statusCode: cachedResponse.status,
+                            request: {
+                                header: getHeadersTracerData(subrequest.headers),
+                                obfuscatedCookieHeader: obfuscateCookieHeader(subrequest.headers),
+                            },
+                            response: {
+                                header: getHeadersTracerData(cachedResponse.headers),
+                                obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(
+                                    cachedResponse.headers,
+                                ),
+                            },
+                        },
+                    });
+
                     await filesCache.put(subrequest, cachedResponse);
-                })(),
+                }),
             );
         }
 
