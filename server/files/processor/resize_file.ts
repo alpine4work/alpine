@@ -6,6 +6,7 @@ import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {getFileIfExistsAsUploader} from "~/server/files/data/files_table.js";
 import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
+import {sharpTimeoutSeconds} from "~/server/files/processor/processors/file_image_processor_base.js";
 import {
     ffmpegExecutablePath,
     ffmpegThreadCount,
@@ -361,6 +362,7 @@ export async function resizeFile(
                             cwd: runfilesPath,
                             env: getProcessEnvToPropagate(),
                             stdio: ["ignore", "pipe", "pipe"],
+                            timeout: sharpTimeoutSeconds * 1000,
                         },
                     );
 
