@@ -134,7 +134,7 @@ export async function fetchFile(
 
                 // If we're making a `HEAD` request then make sure we don't return a body.
                 return new Response(request.method !== "HEAD" ? cachedResponse.body : null, {
-                    ...cachedResponse,
+                    status: cachedResponse.status,
                     headers: cachedResponseHeaders,
                 });
             }
@@ -258,13 +258,19 @@ export async function fetchFile(
             // cache files in `filesCache` since in order to access `filesCache` you must
             // have a valid signed URL when accessing this endpoint. We'll only generate
             // signed URLs when the user actually has access to a file.
-            const cachedResponse = response.clone();
+            const {
+                body: cacheResponseBody,
+                status: cacheResponseStatus,
+                headers: cacheResponseImmutableHeaders,
+            } = response.clone();
 
             executionContext.waitUntil(
                 span.withSpan("Caching fetched file", async cacheSpan => {
-                    const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
+                    const cacheResponseHeaders = new Headers(cacheResponseImmutableHeaders);
+
+                    const cacheControlResponseHeader = cacheResponseHeaders.get("cache-control");
                     if (cacheControlResponseHeader) {
-                        cachedResponse.headers.set(
+                        cacheResponseHeaders.set(
                             "cache-control",
                             cacheControlResponseHeader.replace(
                                 /((?:^|,) *)private( *(?:,|$))/,
@@ -277,7 +283,7 @@ export async function fetchFile(
                     // load balancer since it'll break Cloudflare caching.
                     //
                     // https://developers.cloudflare.com/cache/concepts/default-cache-behavior
-                    cachedResponse.headers.delete("set-cookie");
+                    cacheResponseHeaders.delete("set-cookie");
 
                     // We use the resize request as a cache key regardless of whether we actually
                     // need to execute the resize. Which is why the URL will be
@@ -290,21 +296,26 @@ export async function fetchFile(
                             url: subrequest.url,
                             method: subrequest.method,
                             userAgent: subrequest.headers.get("user-agent") ?? undefined,
-                            statusCode: cachedResponse.status,
+                            statusCode: cacheResponseStatus,
                             request: {
                                 header: getHeadersTracerData(subrequest.headers),
                                 obfuscatedCookieHeader: obfuscateCookieHeader(subrequest.headers),
                             },
                             response: {
-                                header: getHeadersTracerData(cachedResponse.headers),
-                                obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(
-                                    cachedResponse.headers,
-                                ),
+                                header: getHeadersTracerData(cacheResponseHeaders),
+                                obfuscatedSetCookieHeader:
+                                    obfuscateSetCookieHeaders(cacheResponseHeaders),
                             },
                         },
                     });
 
-                    await filesCache.put(subrequest, cachedResponse);
+                    await filesCache.put(
+                        subrequest,
+                        new Response(cacheResponseBody, {
+                            status: cacheResponseStatus,
+                            headers: cacheResponseHeaders,
+                        }),
+                    );
                 }),
             );
         }
