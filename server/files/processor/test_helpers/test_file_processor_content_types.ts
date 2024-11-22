@@ -173,6 +173,7 @@ export function testFileProcessorContentTypes(
             shutdownManager,
             tokenAgent: fileProcessorTokenAgent,
             temporaryDirectoryPath: joinPath(context.getTemporaryDirectoryPath(), "files"),
+            withFiber: action => action(),
         });
 
         await new Promise<void>(resolve => {

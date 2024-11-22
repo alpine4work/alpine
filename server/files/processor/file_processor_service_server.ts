@@ -106,10 +106,12 @@ export function createFileProcessorServiceServer(
         shutdownManager,
         tokenAgent,
         temporaryDirectoryPath,
+        withFiber,
     }: {
         shutdownManager: ShutdownManager;
         tokenAgent: TokenAgent;
         temporaryDirectoryPath: string;
+        withFiber: <Value>(action: () => Promise<Value>) => Promise<Value>;
     },
 ) {
     const tracer = processContext.tracer.getRoot();
@@ -169,6 +171,7 @@ export function createFileProcessorServiceServer(
                         spaceId: route.spaceId,
                         fileId: route.fileId,
                         temporaryDirectoryPath,
+                        withFiber,
                     });
                 }
                 default:

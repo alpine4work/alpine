@@ -29,6 +29,7 @@ import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -111,12 +112,14 @@ export async function resizeFile(
         spaceId,
         fileId,
         temporaryDirectoryPath: parentTemporaryDirectoryPath,
+        withFiber,
     }: {
         url: URL;
         request: Request;
         spaceId: SpaceId;
         fileId: FileId;
         temporaryDirectoryPath: string;
+        withFiber: <Value>(action: () => Promise<Value>) => Promise<Value>;
     },
 ): Promise<Response> {
     parentSpan.addPropagatedData({context: {fileId}});
@@ -146,290 +149,293 @@ export async function resizeFile(
 
     parentSpan.addData({common: {width}});
 
-    const filePromise = getFileIfExistsAsUploader(context, spaceId, fileId);
+    // To use resources more efficiently we run our resize in a `JobQueueConsumer`
+    // fiber. That way if our CPU is busy processing files from the job queue we
+    // wait to resize until that's done. Also if multiple resize requests come in
+    // at once we'll throttle processing to a rate our machine can handle.
+    return withFiber(() =>
+        withTemporaryDirectory(parentTemporaryDirectoryPath, `${fileId}_${width}_`, run),
+    );
 
-    return withTemporaryDirectory(
-        parentTemporaryDirectoryPath,
-        `${fileId}_${width}_`,
-        async temporaryDirectoryPath => {
-            const outputPath = joinPath(temporaryDirectoryPath, "output.avif");
+    async function run(temporaryDirectoryPath: string) {
+        // If while waiting on a fiber the request was aborted then throw. Don't
+        // process the request.
+        if (request.signal.aborted) throw request.signal.reason;
 
-            const inputUrl = await context.r2.getGetObjectSignedUrl(addMinutes(new Date(), 10), {
+        const outputPath = joinPath(temporaryDirectoryPath, "output.avif");
+
+        const [file, inputUrl] = await runAllPromises([
+            getFileIfExistsAsUploader(context, spaceId, fileId),
+            context.r2.getGetObjectSignedUrl(addMinutes(new Date(), 10), {
                 Bucket: filesBucketName,
                 Key: `${spaceId}/${fileId}${variant !== null ? `-${variant}` : ""}`,
+            }),
+        ]);
+
+        if (!file) {
+            return new Response("404 Not Found", {
+                status: 404,
+                headers: {"content-type": "text/plain"},
             });
+        }
 
-            const file = await filePromise;
-            if (!file) {
-                return new Response("404 Not Found", {
-                    status: 404,
-                    headers: {"content-type": "text/plain"},
+        let contentType: FileContentType;
+
+        if (variant === "preview") {
+            if (file.preview?.type !== "Image") {
+                throw new FailedPreconditionError(
+                    "File preview variants only exist for files with an image preview",
+                );
+            }
+
+            if (file.preview.content === undefined) {
+                throw new FailedPreconditionError("File preview variant doesn't exist");
+            }
+
+            if (typeof file.preview.content === "string") {
+                throw new FailedPreconditionError(
+                    quote`File preview variant isn't accessible because image preview is in ${file.preview.content} state`,
+                );
+            }
+
+            contentType = file.preview.content.contentType;
+        } else if (variant === "alternative") {
+            if (file.alternative === null) {
+                throw new FailedPreconditionError("File alternative variant doesn't exist");
+            }
+
+            if (file.alternative.isProcessing) {
+                throw new FailedPreconditionError(
+                    "File alternative variant isn't accessible because it's processing",
+                );
+            }
+
+            if (!file.alternative.ok) {
+                throw new FailedPreconditionError(
+                    "File alternative variant isn't accessible because it failed to process",
+                );
+            }
+
+            // A Cloudflare object won't exist with the suffix `-alternative` if the file's
+            // alternative is backed by image preview content.
+            if (file.alternative.isImagePreviewContent) {
+                throw new FailedPreconditionError(
+                    'File alternative is stored as the file\'s image preview content, you must use a variant of "preview" instead',
+                );
+            }
+
+            contentType = file.alternative.contentType;
+        } else {
+            contentType = file.contentType;
+        }
+
+        if (!isFileWebSafeImageContentType(contentType)) {
+            throw new FailedPreconditionError(
+                quote`Can only resize web safe image but instead got content type ${contentType}`,
+            );
+        }
+
+        if (contentType === "image/svg+xml") {
+            throw new FailedPreconditionError(
+                quote`Content type ${contentType} is a vector format, resizing is pointless`,
+            );
+        }
+
+        let isDefinitelyMissingAlphaChannel = false;
+
+        if (contentType === "image/jpeg") {
+            isDefinitelyMissingAlphaChannel = true;
+        } else if (contentType === "image/png" || contentType === "image/apng") {
+            if (file.preview?.type !== "Image" || typeof file.preview.size === "string") {
+                throw new FailedPreconditionError("Preview size has not finished processing");
+            }
+
+            isDefinitelyMissingAlphaChannel = !file.preview.size.hasAlpha;
+        }
+
+        await parentSpan.withSpan(
+            `FFmpeg resize ${getFileContentTypeName(contentType)} as ${getFileContentTypeName(
+                "image/avif",
+            )}`,
+            async span => {
+                span.addData({
+                    file: {contentType, contentLength: file.contentLength},
+                    common: {width},
                 });
-            }
 
-            let contentType: FileContentType;
+                const filter = [
+                    // Crop the image so it doesn't exceed our min/max aspect ratio. We render the
+                    // resized image in a preview so generating extra image that won't be displayed
+                    // in the preview box is wasteful since we'd need to send those bytes to the
+                    // client only to crop them out.
+                    //
+                    // We position the cropped image as if `object-position: center top` is set.
+                    //
+                    // https://ffmpeg.org/ffmpeg-filters.html#crop
+                    `crop='h=min(ih,iw/${minFilePreviewAspectRatio})':'w=min(iw,ih*${maxFilePreviewAspectRatio})':y=0:x=iw/2-ow/2`,
+                    // Actually perform the resize! Some notes:
+                    //
+                    // - Maintain the aspect ratio by setting -1 for height
+                    // - Avoid upscaling with the `min()` expression
+                    //
+                    // https://trac.ffmpeg.org/wiki/Scaling
+                    `scale='min(${width},iw)':-1`,
+                ].join(",");
 
-            if (variant === "preview") {
-                if (file.preview?.type !== "Image") {
-                    throw new FailedPreconditionError(
-                        "File preview variants only exist for files with an image preview",
-                    );
-                }
-
-                if (file.preview.content === undefined) {
-                    throw new FailedPreconditionError("File preview variant doesn't exist");
-                }
-
-                if (typeof file.preview.content === "string") {
-                    throw new FailedPreconditionError(
-                        quote`File preview variant isn't accessible because image preview is in ${file.preview.content} state`,
-                    );
-                }
-
-                contentType = file.preview.content.contentType;
-            } else if (variant === "alternative") {
-                if (file.alternative === null) {
-                    throw new FailedPreconditionError("File alternative variant doesn't exist");
-                }
-
-                if (file.alternative.isProcessing) {
-                    throw new FailedPreconditionError(
-                        "File alternative variant isn't accessible because it's processing",
-                    );
-                }
-
-                if (!file.alternative.ok) {
-                    throw new FailedPreconditionError(
-                        "File alternative variant isn't accessible because it failed to process",
-                    );
-                }
-
-                // A Cloudflare object won't exist with the suffix `-alternative` if the file's
-                // alternative is backed by image preview content.
-                if (file.alternative.isImagePreviewContent) {
-                    throw new FailedPreconditionError(
-                        'File alternative is stored as the file\'s image preview content, you must use a variant of "preview" instead',
-                    );
-                }
-
-                contentType = file.alternative.contentType;
-            } else {
-                contentType = file.contentType;
-            }
-
-            if (!isFileWebSafeImageContentType(contentType)) {
-                throw new FailedPreconditionError(
-                    quote`Can only resize web safe image but instead got content type ${contentType}`,
-                );
-            }
-
-            if (contentType === "image/svg+xml") {
-                throw new FailedPreconditionError(
-                    quote`Content type ${contentType} is a vector format, resizing is pointless`,
-                );
-            }
-
-            let isDefinitelyMissingAlphaChannel = false;
-
-            if (contentType === "image/jpeg") {
-                isDefinitelyMissingAlphaChannel = true;
-            } else if (contentType === "image/png" || contentType === "image/apng") {
-                if (file.preview?.type !== "Image" || typeof file.preview.size === "string") {
-                    throw new FailedPreconditionError("Preview size has not finished processing");
-                }
-
-                isDefinitelyMissingAlphaChannel = !file.preview.size.hasAlpha;
-            }
-
-            await parentSpan.withSpan(
-                `FFmpeg resize ${getFileContentTypeName(contentType)} as ${getFileContentTypeName(
-                    "image/avif",
-                )}`,
-                async span => {
-                    span.addData({
-                        file: {contentType, contentLength: file.contentLength},
-                        common: {width},
-                    });
-
-                    const filter = [
-                        // Crop the image so it doesn't exceed our min/max aspect ratio. We render the
-                        // resized image in a preview so generating extra image that won't be displayed
-                        // in the preview box is wasteful since we'd need to send those bytes to the
-                        // client only to crop them out.
+                const subprocess = spawn(
+                    ffmpegExecutablePath,
+                    [
+                        // Input is coming directly from Cloudflare R2. It'll be streamed into FFmpeg
+                        // and if FFmpeg needs to seek it can issue a subsequent range HTTP request.
+                        "-i",
+                        inputUrl,
+                        // Limit the number of threads for FFmpeg to reduce resource contention
+                        // in `FileProcessorService`.
+                        "-threads",
+                        String(ffmpegThreadCount),
+                        // Dealing with the `.avif` format in FFmpeg is annoying. A transparent `.avif`
+                        // image has two streams, a grayscale alpha channel stream and an color
+                        // stream. Whereas a transparent `.png` image has just one RGBA color stream.
                         //
-                        // We position the cropped image as if `object-position: center top` is set.
+                        // So for any transparent image we need to make sure we have two streams that
+                        // go into the `.avif` encoder. The first being the color stream and the second
+                        // being the alpha stream.
                         //
-                        // https://ffmpeg.org/ffmpeg-filters.html#crop
-                        `crop='h=min(ih,iw/${minFilePreviewAspectRatio})':'w=min(iw,ih*${maxFilePreviewAspectRatio})':y=0:x=iw/2-ow/2`,
-                        // Actually perform the resize! Some notes:
+                        // - `.jpeg` files don't have transparency so we apply the filter to the one
+                        //   stream and that's it
                         //
-                        // - Maintain the aspect ratio by setting -1 for height
-                        // - Avoid upscaling with the `min()` expression
+                        // - `.avif` files with transparency have two streams. The first is their alpha
+                        //   grayscale stream and the second is their color stream. We need to flip the
+                        //   order of these streams before passing them into our `.avif` encoder.
                         //
-                        // https://trac.ffmpeg.org/wiki/Scaling
-                        `scale='min(${width},iw)':-1`,
-                    ].join(",");
-
-                    const subprocess = spawn(
-                        ffmpegExecutablePath,
-                        [
-                            // Input is coming directly from Cloudflare R2. It'll be streamed into FFmpeg
-                            // and if FFmpeg needs to seek it can issue a subsequent range HTTP request.
-                            "-i",
-                            inputUrl,
-                            // Limit the number of threads for FFmpeg to reduce resource contention
-                            // in `FileProcessorService`.
-                            "-threads",
-                            String(ffmpegThreadCount),
-                            // Dealing with the `.avif` format in FFmpeg is annoying. A transparent `.avif`
-                            // image has two streams, a grayscale alpha channel stream and an color
-                            // stream. Whereas a transparent `.png` image has just one RGBA color stream.
-                            //
-                            // So for any transparent image we need to make sure we have two streams that
-                            // go into the `.avif` encoder. The first being the color stream and the second
-                            // being the alpha stream.
-                            //
-                            // - `.jpeg` files don't have transparency so we apply the filter to the one
-                            //   stream and that's it
-                            //
-                            // - `.avif` files with transparency have two streams. The first is their alpha
-                            //   grayscale stream and the second is their color stream. We need to flip the
-                            //   order of these streams before passing them into our `.avif` encoder.
-                            //
-                            // - Any file type that's not `.avif` (e.g. `.png`) we create a second stream
-                            //   with the `alphaextract` filter to just get the alpha part of the image.
-                            //   Then we pass those two streams to our `.avif` encoder.
-                            //
-                            //
-                            // NOTE(calebmer, 2024-10-04): Animated AVIF files I've found have four
-                            // streams. The first two streams appear to be still screenshots and the second
-                            // two streams are the animated grayscale/color streams. So I'm not sure if
-                            // non-animated AVIFs are consistently 2 streams in the order grayscale, color
-                            // in FFmpeg or just what I've tested with. Likewise I'm not sure if animated
-                            // AVIFs are consistently 4 streams in a predictable order. Hopefully, FFmpeg
-                            // always returns AVIF streams in a consistent order. If not we'll need to use
-                            // `ffprobe` to figure out the right streams to use. But that's annoying since
-                            // we don't have the input file data available in memory.
-                            ...(isDefinitelyMissingAlphaChannel
-                                ? ["-vf", filter]
-                                : contentType === "image/avif"
-                                ? ["-map", "0:v:1?", "-map", "0:v:0", "-vf", filter]
-                                : [
-                                      "-filter_complex",
-                                      `[0:v]${filter}[out];[0:v]alphaextract,${filter}[out_alpha]`,
-                                      "-map",
-                                      "[out]",
-                                      "-map",
-                                      "[out_alpha]",
-                                  ]),
-                            // Output file is in `.avif` format.
-                            //
-                            // AVIF is our preferred format for generating preview images ([source][1],
-                            // [source][2]). AVIF has full browser support, provides better compression
-                            // than JPEG and WebP, and has alpha channel support (unlike JPEG).
-                            //
-                            // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
-                            // [2]: https://jakearchibald.com/2020/avif-has-landed
-                            "-f",
-                            "avif",
-                            // Should control quality. Quality is between 0 and 63 where 0 is the best
-                            // quality (lossless). We want relatively high quality preview images while
-                            // still getting some compression.
-                            //
-                            // https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality
-                            "-crf",
-                            "10",
-                            // Prefer faster encoding and less efficient compression. The default is
-                            // 1 which is heavily balanced towards preferring slower encoding and more
-                            // efficient compression.
-                            //
-                            // Since users may be waiting on our resize operation to view a file (in case
-                            // of cache miss) we want to respond quickly without sacrificing too much
-                            // compression.
-                            //
-                            // https://trac.ffmpeg.org/wiki/Encode/AV1#ControllingSpeedQuality
-                            "-cpu-used",
-                            "6",
-                            // We must output to a file. We can't output to stdout when taking a screenshot
-                            // or else we get the error "[avif] muxer does not support non seekable
-                            // output".
-                            //
-                            // Ideally we'd pipe `subprocess.stdout` to `res` so we don't have to create a
-                            // temporary file on disk but AVIF doesn't support this unfortunately.
-                            outputPath,
-                        ],
-                        {
-                            cwd: runfilesPath,
-                            env: getProcessEnvToPropagate(),
-                            stdio: ["ignore", "pipe", "pipe"],
-                            timeout: sharpTimeoutSeconds * 1000,
-                        },
-                    );
-
-                    let stderr = "";
-
-                    subprocess.stderr.on("data", (chunk: Buffer) => {
-                        const string = chunk.toString("utf8");
-                        stderr += string;
-                    });
-
-                    await waitForProcessExit(subprocess).catch(error => {
-                        // We include the stderr in error messages even in production since it shouldn't
-                        // contain sensitive user data. It may contain the file's duration and other
-                        // metadata but it shouldn't be harmful for a developer to read that.
+                        // - Any file type that's not `.avif` (e.g. `.png`) we create a second stream
+                        //   with the `alphaextract` filter to just get the alpha part of the image.
+                        //   Then we pass those two streams to our `.avif` encoder.
                         //
-                        // However, including the stderr will really help us debug any issues.
-                        throw new UnknownError(
-                            `${
-                                error instanceof Error ? error.message : String(error)
-                            }\n\nstderr:\n${stderr.trim()}`,
-                            {
-                                cause: error instanceof Error ? error.cause : undefined,
-                            },
-                        );
-                    });
-
-                    span.addData({
-                        ffmpeg: {
-                            codecs: parseFfmpegStderrInputCodecNames(stderr),
-                        },
-                    });
-                },
-            );
-
-            return new Response(
-                ReadableStream.toWeb(
-                    fsSync.createReadStream(outputPath),
-                ) as globalThis.ReadableStream<Uint8Array>,
-                {
-                    status: 200,
-                    // We need to return the same headers between here and `fetchFile()` in
-                    // `server/edge`. If you add a header here you should also add a header there.
-                    headers: {
-                        "content-type": "image/avif",
-                        "content-length": String((await fs.stat(outputPath)).size),
-                        // After resizing, the result should be cached.
                         //
-                        // - `private`: A user can only see files they have access to. Don't store
-                        //   files in a shared cache since an attacker may be able to see a file they
-                        //   don't have access to.
+                        // NOTE(calebmer, 2024-10-04): Animated AVIF files I've found have four
+                        // streams. The first two streams appear to be still screenshots and the second
+                        // two streams are the animated grayscale/color streams. So I'm not sure if
+                        // non-animated AVIFs are consistently 2 streams in the order grayscale, color
+                        // in FFmpeg or just what I've tested with. Likewise I'm not sure if animated
+                        // AVIFs are consistently 4 streams in a predictable order. Hopefully, FFmpeg
+                        // always returns AVIF streams in a consistent order. If not we'll need to use
+                        // `ffprobe` to figure out the right streams to use. But that's annoying since
+                        // we don't have the input file data available in memory.
+                        ...(isDefinitelyMissingAlphaChannel
+                            ? ["-vf", filter]
+                            : contentType === "image/avif"
+                            ? ["-map", "0:v:1?", "-map", "0:v:0", "-vf", filter]
+                            : [
+                                  "-filter_complex",
+                                  `[0:v]${filter}[out];[0:v]alphaextract,${filter}[out_alpha]`,
+                                  "-map",
+                                  "[out]",
+                                  "-map",
+                                  "[out_alpha]",
+                              ]),
+                        // Output file is in `.avif` format.
                         //
-                        // - `immutable`: Files are immutable after they've been uploaded. While
-                        //   hitting this route will resize the file on demand causing the bytes to not
-                        //   be strictly the same over time, the perceived result to the end user will
-                        //   never change so it's safe to cache this response as an immutable value.
+                        // AVIF is our preferred format for generating preview images ([source][1],
+                        // [source][2]). AVIF has full browser support, provides better compression
+                        // than JPEG and WebP, and has alpha channel support (unlike JPEG).
                         //
-                        // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
-                        //   the file after that and request again if needed.
-                        "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
+                        // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                        // [2]: https://jakearchibald.com/2020/avif-has-landed
+                        "-f",
+                        "avif",
+                        // Should control quality. Quality is between 0 and 63 where 0 is the best
+                        // quality (lossless). We want relatively high quality preview images while
+                        // still getting some compression.
+                        //
+                        // https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality
+                        "-crf",
+                        "10",
+                        // Prefer faster encoding and less efficient compression. The default is
+                        // 1 which is heavily balanced towards preferring slower encoding and more
+                        // efficient compression.
+                        //
+                        // Since users may be waiting on our resize operation to view a file (in case
+                        // of cache miss) we want to respond quickly without sacrificing too much
+                        // compression.
+                        //
+                        // https://trac.ffmpeg.org/wiki/Encode/AV1#ControllingSpeedQuality
+                        "-cpu-used",
+                        "6",
+                        // We must output to a file. We can't output to stdout when taking a screenshot
+                        // or else we get the error "[avif] muxer does not support non seekable
+                        // output".
+                        //
+                        // Ideally we'd pipe `subprocess.stdout` to `res` so we don't have to create a
+                        // temporary file on disk but AVIF doesn't support this unfortunately.
+                        outputPath,
+                    ],
+                    {
+                        cwd: runfilesPath,
+                        env: getProcessEnvToPropagate(),
+                        stdio: ["ignore", "pipe", "pipe"],
+                        timeout: sharpTimeoutSeconds * 1000,
                     },
-                },
-            );
-        },
-    ).catch(async error => {
-        // Make sure we wait for `filePromise` to finish even if it's an error.
-        await filePromise;
+                );
 
-        throw error;
-    });
+                let stderr = "";
+
+                subprocess.stderr.on("data", (chunk: Buffer) => {
+                    const string = chunk.toString("utf8");
+                    stderr += string;
+                });
+
+                await waitForProcessExit(subprocess).catch(error => {
+                    // We include the stderr in error messages even in production since it shouldn't
+                    // contain sensitive user data. It may contain the file's duration and other
+                    // metadata but it shouldn't be harmful for a developer to read that.
+                    //
+                    // However, including the stderr will really help us debug any issues.
+                    throw new UnknownError(
+                        `${
+                            error instanceof Error ? error.message : String(error)
+                        }\n\nstderr:\n${stderr.trim()}`,
+                        {
+                            cause: error instanceof Error ? error.cause : undefined,
+                        },
+                    );
+                });
+
+                span.addData({
+                    ffmpeg: {
+                        codecs: parseFfmpegStderrInputCodecNames(stderr),
+                    },
+                });
+            },
+        );
+
+        return new Response(
+            ReadableStream.toWeb(
+                fsSync.createReadStream(outputPath),
+            ) as globalThis.ReadableStream<Uint8Array>,
+            {
+                status: 200,
+                // We need to return the same headers between here and `fetchFile()` in
+                // `server/edge`. If you add a header here you should also add a header there.
+                headers: {
+                    "content-type": "image/avif",
+                    "content-length": String((await fs.stat(outputPath)).size),
+                    // After resizing, the result should be cached.
+                    //
+                    // - `private`: A user can only see files they have access to. Don't store
+                    //   files in a shared cache since an attacker may be able to see a file they
+                    //   don't have access to.
+                    //
+                    // - `immutable`: Files are immutable after they've been uploaded. While
+                    //   hitting this route will resize the file on demand causing the bytes to not
+                    //   be strictly the same over time, the perceived result to the end user will
+                    //   never change so it's safe to cache this response as an immutable value.
+                    //
+                    // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
+                    //   the file after that and request again if needed.
+                    "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
+                },
+            },
+        );
+    }
 }

@@ -11,6 +11,7 @@ import {
 } from "~/server/jobs/queue/consumer/job_queue_consumer.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
@@ -18,7 +19,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-let consumer: JobQueueConsumer<"Default", TestContextModules> | null = null;
+// We have to use real timers in this test because we want to test timing
+// behavior in SQS as well. Our local SQS implementation doesn't have fake
+// timers. This may make the test inherently flaky. Feel free to retry this
+// test a couple times if it fails.
+import.meta.jest.useRealTimers();
+
+let consumer: JobQueueConsumer<"Default", TestContextModules>;
 
 let receiveMessageRecorder: {getCount: () => number};
 let deleteMessageBatchRecorder: {getCount: () => number};
@@ -33,7 +40,7 @@ beforeEach(async () => {
     // aborted (and they're aborted after a `stop()` call).
     await context.restartSqsLocal();
 
-    assert(consumer === null);
+    assert(consumer === undefined);
 
     receiveMessageRecorder = receiveMessageTestCounter.recordForTest();
     deleteMessageBatchRecorder = deleteMessageBatchTestCounter.recordForTest();
@@ -43,8 +50,8 @@ beforeEach(async () => {
         region: "us-east-1",
         queueName: "Default",
         queueUrl: `http://localhost:${context.getSqsLocalPort()}/local/JobQueue`,
-        maxConsumeCallMessageCount: 10,
-        maxRunningConsumeCallCount: 10,
+        maxFiberCount: 10,
+        maxFiberMessageCount: 10,
         processJob: async (context, job) => {
             switch (job.type) {
                 case "Test": {
@@ -69,12 +76,17 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-    assert(consumer !== null);
+    assert(consumer !== undefined);
 
     await consumer.stop();
-    consumer = null;
+    // @ts-expect-error
+    consumer = undefined;
 
     stopTestJobCheckpointIdsFromThrowing.clear();
+
+    receiveMessageTestCounter.resetForTest();
+    deleteMessageBatchTestCounter.resetForTest();
+    changeMessageVisibilityBatchTestCounter.resetForTest();
 });
 
 // Important for this to come after the `afterEach()` above. Since we want to
@@ -160,6 +172,100 @@ test(
     // Increase the timeout since we need to actually wait for the job queue
     // message visibility timeouts.
     30 * 1000,
+);
+
+test(
+    "if a job takes a while to process it's message visibility will be updated",
+    async () => {
+        const spaceId = generateId<SpaceId>();
+
+        const job1Id = generateId();
+        const job2Id = generateId();
+        const job3Id = generateId();
+
+        const pause1aPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job1Id);
+        const pause2Promise = processTestJobDescriptionTestCheckpoint.pauseForTest(job2Id);
+        const pause3Promise = processTestJobDescriptionTestCheckpoint.pauseForTest(job3Id);
+
+        context.jobs.send({type: "Test", spaceId, checkpointId: job1Id, shouldThrow: true});
+        context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
+
+        // Also flushes any batched jobs instead of waiting 200ms.
+        await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: job3Id});
+
+        const {unpause: unpause1a, stopPausing: stopPausing1a} = await pause1aPromise;
+        const {unpause: unpause2} = await pause2Promise;
+        const {unpause: unpause3} = await pause3Promise;
+
+        stopPausing1a();
+
+        const pause1bPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job1Id);
+
+        const receiveMessageCount1 = receiveMessageRecorder.getCount();
+
+        expect(receiveMessageRecorder.getCount()).toEqual(receiveMessageCount1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(0);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+
+        unpause2();
+
+        await wait(100);
+
+        expect(receiveMessageCount1).toBeGreaterThanOrEqual(1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(0);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+
+        await wait(1500);
+
+        const changeMessageVisibilityBatchCount1 = changeMessageVisibilityBatchRecorder.getCount();
+
+        expect(receiveMessageRecorder.getCount()).toEqual(receiveMessageCount1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(1);
+        expect(changeMessageVisibilityBatchCount1).toBeGreaterThanOrEqual(1);
+
+        await wait(1500);
+
+        const changeMessageVisibilityBatchCount2 = changeMessageVisibilityBatchRecorder.getCount();
+
+        expect(receiveMessageRecorder.getCount()).toEqual(receiveMessageCount1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(1);
+        expect(changeMessageVisibilityBatchCount2).toBeGreaterThanOrEqual(
+            changeMessageVisibilityBatchCount1 + 1,
+        );
+
+        unpause3();
+
+        await wait(100);
+
+        expect(receiveMessageRecorder.getCount()).toEqual(receiveMessageCount1);
+        expect(deleteMessageBatchRecorder.getCount()).toBeGreaterThanOrEqual(1);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(
+            changeMessageVisibilityBatchCount2,
+        );
+
+        await wait(1400);
+
+        const changeMessageVisibilityBatchCount3 = changeMessageVisibilityBatchRecorder.getCount();
+
+        expect(receiveMessageRecorder.getCount()).toEqual(receiveMessageCount1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(2);
+        expect(changeMessageVisibilityBatchCount3).toBeGreaterThanOrEqual(
+            changeMessageVisibilityBatchCount2 + 1,
+        );
+
+        unpause1a();
+
+        await pause1bPromise;
+
+        expect(receiveMessageRecorder.getCount()).toBeGreaterThanOrEqual(receiveMessageCount1 + 1);
+        expect(deleteMessageBatchRecorder.getCount()).toEqual(2);
+        expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(
+            changeMessageVisibilityBatchCount3,
+        );
+    },
+    // Increase the timeout since we need to actually wait for the job queue
+    // message visibility timeouts.
+    45 * 1000,
 );
 
 test("starts processing new jobs immediately after receiving first batch", async () => {
@@ -261,12 +367,14 @@ test("will max out at 10 receive message calls at a time then scale back down to
 
     const pausePromises: Array<PromiseImmediate<{unpause: () => void}>> = [];
 
-    for (let i = 0; i < 202; i++) {
+    const jobCount = 202;
+
+    for (let i = 0; i < jobCount; i++) {
         const jobId = generateId();
         pausePromises.push(
             PromiseImmediate.resolve(processTestJobDescriptionTestCheckpoint.pauseForTest(jobId)),
         );
-        if (i < 201) {
+        if (i < jobCount - 1) {
             context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
         } else {
             await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
@@ -341,4 +449,215 @@ test("will max out at 10 receive message calls at a time then scale back down to
     expect(receiveMessageRecorder.getCount()).toEqual(oldReceiveMessageCount + 1);
     expect(deleteMessageBatchRecorder.getCount()).toEqual(oldDeleteMessageBatchCount);
     expect(changeMessageVisibilityBatchRecorder.getCount()).toEqual(0);
+});
+
+test("can schedule external fibers that stop jobs from being processed", async () => {
+    const spaceId = generateId<SpaceId>();
+
+    const sendJobsSequentially = async (jobCount: number) => {
+        const pauses: Array<{unpause: () => void}> = [];
+
+        for (let i = 0; i < jobCount; i++) {
+            const jobId = generateId();
+            const pausePromise = processTestJobDescriptionTestCheckpoint.pauseForTest(jobId);
+            await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            pauses.push(await pausePromise);
+        }
+
+        return pauses;
+    };
+
+    const sendJobsConcurrentlyWithoutWaiting = async (jobCount: number) => {
+        const pausePromises: Array<PromiseImmediate<{unpause: () => void}>> = [];
+
+        for (let i = 0; i < jobCount; i++) {
+            const jobId = generateId();
+            pausePromises.push(
+                PromiseImmediate.resolve(
+                    processTestJobDescriptionTestCheckpoint.pauseForTest(jobId),
+                ),
+            );
+            if (i < jobCount - 1) {
+                context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
+            } else {
+                await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            }
+        }
+
+        return pausePromises;
+    };
+
+    expect(receiveMessageRecorder.getCount()).toEqual(1);
+    await sendJobsSequentially(3);
+    expect(receiveMessageRecorder.getCount()).toEqual(4);
+
+    const actionPromiseResolver1a = createPromiseResolver();
+    const actionPromiseResolver1b = createPromiseResolver();
+    void consumer.withFiber(() => {
+        actionPromiseResolver1b.resolve();
+        return actionPromiseResolver1a.promise;
+    });
+    expect(actionPromiseResolver1b.isSettled()).toBe(true);
+
+    const actionPromiseResolver2a = createPromiseResolver();
+    const actionPromiseResolver2b = createPromiseResolver();
+    void consumer.withFiber(() => {
+        actionPromiseResolver2b.resolve();
+        return actionPromiseResolver2a.promise;
+    });
+    expect(actionPromiseResolver2b.isSettled()).toBe(true);
+
+    expect(receiveMessageRecorder.getCount()).toEqual(4);
+    const pauses2 = await sendJobsSequentially(2);
+    expect(receiveMessageRecorder.getCount()).toEqual(6);
+
+    const actionPromiseResolver3a = createPromiseResolver();
+    const actionPromiseResolver3b = createPromiseResolver();
+    void consumer
+        .withFiber(() => {
+            actionPromiseResolver3b.resolve();
+            return actionPromiseResolver3a.promise;
+        })
+        .catch(() => {});
+    expect(actionPromiseResolver3b.isSettled()).toBe(true);
+
+    expect(receiveMessageRecorder.getCount()).toEqual(6);
+    const pauses3 = await sendJobsSequentially(1);
+    expect(receiveMessageRecorder.getCount()).toEqual(7);
+    await sendJobsSequentially(1);
+    expect(receiveMessageRecorder.getCount()).toEqual(7);
+
+    const pausePromises5 = await sendJobsConcurrentlyWithoutWaiting(50);
+
+    await wait(200);
+
+    expect(receiveMessageRecorder.getCount()).toEqual(7);
+    expect(pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+
+    pauses2[0]!.unpause();
+
+    await Promise.race(pausePromises5.filter(pausePromise => pausePromise.isPending()));
+
+    expect(receiveMessageRecorder.getCount()).toEqual(8);
+    expect(!pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+    expect(!pausePromises5.every(pausePromise => !pausePromise.isPending())).toBe(true);
+
+    actionPromiseResolver2a.resolve();
+
+    await Promise.race(pausePromises5.filter(pausePromise => pausePromise.isPending()));
+
+    expect(receiveMessageRecorder.getCount()).toEqual(9);
+    expect(!pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+    expect(!pausePromises5.every(pausePromise => !pausePromise.isPending())).toBe(true);
+
+    const actionPromiseResolver4a = createPromiseResolver();
+    const actionPromiseResolver4b = createPromiseResolver();
+    void consumer.withFiber(() => {
+        actionPromiseResolver4b.resolve();
+        return actionPromiseResolver4a.promise;
+    });
+    expect(actionPromiseResolver4b.isSettled()).toBe(false);
+
+    const actionPromiseResolver5a = createPromiseResolver();
+    const actionPromiseResolver5b = createPromiseResolver();
+    void consumer.withFiber(() => {
+        actionPromiseResolver5b.resolve();
+        return actionPromiseResolver5a.promise;
+    });
+    expect(actionPromiseResolver5b.isSettled()).toBe(false);
+
+    pauses3[0]!.unpause();
+
+    await actionPromiseResolver4b.promise;
+
+    expect(receiveMessageRecorder.getCount()).toEqual(9);
+    expect(!pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+    expect(!pausePromises5.every(pausePromise => !pausePromise.isPending())).toBe(true);
+
+    expect(actionPromiseResolver4b.isSettled()).toBe(true);
+    expect(actionPromiseResolver5b.isSettled()).toBe(false);
+
+    actionPromiseResolver3a.reject(new InternalError("Test"));
+
+    await actionPromiseResolver5b.promise;
+
+    expect(receiveMessageRecorder.getCount()).toEqual(9);
+    expect(!pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+    expect(!pausePromises5.every(pausePromise => !pausePromise.isPending())).toBe(true);
+
+    expect(actionPromiseResolver4b.isSettled()).toBe(true);
+    expect(actionPromiseResolver5b.isSettled()).toBe(true);
+
+    actionPromiseResolver5a.resolve();
+
+    await Promise.race(pausePromises5.filter(pausePromise => pausePromise.isPending()));
+
+    expect(receiveMessageRecorder.getCount()).toEqual(10);
+    expect(!pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+    expect(!pausePromises5.every(pausePromise => !pausePromise.isPending())).toBe(true);
+});
+
+test("can interrupt receive message call with external fibers", async () => {
+    const spaceId = generateId<SpaceId>();
+
+    const sendJobsSequentially = async (jobCount: number) => {
+        const pauses: Array<{unpause: () => void}> = [];
+
+        for (let i = 0; i < jobCount; i++) {
+            const jobId = generateId();
+            const pausePromise = processTestJobDescriptionTestCheckpoint.pauseForTest(jobId);
+            await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            pauses.push(await pausePromise);
+        }
+
+        return pauses;
+    };
+
+    const sendJobsConcurrentlyWithoutWaiting = async (jobCount: number) => {
+        const pausePromises: Array<PromiseImmediate<{unpause: () => void}>> = [];
+
+        for (let i = 0; i < jobCount; i++) {
+            const jobId = generateId();
+            pausePromises.push(
+                PromiseImmediate.resolve(
+                    processTestJobDescriptionTestCheckpoint.pauseForTest(jobId),
+                ),
+            );
+            if (i < jobCount - 1) {
+                context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
+            } else {
+                await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
+            }
+        }
+
+        return pausePromises;
+    };
+
+    expect(receiveMessageRecorder.getCount()).toEqual(1);
+    await sendJobsSequentially(3);
+    expect(receiveMessageRecorder.getCount()).toEqual(4);
+
+    expect(receiveMessageRecorder.getCount()).toEqual(4);
+    await sendJobsSequentially(3);
+    expect(receiveMessageRecorder.getCount()).toEqual(7);
+
+    expect(receiveMessageRecorder.getCount()).toEqual(7);
+    await sendJobsSequentially(3);
+    expect(receiveMessageRecorder.getCount()).toEqual(10);
+
+    const actionPromiseResolver1a = createPromiseResolver();
+    const actionPromiseResolver1b = createPromiseResolver();
+    void consumer.withFiber(() => {
+        actionPromiseResolver1b.resolve();
+        return actionPromiseResolver1a.promise;
+    });
+
+    await actionPromiseResolver1b.promise;
+
+    const pausePromises5 = await sendJobsConcurrentlyWithoutWaiting(1);
+
+    await wait(200);
+
+    expect(receiveMessageRecorder.getCount()).toEqual(10);
+    expect(pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
 });

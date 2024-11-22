@@ -99,8 +99,8 @@ export async function run({
         // `FileProcessorService` only runs one Node.js process (`withoutCluster: true`
         // is set on our `runService()` call). Since we don't do CPU intensive work in
         // Node.js. Instead Node.js orchestrates other tools for processing files.
-        maxConsumeCallMessageCount: 1,
-        maxRunningConsumeCallCount: process.env.NODE_ENV !== "production" ? 1 : os.cpus().length,
+        maxFiberCount: process.env.NODE_ENV !== "production" ? 1 : os.cpus().length,
+        maxFiberMessageCount: 1,
 
         processJob: (actionContext, job, jobStartTime, span) => {
             return processFile(actionContext, span, {
@@ -120,6 +120,7 @@ export async function run({
         shutdownManager,
         tokenAgent,
         temporaryDirectoryPath,
+        withFiber: consumer.withFiber,
     });
 
     server.listen(port, () => {

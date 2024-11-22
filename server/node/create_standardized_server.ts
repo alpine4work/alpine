@@ -8,7 +8,7 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
-import {InternalError} from "~/shared/error/error.js";
+import {AbortedError, InternalError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -113,12 +113,27 @@ function actuallyCreateStandardizedRequestListener(
         };
 
         try {
-            const request = createStandardizedRequest(req);
+            const abortController = new AbortController();
+
+            const request = createStandardizedRequest(req, abortController.signal);
             const responsePromise = handleRequest(request);
 
-            responsePromise.then(response => {
-                sendStandardizedResponse(res, response);
-            }, handleUnhandledError);
+            const handleClose = () => {
+                abortController.abort(new AbortedError("Request was closed by client"));
+            };
+
+            res.on("close", handleClose);
+
+            responsePromise.then(
+                response => {
+                    res.off("close", handleClose);
+                    sendStandardizedResponse(res, response);
+                },
+                error => {
+                    res.off("close", handleClose);
+                    handleUnhandledError(error);
+                },
+            );
         } catch (error) {
             // The server should try its best to handle errors and provide a relevant error
             // response. However, as a fallback treat any errors as uncaught exceptions.
@@ -132,7 +147,7 @@ function actuallyCreateStandardizedRequestListener(
 /**
  * Convert a Node.js request object to a WhatWG fetch request object.
  */
-export function createStandardizedRequest(req: IncomingMessage): Request {
+export function createStandardizedRequest(req: IncomingMessage, signal?: AbortSignal): Request {
     const protocol = "http";
     const host = req.headers.host;
     const url = `${protocol}://${host!}${req.url!}`;
@@ -140,6 +155,7 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
     const init: RequestInit = {
         method: req.method,
         headers: createStandardizedHeaders(req.headers),
+        signal,
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
