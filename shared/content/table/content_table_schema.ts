@@ -1,31 +1,7 @@
-import classNames from "classnames";
-import {
-    AttributeSpec,
-    Node,
-    NodeSpec,
-    NodeType,
-    Schema as ProsemirrorSchema,
-} from "prosemirror-model";
+import {AttributeSpec, NodeSpec, NodeType, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {Command} from "prosemirror-state";
+import {CellSelection} from "prosemirror-tables";
 import {
-    CellSelection,
-    addColumnAfter as addColumnAfterFromProsemirrorTables,
-    addColumnBefore,
-    addRowAfter,
-    addRowBefore,
-    deleteColumn,
-    deleteRow,
-    deleteTable,
-    fixTables as fixTablesFromProsemirrorTables,
-    goToNextCell,
-    mergeCells,
-    setCellAttr,
-    splitCell,
-    toggleHeader,
-    toggleHeaderCell,
-} from "prosemirror-tables";
-import {
-    tableAlignClassName,
     tableCellClassName,
     tableClassName,
     tableHeaderClassName,
@@ -39,6 +15,7 @@ const cellAttrs: Record<string, AttributeSpec> = {
     rowspan: {default: 1, schema: Schema.integer},
     colwidth: {default: null, schema: Schema.unknown},
 };
+
 export const contentTableProsemirrorNodeSpec = {
     name: "table",
     content: "tableRow+",
@@ -47,84 +24,13 @@ export const contentTableProsemirrorNodeSpec = {
     selectable: true,
     isolating: true,
     tableRole: "table",
-    attrs: {
-        columns: {
-            default: 0,
-            schema: Schema.integer,
-        },
-        columnWidths: {
-            default: null,
-            schema: Schema.unknown,
-        },
-    },
-
-    // Rendering
-    toDOM: () => {
-        return ["table", {class: tableClassName}, 0] as const;
-    },
-
     parseDOM: [{tag: "table"}],
-
+    toDOM() {
+        return ["table", {class: tableClassName}, ["tbody", 0]] as const;
+    },
     commands: {
-        addColumnBefore: (): Command => (state, dispatch) => {
-            return addColumnBefore(state, dispatch);
-        },
-        addColumnAfter: (): Command => (state, dispatch) => {
-            return addColumnAfterFromProsemirrorTables(state, dispatch);
-        },
-        deleteColumn: (): Command => (state, dispatch) => {
-            return deleteColumn(state, dispatch);
-        },
-        addRowBefore: (): Command => (state, dispatch) => {
-            return addRowBefore(state, dispatch);
-        },
-        addRowAfter: (): Command => (state, dispatch) => {
-            return addRowAfter(state, dispatch);
-        },
-        deleteRow: (): Command => (state, dispatch) => {
-            return deleteRow(state, dispatch);
-        },
-        deleteTable: (): Command => (state, dispatch) => {
-            return deleteTable(state, dispatch);
-        },
-        mergeCells: (): Command => (state, dispatch) => {
-            return mergeCells(state, dispatch);
-        },
-        splitCell: (): Command => (state, dispatch) => {
-            return splitCell(state, dispatch);
-        },
-        toggleHeaderColumn: (): Command => (state, dispatch) => {
-            return toggleHeader("column")(state, dispatch);
-        },
-        toggleHeaderRow: (): Command => (state, dispatch) => {
-            return toggleHeader("row")(state, dispatch);
-        },
-        toggleHeaderCell: (): Command => (state, dispatch) => {
-            return toggleHeaderCell(state, dispatch);
-        },
-        mergeOrSplit: (): Command => (state, dispatch) => {
-            if (mergeCells(state, dispatch)) {
-                return true;
-            }
-            return splitCell(state, dispatch);
-        },
-        setCellAttribute:
-            (name: string, value: any): Command =>
-            (state, dispatch) => {
-                return setCellAttr(name, value)(state, dispatch);
-            },
-        goToNextCell: (): Command => (state, dispatch) => {
-            return goToNextCell(1)(state, dispatch);
-        },
-        goToPreviousCell: (): Command => (state, dispatch) => {
-            return goToNextCell(-1)(state, dispatch);
-        },
-        fixTables: (): Command => (state, dispatch) => {
-            if (dispatch) {
-                fixTablesFromProsemirrorTables(state);
-            }
-            return true;
-        },
+        // this helps in cell resizing. we should remove it from schema and move
+        // it to the table node view or any other file that forks of prosemirror-tables.
         setCellSelection:
             (position: {anchorCell: number; headCell: number}): Command =>
             (state, dispatch) => {
@@ -138,25 +44,6 @@ export const contentTableProsemirrorNodeSpec = {
                 }
                 return true;
             },
-        // setAlignment:
-        //     (attrs: {alignment: "left" | "center" | "right"}): Command =>
-        //     (state, dispatch) => {
-        //         if (!dispatch) {
-        //             return true;
-        //         }
-
-        //         console.log("setAlignment", attrs);
-        //         const $anchor = state.selection.$anchor;
-        //         const pos = $anchor.before($anchor.depth);
-
-        //         dispatch(
-        //             state.tr.setNodeMarkup(pos, null, {
-        //                 ...state.selection.$anchor.parent.attrs,
-        //                 alignment: attrs.alignment,
-        //             }),
-        //         );
-        //         return true;
-        //     },
     },
 };
 

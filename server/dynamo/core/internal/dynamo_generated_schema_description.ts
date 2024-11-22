@@ -976,29 +976,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
-                                                                                                "attrs": {
-                                                                                                    "valueSchema": {
-                                                                                                        "type": "Nullable",
-                                                                                                        "schema": {
-                                                                                                            "type": "Object",
-                                                                                                            "propertySchemaByKey": {
-                                                                                                                "columns": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Integer"
-                                                                                                                    },
-                                                                                                                    "optional": true
-                                                                                                                },
-                                                                                                                "columnWidths": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "Unknown"
-                                                                                                                    },
-                                                                                                                    "optional": true
-                                                                                                                }
-                                                                                                            }
-                                                                                                        }
-                                                                                                    },
-                                                                                                    "optional": true
-                                                                                                },
                                                                                                 "content": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Reference",
@@ -1701,42 +1678,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
                                                                                         "reuseReferenceId": "b2c0eadd"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "columns": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "columns"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "value": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Integer"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "columnWidths": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "columnWidths"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "value": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Unknown"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2453,29 +2394,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                             "value": "table"
                                                                                                                                         },
                                                                                                                                         "optional": false
-                                                                                                                                    },
-                                                                                                                                    "attrs": {
-                                                                                                                                        "valueSchema": {
-                                                                                                                                            "type": "Nullable",
-                                                                                                                                            "schema": {
-                                                                                                                                                "type": "Object",
-                                                                                                                                                "propertySchemaByKey": {
-                                                                                                                                                    "columns": {
-                                                                                                                                                        "valueSchema": {
-                                                                                                                                                            "type": "Integer"
-                                                                                                                                                        },
-                                                                                                                                                        "optional": true
-                                                                                                                                                    },
-                                                                                                                                                    "columnWidths": {
-                                                                                                                                                        "valueSchema": {
-                                                                                                                                                            "type": "Unknown"
-                                                                                                                                                        },
-                                                                                                                                                        "optional": true
-                                                                                                                                                    }
-                                                                                                                                                }
-                                                                                                                                            }
-                                                                                                                                        },
-                                                                                                                                        "optional": true
                                                                                                                                     },
                                                                                                                                     "content": {
                                                                                                                                         "valueSchema": {
@@ -5043,29 +4961,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "value": "table"
                                                                                 },
                                                                                 "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "columns": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Integer"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
-                                                                                            "columnWidths": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Unknown"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
@@ -9111,29 +9006,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "value": "table"
                                                                                 },
                                                                                 "optional": false
-                                                                            },
-                                                                            "attrs": {
-                                                                                "valueSchema": {
-                                                                                    "type": "Nullable",
-                                                                                    "schema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "columns": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Integer"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
-                                                                                            "columnWidths": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Unknown"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
