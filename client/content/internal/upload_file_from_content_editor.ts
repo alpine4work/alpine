@@ -334,7 +334,7 @@ async function actuallyUploadFileFromContentEditor(
             context.tracer.getTracer(),
             uploadUrl,
             {
-                serviceName: "FileProcessorService",
+                serviceName: "EdgeService",
                 method: "POST",
                 route: "/api/files/:spaceId/upload",
                 headers: {
