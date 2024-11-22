@@ -285,7 +285,7 @@ export async function fetchFile(
         }
 
         return new Response(response.body, {
-            ...response,
+            status: response.status,
             headers: responseHeaders,
         });
     } catch (error) {
