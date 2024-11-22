@@ -1924,7 +1924,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             let isSync = true;
 
             handleInsertSlice({
-                asyncSpanName: "Content editor async paste",
+                asyncSpanName: "Content editor paste",
                 remember: [selection],
                 slice,
                 dataTransfer: event.clipboardData,
@@ -2013,7 +2013,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
 
             handleInsertSlice({
-                asyncSpanName: "Content editor async drop",
+                asyncSpanName: "Content editor drop",
                 remember: [
                     view.state.selection,
                     initialFileDropTarget?.action?.pos ?? $mouse.pos,
