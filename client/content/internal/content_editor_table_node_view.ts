@@ -1,9 +1,9 @@
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
 import {tableClassName} from "~/shared/content/content_styles.js";
-import {type ContentEditorCellAttrs} from "~/shared/content/table/table_utils.js";
+import {type ContentEditorCellAttrs} from "~/shared/content/table/content_table_utils.js";
 
-export class ContentEditorTableView implements NodeView {
+export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
     public table: HTMLTableElement;
     public colgroup: HTMLTableColElement;

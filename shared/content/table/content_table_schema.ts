@@ -6,7 +6,6 @@ import {
     NodeType,
     Schema as ProsemirrorSchema,
 } from "prosemirror-model";
-
 import {Command} from "prosemirror-state";
 import {
     CellSelection,
@@ -33,13 +32,14 @@ import {
 } from "~/shared/content/content_styles.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+// setting default values to keep the prosemirror-tables working.
+// This will be removed in the next PR.
 const cellAttrs: Record<string, AttributeSpec> = {
     colspan: {default: 1, schema: Schema.integer},
     rowspan: {default: 1, schema: Schema.integer},
     colwidth: {default: null, schema: Schema.unknown},
 };
-
-export const table = {
+export const contentTableProsemirrorNodeSpec = {
     name: "table",
     content: "tableRow+",
     group: "block",
@@ -48,10 +48,6 @@ export const table = {
     isolating: true,
     tableRole: "table",
     attrs: {
-        alignment: {
-            default: "center",
-            schema: Schema.string,
-        },
         columns: {
             default: 0,
             schema: Schema.integer,
@@ -63,26 +59,11 @@ export const table = {
     },
 
     // Rendering
-    toDOM: (node: Node) => {
-        return [
-            "table",
-            {
-                class: classNames(tableClassName, {
-                    [tableAlignClassName]: node.attrs.alignment !== "center",
-                }),
-            },
-            0,
-        ] as const;
+    toDOM: () => {
+        return ["table", {class: tableClassName}, 0] as const;
     },
 
-    parseDOM: [
-        {
-            tag: "table",
-            getAttrs: (dom: Element) => ({
-                alignment: dom.getAttribute("data-alignment") || "center",
-            }),
-        },
-    ],
+    parseDOM: [{tag: "table"}],
 
     commands: {
         addColumnBefore: (): Command => (state, dispatch) => {
@@ -157,29 +138,29 @@ export const table = {
                 }
                 return true;
             },
-        setAlignment:
-            (attrs: {alignment: "left" | "center" | "right"}): Command =>
-            (state, dispatch) => {
-                if (!dispatch) {
-                    return true;
-                }
+        // setAlignment:
+        //     (attrs: {alignment: "left" | "center" | "right"}): Command =>
+        //     (state, dispatch) => {
+        //         if (!dispatch) {
+        //             return true;
+        //         }
 
-                console.log("setAlignment", attrs);
-                const $anchor = state.selection.$anchor;
-                const pos = $anchor.before($anchor.depth);
+        //         console.log("setAlignment", attrs);
+        //         const $anchor = state.selection.$anchor;
+        //         const pos = $anchor.before($anchor.depth);
 
-                dispatch(
-                    state.tr.setNodeMarkup(pos, null, {
-                        ...state.selection.$anchor.parent.attrs,
-                        alignment: attrs.alignment,
-                    }),
-                );
-                return true;
-            },
+        //         dispatch(
+        //             state.tr.setNodeMarkup(pos, null, {
+        //                 ...state.selection.$anchor.parent.attrs,
+        //                 alignment: attrs.alignment,
+        //             }),
+        //         );
+        //         return true;
+        //     },
     },
 };
 
-export const tableRow = {
+export const contentTableRowProsemirrorNodeSpec = {
     name: "tableRow",
     content: "(tableCell | tableHeader)+",
     tableRole: "row",
@@ -192,7 +173,7 @@ export const tableRow = {
     },
 };
 
-export const tableCell = {
+export const contentTableCellProsemirrorNodeSpec = {
     name: "tableCell",
     group: "block",
     content: "block+",
@@ -208,7 +189,7 @@ export const tableCell = {
     },
 };
 
-export const tableHeader = {
+export const contentTableHeaderProsemirrorNodeSpec = {
     name: "tableHeader", // name must match the name in the column definition
     content: "block+",
     selectable: true,
@@ -222,10 +203,12 @@ export const tableHeader = {
     attrs: cellAttrs, // mandatory for table to work
 };
 
-export function tableNodeTypes(schema: ProsemirrorSchema): Record<TableRole, NodeType> {
-    let result = schema.cached.tableNodeTypes;
+export function contentTableNodeTypes(
+    schema: ProsemirrorSchema,
+): Record<contentTableRole, NodeType> {
+    let result = schema.cached.contentTableNodeTypes;
     if (!result) {
-        result = schema.cached.tableNodeTypes = {};
+        result = schema.cached.contentTableNodeTypes = {};
         for (const name in schema.nodes) {
             const type = schema.nodes[name];
             const role = type?.spec.tableRole;
@@ -235,5 +218,8 @@ export function tableNodeTypes(schema: ProsemirrorSchema): Record<TableRole, Nod
     return result;
 }
 
-export type TableNodes = Record<"table" | "tableRow" | "tableCell" | "tableHeader", NodeSpec>;
-export type TableRole = "table" | "row" | "cell" | "header_cell";
+export type contentTableNodes = Record<
+    "table" | "tableRow" | "tableCell" | "tableHeader",
+    NodeSpec
+>;
+type contentTableRole = "table" | "row" | "cell" | "header_cell";

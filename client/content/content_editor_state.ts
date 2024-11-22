@@ -25,7 +25,7 @@ import {
     mergeContentReferencesFileSignedUrlSearches,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {columnResizing} from "~/shared/content/table/content_editor_column_resize_plugin.js";
+import {contentEditorTableColumnResizingPlugin} from "~/shared/content/table/content_table_column_resize_plugin.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -102,7 +102,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         tableEditing({
             allowTableNodeSelection: true,
         }),
-        columnResizing(),
+        contentEditorTableColumnResizingPlugin(),
     );
 
     plugins.push();

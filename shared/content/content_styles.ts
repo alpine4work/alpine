@@ -97,7 +97,7 @@ export const fileFloatRightClassName =
 
 export const fileClassName = process.env.NODE_ENV !== "production" ? "content_file" : "c_f";
 
-export const tableClassName = process.env.NODE_ENV !== "production" ? "content_table" : "c_t";
+export const tableClassName = process.env.NODE_ENV !== "production" ? "content_table" : "c_tb";
 
 export const tableCellClassName =
     process.env.NODE_ENV !== "production" ? "content_tableCell" : "c_tc";
@@ -105,11 +105,5 @@ export const tableCellClassName =
 export const tableAlignClassName =
     process.env.NODE_ENV !== "production" ? "content_tableAlign" : "c_ta";
 
-export const tableCellToolbarClassName =
-    process.env.NODE_ENV !== "production" ? "content_tableCellToolbar" : "c_tct";
-
 export const tableHeaderClassName =
     process.env.NODE_ENV !== "production" ? "content_tableHeader" : "c_th";
-
-export const columnContainerClassName =
-    process.env.NODE_ENV !== "production" ? "content_columnContainer" : "c_cc";

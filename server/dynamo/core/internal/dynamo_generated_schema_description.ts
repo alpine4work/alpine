@@ -982,12 +982,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "schema": {
                                                                                                             "type": "Object",
                                                                                                             "propertySchemaByKey": {
-                                                                                                                "alignment": {
-                                                                                                                    "valueSchema": {
-                                                                                                                        "type": "String"
-                                                                                                                    },
-                                                                                                                    "optional": true
-                                                                                                                },
                                                                                                                 "columns": {
                                                                                                                     "valueSchema": {
                                                                                                                         "type": "Integer"
@@ -1707,24 +1701,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
                                                                                         "reuseReferenceId": "b2c0eadd"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "alignment": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "alignment"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "value": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "String"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2484,12 +2460,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                             "schema": {
                                                                                                                                                 "type": "Object",
                                                                                                                                                 "propertySchemaByKey": {
-                                                                                                                                                    "alignment": {
-                                                                                                                                                        "valueSchema": {
-                                                                                                                                                            "type": "String"
-                                                                                                                                                        },
-                                                                                                                                                        "optional": true
-                                                                                                                                                    },
                                                                                                                                                     "columns": {
                                                                                                                                                         "valueSchema": {
                                                                                                                                                             "type": "Integer"
@@ -5080,12 +5050,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "schema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "alignment": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "String"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
                                                                                             "columns": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Integer"
@@ -9154,12 +9118,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "schema": {
                                                                                         "type": "Object",
                                                                                         "propertySchemaByKey": {
-                                                                                            "alignment": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "String"
-                                                                                                },
-                                                                                                "optional": true
-                                                                                            },
                                                                                             "columns": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Integer"

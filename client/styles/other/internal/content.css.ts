@@ -40,7 +40,6 @@ import {
     codeBlockLineContentClassName,
     codeBlockWrapperClassName,
     codeClassName,
-    columnContainerClassName,
     commentClassName,
     dividerClassName,
     fileClassName,
@@ -2081,8 +2080,7 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     right: 0,
     top: 0,
     bottom: 0,
-    // background: "rgba(200, 200, 255, 0.4)",
-    background: colorSchemeVars["blue-60-opacity-60"],
+    background: colorSchemeVars["theme-60-opacity-60"],
     pointerEvents: "none",
 });
 
@@ -2092,7 +2090,7 @@ globalStyle(`${tableClassName} .column-resize-handle`, {
     top: 0,
     bottom: `-${spacing[0.5]}`,
     width: spacing[1],
-    backgroundColor: colorSchemeVars["blue-50"],
+    backgroundColor: colorSchemeVars["theme-60"],
     pointerEvents: "auto",
     cursor: "col-resize",
     zIndex: 3,

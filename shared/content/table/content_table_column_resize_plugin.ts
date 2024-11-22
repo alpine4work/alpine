@@ -4,15 +4,15 @@ import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {TableMap, cellAround, pointsAtCell} from "prosemirror-tables";
 import {Decoration, DecorationSet, EditorView, NodeView} from "prosemirror-view";
 import {
-    ContentEditorTableView,
+    ContentEditorTableNodeView,
     contentEditorUpdateTableColumnsOnResize,
 } from "~/client/content/internal/content_editor_table_node_view.js";
-import {tableNodeTypes} from "~/shared/content/table/content_editor_table_schema.js";
-import {type ContentEditorCellAttrs} from "~/shared/content/table/table_utils.js";
+import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
+import {type ContentEditorCellAttrs} from "~/shared/content/table/content_table_utils.js";
 
-export const columnResizingPluginKey = new PluginKey<ResizeState>("tableColumnResizing");
+const columnResizingPluginKey = new PluginKey<ResizeState>("tableColumnResizing");
 
-export type ColumnResizingOptions = {
+type ColumnResizingOptions = {
     handleWidth?: number;
     /**
      * Minimum width of a cell /column. The column cannot be resized smaller than this.
@@ -25,19 +25,19 @@ export type ColumnResizingOptions = {
     lastColumnResizable?: boolean;
     /**
      * A custom node view for the rendering table nodes. By default, the plugin
-     * uses the {@link ContentEditorTableView} class. You can explicitly set this to `null` to
+     * uses the {@link ContentEditorTableNodeView} class. You can explicitly set this to `null` to
      * not use a custom node view.
      */
     View?: (new (node: ProsemirrorNode, cellMinWidth: number, view: EditorView) => NodeView) | null;
 };
 
-export type Dragging = {startX: number; startWidth: number};
+type Dragging = {startX: number; startWidth: number};
 
-export function columnResizing({
+export function contentEditorTableColumnResizingPlugin({
     handleWidth = 5,
     cellMinWidth = 25,
     defaultCellMinWidth = 100,
-    View = ContentEditorTableView,
+    View = ContentEditorTableNodeView,
     lastColumnResizable = true,
 }: ColumnResizingOptions = {}): Plugin {
     const plugin = new Plugin<ResizeState>({
@@ -45,7 +45,7 @@ export function columnResizing({
         state: {
             init(_, state) {
                 const nodeViews = plugin.spec?.props?.nodeViews;
-                const tableName = tableNodeTypes(state.schema).table.name;
+                const tableName = contentTableNodeTypes(state.schema).table.name;
                 if (View && nodeViews) {
                     nodeViews[tableName] = (node, view) => {
                         return new View(node, defaultCellMinWidth, view);
@@ -88,10 +88,7 @@ export function columnResizing({
     return plugin;
 }
 
-/**
- * @public
- */
-export class ResizeState {
+class ResizeState {
     constructor(public activeHandle: number, public dragging: Dragging | false) {}
 
     apply(tr: Transaction): ResizeState {
@@ -319,7 +316,7 @@ function zeroes(n: number): Array<0> {
     return Array(n).fill(0);
 }
 
-export function handleDecorations(state: EditorState, cell: number): DecorationSet {
+function handleDecorations(state: EditorState, cell: number): DecorationSet {
     const decorations = [];
     const $cell = state.doc.resolve(cell);
     const table = $cell.node(-1);
