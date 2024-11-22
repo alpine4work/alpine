@@ -1,4 +1,3 @@
-/* eslint-disable no-internal-imports */
 import {Attrs, Node as ProsemirrorNode} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {TableMap, cellAround, pointsAtCell} from "prosemirror-tables";
@@ -6,7 +5,7 @@ import {Decoration, DecorationSet, EditorView, NodeView} from "prosemirror-view"
 import {
     ContentEditorTableNodeView,
     contentEditorUpdateTableColumnsOnResize,
-} from "~/client/content/internal/content_editor_table_node_view.js";
+} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 import {type ContentEditorCellAttrs} from "~/shared/content/table/content_table_utils.js";
 

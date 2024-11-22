@@ -3,7 +3,6 @@ import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-stat
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
-import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 function getInsertPosOrSelection(selection: Selection): number | Selection {

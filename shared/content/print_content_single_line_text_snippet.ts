@@ -167,7 +167,7 @@ export function printContentSingleLineTextSnippetWithHighlighting(
                 break;
             }
             default:
-                throw exhaustive(typeName);
+                throw exhaustive(typeName as never);
         }
     };
 

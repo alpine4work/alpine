@@ -16,6 +16,7 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_keymap_plugin.js";
+import {contentEditorTableColumnResizingPlugin} from "~/client/content/internal/table/content_table_column_resize_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
@@ -25,7 +26,6 @@ import {
     mergeContentReferencesFileSignedUrlSearches,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {contentEditorTableColumnResizingPlugin} from "~/shared/content/table/content_table_column_resize_plugin.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

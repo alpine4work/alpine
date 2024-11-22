@@ -1034,7 +1034,11 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                 },
                                                                                                                 "colwidth": {
                                                                                                                     "valueSchema": {
-                                                                                                                        "type": "Unknown"
+                                                                                                                        "type": "Nullable",
+                                                                                                                        "schema": {
+                                                                                                                            "type": "Float"
+                                                                                                                        },
+                                                                                                                        "referenceId": "364568ec"
                                                                                                                     },
                                                                                                                     "optional": true
                                                                                                                 }
@@ -1082,7 +1086,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                 },
                                                                                                                 "colwidth": {
                                                                                                                     "valueSchema": {
-                                                                                                                        "type": "Unknown"
+                                                                                                                        "type": "Reference",
+                                                                                                                        "reuseReferenceId": "364568ec"
                                                                                                                     },
                                                                                                                     "optional": true
                                                                                                                 }
@@ -1731,7 +1736,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 },
                                                                                 "value": {
                                                                                     "valueSchema": {
-                                                                                        "type": "Unknown"
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "364568ec"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2455,7 +2461,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                                     },
                                                                                                                                                     "colwidth": {
                                                                                                                                                         "valueSchema": {
-                                                                                                                                                            "type": "Unknown"
+                                                                                                                                                            "type": "Reference",
+                                                                                                                                                            "reuseReferenceId": "364568ec"
                                                                                                                                                         },
                                                                                                                                                         "optional": true
                                                                                                                                                     }
@@ -2504,7 +2511,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                                     },
                                                                                                                                                     "colwidth": {
                                                                                                                                                         "valueSchema": {
-                                                                                                                                                            "type": "Unknown"
+                                                                                                                                                            "type": "Reference",
+                                                                                                                                                            "reuseReferenceId": "364568ec"
                                                                                                                                                         },
                                                                                                                                                         "optional": true
                                                                                                                                                     }
@@ -5020,7 +5028,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             },
                                                                                             "colwidth": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Unknown"
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "364568ec"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -5068,7 +5077,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             },
                                                                                             "colwidth": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Unknown"
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "364568ec"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -5524,8 +5534,8 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         },
                         "Contributors": {
-                            "id": 2,
-                            "orderKey": "a0V",
+                            "id": 1,
+                            "orderKey": "a1",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
                                 "type": "Object",
@@ -5558,8 +5568,8 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         },
                         "PostFiles": {
-                            "id": 1,
-                            "orderKey": "a1",
+                            "id": 2,
+                            "orderKey": "a2",
                             "sortKeyAttributeByKey": {
                                 "postCreatedTime": {
                                     "type": "Reverse",
@@ -9065,7 +9075,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             },
                                                                                             "colwidth": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Unknown"
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "364568ec"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -9113,7 +9124,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             },
                                                                                             "colwidth": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Unknown"
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "364568ec"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }

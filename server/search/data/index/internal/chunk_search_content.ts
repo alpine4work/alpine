@@ -1083,8 +1083,11 @@ async function chunkSearchContentBySentenceForBlockNode(
         case "fileFloat": {
             return null;
         }
+        case "table": {
+            return null;
+        }
         default:
-            throw exhaustive(typeName);
+            throw exhaustive(typeName as never);
     }
 }
 

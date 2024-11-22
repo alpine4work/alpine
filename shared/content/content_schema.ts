@@ -150,7 +150,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * Of course you need a way to write plain text.
          */
         paragraph: {
-            group: "block",
+            group: "block tableBlock",
             content: "inline*",
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
             // there's only a small number of nodes (e.g. `divider`) we actually want to
@@ -167,7 +167,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * a quote of a quote.
          */
         quoteBlock: {
-            group: "block",
+            group: "block tableBlock",
             content: "(paragraph | simpleListItem)+",
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
             // there's only a small number of nodes (e.g. `divider`) we actually want to
@@ -235,7 +235,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // which preserves new lines. However, we don't want to keep
         // new lines, only keep spaces.
         codeBlock: {
-            group: "block",
+            group: "block tableBlock",
             content: "codeBlockLine+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but

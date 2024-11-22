@@ -1,6 +1,6 @@
+import "prosemirror-tables";
+
 import {AttributeSpec, NodeSpec, NodeType, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {Command} from "prosemirror-state";
-import {CellSelection} from "prosemirror-tables";
 import {
     tableCellClassName,
     tableClassName,
@@ -13,7 +13,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const cellAttrs: Record<string, AttributeSpec> = {
     colspan: {default: 1, schema: Schema.integer},
     rowspan: {default: 1, schema: Schema.integer},
-    colwidth: {default: null, schema: Schema.unknown},
+    colwidth: {default: null, schema: Schema.float.nullable()},
 };
 
 export const contentTableProsemirrorNodeSpec = {
@@ -27,23 +27,6 @@ export const contentTableProsemirrorNodeSpec = {
     parseDOM: [{tag: "table"}],
     toDOM() {
         return ["table", {class: tableClassName}, ["tbody", 0]] as const;
-    },
-    commands: {
-        // this helps in cell resizing. we should remove it from schema and move
-        // it to the table node view or any other file that forks of prosemirror-tables.
-        setCellSelection:
-            (position: {anchorCell: number; headCell: number}): Command =>
-            (state, dispatch) => {
-                if (dispatch) {
-                    const selection = CellSelection.create(
-                        state.tr.doc,
-                        position.anchorCell,
-                        position.headCell,
-                    );
-                    state.tr.setSelection(selection);
-                }
-                return true;
-            },
     },
 };
 
@@ -62,8 +45,7 @@ export const contentTableRowProsemirrorNodeSpec = {
 
 export const contentTableCellProsemirrorNodeSpec = {
     name: "tableCell",
-    group: "block",
-    content: "block+",
+    content: "tableBlock+",
     tableRole: "cell",
     selectable: true,
     isolating: true,
@@ -78,7 +60,7 @@ export const contentTableCellProsemirrorNodeSpec = {
 
 export const contentTableHeaderProsemirrorNodeSpec = {
     name: "tableHeader", // name must match the name in the column definition
-    content: "block+",
+    content: "tableBlock+",
     selectable: true,
     isolating: true,
     copyable: true,
@@ -104,7 +86,6 @@ export function contentTableNodeTypes(
     }
     return result;
 }
-
 export type contentTableNodes = Record<
     "table" | "tableRow" | "tableCell" | "tableHeader",
     NodeSpec

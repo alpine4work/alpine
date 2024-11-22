@@ -2080,7 +2080,7 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     right: 0,
     top: 0,
     bottom: 0,
-    background: colorSchemeVars["theme-60-opacity-60"],
+    background: colorSchemeVars["theme-selection"],
     pointerEvents: "none",
 });
 
