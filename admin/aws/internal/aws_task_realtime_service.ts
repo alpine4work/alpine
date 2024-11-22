@@ -171,10 +171,14 @@ export class AwsTaskRealtimeService extends Construct {
 
         const ports = createArrayWithLength(instanceCpuCount, index => portBase + index + 1);
 
-        // This appears to be the available memory for our containers. Unclear how we
-        // get this number from 1024 (the instance type's memory). It makes sense that
-        // we'd need some overhead for ECS.
-        const memoryLimitMiB = 944;
+        // Memory available to our container. We can't use the full available memory
+        // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
+        // to function.
+        //
+        // We have to figure out the right value here based on trial and error. If we
+        // ask for too much memory we don't get an error, instead our ECS tasks will
+        // never run.
+        const memoryLimitMiB = 850;
 
         const gatewayMemoryPercent = 0.02;
 

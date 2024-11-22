@@ -166,10 +166,14 @@ export class AwsFileProcessorService extends Construct {
                         : "cyberworlds/server/files/processor/processor_image_tarball_load/tarball.tar",
                 ),
             ),
-            // This appears to be the available memory for our containers. Unclear how we
-            // get this number from 1024 (the instance type's memory). It makes sense that
-            // we'd need some overhead for ECS.
-            memoryLimitMiB: 944,
+            // Memory available to our container. We can't use the full available memory
+            // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
+            // to function.
+            //
+            // We have to figure out the right value here based on trial and error. If we
+            // ask for too much memory we don't get an error, instead our ECS tasks will
+            // never run.
+            memoryLimitMiB: 850,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
