@@ -18,6 +18,9 @@ ts_project(
         "//server/spaces/test_helpers",
     ],
     tests = {
+        "resize_file_test": {
+            "size": "medium",
+        },
         "processors/file_processor_content_types_test": {
             "size": "medium",
         },
