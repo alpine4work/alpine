@@ -159,8 +159,8 @@ export class AwsAppService extends Construct {
             //
             // We have to figure out the right value here based on trial and error. If we
             // ask for too much memory we don't get an error, instead our ECS tasks will
-            // never run.
-            memoryLimitMiB: 850,
+            // be stuck with the "Provisioning" status and never start.
+            memoryLimitMiB: 935,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
