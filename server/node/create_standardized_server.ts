@@ -49,9 +49,31 @@ function wrapWithTraceServerResponse<Route>(
 
         const [route, routeObject] = parseRoute(url);
 
-        return traceServerResponse(tracer, request, url, route, (span, request) =>
-            handleRequest(request, url, routeObject, span),
-        );
+        return traceServerResponse(tracer, request, url, route, async (span, request) => {
+            try {
+                const response = await handleRequest(request, url, routeObject, span);
+                return response;
+            } catch (error) {
+                span.addException(error);
+
+                let statusCode;
+                let statusMessage;
+                if (isSystemError(error)) {
+                    statusCode = 500;
+                    statusMessage = "Internal Server Error";
+                } else {
+                    statusCode = 400;
+                    statusMessage = "Bad Request";
+                }
+
+                return new Response(
+                    process.env.NODE_ENV === "production" || !(error instanceof Error)
+                        ? `${statusCode} ${statusMessage}`
+                        : `${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`,
+                    {status: statusCode},
+                );
+            }
+        });
     };
 }
 
