@@ -274,6 +274,8 @@ export class JobQueueConsumer<
 
         this._fiberCount++;
 
+        let isReceiveMessageAborted = false;
+
         try {
             receiveMessageTestCounter.incrementForTest();
 
@@ -286,19 +288,20 @@ export class JobQueueConsumer<
             const receiveMessageAbortController = new AbortController();
 
             const handleAbort = () => {
-                receiveMessageAbortController.abort(this._abortController.signal.reason);
+                // After aborting, we need to replace this main fiber run. So set to true.
+                this._hasPendingMainFiber = true;
+
+                isReceiveMessageAborted = true;
+
+                this._fiberCount--;
+                this._afterFiberFinish();
             };
 
-            if (this._abortController.signal.aborted) {
-                receiveMessageAbortController.abort(this._abortController.signal.reason);
-            } else {
-                this._abortController.signal.addEventListener("abort", handleAbort);
-            }
+            receiveMessageAbortController.signal.addEventListener("abort", handleAbort);
+            this._receiveMessageAbortControllers.add(receiveMessageAbortController);
 
             let output;
             try {
-                this._receiveMessageAbortControllers.add(receiveMessageAbortController);
-
                 output = await this._sqsClient.send(
                     new ReceiveMessageCommand({
                         QueueUrl: this._queueUrl,
@@ -307,18 +310,61 @@ export class JobQueueConsumer<
                         // SQS will not let us receive more than 10 messages at a time.
                         MaxNumberOfMessages: this._maxFiberMessageCount,
                     }),
-                    {abortSignal: receiveMessageAbortController.signal},
+                    // In tests environments, when `stop()` is called cancel SQS `ReceiveMessage`
+                    // requests instead of waiting out `WaitTimeSeconds`. In non-test environments
+                    // use our safer abort handling that continues waiting (so we don't have issues
+                    // when there's a race where SQS is just about to send us messages).
+                    process.env.NODE_ENV === "test"
+                        ? {abortSignal: this._abortController.signal}
+                        : undefined,
                 );
             } finally {
-                this._receiveMessageAbortControllers.delete(receiveMessageAbortController);
                 this._abortController.signal.removeEventListener("abort", handleAbort);
+                this._receiveMessageAbortControllers.delete(receiveMessageAbortController);
+                receiveMessageAbortController.signal.removeEventListener("abort", handleAbort);
             }
 
             const messages = output.Messages ?? [];
 
+            // If our `ReceiveMessage` call was aborted then we don't actually cancel the
+            // underlying command. The reason being we've encountered race conditions
+            // (including in our integration test `document_files_desktop.spec.ts`) where
+            // even though we've used an `AbortSignal` to cancel a request, SQS still might
+            // have pushed messages to our `ReceiveMessage` call and set those message
+            // visibility timeouts to `VisibilityTimeout` (30s is our current value) before
+            // SQS realizes the message was aborted. This means another queue consumer
+            // instance won't be able to pick up the message for another 30s. If this is a
+            // latency sensitive job (e.g. file processing) the user will be sitting,
+            // staring, waiting for the job to get picked up for 30s.
+            //
+            // So instead what we do is when an abort happens we immediately decrement
+            // `fiberCount` but we wait the remaining `WaitTimeSeconds` (20s is our current
+            // value). If we receive messages then we call `ChangeMessageVisibilityBatch`
+            // to set the message visibility timeouts to 0. This tells SQS we won't process
+            // these messages so someone else needs to.
+            if (isReceiveMessageAborted) {
+                if (messages.length > 0) {
+                    await this._sqsClient.send(
+                        new ChangeMessageVisibilityBatchCommand({
+                            QueueUrl: this._queueUrl,
+                            Entries: messages.map((message, index) => ({
+                                Id: String(index),
+                                ReceiptHandle: message.ReceiptHandle,
+                                VisibilityTimeout: 0,
+                            })),
+                        }),
+                    );
+                }
+                return;
+            }
+
             // If we got some messages, then while we process them we want to try and
             // consume more messages concurrently. Keep consuming messages until we reach
             // a max number of fibers.
+            //
+            // If we un-aborted (`wasReceiveMessageAborted` is true) then we won't spawn a
+            // new fiber. There should already be an idle `ReceiveMessage` fiber from the
+            // main `_afterFiberFinish()` loop.
             if (!this._isStopped && messages.length > 0) {
                 if (this._fiberCount < this._maxFiberCount) {
                     this._processContext.process.waitUntil(this._runMainFiber());
@@ -496,8 +542,12 @@ export class JobQueueConsumer<
                 throw error;
             }
         } finally {
-            this._fiberCount--;
-            this._afterFiberFinish();
+            // If the `ReceiveMessage` action was aborted then we should have already
+            // decremented the fiber count.
+            if (!isReceiveMessageAborted) {
+                this._fiberCount--;
+                this._afterFiberFinish();
+            }
         }
     }
 

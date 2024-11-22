@@ -654,10 +654,12 @@ test("can interrupt receive message call with external fibers", async () => {
 
     await actionPromiseResolver1b.promise;
 
-    const pausePromises5 = await sendJobsConcurrentlyWithoutWaiting(1);
+    expect(receiveMessageRecorder.getCount()).toEqual(10);
+
+    const pausePromises = await sendJobsConcurrentlyWithoutWaiting(1);
 
     await wait(200);
 
     expect(receiveMessageRecorder.getCount()).toEqual(10);
-    expect(pausePromises5.every(pausePromise => pausePromise.isPending())).toBe(true);
+    expect(pausePromises.every(pausePromise => pausePromise.isPending())).toBe(true);
 });
