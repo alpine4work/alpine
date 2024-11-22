@@ -46,7 +46,7 @@ export type UploadFileFromContentEditorInput =
           readonly url: URL;
       };
 
-export const uploadFileFromContentEditorProgressCompositeStoreWeights = [1, 1, 8] as const;
+export const uploadFileFromContentEditorProgressCompositeStoreWeights = [1, 2, 1] as const;
 
 export function uploadFileFromContentEditor(
     context: AppContext,
