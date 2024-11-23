@@ -97,6 +97,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
+import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
