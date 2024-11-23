@@ -4,16 +4,17 @@ import {useButton} from "react-aria";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
     DocumentContentReferences,
     UncheckedDocumentContentWithReferences,
@@ -27,10 +28,9 @@ import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 const documentCommentThreadPreviewScale =
-    fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
+    fontSizesBySpacingScale["75"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
 export function DocumentCommentThreadPreview({
-    withMobileLayout,
     commentThread,
     unpersistedIsResolved,
     contentSnippet,
@@ -39,7 +39,6 @@ export function DocumentCommentThreadPreview({
     isResolveButtonPending,
     fileLayoutScreenWidthRem,
 }: {
-    withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
     contentSnippet: Node | null;
@@ -48,7 +47,7 @@ export function DocumentCommentThreadPreview({
     isResolveButtonPending: boolean;
     fileLayoutScreenWidthRem: number;
 }) {
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
     const previewRef = useRef<HTMLDivElement>(null);
     const previewContentRef = useRef<HTMLDivElement>(null);
 
@@ -103,10 +102,7 @@ export function DocumentCommentThreadPreview({
     // looking at a preview. We try to have enough text of the top line that you
     // can read it but know its cut and enough text on the bottom line that you
     // know its there but can't read it.
-    const commentOffset = convertRemLengthToPx(
-        `${parseRemLengthNumber(spacing["6"]) + parseRemLengthNumber(spacing["0.5"])}rem`,
-        remPx,
-    );
+    const commentOffset = convertRemLengthToPx(addRemLengths("6", "0.5"), spacingScale);
 
     // There is a `<ScriptBeforeAppInitialRender>` element below that copies this
     // logic so we can correctly position the preview during server-side rendering.
@@ -227,7 +223,6 @@ export function DocumentCommentThreadPreview({
                             // to visible is better than flashing content with the wrong scroll position
                             // to the right scroll position.
                             <ContentView
-                                withMobileLayout={withMobileLayout}
                                 content={content}
                                 onMergeContentReferences={references => {
                                     setUpdatedContentReferences(updatedContentReferences =>
@@ -245,7 +240,7 @@ export function DocumentCommentThreadPreview({
                                 shouldHighlightComment={shouldHighlightComment}
                                 fileLayoutScreenWidth={
                                     (fileLayoutScreenWidthRem / documentCommentThreadPreviewScale) *
-                                    remPx
+                                    remPxBySpacingScale[spacingScale]
                                 }
                                 fileAttachmentTarget={fileAttachmentTarget}
                             />

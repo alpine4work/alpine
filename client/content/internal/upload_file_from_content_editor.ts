@@ -1,30 +1,31 @@
+import {ContentFilePollerContext} from "~/client/content/internal/content_file_poller.js";
 import {ProgressValueStoreWithCancel} from "~/client/content/internal/progress_store.js";
 import {AppContext} from "~/client/context/app_context.js";
+import {getGlobalContext} from "~/client/helpers/global_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    FileAttachmentTarget,
+    serializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
 import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
     getPathFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
-import {FilePreview} from "~/shared/files/file_preview.js";
+import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ReadonlyTuple} from "~/shared/helpers/types/tuple.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {attachFileAsUploader} from "~/shared/rpc/files_rpc_definitions.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -45,7 +46,7 @@ export type UploadFileFromContentEditorInput =
           readonly url: URL;
       };
 
-export const uploadFileFromContentEditorProgressCompositeStoreWeights = [1, 1, 8] as const;
+export const uploadFileFromContentEditorProgressCompositeStoreWeights = [1, 2, 1] as const;
 
 export function uploadFileFromContentEditor(
     context: AppContext,
@@ -84,6 +85,41 @@ async function actuallyUploadFileFromContentEditor(
 ) {
     const uploadUrl = new URL(`/api/files/${spaceId}/upload`, window.location.href);
     if (fileId) uploadUrl.searchParams.set("id", fileId);
+
+    // Once the file has been created, attach it to our attachment target.
+    //
+    // We attach the file before persisting any changes to our content (e.g.
+    // persisting document steps or saving a newly created post). This is important
+    // since if other accounts are watching the attachment target in realtime then
+    // the attachment needs to exist for them to be able to see the file. However,
+    // by attaching early here it means we may successfully attach a file but fail
+    // to persist the content changes.
+    //
+    // We should consider building a file garbage collector that looks at all
+    // attachments and if they're still valid. Any attachments that aren't valid
+    // should get cleaned up.
+    //
+    // ## Implementation gotcha for documents
+    //
+    // We don't currently detach files from documents. Once a file is attached to a
+    // document it's there forever. Because even if you delete a file from a
+    // document's content you can still go into version history and bring an old
+    // version of the document back. Or you can see the file in a resolved document
+    // comment thread's preview snippet. This is the same behavior as text added to
+    // a document. Once you add text to a document it can be recovered at any point
+    // by a document editor. This isn't great for our security posture. Some
+    // thoughts:
+    //
+    // 1. We should add document deletion. Once a document is deleted then it's
+    //    safe to cleanup all its files.
+    //
+    // 2. We could consider changing permissions so that if a file is removed from
+    //    a document you need at least comment access to see it (comment access
+    //    lets you see it in a comment thread snippet, edit access lets you restore
+    //    from a previous version). However, if we give view-only users the ability
+    //    to look at a document's version history then view-only users still need
+    //    to see files that have been removed from the document.
+    uploadUrl.searchParams.set("target", serializeFileAttachmentTargetString(attachmentTarget));
 
     let contentType: FileContentType | undefined;
     let contentLength: number | undefined;
@@ -230,7 +266,7 @@ async function actuallyUploadFileFromContentEditor(
                         readyPromiseResolver.resolve();
                     }
                     // If we got a `Content-Length` header we can immediately start streaming the
-                    // result of our fetch into `FileUploadService`. Nice.
+                    // result of our fetch into `FileProcessorService`. Nice.
                     else {
                         const [responseBody1, responseBody2] = responseBody.tee();
 
@@ -293,446 +329,61 @@ async function actuallyUploadFileFromContentEditor(
         );
     }
 
-    const processDurationMsEstimate = estimateUploadFileDurationMs(contentType, contentLength);
-
-    const uploadPromise = fetchWithTracer(
-        context.tracer.getTracer(),
-        uploadUrl,
-        {
-            serviceName: "FileUploadService",
-            method: "POST",
-            route: "/api/files/:spaceId/upload",
-            headers: {
-                "content-type": contentType,
-                "content-length": String(contentLength),
+    const uploadAndProcessPromise = (async () => {
+        const {signedUrlSearch, file: initialFile} = await fetchWithTracer(
+            context.tracer.getTracer(),
+            uploadUrl,
+            {
+                serviceName: "EdgeService",
+                method: "POST",
+                route: "/api/files/:spaceId/upload",
+                headers: {
+                    "content-type": contentType,
+                    "content-length": String(contentLength),
+                },
+                duplex: "half",
+                body,
             },
-            duplex: "half",
-            body,
-        },
-        async response => {
-            const decoder = new TextDecoder();
-            const reader = assertExists(response.body).getReader();
+            async response => {
+                const responseBody = UploadFileResponseSchema.deserialize(await response.json());
+                if (!responseBody.ok) throw responseBody.error;
+                return responseBody;
+            },
+        );
 
-            async function* read(): AsyncIterableIterator<string> {
-                let unfinishedString = "";
+        if (initialFile.getAttachReadiness() === "Ready") {
+            processProgressStore.set(1);
+            onAttach({signedUrlSearch, fileStore: new ConstStore(initialFile)});
+            return;
+        }
 
-                while (true) {
-                    const result = await reader.read();
+        const fileStore = new ValueStore(initialFile);
 
-                    if (result.value) {
-                        const chunkString = decoder.decode(result.value, {
-                            stream: !result.done,
-                        });
+        const processDurationMsEstimate = estimateProcessFileDurationMs(contentType, contentLength);
+        processProgressStore.ease(processDurationMsEstimate);
 
-                        // If there's a newline in the output that means the content preceding the
-                        // newline has at least one valid event maybe more.
-                        let newLineIndex = chunkString.lastIndexOf("\n");
+        let hasCalledOnAttach = false;
+        let callOnAttachTimeout: Timeout | null = null;
+        const promiseResolver = createPromiseResolver();
 
-                        if (newLineIndex !== -1) {
-                            newLineIndex += unfinishedString.length;
-                        }
+        const stopPolling = getGlobalContext(ContentFilePollerContext).startPolling(() => context, {
+            spaceId,
+            fileId: initialFile.id,
+            target: attachmentTarget,
+            onPoll: ({signedUrlSearch, file: newFile}) => {
+                const attachReadiness = newFile.getAttachReadiness();
 
-                        unfinishedString =
-                            unfinishedString.length === 0
-                                ? chunkString
-                                : unfinishedString + chunkString;
+                switch (attachReadiness) {
+                    case "PreviewUnavailable": {
+                        fileStore.set(newFile);
 
-                        if (newLineIndex !== -1) {
-                            const finishedString = unfinishedString.slice(0, newLineIndex);
-                            unfinishedString = unfinishedString.slice(newLineIndex + 1);
-
-                            yield* finishedString.split("\n");
-                        }
-                    }
-
-                    if (result.done) {
+                        // Don't attach yet...
                         break;
                     }
-                }
+                    case "PreviewPartiallyAvailable": {
+                        fileStore.set(newFile);
 
-                // Once we're done reading, we assume the last string is also valid JSON.
-                // Unless the string is empty. Then we assume it's a trailing newline.
-                if (unfinishedString.length !== 0) {
-                    yield unfinishedString;
-                }
-            }
-
-            // NOTE(calebmer): If I write this without the `cast()` then annoyingly
-            // TypeScript thinks `state` will always be `null` even though we
-            // definitely have an assignment to `state` in our switch statement. The
-            // `cast()` function works around TypeScript's literal assignment logic.
-            let state = cast<{
-                signedUrlSearch: string;
-                fileStore: ValueStore<FileModel>;
-            } | null>(null);
-
-            let hasCalledOnAttach = false;
-            let callOnAttachTimeout: Timeout | null = null;
-
-            for await (const eventString of read()) {
-                const event = UploadFileEventSchema.deserialize(JSON.parse(eventString));
-
-                switch (event.type) {
-                    case "Error": {
-                        throw event.error;
-                    }
-                    case "Start": {
-                        assert(!state);
-
-                        // Once we get the `Start` event we know the server has started processing. So
-                        // start easing our progress indicator with an estimate based on real world
-                        // data.
-                        processProgressStore.ease(processDurationMsEstimate);
-
-                        if (fileId) {
-                            assert(event.fileId === fileId);
-                        }
-
-                        let preview: FilePreview | null = null;
-                        if (event.hasPreview) {
-                            switch (event.hasPreview.type) {
-                                case "Image": {
-                                    preview = {
-                                        type: "Image",
-                                        isProcessing: true,
-                                        size: "Processing",
-                                        placeholder: "Processing",
-                                        content: event.hasPreview.hasContent
-                                            ? "Processing"
-                                            : undefined,
-                                        videoDuration: event.hasPreview.hasVideoDuration
-                                            ? "Processing"
-                                            : undefined,
-                                    };
-                                    break;
-                                }
-                                case "Audio": {
-                                    preview = {
-                                        type: "Audio",
-                                        isProcessing: true,
-                                        duration: "Processing",
-                                        metadata: "Processing",
-                                    };
-                                    break;
-                                }
-                                case "Code": {
-                                    preview = {
-                                        type: "Code",
-                                        isProcessing: true,
-                                        content: "Processing",
-                                    };
-                                    break;
-                                }
-                                default:
-                                    throw exhaustive(event.hasPreview);
-                            }
-                        }
-
-                        state = {
-                            signedUrlSearch: event.signedUrlSearch,
-                            fileStore: new ValueStore(
-                                new FileModel({
-                                    id: event.fileId,
-                                    contentType: assertExists(contentType),
-                                    contentLength: assertExists(contentLength),
-                                    isUploading: true,
-                                    alternative: event.hasAlternative ? {isProcessing: true} : null,
-                                    preview,
-                                }),
-                            ),
-                        };
-
-                        // Once the file has been created, attach it to our attachment target.
-                        // `FileUploadService` will continue to process the file while the client waits
-                        // for this RPC. By waiting here we also make sure we won't call `onAttach`
-                        // until after this RPC completes.
-                        //
-                        // We don't pass `attachmentTarget` as an argument to our upload route and
-                        // attach in `FileUploadService` because for security purposes
-                        // `FileUploadService` doesn't have access to any tables other than the files
-                        // table. And we need other tables to authorize the actor has access to the
-                        // attachment target (e.g. we need the document table to authorize the actor
-                        // has access to the document).
-                        //
-                        // We attach the file before persisting any changes to our content (e.g.
-                        // persisting document steps or saving a newly created post). This is important
-                        // since if other accounts are watching the attachment target in realtime then
-                        // the attachment needs to exist for them to be able to see the file. However,
-                        // by attaching early here it means we may successfully attach a file but fail
-                        // to persist the content changes.
-                        //
-                        // We should consider building a file garbage collector that looks at all
-                        // attachments and if they're still valid. Any attachments that aren't valid
-                        // should get cleaned up.
-                        //
-                        // ## Implementation gotcha for documents
-                        //
-                        // We don't currently detach files from documents. Once a file is attached to a
-                        // document it's there forever. Because even if you delete a file from a
-                        // document's content you can still go into version history and bring an old
-                        // version of the document back. Or you can see the file in a resolved document
-                        // comment thread's preview snippet. This is the same behavior as text added to
-                        // a document. Once you add text to a document it can be recovered at any point
-                        // by a document editor. This isn't great for our security posture. Some
-                        // thoughts:
-                        //
-                        // 1. We should add document deletion. Once a document is deleted then it's
-                        //    safe to cleanup all its files.
-                        //
-                        // 2. We could consider changing permissions so that if a file is removed from
-                        //    a document you need at least comment access to see it (comment access
-                        //    lets you see it in a comment thread snippet, edit access lets you restore
-                        //    from a previous version). However, if we give view-only users the ability
-                        //    to look at a document's version history then view-only users still need
-                        //    to see files that have been removed from the document.
-                        await attachFileAsUploader(context, {
-                            spaceId,
-                            fileId: event.fileId,
-                            target: attachmentTarget,
-                        });
-                        break;
-                    }
-                    case "Finish": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.isUploading);
-
-                            return file.clone({isUploading: false});
-                        });
-                        break;
-                    }
-                    case "Alternative": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.alternative?.isProcessing);
-
-                            return file.clone({
-                                alternative: {
-                                    isProcessing: false,
-                                    contentType: event.contentType,
-                                    contentLength: event.contentLength,
-                                    isImagePreviewContent: event.isImagePreviewContent,
-                                },
-                            });
-                        });
-                        break;
-                    }
-                    case "ImagePreviewSize": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Image");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview:
-                                    file.preview.placeholder !== "Processing" &&
-                                    file.preview.content !== "Processing" &&
-                                    file.preview.videoDuration !== "Processing"
-                                        ? {
-                                              type: "Image",
-                                              isProcessing: false,
-                                              ok: true,
-                                              size: event.size,
-                                              placeholder: file.preview.placeholder,
-                                              content: file.preview.content,
-                                              videoDuration: file.preview.videoDuration,
-                                          }
-                                        : {
-                                              ...file.preview,
-                                              size: event.size,
-                                          },
-                            });
-                        });
-                        break;
-                    }
-                    case "ImagePreviewPlaceholder": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Image");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview:
-                                    file.preview.size !== "Processing" &&
-                                    file.preview.content !== "Processing" &&
-                                    file.preview.videoDuration !== "Processing"
-                                        ? {
-                                              type: "Image",
-                                              isProcessing: false,
-                                              ok: true,
-                                              size: file.preview.size,
-                                              placeholder: event.placeholder,
-                                              content: file.preview.content,
-                                              videoDuration: file.preview.videoDuration,
-                                          }
-                                        : {
-                                              ...file.preview,
-                                              placeholder: event.placeholder,
-                                          },
-                            });
-                        });
-                        break;
-                    }
-                    case "ImagePreviewContent": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Image");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview:
-                                    file.preview.size !== "Processing" &&
-                                    file.preview.placeholder !== "Processing" &&
-                                    file.preview.videoDuration !== "Processing"
-                                        ? {
-                                              type: "Image",
-                                              isProcessing: false,
-                                              ok: true,
-                                              size: file.preview.size,
-                                              placeholder: file.preview.placeholder,
-                                              content: {
-                                                  contentType: event.contentType,
-                                                  contentLength: event.contentLength,
-                                              },
-                                              videoDuration: file.preview.videoDuration,
-                                          }
-                                        : {
-                                              ...file.preview,
-                                              content: {
-                                                  contentType: event.contentType,
-                                                  contentLength: event.contentLength,
-                                              },
-                                          },
-                            });
-                        });
-                        break;
-                    }
-                    case "ImagePreviewVideoDuration": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Image");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview:
-                                    file.preview.size !== "Processing" &&
-                                    file.preview.placeholder !== "Processing" &&
-                                    file.preview.content !== "Processing"
-                                        ? {
-                                              type: "Image",
-                                              isProcessing: false,
-                                              ok: true,
-                                              size: file.preview.size,
-                                              placeholder: file.preview.placeholder,
-                                              content: file.preview.content,
-                                              videoDuration: event.videoDuration,
-                                          }
-                                        : {
-                                              ...file.preview,
-                                              videoDuration: event.videoDuration,
-                                          },
-                            });
-                        });
-                        break;
-                    }
-                    case "AudioPreviewDuration": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Audio");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview:
-                                    file.preview.metadata !== "Processing"
-                                        ? {
-                                              type: "Audio",
-                                              isProcessing: false,
-                                              duration: event.duration,
-                                              metadata: file.preview.metadata,
-                                          }
-                                        : {
-                                              ...file.preview,
-                                              duration: event.duration,
-                                          },
-                            });
-                        });
-                        break;
-                    }
-                    case "AudioPreviewMetadata": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Audio");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview:
-                                    file.preview.duration !== "Processing"
-                                        ? {
-                                              type: "Audio",
-                                              isProcessing: false,
-                                              duration: file.preview.duration,
-                                              metadata: event.metadata,
-                                          }
-                                        : {
-                                              ...file.preview,
-                                              metadata: event.metadata,
-                                          },
-                            });
-                        });
-                        break;
-                    }
-                    case "CodePreviewContent": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Code");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview: {
-                                    type: "Code",
-                                    isProcessing: false,
-                                    content: event.content,
-                                },
-                            });
-                        });
-                        break;
-                    }
-                    case "PreviewError": {
-                        assertExists(state).fileStore.set(file => {
-                            assert(file?.preview?.type === "Image");
-                            assert(file.preview.isProcessing);
-
-                            return file.clone({
-                                preview: {
-                                    type: "Image",
-                                    isProcessing: false,
-                                    ok: false,
-                                    error: event.error,
-                                    size:
-                                        file.preview.size === "Processing"
-                                            ? "Error"
-                                            : file.preview.size,
-                                    placeholder:
-                                        file.preview.placeholder === "Processing"
-                                            ? "Error"
-                                            : file.preview.placeholder,
-                                    content:
-                                        file.preview.content === "Processing"
-                                            ? "Error"
-                                            : file.preview.content,
-                                    videoDuration:
-                                        file.preview.videoDuration === "Processing"
-                                            ? "Error"
-                                            : file.preview.videoDuration,
-                                },
-                            });
-                        });
-                        break;
-                    }
-                    default:
-                        throw exhaustive(event);
-                }
-
-                if (state && !hasCalledOnAttach) {
-                    const attachReadiness = state.fileStore.getSnapshot().getAttachReadiness();
-
-                    switch (attachReadiness) {
-                        case "PreviewUnavailable": {
-                            // Don't attach yet...
-                            break;
-                        }
-                        case "PreviewPartiallyAvailable": {
+                        if (!hasCalledOnAttach) {
                             // Wait a bit to call `onAttach()` in case the server quickly gives us the data
                             // we need to show a full preview so we can avoid showing the user a loading
                             // spinner.
@@ -740,7 +391,7 @@ async function actuallyUploadFileFromContentEditor(
                                 hasCalledOnAttach = true;
                                 callOnAttachTimeout = null;
                                 try {
-                                    onAttach(state!);
+                                    onAttach({signedUrlSearch, fileStore});
                                 } catch (error) {
                                     scheduleUncaughtError(error);
                                 }
@@ -748,30 +399,39 @@ async function actuallyUploadFileFromContentEditor(
                                 // Use the screen transition delay since attaching a file is a big layout
                                 // shift. Ideally we'd have the data we need to render a good preview.
                             }, delayScreenTransitionLoadingIndicatorLimitMs);
-                            break;
                         }
-                        case "Ready": {
+                        break;
+                    }
+                    case "Ready": {
+                        fileStore.finalSet(newFile);
+
+                        stopPolling();
+                        promiseResolver.resolve();
+
+                        if (!hasCalledOnAttach) {
                             hasCalledOnAttach = true;
                             callOnAttachTimeout?.clear();
                             callOnAttachTimeout = null;
                             try {
-                                onAttach(state);
+                                onAttach({signedUrlSearch, fileStore});
                             } catch (error) {
                                 scheduleUncaughtError(error);
                             }
-                            break;
                         }
-                        default:
-                            throw exhaustive(attachReadiness);
+                        break;
                     }
+                    default:
+                        throw exhaustive(attachReadiness);
                 }
-            }
+            },
+        });
 
-            processProgressStore.set(1);
-        },
-    );
+        await promiseResolver.promise;
 
-    await runAllPromises([extraPromise, uploadPromise]);
+        processProgressStore.set(1);
+    })();
+
+    await runAllPromises([extraPromise, uploadAndProcessPromise]);
 
     // If this function finishes successfully then all our progress stores should
     // have either been cancelled or set their values to 1.
@@ -781,13 +441,20 @@ async function actuallyUploadFileFromContentEditor(
 }
 
 /**
- * An absolutely terrible model for estimating `FileUploadService` processing
- * time I've manually tuned based on some local data.
+ * An absolutely terrible model for estimating `FileProcessorService`
+ * processing time I've manually tuned based on some local data.
  *
  * The right way to implement this function is to use machine learning based on
- * real world data to train a small model we can include on the client.
+ * real world data to train a small model we can include on the client. My
+ * proposal: Collect a data set of file content type, file length, and maybe
+ * even the first kilobyte or so of the file (which'll hopefully include
+ * important metadata like codecs which can change how long the file takes to
+ * process). Train a model to predict processing time based on this data.
  */
-function estimateUploadFileDurationMs(contentType: FileContentType, contentLength: number): number {
+function estimateProcessFileDurationMs(
+    contentType: FileContentType,
+    contentLength: number,
+): number {
     // This is a function I manually fit to some `video/mp4` processing times I
     // measured locally. It probably won't perfectly line up with processing times
     // in production.

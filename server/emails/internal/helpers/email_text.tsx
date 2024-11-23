@@ -1,8 +1,8 @@
 import {MjmlText} from "mjml-react";
 import {ReactNode} from "react";
 import {Color, colors} from "~/shared/design/core/colors.js";
-import {FontSize, createFontStyles, fontSizesByPlatform} from "~/shared/design/core/fonts.js";
-import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/core/spacing.js";
+import {FontSize, createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const emailFontStyles = createFontStyles({
@@ -27,13 +27,13 @@ export function EmailText({
         <MjmlText
             fontFamily="Inter, Arial"
             color={colors[color]}
-            fontSize={fontSizesByPlatform[fontSize].desktop.fontSize}
+            fontSize={fontSizesBySpacingScale[fontSize].small.fontSize}
             letterSpacing={
-                letterSpacingOverride ?? fontSizesByPlatform[fontSize].desktop.letterSpacing
+                letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].small.letterSpacing
             }
             lineHeight={`${convertRemLengthToPx(
-                fontSizesByPlatform[fontSize].desktop.lineHeight,
-                remPxByPlatform.desktop,
+                fontSizesBySpacingScale[fontSize].small.lineHeight,
+                "small",
             )}px`}
             fontStyle={emailFontStyles[style].fontStyle}
             fontWeight={emailFontStyles[style].fontWeight}

@@ -50,6 +50,7 @@ import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpe
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
@@ -577,14 +578,14 @@ function ContentEditorPointerToolbarOverlay({
         <Overlay
             ref={overlayRef}
             isVisible={true}
-            placement="top-start"
-            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
-            // text it'll always be at the beginning of the text. Always make sure the
-            // `<ContentEditor>` has some space above it so the toolbar will never go
-            // offscreen.
-            fallbackPlacements={emptyArray}
+            placement="top"
+            // The pointer toolbar needs to flip to the bottom if it would otherwise
+            // conflict with the navigation bar. For example, try opening a post view on
+            // desktop then editing the post, then selecting text at the top of the post.
+            // The toolbar needs to flip down.
+            fallbackPlacements={["bottom"]}
+            overflowTop={navigationBarHeight}
             offset="3"
-            offsetAlong="-4"
             overlay={
                 <div
                     className={overlayAnimateContainerClassName}
@@ -635,7 +636,10 @@ function ContentEditorPointerToolbarOverlay({
             <ContentEditorCursorTracker
                 state={state}
                 viewRef={viewRef}
-                pos={selectionFrom}
+                pos={useMemo(
+                    () => ({from: selectionFrom, to: selectionTo}),
+                    [selectionFrom, selectionTo],
+                )}
                 onUpdatePosition={() => {
                     overlayRef.current?.forceUpdateOverlayPosition();
 

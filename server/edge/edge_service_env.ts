@@ -1,0 +1,19 @@
+export type EdgeServiceEnv = {
+    AppStaticBucket: R2Bucket;
+    FilesBucket: R2Bucket;
+    DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
+    PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    ChannelRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    MyAccountDurableObjectNamespace: DurableObjectNamespace;
+    TaskNotesCollaborationDurableObjectNamespace: DurableObjectNamespace;
+    APP_SERVICE_PUBLIC_KEY?: string;
+    EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
+    TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
+    JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
+    FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
+    EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
+    TOKEN_AGENT_SECRET?: string;
+    FILE_PROCESSOR_SERVICE_URL?: string;
+    HONEYCOMB_API_KEY?: string;
+};

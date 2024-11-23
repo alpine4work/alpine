@@ -9,7 +9,7 @@ import {
     defaultParagraphMargin,
     paragraphFontSize,
 } from "~/client/styles/other/internal/content.css.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 export const textCursorNotInheritedClassName = style({
@@ -177,8 +177,7 @@ export const rowTitleInputMultilineAfterClassName = style({
 });
 
 export const detailNotesContentEditorMinHeight = `${
-    parseRemLengthNumber(paragraphFontSize.lineHeight) * 2 +
-    parseRemLengthNumber(spacing[defaultParagraphMargin]) * 1
+    parseRemLength(paragraphFontSize.lineHeight) * 2 + parseRemLength(defaultParagraphMargin) * 1
 }rem`;
 
 export const detailNotesContentEditorClassName = style({

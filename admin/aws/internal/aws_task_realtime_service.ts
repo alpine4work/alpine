@@ -2,6 +2,7 @@ import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Peer, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -85,7 +86,7 @@ export class AwsTaskRealtimeService extends Construct {
         this.autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
             instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: partitionCount * partitionInstanceCount,
             // During a deploy, we double our capacity needs since we keep running old
@@ -170,10 +171,14 @@ export class AwsTaskRealtimeService extends Construct {
 
         const ports = createArrayWithLength(instanceCpuCount, index => portBase + index + 1);
 
-        // This appears to be the available memory for our containers. Unclear how we
-        // get this number from 1024 (the instance type's memory). It makes sense that
-        // we'd need some overhead for ECS.
-        const memoryLimitMiB = 944;
+        // Memory available to our container. We can't use the full available memory
+        // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
+        // to function.
+        //
+        // We have to figure out the right value here based on trial and error. If we
+        // ask for too much memory we don't get an error, instead our ECS tasks will
+        // be stuck with the "Provisioning" status and never start.
+        const memoryLimitMiB = 935;
 
         const gatewayMemoryPercent = 0.02;
 
@@ -225,9 +230,9 @@ export class AwsTaskRealtimeService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
-                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                FILE_PROCESSOR_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                     secrets,
-                    "fileUploadServicePublicKey",
+                    "fileProcessorServicePublicKey",
                 ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
@@ -245,6 +250,7 @@ export class AwsTaskRealtimeService extends Construct {
                     `--portBase=${portBase}`,
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included
@@ -254,7 +260,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
+                    "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                 ].join(" ")}`,
@@ -269,7 +275,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/tasks/realtime/realtime.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "${ports
+                    `/var/www/server/tasks/realtime/realtime.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "${ports
                         .map(
                             port =>
                                 `{ const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') } }`,
@@ -310,7 +316,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/tasks/realtime/gateway/gateway.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:80/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/tasks/realtime/gateway/gateway.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:80/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });

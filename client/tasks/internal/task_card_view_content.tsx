@@ -5,8 +5,9 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {taskCardViewMaxWidth, taskCardViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
@@ -15,7 +16,7 @@ import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_ta
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -33,7 +34,6 @@ export {TaskCardViewContentForwardRef as TaskCardViewContent};
  */
 function TaskCardViewContent(
     {
-        withMobileLayout,
         displayStatus,
         title,
         assigneeAccountData,
@@ -43,7 +43,6 @@ function TaskCardViewContent(
         childTaskCount,
         closedChildTaskCount,
     }: {
-        withMobileLayout: boolean;
         displayStatus: TaskDisplayStatus;
         title: TaskTitleModel;
         assigneeAccountData: AccountModelData | null;
@@ -55,7 +54,8 @@ function TaskCardViewContent(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
 
@@ -71,9 +71,9 @@ function TaskCardViewContent(
                     paddingRight:
                         fieldElements.length === 0
                             ? addRemLengths(
-                                  spacing["2"],
+                                  "2",
                                   // A little extra padding to offset the negative margin of collection chips.
-                                  spacing["1"],
+                                  "1",
                               )
                             : spacing["2"],
                 }}
@@ -108,9 +108,9 @@ function TaskCardViewContent(
                     paddingRight:
                         fieldElements.length === 0
                             ? addRemLengths(
-                                  spacing["2"],
+                                  "2",
                                   // A little extra padding to offset the negative margin of collection chips.
-                                  spacing["1"],
+                                  "1",
                               )
                             : spacing["2"],
                 }}
@@ -131,9 +131,9 @@ function TaskCardViewContent(
                     paddingRight:
                         fieldElements.length === 0
                             ? addRemLengths(
-                                  spacing["2"],
+                                  "2",
                                   // A little extra padding to offset the negative margin of collection chips.
-                                  spacing["1"],
+                                  "1",
                               )
                             : spacing["2"],
                 }}
@@ -159,9 +159,9 @@ function TaskCardViewContent(
                     paddingRight:
                         fieldElements.length === 0
                             ? addRemLengths(
-                                  spacing["2"],
+                                  "2",
                                   // A little extra padding to offset the negative margin of collection chips.
-                                  spacing["1"],
+                                  "1",
                               )
                             : spacing["2"],
                 }}
@@ -182,7 +182,7 @@ function TaskCardViewContent(
     // to tell if we are the last field before collections.
     fieldElements.reverse();
 
-    const maxCollectionCount = withMobileLayout ? 3 : 5;
+    const maxCollectionCount = routeLayout === "narrow" ? 3 : 5;
 
     for (const collection of displayCollections.slice(0, maxCollectionCount)) {
         fieldElements.push(
@@ -227,7 +227,7 @@ function TaskCardViewContent(
         >
             <Box
                 display="flex"
-                gap={isMobile ? "2.5" : "2"}
+                gap={platform === "mobile" ? "2.5" : "2"}
                 // Extra margin on the right to balance margin on the left from status button.
                 paddingRight="3"
             >
@@ -243,7 +243,7 @@ function TaskCardViewContent(
                 >
                     <TaskDisplayStatusCircle
                         displayStatus={displayStatus}
-                        size={isMobile ? "5" : "4"}
+                        size={platform === "mobile" ? "5" : "4"}
                     />
                 </Box>
                 <Box
@@ -253,7 +253,7 @@ function TaskCardViewContent(
                         overflow: "hidden",
                         ...contentStyles.paragraphFontSize,
                         maxHeight: `${
-                            parseRemLengthNumber(contentStyles.paragraphFontSize.lineHeight) * 3
+                            parseRemLength(contentStyles.paragraphFontSize.lineHeight) * 3
                         }rem`,
                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                         // except IE.

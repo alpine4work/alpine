@@ -1,7 +1,5 @@
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 /**
  * Helper that allows you to wait for an arbitrary set of promises. Similar to
@@ -39,9 +37,7 @@ export class PromiseWaiter {
      * Wait for all promises added with `waitUntil()` to resolve.
      */
     public async wait() {
-        let hasError = false;
-        let errorPriority = 0;
-        let error: unknown;
+        const errors: Array<unknown> = [];
 
         try {
             while (this._promises.length > 0) {
@@ -49,22 +45,12 @@ export class PromiseWaiter {
                 this._promises = [];
                 await runAllPromises(promises);
             }
-        } catch (newError) {
-            const newErrorPriority = getAggregateErrorPriority(newError);
-
-            if (!hasError) {
-                hasError = true;
-                errorPriority = newErrorPriority;
-                error = newError;
-            }
-            // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-            // just the first one. Probably by using an `AggregateError`.
-            else if (newErrorPriority > errorPriority) {
-                errorPriority = newErrorPriority;
-                error = newError;
-            }
+        } catch (error) {
+            errors.push(error);
         }
 
-        if (hasError) throw error;
+        if (errors.length > 0) {
+            throw createAggregateError(errors);
+        }
     }
 }

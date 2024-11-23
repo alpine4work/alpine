@@ -8,6 +8,7 @@ import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
@@ -31,7 +32,6 @@ type TaskCommentsViewInitialComments = {
 
 type TaskCommentsViewProps = {
     taskId: TaskId;
-    withMobileLayout: boolean;
     initialScrollToCommentIndex: number | null;
     getCommentUrl: Memo<(messageIndex: number) => URL>;
     initialComments: TaskCommentsViewInitialComments | null;
@@ -47,7 +47,6 @@ type TaskCommentsViewProps = {
 
 export function TaskCommentsView({
     taskId,
-    withMobileLayout,
     initialScrollToCommentIndex,
     getCommentUrl,
     initialComments: initialCommentsFromProps,
@@ -59,6 +58,7 @@ export function TaskCommentsView({
     subscribeToEvents,
 }: TaskCommentsViewProps) {
     const context = useAppContext();
+    const routeLayout = useRouteLayout();
     const messagingRef = useRef<MessagingViewRef>(null);
     const [initialComments, setInitialComments] = useState(initialCommentsFromProps);
 
@@ -115,7 +115,7 @@ export function TaskCommentsView({
     }, [initialScrollToCommentIndex, initialComments]);
 
     const header = useMemo(() => {
-        if (!withMobileLayout) {
+        if (routeLayout !== "narrow") {
             return {
                 minHeight: spacing[taskCommentsHeaderNavigationBarSpacing],
                 node: (
@@ -134,7 +134,7 @@ export function TaskCommentsView({
                     </>
                 ),
             };
-    }, [withMobileLayout]);
+    }, [routeLayout]);
 
     const getMessagesFromStart = useCallback(
         async (input: {
@@ -247,7 +247,7 @@ export function TaskCommentsView({
     );
 
     if (!initialComments) {
-        return <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} />;
+        return <TaskCommentsViewShimmer />;
     } else {
         return (
             <>
@@ -256,7 +256,6 @@ export function TaskCommentsView({
                     elementRef={scrollViewRef}
                     extraChildren={extraChildren}
                     scrollbarInsetTop={scrollbarInsetTop}
-                    withMobileLayout={withMobileLayout}
                     initialScrollOffset="bottom"
                     messageNoun="comment"
                     initialMessagesResult={{
@@ -280,7 +279,7 @@ export function TaskCommentsView({
                     getMessageUrl={getCommentUrl}
                     // Slightly reduce the amount of margin on messages in a desktop comment thread
                     // because we have less space in the sidebar.
-                    paddingX={!withMobileLayout ? "4" : undefined}
+                    paddingX={routeLayout !== "narrow" ? "4" : undefined}
                 />
             </>
         );

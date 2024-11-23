@@ -5,7 +5,14 @@ import {SpinnerGap} from "phosphor-react";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
+import {
+    getFileImagePreviewRenderingAdjustments,
+    handleCopyContentFile,
+    handleDownloadContentFile,
+    renderFileImagePreviewPlaceholder,
+} from "~/client/content/internal/content_file_preview.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerDesktopMarginBottom,
     contentFileViewerDesktopMarginTop,
@@ -17,20 +24,14 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    getFileImagePreviewRenderingAdjustments,
-    handleCopyContentFile,
-    handleDownloadContentFile,
-    renderFileImagePreviewPlaceholder,
-} from "~/client/content/internal/render_content_file_preview.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -38,7 +39,6 @@ import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.
 import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -78,10 +78,7 @@ export function ContentFileImageViewerDesktop({
         file.preview.size === "Processing"
     ) {
         if (!file.preview.isProcessing && !file.preview.ok) {
-            const ErrorConstructor = getErrorConstructorForCode(file.preview.error.code);
-            throw new ErrorConstructor("Couldn't process file", {
-                displayMessage: file.preview.error.displayMessage,
-            });
+            throw new ContentFileProcessorError(file.contentType, file.preview.error);
         }
 
         return (
@@ -150,7 +147,7 @@ function ContentFileImageDesktopViewerInner({
     maxZoomScale: number;
     extraChildrenForVideo: ReactNode;
 }) {
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -160,14 +157,11 @@ function ContentFileImageDesktopViewerInner({
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     const viewerAspectRatio = viewerSize.width / viewerSize.height;
-    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileViewerDesktopMarginX], remPx);
-    const viewerMarginTopPx = convertRemLengthToPx(
-        spacing[contentFileViewerDesktopMarginTop],
-        remPx,
-    );
+    const viewerMarginXPx = convertRemLengthToPx(contentFileViewerDesktopMarginX, spacingScale);
+    const viewerMarginTopPx = convertRemLengthToPx(contentFileViewerDesktopMarginTop, spacingScale);
     const viewerMarginBottomPx = convertRemLengthToPx(
-        spacing[contentFileViewerDesktopMarginBottom],
-        remPx,
+        contentFileViewerDesktopMarginBottom,
+        spacingScale,
     );
 
     let fileScale: number;

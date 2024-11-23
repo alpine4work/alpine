@@ -8,7 +8,8 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
-import {InternalError} from "~/shared/error/error.js";
+import {AbortedError, InternalError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
@@ -48,9 +49,34 @@ function wrapWithTraceServerResponse<Route>(
 
         const [route, routeObject] = parseRoute(url);
 
-        return traceServerResponse(tracer, request, url, route, (span, request) =>
-            handleRequest(request, url, routeObject, span),
-        );
+        return traceServerResponse(tracer, request, url, route, async (span, request) => {
+            try {
+                const response = await handleRequest(request, url, routeObject, span);
+                return response;
+            } catch (error) {
+                span.addException(error);
+
+                let statusCode;
+                let statusMessage;
+                if (isSystemError(error)) {
+                    statusCode = 500;
+                    statusMessage = "Internal Server Error";
+                } else {
+                    statusCode = 400;
+                    statusMessage = "Bad Request";
+                }
+
+                return new Response(
+                    process.env.NODE_ENV === "production" || !(error instanceof Error)
+                        ? `${statusCode} ${statusMessage}`
+                        : `${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`,
+                    {
+                        status: statusCode,
+                        headers: {"content-type": "text/plain"},
+                    },
+                );
+            }
+        });
     };
 }
 
@@ -66,23 +92,48 @@ function actuallyCreateStandardizedRequestListener(
             if (res.headersSent) {
                 res.end();
             } else {
-                res.writeHead(500, {"content-type": "text/plain"});
+                let statusCode;
+                let statusMessage;
+                if (isSystemError(error)) {
+                    statusCode = 500;
+                    statusMessage = "Internal Server Error";
+                } else {
+                    statusCode = 400;
+                    statusMessage = "Bad Request";
+                }
+
+                res.writeHead(statusCode, {"content-type": "text/plain"});
 
                 if (process.env.NODE_ENV === "production" || !(error instanceof Error)) {
-                    res.end("500 Internal Server Error");
+                    res.end(`${statusCode} ${statusMessage}`);
                 } else {
-                    res.end(`500 Internal Server Error\n\n${error.stack ?? error.message}`);
+                    res.end(`${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`);
                 }
             }
         };
 
         try {
-            const request = createStandardizedRequest(req);
+            const abortController = new AbortController();
+
+            const request = createStandardizedRequest(req, abortController.signal);
             const responsePromise = handleRequest(request);
 
-            responsePromise.then(response => {
-                sendStandardizedResponse(res, response);
-            }, handleUnhandledError);
+            const handleClose = () => {
+                abortController.abort(new AbortedError("Request was closed by client"));
+            };
+
+            res.on("close", handleClose);
+
+            responsePromise.then(
+                response => {
+                    res.off("close", handleClose);
+                    sendStandardizedResponse(res, response);
+                },
+                error => {
+                    res.off("close", handleClose);
+                    handleUnhandledError(error);
+                },
+            );
         } catch (error) {
             // The server should try its best to handle errors and provide a relevant error
             // response. However, as a fallback treat any errors as uncaught exceptions.
@@ -96,14 +147,15 @@ function actuallyCreateStandardizedRequestListener(
 /**
  * Convert a Node.js request object to a WhatWG fetch request object.
  */
-export function createStandardizedRequest(req: IncomingMessage): Request {
+export function createStandardizedRequest(req: IncomingMessage, signal?: AbortSignal): Request {
     const protocol = "http";
     const host = req.headers.host;
     const url = `${protocol}://${host!}${req.url!}`;
 
     const init: RequestInit = {
         method: req.method,
-        headers: createStandardizedRequestHeaders(req.headers),
+        headers: createStandardizedHeaders(req.headers),
+        signal,
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -127,7 +179,7 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
  * Convert a Node.js request headers object to a WhatWG fetch request
  * headers object.
  */
-export function createStandardizedRequestHeaders(reqHeaders: IncomingHttpHeaders): Headers {
+export function createStandardizedHeaders(reqHeaders: IncomingHttpHeaders): Headers {
     const headers = new Headers();
 
     for (const [key, values] of Object.entries(reqHeaders)) {

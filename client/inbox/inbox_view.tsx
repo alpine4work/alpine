@@ -610,7 +610,7 @@ function InboxViewPeekContent({
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            <PeekRemixEmbed peekId={peekId} withMobileLayout={false} router={router} />
+            <PeekRemixEmbed peekId={peekId} layout="wide" router={router} />
         </Box>
     );
 }

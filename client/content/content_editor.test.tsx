@@ -34,7 +34,6 @@ function TestContentEditor() {
     return (
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={state}
             onChange={setState}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -71,7 +70,6 @@ test("renders an empty document", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({
                 doc: emptyDocumentWithoutTitleContent,
                 references: emptyContentReferences,
@@ -98,7 +96,6 @@ test("renders an initial editor state", () => {
     render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -125,7 +122,6 @@ test("rerenders with a changed document", () => {
     const {rerender} = render(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -137,7 +133,6 @@ test("rerenders with a changed document", () => {
     rerender(
         <ContentEditor
             aria-label="Test"
-            withMobileLayout={false}
             state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
@@ -189,7 +184,6 @@ test("won't ever commit optimistic update if it doesn't match props", () => {
         return (
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={state}
                 onChange={useCallback(() => {}, [])}
                 fileAttachmentTarget={fileAttachmentTarget}

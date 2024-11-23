@@ -14,19 +14,19 @@ import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-const spaceLayoutSidebarWidthRem = parseRemLengthNumber(spaceLayoutStyles.sideBarWidth);
+const spaceLayoutSidebarWidthRem = parseRemLength(spaceLayoutStyles.sideBarWidth);
 
 const spaceLayoutContainerWidthForMaxSidebarSpaceRem =
-    parseRemLengthNumber(spacing[contentStyles.contentMaxWidth]) +
-    parseRemLengthNumber(spacing[documentContentEditorSidebarWidth]) +
-    parseRemLengthNumber(spacing["48"]);
+    parseRemLength(contentStyles.contentMaxWidth) +
+    parseRemLength(documentContentEditorSidebarWidth) +
+    parseRemLength("48");
 
 const spaceLayoutMaxSidebarSpaceRem = spaceLayoutSidebarWidthRem;
 

@@ -21,6 +21,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -41,7 +42,6 @@ export type TaskQueryFilterEditorMultiSelectComboBoxItemBase = {
 export function TaskQueryFilterEditorMultiSelectComboBox<
     Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
 >({
-    withMobileLayout,
     inputLabel,
     triggerButtonRef,
     preview,
@@ -50,7 +50,6 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
     useSearchedItems,
     optionCheckboxMarginTop,
 }: {
-    withMobileLayout: boolean;
     inputLabel: string;
     triggerButtonRef?: Ref<OverlayTriggerButtonRef> | null;
     preview: ReactNode;
@@ -68,6 +67,8 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
         | {isLoading: true};
     optionCheckboxMarginTop?: Spacing;
 }) {
+    const routeLayout = useRouteLayout();
+
     const {pressProps, isPressed} = usePress({});
     const {hoverProps, isHovered} = useHover({});
 
@@ -78,12 +79,12 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
             placement="bottom-start"
             // Allow flipping vertically but not horizontally on mobile. Flipping
             // horizontally on mobile can happen easily and be disruptive.
-            fallbackPlacements={withMobileLayout ? ["top-start"] : undefined}
+            fallbackPlacements={routeLayout === "narrow" ? ["top-start"] : undefined}
             overlay={({onCloseWithoutAnimation}) => (
                 <Box
                     className={greyElevated2ClassName}
                     width="64"
-                    maxHeight={withMobileLayout ? "64" : "96"}
+                    maxHeight={routeLayout === "narrow" ? "64" : "96"}
                     overflow="hidden"
                     borderRadius="1.5"
                     backgroundColor="grey-0"
@@ -111,7 +112,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                             zIndex: "0",
                             flexShrink: "1",
                             height: "full",
-                            overflow: withMobileLayout ? "hidden" : undefined,
+                            overflow: routeLayout === "narrow" ? "hidden" : undefined,
                         })}
                         style={{
                             paddingTop: 1,

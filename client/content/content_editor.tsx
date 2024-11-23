@@ -86,6 +86,7 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
 import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     ContentEditorFileDropTarget,
@@ -96,8 +97,6 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
-import {handleCopyContentFile} from "~/client/content/internal/render_content_file_preview.js";
-import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
@@ -109,7 +108,6 @@ import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js
 import {Box} from "~/client/design/box.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
@@ -133,8 +131,14 @@ import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {
+    getPlatformWithoutListening,
+    useCanPrimaryInputHover,
+    usePlatform,
+} from "~/client/remix/platform_context.js";
+import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
@@ -148,12 +152,8 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {
-    convertRemLengthToPx,
-    remPxByPlatform,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
@@ -364,16 +364,6 @@ const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <
 export {ContentEditorForwardRef as ContentEditor};
 
 export type ContentEditorProps<Content extends ContentWithReferences> = {
-    /**
-     * Whether the content editor should use a mobile layout without actually being
-     * on a mobile device. This is true for some peeks on desktop.
-     *
-     * Not all mobile behaviors are enabled by this flag. For instance, mobile
-     * keyboard toolbars are reserved for mobile devices. You still get floaters if
-     * `withMobileLayout` is true on desktop.
-     */
-    withMobileLayout: boolean;
-
     /**
      * Should this content be rendered with our compact rendering? Compact
      * rendering reduces some margins so content can be closer together.
@@ -618,7 +608,6 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 }
 
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
-    withMobileLayout,
     isCompact,
     isExtraCompact,
     state,
@@ -707,7 +696,6 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
         >
             <ContentView
                 isEditorInitialAppRender={true}
-                withMobileLayout={withMobileLayout}
                 isCompact={isCompact}
                 isExtraCompact={isExtraCompact}
                 content={state.getContent()}
@@ -754,7 +742,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         placeholder,
         className,
         containerClassName: customContainerClassName,
-        withMobileLayout: withMobileLayoutProp = false,
         isCompact = false,
         isExtraCompact = false,
         withoutMobileKeyboardToolbar,
@@ -776,7 +763,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
     const reporter = useReporter();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
@@ -784,30 +772,29 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     // We choose our interaction mode based on whether the device's primary input
     // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
     // iOS). Haven't tested this with an iPad. Ideally it's true when a hardware
     // trackpad is connected and false when it's not.
     //
-    // The difference between `isMobile` and `isDualModality` can be a bit
+    // The difference between `platform` and `isDualModality` can be a bit
     // confusing.
     //
-    // - On desktop, `isDualModality` is always false. `isMobile` will be true if
+    // - On desktop, `isDualModality` is always false. `platform` will be true if
     //   the window is small but usually will be false (since we don't recommend
     //   small windows on desktop).
     //
-    // - On an iPhone, document content editors are `isMobile = true` and
-    //   `isDualModality = true`. However, message inputs are `isMobile = true` and
-    //   `isDualModality = false`. Message inputs disable dual modality editing
+    // - On an iPhone, document content editors are `platform = "mobile"` and
+    //   `isDualModality = true`. However, message inputs are `platform = "mobile"`
+    //   and `isDualModality = false`. Message inputs disable dual modality editing
     //   with `withoutMobileDualModality = true`.
     //
     // - This isn't implemented yet but on an iPad we should have
-    //   `isMobile = false` (since it's big enough for our desktop screen size) and
-    //   should have `isDualModality = true` if there's no hardware keyboard but
-    //   `isDualModality = false` if there is a hardware keyboard. If the user is
-    //   primarily using the iPad via touch it should behave more like an iPhone
+    //   `platform = "desktop"` (since it's big enough for our desktop screen size)
+    //   and should have `isDualModality = true` if there's no hardware keyboard
+    //   but `isDualModality = false` if there is a hardware keyboard. If the user
+    //   is primarily using the iPad via touch it should behave more like an iPhone
     //   than a laptop.
     const isDualModality = !canPrimaryInputHover && !withoutMobileDualModality;
 
@@ -826,8 +813,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
-    const isMobileRef = useRef(isMobile);
-    const withMobileLayoutRef = useRef(withMobileLayout);
+    const routeLayoutRef = useRef(routeLayout);
     const canPrimaryInputHoverRef = useRef(canPrimaryInputHover);
     const isDualModalityRef = useRef(isDualModality);
     const rootNavigateRef = useRef(rootNavigate);
@@ -842,8 +828,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const spaceContextRef = useRef(spaceContext);
     useInsertionEffect(() => {
         propsRef.current = props;
-        isMobileRef.current = isMobile;
-        withMobileLayoutRef.current = withMobileLayout;
+        routeLayoutRef.current = routeLayout;
         canPrimaryInputHoverRef.current = canPrimaryInputHover;
         isDualModalityRef.current = isDualModality;
         rootNavigateRef.current = rootNavigate;
@@ -1029,18 +1014,20 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                               Scroll margin                                *
         \* ========================================================================== */
 
-        let lastRemPx: number | null = null;
+        let lastSpacingScale: SpacingScale | null = null;
         let lastScrollMargin: {top: number; left: number; right: number; bottom: number} | null =
             null;
 
         function getScrollMargin() {
-            const remPx = getRemPxWithoutListening();
+            const spacingScale = getSpacingScaleWithoutListening();
 
-            if (lastScrollMargin !== null && lastRemPx === remPx) return lastScrollMargin;
+            if (lastScrollMargin !== null && lastSpacingScale === spacingScale)
+                return lastScrollMargin;
 
-            const scrollMarginPx = textInputVisibilityMaintainerMarginYRem * remPx;
+            const scrollMarginPx =
+                textInputVisibilityMaintainerMarginYRem * remPxBySpacingScale[spacingScale];
 
-            lastRemPx = remPx;
+            lastSpacingScale = spacingScale;
 
             lastScrollMargin = {
                 // If our schema has a title then use the title's padding top as our top
@@ -1056,12 +1043,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 top: schema.nodes.title
                     ? getElementSafeAreaInsetTopPx(view.dom) +
                       convertRemLengthToPx(
-                          isMobileRef.current
-                              ? contentStyles.mobilePlatformTitlePaddingTop
-                              : withMobileLayoutRef.current
-                              ? contentStyles.mobileLayoutTitlePaddingTop
-                              : contentStyles.desktopTitlePaddingTop,
-                          remPx,
+                          contentStyles.titlePaddingTop[
+                              getPlatformRouteLayout(
+                                  getPlatformWithoutListening(),
+                                  routeLayoutRef.current,
+                              )
+                          ],
+                          spacingScale,
                       ) +
                       1
                     : scrollMarginPx,
@@ -1072,12 +1060,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // cover up content.
                     convertRemLengthToPx(
                         subtractRemLengths(
-                            spacing[contentStyles.listItemIndentation],
+                            contentStyles.listItemIndentation,
                             propsRef.current.isCompact || propsRef.current.isExtraCompact
-                                ? spacing[contentStyles.compactListItemOffset]
-                                : spacing["0"],
+                                ? contentStyles.compactListItemOffset
+                                : "0",
                         ),
-                        remPx,
+                        spacingScale,
                     ),
                 right: scrollMarginPx,
                 bottom: scrollMarginPx,
@@ -1093,11 +1081,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         const getFileLayoutScreenWidth = () =>
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
-            withMobileLayoutRef.current && !isMobileRef.current
-                ? convertRemLengthToPx(
-                      spacing[peekMobileLayoutWidth],
-                      remPxByPlatform[isMobileRef.current ? "mobile" : "desktop"],
-                  )
+            routeLayoutRef.current === "narrow" && getPlatformWithoutListening() !== "mobile"
+                ? convertRemLengthToPx(peekMobileLayoutWidth, getSpacingScaleWithoutListening())
                 : getClientInfo().screenWidth;
 
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also
@@ -1165,7 +1150,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
-                isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 draggingFileRef,
             }),
             table: (node, view) => new ContentEditorTableNodeView(node, 100, view),
@@ -1180,7 +1164,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 onPointerEnterAfterDelay: ({mark, range, wasPointerDown}) => {
                     // We don't want to open floaters on mobile.
-                    if (isMobileRef.current) return;
+                    if (getPlatformWithoutListening() === "mobile") return;
 
                     // Don't open the pointer link floater if the pointer was down when it entered
                     // the link. Since the user is probably trying to drag to select some text.
@@ -1232,9 +1216,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             // We don't have a `<ContentView>` implementation of this yet. Unclear how we
             // should support comments in `<ContentView>` at this moment.
             comment: createContentEditorCommentMarkViewConstructor({
-                withMobileLayout: () => withMobileLayoutRef.current,
+                getRouteLayout: () => routeLayoutRef.current,
                 canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
-
                 openCommentThread: async commentThreadId => {
                     await propsRef.current.openCommentThread?.(commentThreadId);
                 },
@@ -1297,8 +1280,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         /* ========================================================================== *\
          *                                 Copy/paste                                 *
         \* ========================================================================== */
-
-        let uploadingFileIds: Set<FileId> | undefined;
 
         let temporaryPastedFileInfoById:
             | Map<
@@ -1593,7 +1574,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         }) {
             // If we're dropping or pasting an empty slice that means ProseMirror couldn't
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
-            // use `FileUploadService` to attach the file to our content.
+            // use `FileProcessorService` to attach the file to our content.
             if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
@@ -1776,7 +1757,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 );
 
                             const promise = (async () => {
-                                let uploadingFileId: FileId | undefined;
                                 let unsubscribeFromFileStore: (() => void) | undefined;
 
                                 try {
@@ -1789,10 +1769,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         input: temporaryPastedFileInfo.input,
                                         progressStores,
                                         onAttach: ({signedUrlSearch, fileStore}) => {
-                                            const initialFile = fileStore.getSnapshot();
-                                            uploadingFileId = initialFile.id;
-                                            (uploadingFileIds ??= new Set()).add(initialFile.id);
-
                                             // Whenever the file changes during the upload, make sure to update it in
                                             // our content references. We unsubscribe once the upload has finished since
                                             // after that the file should be immutable.
@@ -1821,7 +1797,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
                                 } finally {
-                                    if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
                                     unsubscribeFromFileStore?.();
                                 }
                             })();
@@ -1951,7 +1926,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             let isSync = true;
 
             handleInsertSlice({
-                asyncSpanName: "Content editor async paste",
+                asyncSpanName: "Content editor paste",
                 remember: [selection],
                 slice,
                 dataTransfer: event.clipboardData,
@@ -2040,7 +2015,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
 
             handleInsertSlice({
-                asyncSpanName: "Content editor async drop",
+                asyncSpanName: "Content editor drop",
                 remember: [
                     view.state.selection,
                     initialFileDropTarget?.action?.pos ?? $mouse.pos,
@@ -3098,7 +3073,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const classList = classNames(
             contentStyles.docClassName,
-            withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
+            routeLayout === "narrow" ? contentStyles.narrowRouteLayoutDocClassName : undefined,
             isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
             isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
             className,
@@ -3108,7 +3083,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewElement.classList.remove(...classList);
         };
-    }, [className, isCompact, isExtraCompact, withMobileLayout]);
+    }, [className, isCompact, isExtraCompact, routeLayout]);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
@@ -3682,7 +3657,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const [mobileLinkModalState, setMobileLinkModalState] =
         useState<ContentEditorMobileLinkModalState | null>(null);
-    if (!(isMobile && !withoutMobileKeyboardToolbar) && mobileLinkModalState) {
+    if (!(platform === "mobile" && !withoutMobileKeyboardToolbar) && mobileLinkModalState) {
         setMobileLinkModalState(null);
     }
 
@@ -3692,7 +3667,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const [isMobileCommentInputOpen, setIsMobileCommentInputOpen] = useState(false);
     if (
-        (!unwrappedState.schema.marks.comment || !(isMobile && !withoutMobileKeyboardToolbar)) &&
+        (!unwrappedState.schema.marks.comment ||
+            !(platform === "mobile" && !withoutMobileKeyboardToolbar)) &&
         isMobileCommentInputOpen
     ) {
         setIsMobileCommentInputOpen(false);
@@ -3798,7 +3774,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     // reset our state to null.
     if (
         codeBlockCopyButtonTooltipState &&
-        (isMobile || !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
+        (platform === "mobile" ||
+            !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
     ) {
         setCodeBlockCopyButtonTooltipState(null);
     }
@@ -4065,8 +4042,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             onBlur={onBlur}
         >
             <ContentEditorFloater
-                isMobile={isMobile}
-                withMobileLayout={withMobileLayout}
+                platform={platform}
                 state={unwrappedState}
                 viewRef={viewRef}
                 floaterState={floaterState}
@@ -4101,7 +4077,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     phantomSelection={phantomSelection}
                 />
             ))}
-            {isMobile && !isInert && !withoutMobileKeyboardToolbar && (
+            {platform === "mobile" && !isInert && !withoutMobileKeyboardToolbar && (
                 <ContentEditorMobileKeyboardToolbar
                     state={unwrappedState}
                     viewRef={viewRef}
@@ -4857,7 +4833,7 @@ class ContentEditorFileDragState {
         const {width: viewWidth, height: viewHeight} = this._view.dom.getBoundingClientRect();
         const $pos = this._view.state.doc.resolve(posResult.pos);
         const topBlockIndex = $pos.index(0);
-        const remPx = getRemPxWithoutListening();
+        const spacingScale = getSpacingScaleWithoutListening();
 
         // Recompute drop targets if the mouse moved over a new top block or anything
         // changed that may have updated the layout of our content (e.g. `viewWidth`
@@ -4940,7 +4916,7 @@ class ContentEditorFileDragState {
             // apply since that's the smallest size of an `<IconButton>`. Since we consider
             // an `xs` `<IconButton>` to have a sufficient hit target we consider the hit
             // target sufficient here too.
-            if (dx > convertRemLengthToPx(spacing["5"], remPx)) {
+            if (dx > convertRemLengthToPx("5", spacingScale)) {
                 dx += viewWidth;
             }
 

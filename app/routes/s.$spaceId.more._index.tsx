@@ -6,7 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -19,11 +19,11 @@ export function meta() {
 }
 
 export default function MoreRoute() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const rootNavigate = useRootNavigate();
     const {space, currentAccount} = useSpaceContext();
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     const {isPressed: isSpacePressed, pressProps: spacePressProps} = usePress({
         onPress: () => {
@@ -35,7 +35,6 @@ export default function MoreRoute() {
 
     return (
         <SpaceRouteScrollView
-            withMobileLayout={isMobile}
             title="More"
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}

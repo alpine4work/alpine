@@ -11,7 +11,7 @@ import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
@@ -29,13 +29,11 @@ import {
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ChatView({
-    withMobileLayout,
     chat,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
 }: {
-    withMobileLayout: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
@@ -45,7 +43,6 @@ export function ChatView({
         <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar chat={chat} />
             <ChatMessagingView
-                withMobileLayout={withMobileLayout}
                 chat={chat}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
@@ -58,7 +55,7 @@ export function ChatView({
 function ChatViewTopBar({chat}: {chat: ChatModel}) {
     assert(chat.accounts.length > 0);
 
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
     const navigate = useNavigate();
 
@@ -85,7 +82,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                 justifyContent="center"
                 alignItems="center"
             >
-                {isMobile && (
+                {platform === "mobile" && (
                     <Box flexShrink="0" paddingLeft="3">
                         <IconButton
                             size="base"
@@ -103,9 +100,9 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                     maxWidth={messageViewMaxWidth}
                     paddingX={screenPaddingX}
                     display="flex"
-                    flexDirection={!isMobile ? "row" : "column"}
+                    flexDirection={platform !== "mobile" ? "row" : "column"}
                     alignItems="center"
-                    gap={!isMobile ? "2" : "1"}
+                    gap={platform !== "mobile" ? "2" : "1"}
                 >
                     <AccountAvatarPile
                         size="7"
@@ -115,12 +112,12 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                     />
                     <h1
                         className={sprinkles({
-                            fontStyle: !isMobile ? "truncate-semi-bold" : "truncate",
-                            fontSize: !isMobile ? "200" : "50",
+                            fontStyle: platform !== "mobile" ? "truncate-semi-bold" : "truncate",
+                            fontSize: platform !== "mobile" ? "200" : "50",
                         })}
                     >
                         {otherChatAccounts.length === 1 ? (
-                            !isMobile ? (
+                            platform !== "mobile" ? (
                                 <AccountFullName account={otherChatAccounts[0]!} />
                             ) : (
                                 <AccountShortName account={otherChatAccounts[0]!} />
@@ -134,7 +131,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                         )}
                     </h1>
                 </Box>
-                {isMobile && <Spacer space="10" />}
+                {platform === "mobile" && <Spacer space="10" />}
             </Box>
         </Box>
     );
@@ -145,13 +142,11 @@ function AccountFullName({account}: {account: AccountModel}) {
 }
 
 function ChatMessagingView({
-    withMobileLayout,
     chat,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
 }: {
-    withMobileLayout: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
@@ -184,7 +179,6 @@ function ChatMessagingView({
     return (
         <MessagingView
             ref={messagingRef}
-            withMobileLayout={withMobileLayout}
             initialScrollOffset="bottom"
             initialMessagesResult={{
                 messageCount: chat.messageCount,

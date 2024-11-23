@@ -697,7 +697,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     isTimeToLiveEnabled =
                         timeToLiveOutput.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
                 } catch (error) {
-                    if (isDynamoResourceNotFoundError(error)) {
+                    if (
+                        isDynamoResourceNotFoundError(error) ||
+                        (error instanceof AggregateError &&
+                            isDynamoResourceNotFoundError(error.errors[0]))
+                    ) {
                         doesTableExist = false;
                         existingIndexNames = new Set();
                         isTimeToLiveEnabled = false;
@@ -851,7 +855,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         ]);
                     } catch (error) {
                         // A concurrent process may be racing to create this table. Try again...
-                        if (isDynamoValidationError(error)) {
+                        if (
+                            isDynamoValidationError(error) ||
+                            (error instanceof AggregateError &&
+                                isDynamoValidationError(error.errors[0]))
+                        ) {
                             retry(error);
                         } else {
                             throw error;

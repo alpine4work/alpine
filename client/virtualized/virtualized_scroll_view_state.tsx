@@ -4,7 +4,7 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key, ReactNode} from "react";
-import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
@@ -14,6 +14,7 @@ import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 // HACK(calebmer): Hackishly get the constructor for a
 // `functional-red-black-tree` iterator so we can construct it since there's
@@ -299,7 +300,11 @@ export class VirtualizedScrollViewState {
             const item = renderedItems[index]!;
             const orderKey = orderKeys[index]!;
 
-            assert(!itemKeys.has(item.key), "Item keys should be unique");
+            if (itemKeys.has(item.key)) {
+                throw new InternalError(
+                    quote`Item keys should be unique (found duplicate key: ${item.key})`,
+                );
+            }
             itemKeys.add(item.key);
 
             entryByOrderKey = entryByOrderKey.insert(orderKey, {
@@ -390,7 +395,11 @@ export class VirtualizedScrollViewState {
             const item = renderedItems[index]!;
             const orderKey = orderKeys[index + 1]!;
 
-            assert(!itemKeys.has(item.key), "Item keys should be unique");
+            if (itemKeys.has(item.key)) {
+                throw new InternalError(
+                    quote`Item keys should be unique (found duplicate key: ${item.key})`,
+                );
+            }
             itemKeys.add(item.key);
 
             entryByOrderKey = entryByOrderKey.insert(orderKey, {

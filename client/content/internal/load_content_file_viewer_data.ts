@@ -1,6 +1,7 @@
 import {Tree} from "@lezer/common";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -61,12 +62,12 @@ export async function loadContentFileViewerData({
     spaceId,
     signedUrlSearch,
     file,
-    isMobile,
+    platform,
 }: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
-    isMobile: boolean;
+    platform: Platform;
 }): Promise<ContentFileViewerLoaderData | null> {
     switch (file.contentType) {
         case "application/octet-stream": {
@@ -87,7 +88,7 @@ export async function loadContentFileViewerData({
                 spaceId,
                 signedUrlSearch,
                 file,
-                isMobile,
+                platform,
             });
         }
         case "application/pdf":
@@ -108,7 +109,7 @@ export async function loadContentFileViewerData({
         case "video/quicktime":
         case "video/mpeg":
         case "video/x-matroska": {
-            if (isMobile) {
+            if (platform === "mobile") {
                 return loadContentFileVideoViewerMobile({
                     spaceId,
                     signedUrlSearch,
@@ -119,7 +120,7 @@ export async function loadContentFileViewerData({
                     spaceId,
                     signedUrlSearch,
                     file,
-                    isMobile,
+                    platform,
                     // Load the preview image when loading videos. We don't load the video itself
                     // until the user presses play.
                     asPreview: true,
@@ -131,7 +132,7 @@ export async function loadContentFileViewerData({
         case "audio/webm":
         case "audio/ogg":
         case "audio/mp4": {
-            if (!isMobile) return null;
+            if (platform !== "mobile") return null;
 
             return loadContentFileAudioViewerMobile({
                 spaceId,
@@ -206,7 +207,7 @@ export function getContentFileViewerSrc({
     }
 
     if (file.alternative) {
-        if (file.alternative.isProcessing) return null;
+        if (file.alternative.isProcessing || !file.alternative.ok) return null;
 
         return `/files/${spaceId}/${file.id}${signedUrlSearch}&variant=${
             file.alternative.isImagePreviewContent ? "preview" : "alternative"
@@ -222,19 +223,19 @@ async function loadContentFileImageViewer({
     spaceId,
     signedUrlSearch,
     file,
-    isMobile,
+    platform,
     asPreview = false,
 }: {
     spaceId: SpaceId;
     signedUrlSearch: string;
     file: FileModel;
-    isMobile: boolean;
+    platform: Platform;
     asPreview?: boolean;
 }): Promise<ContentFileViewerLoaderData> {
     // Don't load images that exceed the maximum size we support on mobile. We
     // won't render them so don't bother loading them.
     if (
-        isMobile &&
+        platform === "mobile" &&
         file.preview?.type === "Image" &&
         typeof file.preview.size === "object" &&
         file.preview.size.width * file.preview.size.height >
@@ -260,7 +261,7 @@ async function loadContentFileImageViewer({
 
         // Make sure `hammerjs` is imported as well. We only need it for zoomable
         // images.
-        isMobile ? hammerModulePromise.get() : null,
+        platform === "mobile" ? hammerModulePromise.get() : null,
     ]);
 
     return {type: "Image", imageElement: image};

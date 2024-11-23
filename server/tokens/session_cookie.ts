@@ -2,7 +2,7 @@ import {parse, serialize} from "cookie";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
-import {InternalError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -36,7 +36,7 @@ export async function getSessionCookieIfExists(
     const payload = await tokenAgent.publicSide.verifyTokenFromService("AppService", token);
 
     if (payload.type !== "Session")
-        throw new InternalError("Unexpected token payload type in session cookie");
+        throw new PermissionDeniedError("Unexpected token payload type in session cookie");
 
     return payload;
 }

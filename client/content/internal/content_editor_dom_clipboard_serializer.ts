@@ -8,7 +8,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
-import {remPxByPlatform} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -24,7 +24,7 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/to_dom.ts#L27
 declare module "prosemirror-model" {
-    class DOMSerializer {
+    interface DOMSerializer {
         serializeNodeInner(node: Node, options: {document?: Document}): globalThis.Node;
         serializeMark(
             mark: Mark,
@@ -163,10 +163,11 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
             const layouts = layoutContentFileParent(this._getContentReferences(), node, {
                 screenWidth: getClientInfo().screenWidth,
-                isMobile: false,
+                platform: "desktop",
+                spacingScale: "small",
             });
 
-            const gap = contentStyles.fileRowGapWidthRem * remPxByPlatform.desktop;
+            const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.small;
 
             if (node.type.name === "fileRow") {
                 fileRowDom.style.display = "flex";

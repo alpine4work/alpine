@@ -23,7 +23,7 @@ import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibi
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -301,7 +301,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
         focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
         focusPreviousTaskTitleAll: Memo<(key: string) => void>;
     }) {
-        const isMobile = useIsMobile();
+        const platform = usePlatform();
         const isInert = capabilities.isReadOnly || isRootQueryNull;
 
         return (
@@ -343,9 +343,10 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                         height="5"
                         pointerEvents="none"
                         style={{
-                            height: isMobile
-                                ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
-                                : undefined,
+                            height:
+                                platform === "mobile"
+                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                                    : undefined,
                         }}
                     />
                 )}

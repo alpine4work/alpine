@@ -1,4 +1,5 @@
-import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
@@ -11,8 +12,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
  */
 export const mobileBottomBarKeyboardToolbarHeight = "10";
 
-export const mobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumber(
-    spacing[mobileBottomBarKeyboardToolbarHeight],
+export const mobileBottomBarKeyboardToolbarHeightRem = parseRemLength(
+    mobileBottomBarKeyboardToolbarHeight,
 );
 
 {
@@ -25,7 +26,7 @@ export const mobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumber(
     const mobileBottomBarKeyboardToolbarHeight = 50;
 
     assert(
-        mobileBottomBarKeyboardToolbarHeightRem * remPxByPlatform.mobile ===
+        mobileBottomBarKeyboardToolbarHeightRem * remPxBySpacingScale.large ===
             mobileBottomBarKeyboardToolbarHeight,
     );
 }
@@ -42,7 +43,7 @@ export const mobileBottomBarKeyboardToolbarHeightRem = parseRemLengthNumber(
  */
 export const mobileBottomBarKeyboardSubstituteHeight = "17rem";
 
-export const mobileBottomBarKeyboardSubstituteHeightRem = parseRemLengthNumber(
+export const mobileBottomBarKeyboardSubstituteHeightRem = parseRemLength(
     mobileBottomBarKeyboardSubstituteHeight,
 );
 
@@ -56,7 +57,7 @@ export const mobileBottomBarKeyboardSubstituteHeightRem = parseRemLengthNumber(
     const mobileBottomBarKeyboardSubstituteHeight = 340;
 
     assert(
-        mobileBottomBarKeyboardSubstituteHeightRem * remPxByPlatform.mobile ===
+        mobileBottomBarKeyboardSubstituteHeightRem * remPxBySpacingScale.large ===
             mobileBottomBarKeyboardSubstituteHeight,
     );
 }

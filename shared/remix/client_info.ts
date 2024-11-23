@@ -1,4 +1,4 @@
-import {mobileMaxScreenWidth} from "~/shared/design/core/spacing.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -154,7 +154,7 @@ export const defaultMobileClientInfo: ClientInfo = {
      * Use the maximum screen width that triggers our mobile site instead of the
      * desktop site.
      */
-    screenWidth: mobileMaxScreenWidth,
+    screenWidth: mobilePlatformMaxWindowWidth,
 
     /**
      * The largest common screen height for mobile according to [BrowserStack][1].

@@ -12,7 +12,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_rend
 import {InboxMobileView} from "~/client/inbox/inbox_mobile_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
@@ -70,7 +70,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
     ];
 
     const clientInfo = context.loader.getClientInfo();
-    const isMobile = getInitialAppRenderIsMobile(clientInfo);
+    const platform = getInitialAppRenderPlatform(clientInfo);
 
     const [entriesResult, peekDataFromSelectedParam] = await runAllPromises([
         (async () =>
@@ -84,7 +84,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                 afterCursor: null,
             }))(),
         (() => {
-            if (isMobile) return null;
+            if (platform === "mobile") return null;
             if (!selectedParam) return null;
 
             const textDecoder = new TextDecoder();
@@ -101,7 +101,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
     ]);
 
     const peekData =
-        !isMobile && !peekDataFromSelectedParam && entriesResult.items.length > 0
+        platform !== "mobile" && !peekDataFromSelectedParam && entriesResult.items.length > 0
             ? await loadInitialPeekDataForServer(
                   context,
                   request,
@@ -138,9 +138,9 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export default function InboxRouteWrapper() {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
-    if (isMobile) {
+    if (platform === "mobile") {
         return <InboxMobileRoute />;
     }
 

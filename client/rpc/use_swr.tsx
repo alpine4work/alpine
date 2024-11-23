@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {useGlobalContext} from "~/client/helpers/global_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -9,12 +9,12 @@ import {
     createSwrCacheEntryHistoryStack,
     disabledSwrCacheEntryResult,
     pendingSwrCacheEntryResult,
-} from "~/client/rpc/internal/swr_cache.js";
+} from "~/client/rpc/swr_cache.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
-const swrDefaultDedupingIntervalMs = 2 * 1000;
+export const swrDefaultDedupingIntervalMs = 2 * 1000;
 
 /**
  * A complete re-implementation of the [SWR library][1]. The SWR library has a
@@ -276,27 +276,4 @@ export function useIdlyPreloadSwr(
             }
         });
     }, [cache, dedupingInterval, fetcher, key]);
-}
-
-/**
- * Returns a function you can use to revalidate any SWR entry. When you call
- * the revalidation function we'll always send a network request.
- */
-export function useForceRevalidateSwr() {
-    const cache = useGlobalContext(SwrCacheContext);
-
-    return useCallback(
-        (
-            key: string,
-            fetcher: (key: string) => PromiseLike<object>,
-            {
-                dedupingInterval = swrDefaultDedupingIntervalMs,
-            }: {
-                dedupingInterval?: number;
-            } = {},
-        ): PromiseLike<object> => {
-            return cache.forceRevalidateEntryAndRetainIfNeeded(key, fetcher, {dedupingInterval});
-        },
-        [cache],
-    );
 }

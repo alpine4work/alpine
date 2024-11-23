@@ -7,7 +7,7 @@ import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {TextAreaWithAutoGrowingHeight} from "~/client/design/text_area_with_auto_growing_height.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchResultView} from "~/client/search/internal/search_result_view.js";
@@ -44,12 +44,12 @@ export function SearchMobileView({
 }: {
     affinityResults: ReadonlyArray<SearchResult>;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const maxWidth = !isMobile ? "96" : undefined;
+    const maxWidth = platform !== "mobile" ? "96" : undefined;
 
     const {output, queryText, onQueryTextChange} = useSearchState({
         isSearchParamControlled: false,
@@ -61,7 +61,6 @@ export function SearchMobileView({
     const shouldShowLoadingIndicator = useDelayLoadingIndicator(output.isPending);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout: isMobile,
         title: "Search",
         withoutDisappearingTitle: true,
         titleJustifyContent: "center",
@@ -77,10 +76,10 @@ export function SearchMobileView({
                 return {
                     key: "Header",
                     minHeight: addRemLengths(
-                        spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
-                        spacing[searchMobileInputMarginTop],
+                        navigationBarHeight,
+                        searchMobileInputMarginTop,
                         minSearchMobileInputHeight,
-                        spacing[searchMobileInputMarginBottom],
+                        searchMobileInputMarginBottom,
                     ),
                     node: (
                         <>
@@ -210,7 +209,6 @@ export function SearchMobileView({
             };
         },
         [
-            isMobile,
             maxWidth,
             onQueryTextChange,
             output.key,

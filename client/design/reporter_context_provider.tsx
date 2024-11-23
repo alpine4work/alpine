@@ -24,8 +24,9 @@ import {
 } from "~/client/design/internal/reporter_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {greyElevated2ClassName, toastStyles} from "~/client/styles/styles.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase} from "~/shared/error/error.js";
@@ -99,11 +100,11 @@ type ReporterState = {
     }>;
 } & (
     | {
-          readonly isMobile: true;
+          readonly platform: "mobile";
           readonly activeToast?: undefined;
       }
     | {
-          readonly isMobile: false;
+          readonly platform: "desktop";
           readonly activeToast: {
               readonly toast: Toast;
               readonly startTime: Date;
@@ -115,7 +116,7 @@ type ReporterState = {
 );
 
 const desktopInitialReporterState: ReporterState = {
-    isMobile: false,
+    platform: "desktop",
     activeDialog: null,
     dialogQueue: [],
     activeToast: null,
@@ -123,15 +124,15 @@ const desktopInitialReporterState: ReporterState = {
 };
 
 const mobileInitialReporterState: ReporterState = {
-    isMobile: true,
+    platform: "mobile",
     activeDialog: null,
     dialogQueue: [],
 };
 
 type ReporterAction =
     | {
-          readonly type: "SetIsMobile";
-          readonly isMobile: boolean;
+          readonly type: "SetPlatform";
+          readonly platform: Platform;
       }
     | {
           readonly type: "DisplayError";
@@ -161,19 +162,19 @@ type ReporterAction =
 
 function reduceReporterState(state: ReporterState, action: ReporterAction): ReporterState {
     switch (action.type) {
-        case "SetIsMobile": {
-            if (state.isMobile === action.isMobile) return state;
+        case "SetPlatform": {
+            if (state.platform === action.platform) return state;
 
             // Switching to mobile immediately throws away all pending toasts.
-            if (action.isMobile) {
+            if (action.platform === "mobile") {
                 return {
-                    isMobile: true,
+                    platform: action.platform,
                     activeDialog: state.activeDialog,
                     dialogQueue: state.dialogQueue,
                 };
             } else {
                 return {
-                    isMobile: false,
+                    platform: action.platform,
                     activeDialog: state.activeDialog,
                     dialogQueue: state.dialogQueue,
                     activeToast: null,
@@ -182,7 +183,7 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
             }
         }
         case "DisplayError": {
-            if (state.isMobile) {
+            if (state.platform === "mobile") {
                 // NOTE(calebmer): The dialog doesn't show an error icon. That's because we
                 // don't have much ability to customize the native iOS dialog we render.
                 return reduceReporterState(state, {
@@ -244,7 +245,7 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
             }
         }
         case "ShowToast": {
-            if (state.isMobile) return state;
+            if (state.platform === "mobile") return state;
 
             if (state.activeToast) {
                 return {
@@ -264,7 +265,7 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
             }
         }
         case "StartDismissActiveToastAnimation": {
-            if (state.isMobile) return state;
+            if (state.platform === "mobile") return state;
             if (!state.activeToast) return state;
 
             return {
@@ -277,7 +278,7 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
             };
         }
         case "ActuallyDismissActiveToast": {
-            if (state.isMobile) return state;
+            if (state.platform === "mobile") return state;
             if (!state.activeToast) return state;
 
             if (state.toastQueue[0]) {
@@ -304,16 +305,16 @@ function reduceReporterState(state: ReporterState, action: ReporterAction): Repo
 }
 
 export function ReporterContextProvider({children}: {children?: ReactNode}) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const [actualState, dispatch] = useReducer(
         reduceReporterState,
-        isMobile ? mobileInitialReporterState : desktopInitialReporterState,
+        platform === "mobile" ? mobileInitialReporterState : desktopInitialReporterState,
     );
     let state = actualState;
 
-    if (actualState.isMobile !== isMobile) {
-        const action: ReporterAction = {type: "SetIsMobile", isMobile};
+    if (actualState.platform !== platform) {
+        const action: ReporterAction = {type: "SetPlatform", platform};
         dispatch(action);
         state = reduceReporterState(state, action);
     }
@@ -324,14 +325,15 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
     });
 
     useEffect(() => {
-        if (state.isMobile || !state.activeToast || !state.activeToast.isAnimatingOut) return;
+        if (state.platform === "mobile" || !state.activeToast || !state.activeToast.isAnimatingOut)
+            return;
 
         const timeout = createTimeout(() => {
             dispatch({type: "ActuallyDismissActiveToast"});
         }, toastStyles.toastAnimateOutDuration + perceivedAsInstantLimitMs);
 
         return () => timeout.clear();
-    }, [state.activeToast, state.isMobile]);
+    }, [state.activeToast, state.platform]);
 
     const dismissToast = useCallback(
         ({withoutAnimation = false}: {withoutAnimation?: boolean} = {}) => {
@@ -409,7 +411,7 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                     onClose={() => dispatch({type: "CloseActiveDialog"})}
                 />
             )}
-            {!state.isMobile && (
+            {state.platform !== "mobile" && (
                 <Box pointerEvents="none" position="absolute" inset="0" zIndex="60">
                     {state.activeToast && (
                         <Box

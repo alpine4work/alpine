@@ -8,7 +8,7 @@ import {PostView} from "~/client/forum/post_view.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -130,11 +130,7 @@ export const meta = createMetaFunction(
     ],
 );
 
-export default function ChannelPostsRouteWrapper({
-    withMobileLayout = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function ChannelPostsRouteWrapper() {
     const {channel, postsResult, inboxEntry} = useLoaderDataWithSchema(LoaderSchema);
 
     // While you're viewing new posts in a channel, this accrues affinity points to
@@ -160,29 +156,25 @@ export default function ChannelPostsRouteWrapper({
                         ?.otherReferencedComments ?? emptyArray
                 }
                 initialScroll={null}
-                withMobileLayout={withMobileLayout}
             />
         );
     } else {
-        node = <ChannelPostsRoute withMobileLayout={withMobileLayout} />;
+        node = <ChannelPostsRoute />;
     }
 
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            withMobileLayout: withMobileLayout,
             maxWidth: contentStyles.contentMaxWidth,
         },
         node,
     );
 }
 
-function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobileLayout: boolean}) {
+function ChannelPostsRoute() {
     const context = useAppContext();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {space} = useSpaceContext();
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const {
         channel: initialChannel,
@@ -215,7 +207,7 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
     // expanded comments on mobile. So make sure to close them all.
-    if (isMobile && posts.hasOpenPostComments()) {
+    if (platform === "mobile" && posts.hasOpenPostComments()) {
         setPosts(posts.closeAllPostComments());
     }
 
@@ -236,21 +228,19 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
     });
 
     const navigationBar = useNavigationBar({
-        isDisabled: !isMobile,
-        withMobileLayout,
+        isDisabled: platform !== "mobile",
         title: printPrettySmallNumberSummary(totalPostCount, "new post"),
         withoutDisappearingTitle: true,
     });
 
     return (
         <PostListView
-            withMobileLayout={withMobileLayout}
             channelHeader={useMemo(
                 () =>
-                    isMobile
+                    platform === "mobile"
                         ? {isOnlyNavigationBar: true, shouldNotShowChannelId: null}
                         : undefined,
-                [isMobile],
+                [platform],
             )}
             posts={posts}
             onMergePostContentReferences={useCallback(
@@ -289,7 +279,7 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
             navigationBar={navigationBar}
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.
-            withSafeAreaInsetTop={!isMobile}
+            withSafeAreaInsetTop={platform !== "mobile"}
         />
     );
 }

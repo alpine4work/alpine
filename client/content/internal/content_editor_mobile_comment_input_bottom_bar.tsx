@@ -179,8 +179,6 @@ export function ContentEditorMobileCommentInputBottomBar({
                 >
                     <MessageInputBase
                         ref={inputRef}
-                        // Only rendered on mobile layouts.
-                        withMobileLayout={true}
                         messageNoun="comment"
                         sendButtonVerb="Save"
                         isBottomBar={true}

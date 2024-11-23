@@ -6,10 +6,6 @@ import {PostContentViewInitialScroll} from "~/client/forum/post_content_view.js"
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-    mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
-} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -24,13 +20,11 @@ export function PostView({
     initialPostComments,
     initialOtherReferencedPostComments,
     initialScroll,
-    withMobileLayout = false,
 }: {
     initialPost: DynamoGeneralRealtimeItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
     initialScroll: Memo<PostViewInitialScroll> | null;
-    withMobileLayout?: boolean;
 }) {
     const {currentAccount} = useSpaceContext();
 
@@ -83,7 +77,6 @@ export function PostView({
     }
 
     const navigationBar = useNavigationBar({
-        withMobileLayout,
         withoutDisappearingTitle: true,
         title: (
             <PostContentViewHeader
@@ -93,13 +86,6 @@ export function PostView({
             />
         ),
         desktopMaxWidth: contentStyles.contentMaxWidth,
-        // Add a bit of margin to the top so it looks like we have
-        // `postContentViewOuterMarginY` worth of space above the post. This does
-        // create a weird scroll effect where if you scroll to the top fast it looks
-        // like the header kinda jumps? Don't love that.
-        desktopMarginTop: !withMobileLayout
-            ? `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`
-            : `${mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar}rem`,
         // `<PostListView>` needs this prop to specifically be set to null so we can
         // replace it when in a post editing state.
         replaceActions: null,
@@ -134,7 +120,6 @@ export function PostView({
             onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
                 setPosts(posts => posts.handleEventTransaction(eventTransaction));
             }, [])}
-            withMobileLayout={withMobileLayout}
             navigationBar={navigationBar}
             initialScrollForFirstPost={initialScroll?.type === "Comment" ? null : initialScroll}
         />

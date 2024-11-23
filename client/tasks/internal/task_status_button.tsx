@@ -2,14 +2,11 @@ import {KeyboardEvent, Ref, forwardRef, useRef} from "react";
 import {mergeProps, useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {
-    desktopTouchSlopBySpacing,
-    mobileTouchSlopBySpacing,
-} from "~/client/design/use_touch_slop.js";
+import {touchSlopBySpacing} from "~/client/design/use_touch_slop.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
@@ -19,6 +16,7 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
@@ -39,30 +37,19 @@ const Box = null;
 const TaskStatusButtonForwardRef = forwardRef(TaskStatusButton);
 export {TaskStatusButtonForwardRef as TaskStatusButton};
 
-const mobileClassNameBySize = createObjectFromKeys(["4", "5", "6", "7"], size =>
-    sprinkles({
-        // In case the circle is in a flexbox container, don't let it shrink.
-        flexShrink: "0",
-        display: "flex",
-        width: mobileTouchSlopBySpacing[size].sizeWithSlop,
-        height: mobileTouchSlopBySpacing[size].sizeWithSlop,
-        padding: mobileTouchSlopBySpacing[size].slop,
-        margin: `-${mobileTouchSlopBySpacing[size].slop}`,
-        borderRadius: "full",
-    }),
-);
-
-const desktopClassNameBySize = createObjectFromKeys(["4", "5", "6", "7"], size =>
-    sprinkles({
-        // In case the circle is in a flexbox container, don't let it shrink.
-        flexShrink: "0",
-        display: "flex",
-        width: desktopTouchSlopBySpacing[size].sizeWithSlop,
-        height: desktopTouchSlopBySpacing[size].sizeWithSlop,
-        padding: desktopTouchSlopBySpacing[size].slop,
-        margin: `-${desktopTouchSlopBySpacing[size].slop}`,
-        borderRadius: "full",
-    }),
+const classNameBySize = mapObjectValues(touchSlopBySpacing, touchSlopBySpacing =>
+    createObjectFromKeys(["4", "5", "6", "7"], size =>
+        sprinkles({
+            // In case the circle is in a flexbox container, don't let it shrink.
+            flexShrink: "0",
+            display: "flex",
+            width: touchSlopBySpacing[size].sizeWithSlop,
+            height: touchSlopBySpacing[size].sizeWithSlop,
+            padding: touchSlopBySpacing[size].slop,
+            margin: `-${touchSlopBySpacing[size].slop}`,
+            borderRadius: "full",
+        }),
+    ),
 );
 
 function TaskStatusButton(
@@ -113,7 +100,7 @@ function TaskStatusButton(
 
     const context = useAppContext();
     const {timeZone} = useClientInfo();
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
     const buttonRef = useRef<HTMLElement | null>(null);
     const mergedButtonRef = useMergedRefs(ref, buttonRef);
@@ -193,16 +180,10 @@ function TaskStatusButton(
         displayStatus = "Closed";
     }
 
-    const className = isMobile ? mobileClassNameBySize[size] : desktopClassNameBySize[size];
+    const className = classNameBySize[platform][size];
 
     return (
-        <FocusRing
-            inset={
-                isMobile
-                    ? mobileTouchSlopBySpacing[size].slop
-                    : desktopTouchSlopBySpacing[size].slop
-            }
-        >
+        <FocusRing inset={touchSlopBySpacing[platform][size].slop}>
             {isFocusable ? (
                 <button
                     {...mergeProps(buttonProps, {onKeyDownCapture})}

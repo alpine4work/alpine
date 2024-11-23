@@ -3,6 +3,7 @@ import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -24,6 +25,9 @@ import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
+// TODO(calebmer, #files): Remove `fileUploadServicePublicKey` from secrets in
+// AWS after deploy. Also from edge service in Cloudflare. Also remove
+// `FileUploadServiceSecrets`.
 export class AwsAppService extends Construct {
     constructor(
         parentConstruct: Construct,
@@ -50,7 +54,7 @@ export class AwsAppService extends Construct {
             // First 750 hours per month of this instance type are free. That effectively
             // translates to 1 free capacity of this instance type across our AWS account.
             instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: 2,
             // During a deploy, we double our capacity needs since we keep running old
@@ -149,10 +153,14 @@ export class AwsAppService extends Construct {
                         : "cyberworlds/app/app_image_tarball_load/tarball.tar",
                 ),
             ),
-            // This appears to be the available memory for our containers. Unclear how we
-            // get this number from 1024 (the instance type's memory). It makes sense that
-            // we'd need some overhead for ECS.
-            memoryLimitMiB: 944,
+            // Memory available to our container. We can't use the full available memory
+            // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
+            // to function.
+            //
+            // We have to figure out the right value here based on trial and error. If we
+            // ask for too much memory we don't get an error, instead our ECS tasks will
+            // be stuck with the "Provisioning" status and never start.
+            memoryLimitMiB: 935,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -185,9 +193,9 @@ export class AwsAppService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
-                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                FILE_PROCESSOR_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
                     secrets,
-                    "fileUploadServicePublicKey",
+                    "fileProcessorServicePublicKey",
                 ),
                 TOKEN_AGENT_SECRET: EcsSecret.fromSecretsManager(secrets, "tokenAgentSecret"),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
@@ -211,6 +219,7 @@ export class AwsAppService extends Construct {
                     "--edgeServiceUrl=https://cyberworlds.dev",
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
@@ -223,7 +232,7 @@ export class AwsAppService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
+                    "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY",
                     "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",
@@ -235,7 +244,7 @@ export class AwsAppService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/app/app_production.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/api/internal/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/app/app_production.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/api/internal/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });

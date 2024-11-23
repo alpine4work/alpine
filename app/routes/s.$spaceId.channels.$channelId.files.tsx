@@ -47,11 +47,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {channelResult}}) =
     ];
 });
 
-export default function ChannelFilesRoute({
-    withMobileLayout = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function ChannelFilesRoute() {
     const {channelResult} = useLoaderDataWithSchema(LoaderSchema);
 
     const [searchParams] = useSearchParams();
@@ -59,7 +55,6 @@ export default function ChannelFilesRoute({
 
     return (
         <ChannelFilesView
-            withMobileLayout={withMobileLayout}
             initialChannelResult={channelResult}
             isFromChannelView={isFromChannelView}
         />

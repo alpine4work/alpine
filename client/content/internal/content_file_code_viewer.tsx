@@ -3,6 +3,7 @@ import {highlightCode} from "@lezer/highlight";
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useMemo} from "react";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorFontSize,
     contentFileViewerLargeProcessingIndicatorGap,
@@ -13,7 +14,7 @@ import {ContentFileViewerLoaderData} from "~/client/content/internal/load_conten
 import {Box} from "~/client/design/box.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {contentStyles, spinAnimationClassName} from "~/client/styles/styles.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
@@ -34,7 +35,11 @@ export function ContentFileCodeViewer({
     file: FileModel;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
 }) {
-    const isMobile = useIsMobile();
+    if (file.preview && !file.preview.isProcessing && !file.preview.ok) {
+        throw new ContentFileProcessorError(file.contentType, file.preview.error);
+    }
+
+    const platform = usePlatform();
 
     const loaderDataResult = usePromise(loaderDataPromise);
 
@@ -109,18 +114,8 @@ export function ContentFileCodeViewer({
                 >
                     <SpinnerGap
                         className={spinAnimationClassName}
-                        size={
-                            spacing[
-                                contentFileViewerLargeProcessingIndicatorIconSize[
-                                    isMobile ? "mobile" : "desktop"
-                                ]
-                            ]
-                        }
-                        weight={
-                            contentFileViewerLargeProcessingIndicatorWeight[
-                                isMobile ? "mobile" : "desktop"
-                            ]
-                        }
+                        size={spacing[contentFileViewerLargeProcessingIndicatorIconSize[platform]]}
+                        weight={contentFileViewerLargeProcessingIndicatorWeight[platform]}
                     />
                     {file.isUploading ? "Processing code" : "Loading"}
                 </Box>

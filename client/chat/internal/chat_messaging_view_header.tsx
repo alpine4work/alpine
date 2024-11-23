@@ -1,5 +1,4 @@
 import {Ref, useRef} from "react";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {
     getElementSafeAreaInsetBottomPx,
     getElementWindowSafeAreaInsetBottomPx,
@@ -7,11 +6,13 @@ import {
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
     messageViewMarginY,
     messageViewTimestampDividerMarginTop,
 } from "~/client/styles/messaging_shared_styles.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // When our view is full of messages this will be the top margin of the view.
@@ -19,11 +20,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // It's ok to export this since it's a constant string.
 // eslint-disable-next-line react-refresh/only-export-components
 export const chatMessagingViewHeaderMinHeight = addRemLengths(
-    spacing[messageViewTimestampDividerMarginTop],
-    spacing[messageViewMarginY],
+    messageViewTimestampDividerMarginTop,
+    messageViewMarginY,
 );
 
-const chatMessagingViewHeaderMinHeightRem = parseRemLengthNumber(chatMessagingViewHeaderMinHeight);
+const chatMessagingViewHeaderMinHeightRem = parseRemLength(chatMessagingViewHeaderMinHeight);
 
 export function ChatMessagingViewHeader({
     itemRef: externalRef,
@@ -41,9 +42,9 @@ export function ChatMessagingViewHeader({
     originalHeight: number;
 }) {
     const internalRef = useRef<HTMLDivElement>(null);
-    const remPx = useRemPx();
+    const spacingScale = useSpacingScale();
 
-    const minHeight = chatMessagingViewHeaderMinHeightRem * remPx;
+    const minHeight = chatMessagingViewHeaderMinHeightRem * remPxBySpacingScale[spacingScale];
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (shouldRenderWithRelativePositioning) return;

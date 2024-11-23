@@ -24,12 +24,10 @@ if (process.env.NODE_ENV !== "development") {
 
 export function LoadingIndicatorSpaceOutletContainer({
     routeId,
-    withMobileLayout,
     hasSpaceLayoutSidebar = false,
     children,
 }: {
     routeId: string;
-    withMobileLayout: boolean;
     hasSpaceLayoutSidebar?: boolean;
     children: ReactElement | null;
 }) {
@@ -64,7 +62,6 @@ export function LoadingIndicatorSpaceOutletContainer({
             <Box flexGrow="1" overflow="hidden" position="relative" zIndex="0">
                 <RouteShimmer
                     routeId={matches[matches.length - 1]?.route.id ?? null}
-                    withMobileLayout={withMobileLayout}
                     withInboxBanner={withInboxBanner}
                 />
             </Box>
@@ -76,7 +73,6 @@ export function LoadingIndicatorSpaceOutletContainer({
             <>
                 <LoadingIndicatorDebugOverlay
                     matches={matches}
-                    withMobileLayout={withMobileLayout}
                     withInboxBanner={withInboxBanner}
                     hasSpaceLayoutSidebar={hasSpaceLayoutSidebar}
                 />
@@ -90,12 +86,10 @@ export function LoadingIndicatorSpaceOutletContainer({
 
 function LoadingIndicatorDebugOverlay({
     matches,
-    withMobileLayout,
     withInboxBanner,
     hasSpaceLayoutSidebar,
 }: {
     matches: Array<AgnosticDataRouteMatch>;
-    withMobileLayout: boolean;
     withInboxBanner: boolean;
     hasSpaceLayoutSidebar: boolean;
 }) {
@@ -119,7 +113,6 @@ function LoadingIndicatorDebugOverlay({
             <Box position="absolute" inset="0" zIndex="-10" backgroundColor="grey-0" opacity="60" />
             <RouteShimmer
                 routeId={matches[matches.length - 1]?.route.id ?? null}
-                withMobileLayout={withMobileLayout}
                 withInboxBanner={withInboxBanner}
             />
         </Box>

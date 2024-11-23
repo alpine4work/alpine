@@ -4,14 +4,54 @@ load("@npm//:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+# Allow any test to depend on `upload_file.ts` from `EdgeService`.
+alias(
+    name = "upload_file_testonly",
+    testonly = True,
+    actual = ":upload_file",
+    visibility = [
+        "//server:__subpackages__",
+    ],
+)
+
+ts_project(
+    name = "upload_file",
+    srcs = ["upload_file.ts"],
+    # We lint and format everything with the below `ts_project()`.
+    lint_and_format_srcs = [],
+    test_srcs = [],
+    deps = [
+        "//:node_modules/pretty-bytes",
+        "//server/helpers",
+        "//server/tokens",
+        "//shared/context",
+        "//shared/error",
+        "//shared/files",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/rpc",
+        "//shared/tracer",
+    ],
+)
+
 ts_project(
     name = "edge_lib",
+    srcs = glob(
+        ["**/*.ts"],
+        exclude = [
+            "upload_file.ts",
+            "**/*.test.ts",
+        ],
+    ),
     deps = [
+        ":upload_file",
+        "//:node_modules/pretty-bytes",
         "//app/static:static_manifest",
         "//server/chat/realtime",
         "//server/cloudflare",
         "//server/documents/collaboration",
         "//server/forum/realtime",
+        "//server/helpers",
         "//server/notifications/my_account",
         "//server/tasks/notes_collaboration",
         "//server/tasks/router",

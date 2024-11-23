@@ -26,7 +26,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     Sprinkles,
     accentThemeBackgroundColor,
@@ -241,7 +241,7 @@ function Button(
         isTabbable = true,
         isFocusable = true,
     } = props;
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const reporter = useReporter();
     const localRef = useRef<HTMLButtonElement | null>(null);
 
@@ -310,7 +310,7 @@ function Button(
             //
             // @ts-expect-error: This prop exists but is undocumented
             // https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/button/src/useButton.ts#L57-L58
-            preventFocusOnPress: isMobile || !isFocusable,
+            preventFocusOnPress: platform === "mobile" || !isFocusable,
             onKeyDown: event => {
                 // `react-spectrum` prevents propagation by default. If
                 // `event.preventDefault()` wasn't called, we want the event to propagate. That

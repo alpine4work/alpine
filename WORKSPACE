@@ -285,12 +285,9 @@ load("@rules_oci//oci:pull.bzl", "oci_pull")
 
 oci_pull(
     name = "debian_image",
-    digest = "sha256:432f545c6ba13b79e2681f4cc4858788b0ab099fc1cca799cc0fae4687c69070",
+    digest = "sha256:ca3372ce30b03a591ec573ea975ad8b0ecaf0eb17a354416741f8001bbcae33d",
     image = "debian",
-    platforms = [
-        "linux/amd64",
-        "linux/arm64/v8",
-    ],
+    platforms = ["linux/arm64/v8"],
 )
 
 # The `Dockerfile` that builds this image lives at
@@ -300,9 +297,9 @@ oci_pull(
 # Docker account.
 oci_pull(
     name = "ubuntu_libreoffice_image",
-    digest = "sha256:3abbbc6eddf5943d62d4d30220e3993c878826db6fdb7fb65f318e1aec660609",
+    digest = "sha256:17016c323c85bbd8f2530537f27007418ca1d200b15ca3f491fe69ec572a89eb",
     image = "docker.io/calebmer/cyberworlds-libreoffice",
-    platforms = ["linux/amd64"],
+    platforms = ["linux/arm64/v8"],
 )
 
 # =========================================================================== #
@@ -553,6 +550,14 @@ http_archive(
     integrity = "sha256-mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM=",
     strip_prefix = "zlib-1.3.1",
     url = "https://zlib.net/zlib-1.3.1.tar.gz",
+)
+
+http_archive(
+    name = "openssl",
+    build_file = "@//admin/bazel:third_party/BUILD.openssl.bazel",
+    integrity = "sha256-4V3agv4v6BOdwqwho21MoB1TE8dfmfRsTooncJtylL8=",
+    strip_prefix = "openssl-3.4.0",
+    url = "https://github.com/openssl/openssl/releases/download/openssl-3.4.0/openssl-3.4.0.tar.gz",
 )
 
 # NOTE(calebmer, 2024-11-07): Unfortunately we're using the `zig` nightly

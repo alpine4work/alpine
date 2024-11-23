@@ -5,9 +5,13 @@ import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/inte
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {
-    getIsMobileWithoutListening,
-    subscribeToIsMobileChange,
-} from "~/client/remix/use_is_mobile.js";
+    getPlatformWithoutListening,
+    subscribeToPlatformChange,
+} from "~/client/remix/platform_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    subscribeToSpacingScaleChange,
+} from "~/client/remix/spacing_scale_context.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -36,12 +40,14 @@ export function createContentEditorFileRowNodeViewConstructor({
         const update = () => {
             assert(!isDestroyed);
 
-            const isMobile = getIsMobileWithoutListening();
+            const platform = getPlatformWithoutListening();
+            const spacingScale = getSpacingScaleWithoutListening();
             const {references} = getContentEditorReferences(view.state);
 
             const layouts = layoutContentFileParent(references, node, {
                 screenWidth: getLayoutScreenWidth(),
-                isMobile,
+                platform,
+                spacingScale,
             });
 
             if (lastLayouts !== layouts) {
@@ -56,7 +62,8 @@ export function createContentEditorFileRowNodeViewConstructor({
 
         update();
 
-        const unsubscribeFromIsMobileChange = subscribeToIsMobileChange(update);
+        const unsubscribeFromPlatformChange = subscribeToPlatformChange(update);
+        const unsubscribeFromFileScaleChange = subscribeToSpacingScaleChange(update);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);
 
         return {
@@ -85,7 +92,8 @@ export function createContentEditorFileRowNodeViewConstructor({
                 if (isDestroyed) return;
                 isDestroyed = true;
 
-                unsubscribeFromIsMobileChange();
+                unsubscribeFromPlatformChange();
+                unsubscribeFromFileScaleChange();
                 unsubscribeFromReferencesUpdate();
             },
         };

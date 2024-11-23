@@ -1,9 +1,6 @@
+import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {
-    RemLength,
-    convertRemLengthToPx,
-    getRemPxFromWindowWidth,
-} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 /**
@@ -22,10 +19,10 @@ export function getInitialVirtualizedScrollViewRenderedItemCount(
         // in inbox) we don't want to immediately go load more.
         1.05;
 
-    const remPx = getRemPxFromWindowWidth(clientInfo.screenWidth);
+    const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
     const minItemHeightPx =
         typeof minItemHeight === "string"
-            ? convertRemLengthToPx(minItemHeight, remPx)
+            ? convertRemLengthToPx(minItemHeight, spacingScale)
             : minItemHeight;
 
     return Math.ceil(maxRenderedHeight / minItemHeightPx);

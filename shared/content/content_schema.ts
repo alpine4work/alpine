@@ -803,7 +803,7 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
             }
         });
 
-        return new Fragment(
+        return Fragment.from(
             newNodesByLine.map(newNodes => schema.nodes.codeBlockLine!.create(null, newNodes)),
         );
     };

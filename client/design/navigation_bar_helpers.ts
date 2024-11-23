@@ -6,51 +6,15 @@
 // `navigation_bar.tsx` but should instead import from
 // `navigation_bar_helpers.tsx`.
 
-import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {navigationBarStyles} from "~/client/styles/styles.js";
-import {
-    Spacing,
-    remPxByPlatform,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/core/spacing.js";
+import {Spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-const {
-    desktopNavigationBarHeight,
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeight,
-    mobileNavigationBarHeightRem,
-} = navigationBarStyles;
+const {navigationBarHeight, navigationBarHeightRem} = navigationBarStyles;
 
-export {
-    desktopNavigationBarHeight,
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeight,
-    mobileNavigationBarHeightRem,
-};
-
-export const navigationBarHeight = {
-    desktop: desktopNavigationBarHeight,
-    mobile: mobileNavigationBarHeight,
-} as const;
-
-export function getNavigationBarHeightRemWithoutListening(): number {
-    if (getIsMobileWithoutListening()) {
-        return mobileNavigationBarHeightRem;
-    } else {
-        return desktopNavigationBarHeightRem;
-    }
-}
-
-export function getNavigationBarHeightPxWithoutListening(): number {
-    if (getIsMobileWithoutListening()) {
-        return mobileNavigationBarHeightRem * remPxByPlatform.mobile;
-    } else {
-        return desktopNavigationBarHeightRem * remPxByPlatform.desktop;
-    }
-}
+export {navigationBarHeight, navigationBarHeightRem};
 
 {
     // IMPORTANT: If you change this value, you must also change
@@ -61,25 +25,25 @@ export function getNavigationBarHeightPxWithoutListening(): number {
     // to an actual value and applying the rem pixel count.
     const mobileNavigationBarHeight = 70;
 
-    assert(mobileNavigationBarHeight === mobileNavigationBarHeightRem * remPxByPlatform.mobile);
+    assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxBySpacingScale.large);
 }
 
 export const navigationBarActionsFlexBasis: Spacing = "10";
-export const mobileNavigationBarGap: Spacing = "3";
+export const navigationBarMobileGap: Spacing = "3";
 
 export const navigationBarDoneButtonActionFlexBasis: Spacing = "16";
 export const navigationBarDoneButtonActionWidth = subtractRemLengths(
-    spacing[navigationBarDoneButtonActionFlexBasis],
-    spacing[mobileNavigationBarGap],
+    navigationBarDoneButtonActionFlexBasis,
+    navigationBarMobileGap,
 );
 export const navigationBarDoneButtonActionSpacerWidth = subtractRemLengths(
-    spacing[navigationBarDoneButtonActionFlexBasis],
-    spacing[navigationBarActionsFlexBasis],
+    navigationBarDoneButtonActionFlexBasis,
+    navigationBarActionsFlexBasis,
 );
 
 export const mobileNavigationBarActionsWidthFittingFlexBasis = subtractRemLengths(
-    spacing[navigationBarActionsFlexBasis],
-    spacing[mobileNavigationBarGap],
+    navigationBarActionsFlexBasis,
+    navigationBarMobileGap,
 );
 
 /**

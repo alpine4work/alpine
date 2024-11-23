@@ -4,7 +4,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createTaskComment} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {mobileMaxScreenWidth} from "~/shared/design/core/spacing.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
@@ -187,7 +187,7 @@ test("mobile task detail view loads comments when window size change", async ({
     });
 
     await ProcessContextModule.waitForTestTasks();
-    await page.setViewportSize({width: mobileMaxScreenWidth, height: viewport.height});
+    await page.setViewportSize({width: mobilePlatformMaxWindowWidth, height: viewport.height});
 
     await services.signIn(browserContext, session);
 
@@ -223,7 +223,7 @@ test("mobile task comments route navigates to task detail view when window size 
 
     await ProcessContextModule.waitForTestTasks();
 
-    await page.setViewportSize({width: mobileMaxScreenWidth, height: viewport.height});
+    await page.setViewportSize({width: mobilePlatformMaxWindowWidth, height: viewport.height});
     await services.signIn(browserContext, session);
 
     await page.goto(`/s/${space.id}/tasks/${task.id}`);

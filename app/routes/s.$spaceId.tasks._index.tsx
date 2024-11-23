@@ -210,7 +210,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function TasksRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+export default function TasksRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const {key, allNotepadPageIds, initialNotepadPageId, initialNotepadPageGridViewExpansionState} =
@@ -244,7 +244,6 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
             <TaskNotepadView
                 // Completely re-mount the route when we get new data from the server.
                 key={key}
-                withMobileLayout={withMobileLayout}
                 store={store}
                 assigneeActiveQuery={assigneeActiveQuery}
                 affinityManager={affinityManager}

@@ -17,7 +17,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessagingViewRef} from "~/client/messaging/messaging_view.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -104,16 +104,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export default function NewChatRoute({
-    withMobileLayout: withMobileLayoutProp = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function NewChatRoute() {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContext();
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -236,9 +231,8 @@ export default function NewChatRoute({
             flexDirection="column"
         >
             <Box ref={accountPickerContainerRef} flexShrink="0" paddingTop="safe-area-inset">
-                {isMobile && (
+                {platform === "mobile" && (
                     <NavigationBarContent
-                        withMobileLayout={withMobileLayout}
                         // We don't have the done button in regular chats so also don't show it here.
                         // It's more intuitive to tap on messages to close the keyboard.
                         withoutFocusedTextInputDoneButton={true}
@@ -263,11 +257,7 @@ export default function NewChatRoute({
                     />
                 </Box>
             </Box>
-            <NewChatMessagingView
-                ref={messagingViewRef}
-                withMobileLayout={withMobileLayout}
-                selectedChat={loaderData.selectedChat}
-            />
+            <NewChatMessagingView ref={messagingViewRef} selectedChat={loaderData.selectedChat} />
         </Box>
     );
 }

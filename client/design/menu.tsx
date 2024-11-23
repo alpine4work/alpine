@@ -29,7 +29,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -438,9 +438,9 @@ const Menu = forwardRef(function Menu(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
-    const {width} = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+    const {width} = menuSizeConstants[size][platform];
 
     const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
@@ -604,7 +604,7 @@ const Menu = forwardRef(function Menu(
                     backgroundColor: "grey-0",
                     // On mobile, increase the distance of a menu from the underlying content.
                     // Increased contrast is useful.
-                    boxShadow: isMobile ? "elevation-30" : "elevation-20",
+                    boxShadow: platform === "mobile" ? "elevation-30" : "elevation-20",
                 }),
             )}
             onFocus={event => {
@@ -958,7 +958,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
     const reporter = useReporter();
 
     const {
@@ -966,7 +966,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         iconSize: defaultIconSize,
         itemPaddingY,
         height,
-    } = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+    } = menuSizeConstants[size][platform];
 
     const iconSize = action.iconSize ?? defaultIconSize;
 
@@ -1155,7 +1155,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         />
                     </Box>
                 )}
-                {!isMobile && action.keyboardShortcutHint && (
+                {platform !== "mobile" && action.keyboardShortcutHint && (
                     <Box flexShrink="0">
                         <Box color={isVisuallyDisabled ? "grey-30" : "grey-50"} fontSize="50">
                             <IconContext.Provider
@@ -1363,7 +1363,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     const placement = action.placement ?? "right";
 
@@ -1405,8 +1405,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     const overlayMenuRef = useRef<HTMLDivElement>(null);
     const hoverTriangleContainerRef = useRef<HTMLDivElement>(null);
 
-    const {width, iconSize, itemPaddingY, height} =
-        menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+    const {width, iconSize, itemPaddingY, height} = menuSizeConstants[size][platform];
 
     const [isHovered, setIsHovered] = useState(false);
 

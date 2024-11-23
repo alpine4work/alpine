@@ -6,7 +6,8 @@ import {NavigationBarContent} from "~/client/design/navigation_bar_content.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
@@ -89,11 +90,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [
     {title: `Comments ${metaTitleSeparator} ${taskTitle}`},
 ]);
 
-export default function TaskCommentsRoute({
-    withMobileLayout: withMobileLayoutProp = false,
-}: {
-    withMobileLayout?: boolean;
-}) {
+export default function TaskCommentsRoute() {
     const [searchParams] = useSearchParams();
     const {
         taskTitle,
@@ -104,14 +101,13 @@ export default function TaskCommentsRoute({
         inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const navigate = useNavigate();
 
     const params = useParams();
     const spaceId = params.spaceId as SpaceId;
     const taskId = params.taskId as TaskId;
-
-    const withMobileLayout = isMobile || withMobileLayoutProp;
 
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
@@ -119,7 +115,7 @@ export default function TaskCommentsRoute({
     const isFromTaskDetailView = searchParams.get("from") === "task";
 
     useEffect(() => {
-        if (withMobileLayout) return;
+        if (routeLayout === "narrow") return;
         const inboxParam = searchParams.get("inbox") === "show" ? "inbox=show" : "";
 
         if (commentIndex === null) {
@@ -133,7 +129,7 @@ export default function TaskCommentsRoute({
                 stopPropagation: true,
             });
         }
-    }, [withMobileLayout, spaceId, taskId, navigate, searchParams, commentIndex]);
+    }, [spaceId, taskId, navigate, searchParams, commentIndex, routeLayout]);
 
     useSearchAffinityViewInteraction(`Task:${taskId}`);
 
@@ -158,7 +154,6 @@ export default function TaskCommentsRoute({
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" width="full" paddingTop="safe-area-inset" display="flex">
                 <NavigationBarContent
-                    withMobileLayout={withMobileLayout}
                     title={
                         <TaskCommentsViewNavigationBarTitle
                             spaceId={spaceId}
@@ -176,13 +171,12 @@ export default function TaskCommentsRoute({
                             onPress: () => navigate(`/s/${spaceId}/tasks/${taskId}/`),
                         },
                     ]}
-                    titleJustifyContent={!isMobile ? "flex-start" : "center"}
+                    titleJustifyContent={platform !== "mobile" ? "flex-start" : "center"}
                 />
             </Box>
             <TaskCommentsView
                 key={taskId}
                 taskId={taskId}
-                withMobileLayout={withMobileLayout}
                 initialComments={{
                     commentCount,
                     lastCommentChangeTime,
@@ -208,7 +202,6 @@ export default function TaskCommentsRoute({
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
-            withMobileLayout: withMobileLayout,
             maxWidth: contentStyles.contentMaxWidth,
         },
         node,

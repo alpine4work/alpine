@@ -1,5 +1,5 @@
 import {Box} from "~/client/design/box.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {backgroundColorVar} from "~/client/styles/styles.js";
 import {RemLength, Spacing, spacing} from "~/shared/design/core/spacing.js";
 
@@ -20,7 +20,7 @@ export function LoudNotificationBadge({
     right: Spacing | `-${Spacing}` | RemLength;
     loudNotificationCount: number;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
 
     return (
         // We use a bright red design for loud notifications. We know this can be
@@ -41,7 +41,7 @@ export function LoudNotificationBadge({
                 // That extra width is helpful when rendering this on top of a solid object
                 // like an avatar. We don't want 2px since an avatar pile will use that for
                 // occluding other avatars.
-                boxShadow: `0 0 0 ${isMobile ? 1.5 : 1.3}px ${backgroundColorVar}`,
+                boxShadow: `0 0 0 ${platform === "mobile" ? 1.5 : 1.3}px ${backgroundColorVar}`,
                 // Use `right` and `translateX` to center the number around a point inset within
                 // the positioning context.
                 top: top.endsWith("rem")

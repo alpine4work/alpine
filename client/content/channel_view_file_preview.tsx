@@ -1,26 +1,27 @@
 import classNames from "classnames";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {useMemo, useRef, useState} from "react";
-import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
-} from "~/client/content/internal/render_content_file_preview.js";
+} from "~/client/content/internal/content_file_preview.js";
+import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
-import {fontSizesByPlatform} from "~/shared/design/core/fonts.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -58,8 +59,8 @@ export function ChannelViewFilePreview({
     const isInitialAppRender = useIsInitialAppRender();
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
-    const isMobile = useIsMobile();
-    const remPx = useRemPx();
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -83,10 +84,11 @@ export function ChannelViewFilePreview({
                     // font size of 25.
                     screenWidth:
                         size *
-                            (fontSizesByPlatform["75"].desktop.fontSize /
-                                fontSizesByPlatform["25"].desktop.fontSize) +
-                        screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2,
-                    isMobile,
+                            (fontSizesBySpacingScale["75"].small.fontSize /
+                                fontSizesBySpacingScale["25"].small.fontSize) +
+                        screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
+                    platform,
+                    spacingScale,
                     isInitialAppRender,
                     expirationTimers,
                     // Disable video and audio file interactivity. When pressed we should always
@@ -108,11 +110,11 @@ export function ChannelViewFilePreview({
             expirationTimers,
             file,
             isInitialAppRender,
-            isMobile,
-            remPx,
+            platform,
             signedUrlSearch,
             size,
             space.id,
+            spacingScale,
         ]),
     );
 

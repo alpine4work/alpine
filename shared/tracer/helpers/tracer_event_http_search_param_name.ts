@@ -93,5 +93,5 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "file",
     ]),
     EdgeService: new Set(["variant", "width"]),
-    FileUploadService: new Set(["variant", "width"]),
+    FileProcessorService: new Set(["variant", "width"]),
 };

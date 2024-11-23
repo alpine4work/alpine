@@ -49,7 +49,7 @@ export type DurableObjectEnv = {
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
     JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
-    FILE_UPLOAD_SERVICE_PUBLIC_KEY?: string;
+    FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
     HONEYCOMB_API_KEY?: string;
@@ -144,9 +144,9 @@ export function createDurableObject<
             if (!jobQueueServicePublicKey)
                 throw new InternalError("Missing `JOB_QUEUE_SERVICE_PUBLIC_KEY` env variable");
 
-            const fileUploadServicePublicKey = env.FILE_UPLOAD_SERVICE_PUBLIC_KEY;
-            if (!fileUploadServicePublicKey)
-                throw new InternalError("Missing `FILE_UPLOAD_SERVICE_PUBLIC_KEY` env variable");
+            const fileProcessorServicePublicKey = env.FILE_PROCESSOR_SERVICE_PUBLIC_KEY;
+            if (!fileProcessorServicePublicKey)
+                throw new InternalError("Missing `FILE_PROCESSOR_SERVICE_PUBLIC_KEY` env variable");
 
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
@@ -163,7 +163,7 @@ export function createDurableObject<
                     edgeServiceFamilyPublicKey,
                     taskRealtimeServicePublicKey,
                     jobQueueServicePublicKey,
-                    fileUploadServicePublicKey,
+                    fileProcessorServicePublicKey,
                     secret: tokenAgentSecret,
                 }),
                 TokenAgentPrivateSide.new({

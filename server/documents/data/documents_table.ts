@@ -3835,7 +3835,7 @@ async function getDocumentCommentThreadItem(
         shouldTryArchiveFirst,
         consistency,
     });
-    if (!item) throw new NotFoundError("Couldn't find document comment thread");
+    if (!item) throw new NotFoundError("Document comment thread not found");
     return item;
 }
 
@@ -4095,7 +4095,7 @@ async function getDocumentCommentItem(
             consistency,
         }),
 
-        DocumentsTable.getItem(
+        DocumentsTable.getItemIfExists(
             context,
             {
                 partitionType: "DocumentCommentThread",
@@ -4107,6 +4107,10 @@ async function getDocumentCommentItem(
             {consistency},
         ),
     ]);
+
+    if (!commentItem) {
+        throw new NotFoundError("Document comment not found");
+    }
 
     return {
         spaceId,

@@ -1,0 +1,116 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("//admin/bazel:production_transition.bzl", "production_transition", "production_transition_executable")
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+exports_files(glob(["test_fixtures/*"]))
+
+ts_project(
+    name = "processor_lib",
+    data = ["@ffmpeg"],
+    test_data = glob(["test_fixtures/*"]),
+    test_deps = [
+        "//:node_modules/get-port",
+        "//:node_modules/looks-same",
+        "//server/dynamo/test_helpers",
+        "//server/edge:upload_file_testonly",
+        "//server/files/processor/test_helpers",
+        "//server/spaces/test_helpers",
+    ],
+    tests = {
+        "resize_file_test": {
+            "size": "medium",
+        },
+        "processors/file_processor_content_types_test": {
+            "size": "medium",
+        },
+        "processors/file_processor_content_types_microsoft_office_test": {
+            "size": "large",
+            "tags": ["libreoffice"],
+        },
+        "processors/file_processor_content_types_video_and_audio_test": {
+            "size": "medium",
+        },
+    },
+    visibility = ["//server/files/processor/test_helpers:__pkg__"],
+    deps = [
+        "//:node_modules/@lezer/highlight",
+        "//:node_modules/@miniflare/r2",
+        "//:node_modules/@miniflare/storage-file",
+        "//:node_modules/@types/node",
+        "//:node_modules/date-fns",
+        "//:node_modules/decode-ico",
+        "//:node_modules/pretty-bytes",
+        "//:node_modules/sharp",
+        "//server/accounts",
+        "//server/cloudflare/r2",
+        "//server/files/data",
+        "//server/helpers",
+        "//server/jobs/core",
+        "//server/jobs/queue/consumer",
+        "//server/node",
+        "//server/spaces",
+        "//server/tracer",
+        "//shared/content",
+        "//shared/content/code",
+        "//shared/error",
+        "//shared/files",
+        "//shared/helpers",
+        "//shared/schema",
+        "//shared/tracer",
+    ],
+)
+
+js_binary(
+    name = "processor",
+    data = [":processor_lib"],
+    entry_point = "file_processor_service_main.js",
+    visibility = ["//app/integration_tests:__pkg__"],
+)
+
+js_image_layer(
+    name = "processor_image_layer",
+    binary = ":processor",
+    root = "/var/www",
+)
+
+oci_image(
+    name = "processor_image",
+    base = "@ubuntu_libreoffice_image",
+    tars = [
+        "//admin/aws:www_data_directory_layer",
+        ":processor_image_layer",
+    ],
+    # For security, use the `www-data` user which exists on our Linux image. It
+    # only has read access and execute access to files on our system.
+    user = "www-data",
+)
+
+oci_load(
+    name = "processor_image_tarball_load",
+    image = ":processor_image",
+    repo_tags = ["cyberworlds-job-queue-service:latest"],
+)
+
+filegroup(
+    name = "processor_image_tarball",
+    srcs = [":processor_image_tarball_load"],
+    output_group = "tarball",
+)
+
+# Convenience target for running:
+#
+# ```
+# bazel run //server/files/processor:processor_image_tarball_load_production
+# docker run -it cyberworlds-job-queue-service:latest /bin/bash
+# ```
+production_transition_executable(
+    name = "processor_image_tarball_load_production",
+    target = ":processor_image_tarball_load",
+)
+
+production_transition(
+    name = "processor_image_tarball_production",
+    target = ":processor_image_tarball",
+    visibility = ["//admin/aws:__pkg__"],
+)

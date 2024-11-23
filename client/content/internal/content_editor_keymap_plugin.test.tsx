@@ -74,7 +74,6 @@ function TestContentEditor({
         <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
             <ContentEditor
                 aria-label="Test"
-                withMobileLayout={false}
                 state={state}
                 onChange={setState}
                 fileAttachmentTarget={fileAttachmentTarget}

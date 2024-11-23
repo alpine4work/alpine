@@ -64,13 +64,13 @@ export class AwsGithubRunners extends Construct {
         const testInstanceClass = InstanceClass.M7G;
         const testInstanceType = InstanceType.of(testInstanceClass, InstanceSize.XLARGE2);
 
-        // 2 vCPU, 8 GiB memory, Intel Xeon Platinum (x86_64) processor
+        // 4 vCPU, 16 GiB memory, Gravitron (ARM) processor
         //
         // We use the same instance class for our deploy GitHub runners as we do our
         // production services so when building we're building for the right
         // architecture.
         const deployInstanceClass = awsServiceInstanceClass;
-        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.LARGE);
+        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.XLARGE);
 
         const createImageBuilderComponents = (
             extraAptDependencies: Array<string> = [],
@@ -314,23 +314,20 @@ export class AwsGithubRunners extends Construct {
                 subnetSelection: {subnetType: SubnetType.PUBLIC},
 
                 os: Os.LINUX_UBUNTU,
-                architecture: Architecture.X86_64,
+                architecture: Architecture.ARM64,
                 baseAmi: stack.formatArn({
                     service: "imagebuilder",
                     resource: "image",
                     account: "aws",
                     // Ubuntu 24.04.1 LTS (codename Noble)
-                    resourceName: `ubuntu-server-24-lts-x86/x.x.x`,
+                    resourceName: `ubuntu-server-24-lts-arm64/x.x.x`,
                 }),
                 awsImageBuilderOptions: {
                     // We can use a different size when building our image.
                     instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
                 },
 
-                components: createImageBuilderComponents([
-                    // Required for building `libvpx` and `libaom` on x86_64 architectures.
-                    "yasm",
-                ]),
+                components: createImageBuilderComponents(),
             },
         );
 
@@ -344,7 +341,27 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-deploy"],
 
             instanceType: deployInstanceType,
-            storageSize: Size.gibibytes(30),
+
+            // While deploying we've seen errors that looks like this:
+            //
+            // ```
+            // Error parsing reference: "" is not a valid repository/tag: invalid reference format
+            // CyberworldsStack:  fail: docker tag  989696362649.dkr.ecr.us-east-1.amazonaws.com/cdk-hnb659fds-container-assets-989696362649-us-east-1:8aee93c722a5c61b80900ee247cef3325628c82f67c04546578ee86201c85608 exited with error code 1: Error parsing reference: "" is not a valid repository/tag: invalid reference format
+            //
+            // Deployment failed: Error: Failed to publish asset 091963b18f73e434496e11a8620f6cffe015aca766d99e12d018cd29f243d73c:current_account-us-east-1
+            //     at Deployments.publishSingleAsset (/home/runner/_work/cyberworlds/cyberworlds/bazel-bin/server/deploy/script/script.sh.runfiles/cyberworlds/node_modules/.aspect_rules_js/aws-cdk@2.149.0/node_modules/aws-cdk/lib/api/deployments.js:276:19)
+            //     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+            //     at async Object.publishAsset (/home/runner/_work/cyberworlds/cyberworlds/bazel-bin/server/deploy/script/script.sh.runfiles/cyberworlds/node_modules/.aspect_rules_js/aws-cdk@2.149.0/node_modules/aws-cdk/lib/cdk-toolkit.js:182:13)
+            //     at async /home/runner/_work/cyberworlds/cyberworlds/bazel-bin/server/deploy/script/script.sh.runfiles/cyberworlds/node_modules/.aspect_rules_js/aws-cdk@2.149.0/node_modules/aws-cdk/lib/util/work-graph.js:94:21
+            // ```
+            //
+            // What's happening is the CDK tries to pass an empty string to `docker tag`.
+            // The empty string comes from an earlier `docker` command that fails silently.
+            // The CDK should really be logging that error but oh well. Most of the
+            // time, the earlier error is because Docker has run out of space on the
+            // machine for images. We've been able to fix this by increase the storage size
+            // of our deploy runner.
+            storageSize: Size.gibibytes(40),
 
             // Do not use spot pricing for deploy GitHub runners. If a deploy is
             // interrupted production may be left in a bad state. (e.g. We interrupt during
@@ -360,6 +377,8 @@ export class AwsGithubRunners extends Construct {
             userDataExtra: Fn.join("", [
                 `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
+                '","fileProcessorJobQueueUrl":"',
+                sqs.getFileProcessorJobQueueUrl(),
                 '"}',
             ]),
         });

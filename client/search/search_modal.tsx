@@ -57,12 +57,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {Spacing, addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -75,10 +70,7 @@ import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
 
-const searchModalMaxHeight = addRemLengths(
-    spacing[searchModalInputHeight],
-    spacing[searchModalPeekContentMaxHeight],
-);
+const searchModalMaxHeight = addRemLengths(searchModalInputHeight, searchModalPeekContentMaxHeight);
 
 const searchModalPeekControlsHeight = "6";
 
@@ -293,18 +285,28 @@ export function SearchModal({
                             // Open the selected peek when `Enter` is pressed. You've probably just
                             // selected a peek with the keyboard.
                             //
-                            // We check `event.shiftKey`because this determines whether we open in a peek
+                            // We check `event.shiftKey` because this determines whether we open in a peek
                             // or navigate to full screen. Therefore we want the route not to open in a
                             // peek if `event.shiftKey` is pressed.
                             const spacePath = convertPeekPathToSpacePath(
                                 selectedPeek.history.location,
-                                {withMobileLayout: event.shiftKey},
+                                {routeLayout: event.shiftKey ? "narrow" : "wide"},
                             );
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-                            navigate(spacePath).finally(() => {
-                                markResultSelectAffinityInteraction(selectedPeek.extra.resultId);
-                            });
+                            if (event.shiftKey) {
+                                void pushPeekStack(spacePath).finally(() => {
+                                    markResultSelectAffinityInteraction(
+                                        selectedPeek.extra.resultId,
+                                    );
+                                });
+                            } else {
+                                navigate(spacePath).finally(() => {
+                                    markResultSelectAffinityInteraction(
+                                        selectedPeek.extra.resultId,
+                                    );
+                                });
+                            }
                             break;
                         }
                     }
@@ -491,10 +493,10 @@ const SearchModalInput = forwardRef(function SearchModalInput(
     const leftIconOffsetLeft: Spacing = "1";
     const iconSize: Spacing = "5";
 
-    const heightRem = parseRemLengthNumber(spacing[searchModalInputHeight]);
-    const paddingXWithIconRem = parseRemLengthNumber(spacing[paddingXWithIcon]);
-    const leftIconOffsetLeftRem = parseRemLengthNumber(spacing[leftIconOffsetLeft]);
-    const iconSizeRem = parseRemLengthNumber(spacing[iconSize]);
+    const heightRem = parseRemLength(searchModalInputHeight);
+    const paddingXWithIconRem = parseRemLength(paddingXWithIcon);
+    const leftIconOffsetLeftRem = parseRemLength(leftIconOffsetLeft);
+    const iconSizeRem = parseRemLength(iconSize);
 
     return (
         <Box flexShrink="0" position="relative" width="full">
@@ -617,7 +619,7 @@ function SearchModalResultList({
             );
         } else {
             const spacePath = convertPeekPathToSpacePath(selectedPeek.history.location, {
-                withMobileLayout: false,
+                routeLayout: "wide",
             });
             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
@@ -854,7 +856,7 @@ function SearchModalPeekContent({
                         // peek if `event.shiftKey` is pressed.
                         onPress={async event => {
                             const spacePath = convertPeekPathToSpacePath(peek.history.location, {
-                                withMobileLayout: event.shiftKey,
+                                routeLayout: event.shiftKey ? "narrow" : "wide",
                             });
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
@@ -890,7 +892,7 @@ function SearchModalPeekContent({
             </Box>
             <PeekRemixEmbed
                 peekId={peek.id}
-                withMobileLayout={true}
+                layout="narrow"
                 // Don't record view interactions when looking at a search entity in the search
                 // modal. The user is discovering an entity to open so may have pretty low
                 // intent when looking at an entity.

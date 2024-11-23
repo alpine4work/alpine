@@ -4,6 +4,7 @@ import {trimContentEnd} from "~/client/content/trim_content_end.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -36,7 +37,7 @@ export type PostEditingAction =
           readonly type: "StartEditing";
           readonly postId: PostId;
           readonly currentContent: PostContentWithReferences;
-          readonly isMobile: boolean;
+          readonly platform: Platform;
       }
     | {
           readonly type: "ContentEditorStateChange";
@@ -71,7 +72,7 @@ function reduce(state: PostEditingState, action: PostEditingAction): PostEditing
                     // The user is much more likely to need to edit from the end of the post than
                     // the start. But on mobile, if the post is long, editing should start at the
                     // start of the post so the cursor is visible.
-                    selectionAt: action.isMobile ? "start" : "end",
+                    selectionAt: action.platform === "mobile" ? "start" : "end",
                 }),
                 initialContent: action.currentContent.doc,
                 isSaving: false,

@@ -2,11 +2,12 @@ import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extrac
 import {colors} from "~/shared/design/core/colors.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * The color scheme which identifies whether we are in dark mode.
  */
-export const darkColorSchemeSelector = ":root[data-color-scheme=dark]";
+export const darkColorSchemeSelector = ":root[data-color=dark]";
 
 /**
  * The color scheme which identifies whether we are in light mode.
@@ -14,7 +15,7 @@ export const darkColorSchemeSelector = ":root[data-color-scheme=dark]";
  * We define this as a `:not()` dark color scheme selector since in the rest of
  * our code we only really check the dark constant.
  */
-export const lightColorSchemeSelector = ":root:not([data-color-scheme=dark])";
+export const lightColorSchemeSelector = ":root:not([data-color=dark])";
 
 // Make sure browser UI is using the right styles. For example, text selection
 // color changes on MacOS with the color scheme.
@@ -225,6 +226,11 @@ const specialGreyColorVars: {
     "grey-0-opacity-90": CssVarFunction;
 
     /**
+     * `grey-0` with 95% opacity.
+     */
+    "grey-0-opacity-95": CssVarFunction;
+
+    /**
      * Grey color used as the background of the `<ContentFileViewerModal>`
      * component. It's a dark grey in both light mode and dark mode with some
      * transparency.
@@ -232,25 +238,35 @@ const specialGreyColorVars: {
     "grey-content-file-viewer-modal": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-5-dark-10": colors["grey-5"],
-    "grey-0-opacity-20": `${colors["grey-0"]}33`,
-    "grey-0-opacity-40": `${colors["grey-0"]}66`,
-    "grey-0-opacity-60": `${colors["grey-0"]}99`,
-    "grey-0-opacity-80": `${colors["grey-0"]}cc`,
-    "grey-0-opacity-90": `${colors["grey-0"]}e6`,
+    "grey-0-opacity-20": `${colors["grey-0"]}${opacityHex(0.2)}`,
+    "grey-0-opacity-40": `${colors["grey-0"]}${opacityHex(0.4)}`,
+    "grey-0-opacity-60": `${colors["grey-0"]}${opacityHex(0.6)}`,
+    "grey-0-opacity-80": `${colors["grey-0"]}${opacityHex(0.8)}`,
+    "grey-0-opacity-90": `${colors["grey-0"]}${opacityHex(0.9)}`,
+    "grey-0-opacity-95": `${colors["grey-0"]}${opacityHex(0.95)}`,
     "grey-content-file-viewer-modal": `${colors["grey-70"]}cc`,
 });
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(specialGreyColorVars, {
         "grey-5-dark-10": invertedColorsWithShade["grey-10"],
-        "grey-0-opacity-20": `${invertedColorsWithShade["grey-0"]}33`,
-        "grey-0-opacity-40": `${invertedColorsWithShade["grey-0"]}66`,
-        "grey-0-opacity-60": `${invertedColorsWithShade["grey-0"]}99`,
-        "grey-0-opacity-80": `${invertedColorsWithShade["grey-0"]}cc`,
-        "grey-0-opacity-90": `${invertedColorsWithShade["grey-0"]}e6`,
+        "grey-0-opacity-20": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.2)}`,
+        "grey-0-opacity-40": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.4)}`,
+        "grey-0-opacity-60": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.6)}`,
+        "grey-0-opacity-80": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.8)}`,
+        "grey-0-opacity-90": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.9)}`,
+        "grey-0-opacity-95": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.95)}`,
         "grey-content-file-viewer-modal": `${colors["grey-80"]}cc`,
     }),
 });
+
+function opacityHex(opacity: number) {
+    assert(0 <= opacity && opacity <= 1);
+
+    return Math.round(opacity * 255)
+        .toString(16)
+        .padStart(2, "0");
+}
 
 export type ColorSchemeVar = keyof typeof colorSchemeVars;
 

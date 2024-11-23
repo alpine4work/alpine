@@ -2,6 +2,11 @@ import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {useMemo, useRef} from "react";
 import {
+    addContentFileAudioPlayerBehavior,
+    renderContentFileAudioPlayer,
+} from "~/client/content/internal/content_file_audio_player.js";
+import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
+import {
     contentFileViewerDesktopMarginX,
     contentFileViewerLargeProcessingIndicatorColor,
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -10,14 +15,10 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
-import {
-    addContentFileAudioPlayerBehavior,
-    renderContentFileAudioPlayer,
-} from "~/client/content/internal/render_content_file_audio_player.js";
 import {Box} from "~/client/design/box.js";
-import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentFileAudioPlayerStyles,
@@ -100,10 +101,17 @@ function ContentFileAudioViewerDesktopInner({
     audioSrc: string;
     viewerSize: {width: number; height: number};
 }) {
-    const reporter = useReporter();
-    const remPx = useRemPx();
+    if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
+        throw new ContentFileProcessorError(file.contentType, file.alternative.error);
+    }
+    if (!filePreview.ok) {
+        throw new ContentFileProcessorError(file.contentType, filePreview.error);
+    }
 
-    const viewerMarginXPx = convertRemLengthToPx(spacing[contentFileViewerDesktopMarginX], remPx);
+    const spacingScale = useSpacingScale();
+    const reporter = useReporter();
+
+    const viewerMarginXPx = convertRemLengthToPx(contentFileViewerDesktopMarginX, spacingScale);
     const width = viewerSize.width - viewerMarginXPx * 2;
     const height = width * minFilePreviewAspectRatio;
 
@@ -116,7 +124,7 @@ function ContentFileAudioViewerDesktopInner({
             file,
             filePreview,
             audioSrc,
-            isMobile: false,
+            platform: "desktop",
             isInitialAppRender: false,
             withoutInteractivity: false,
             layout: null,

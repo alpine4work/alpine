@@ -12,7 +12,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
  * Since this is a shared type across all our services anything we provide
  * access to here must be critical for the operation of every service. For
  * example, OpenSearch is only used by the search product and the task product.
- * `FileUploadService` doesn't need OpenSearch so it's not included here.
+ * `FileProcessorService` doesn't need OpenSearch so it's not included here.
  */
 export type ServerProcessContext = Context<ServerProcessContextModules>;
 

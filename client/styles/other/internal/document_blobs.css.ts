@@ -1,10 +1,8 @@
 import {style} from "@vanilla-extract/css";
 import {mobilePlatformSelector} from "~/client/styles/core/styles_core.js";
 import {
-    desktopTitlePaddingTop,
-    mobileLayoutTitlePaddingTop,
-    mobilePlatformTitlePaddingTop,
-    withMobileLayoutDocClassName,
+    narrowRouteLayoutDocClassName,
+    titlePaddingTop,
 } from "~/client/styles/other/internal/content.css.js";
 
 export const blobsClassName = style({
@@ -17,12 +15,12 @@ export const blobsClassName = style({
     width: "100%",
     "@media": {},
     selectors: {
-        [`${withMobileLayoutDocClassName} &`]: {
-            top: `calc(${mobileLayoutTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
+        [`${narrowRouteLayoutDocClassName} &`]: {
+            top: `calc(${titlePaddingTop.desktopNarrow} - ${titlePaddingTop.desktopWide} + var(--safe-area-inset-top, 0px)))`,
         },
-        [`${mobilePlatformSelector} &, ${mobilePlatformSelector} ${withMobileLayoutDocClassName} &`]:
+        [`${mobilePlatformSelector} &, ${mobilePlatformSelector} ${narrowRouteLayoutDocClassName} &`]:
             {
-                top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
+                top: `calc(${titlePaddingTop.mobileNarrow} - ${titlePaddingTop.desktopWide} + var(--safe-area-inset-top, 0px)))`,
             },
     },
 });

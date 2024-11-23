@@ -4,11 +4,7 @@ import {CalendarBlank} from "phosphor-react";
 import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {
-    getNavigationBarHeightPxWithoutListening,
-    navigationBarHeight,
-} from "~/client/design/navigation_bar_helpers.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
@@ -18,8 +14,10 @@ import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
@@ -111,7 +109,8 @@ export function TaskDateInput({
     onArrowLeftLeaveKeyDown?: () => void;
     onArrowRightLeaveKeyDown?: () => void;
 }) {
-    const isMobile = useIsMobile();
+    const platform = usePlatform();
+    const routeLayout = useRouteLayout();
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
 
@@ -139,7 +138,7 @@ export function TaskDateInput({
     const isEditing =
         !isReadOnly && (focusState.isFocusWithinInput || focusState.isFocusWithinOverlay);
 
-    const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
+    const insetMarginY = height === "full" ? undefined : platform === "mobile" ? "2.5" : undefined;
 
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
 
@@ -162,7 +161,7 @@ export function TaskDateInput({
         if (lastIsEditingRef.current === isEditing) return;
         lastIsEditingRef.current = isEditing;
 
-        if (!isMobile) return;
+        if (platform !== "mobile") return;
         if (!isEditing) return;
 
         const overlayElement = assertExists(overlayRef.current);
@@ -202,10 +201,12 @@ export function TaskDateInput({
             const top = Math.min(inputRect.top, overlayRect.top);
             const bottom = Math.max(inputRect.bottom, overlayRect.bottom);
 
+            const spacingScale = getSpacingScaleWithoutListening();
+
             const clearanceTop =
                 getElementSafeAreaInsetTopPx(scrollableElement) +
-                getNavigationBarHeightPxWithoutListening() +
-                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+                convertRemLengthToPx(navigationBarHeight, spacingScale) +
+                convertRemLengthToPx("1", spacingScale);
 
             if (top < clearanceTop) {
                 const scrollDelta = top - clearanceTop;
@@ -220,7 +221,7 @@ export function TaskDateInput({
             const clearanceBottom =
                 viewportRect.height -
                 getCurrentCoveredHeight() -
-                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+                convertRemLengthToPx("1", spacingScale);
 
             if (bottom > clearanceBottom) {
                 const scrollDelta = bottom - clearanceBottom;
@@ -247,7 +248,7 @@ export function TaskDateInput({
             timeout.clear();
             run();
         }, perceivedAsInstantLimitMs);
-    }, [getCurrentCoveredHeight, isEditing, isMobile]);
+    }, [getCurrentCoveredHeight, isEditing, platform, routeLayout]);
 
     const {pressProps: previewPressProps} = usePress({
         // Preview doesn't receive focus.
@@ -296,7 +297,8 @@ export function TaskDateInput({
                 // target size][1].
                 //
                 // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
-                height: height === "full" ? "full" : isMobile ? "9" : cast<"4">(height),
+                height:
+                    height === "full" ? "full" : platform === "mobile" ? "9" : cast<"4">(height),
                 marginY: insetMarginY ? `-${insetMarginY}` : undefined,
             })}
         >
@@ -397,7 +399,7 @@ export function TaskDateInput({
                 disableAnimationIn
                 // Prefer rendering the overlay above the input on mobile since the keyboard
                 // will open below the input causing an overlay rendered below to jump up.
-                placement={isMobile ? "top" : "bottom"}
+                placement={platform === "mobile" ? "top" : "bottom"}
                 offset={overlayOffset}
                 // The overlay blocks interaction with everything outside the overlay. Except
                 // the date input. We still want to render the overlay in our current
@@ -416,8 +418,8 @@ export function TaskDateInput({
                 // keyboard opens. The value was calculated based on the keyboard height in
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
-                overflowBottom={isMobile ? "18rem" : undefined}
-                overflowTop={navigationBarHeight[isMobile ? "mobile" : "desktop"]}
+                overflowBottom={platform === "mobile" ? "18rem" : undefined}
+                overflowTop={navigationBarHeight}
                 overlay={
                     <div
                         ref={overlayRef}
