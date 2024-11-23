@@ -47,7 +47,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
          * can't update the checked status.
          */
         checkListItem: {
-            group: "block listItem",
+            group: "block listItem tableBlock",
             content: "paragraph+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but

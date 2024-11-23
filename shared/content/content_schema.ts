@@ -339,7 +339,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * List some things in no particular order with proper indentation.
          */
         unorderedListItem: {
-            group: "block listItem simpleListItem",
+            group: "block listItem simpleListItem tableBlock",
             content: "paragraph+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
@@ -372,7 +372,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * List some things with a counter with proper indentation.
          */
         orderedListItem: {
-            group: "block listItem simpleListItem",
+            group: "block listItem simpleListItem tableBlock",
             content: "paragraph+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
