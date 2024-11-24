@@ -82,7 +82,7 @@ export class AwsFileProcessorService extends Construct {
 
         // First 750 hours per month of this instance type are free. That effectively
         // translates to 1 free capacity of this instance type across our AWS account.
-        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO);
+        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.SMALL);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
@@ -348,6 +348,8 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
 
     switch (instanceTypeString) {
         case "t4g.micro":
+            return 2;
+        case "t4g.small":
             return 2;
         default: {
             throw new InternalError(
