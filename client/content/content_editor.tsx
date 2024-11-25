@@ -4684,6 +4684,7 @@ class ContentEditorFileDragState {
     private _isDisposed = false;
     private _pointerX: number;
     private _pointerY: number;
+    private _dragEnterCount = 0;
 
     private _lastDropTargets: {
         viewWidth: number;
@@ -4732,6 +4733,7 @@ class ContentEditorFileDragState {
         // view (e.g. the navigation bar) we'll still auto scroll.
         this._dragContainerElement = this._autoScroll.getScrollableElement() ?? this._view.dom;
 
+        this._dragContainerElement.addEventListener("dragenter", this._onDragEnter);
         this._dragContainerElement.addEventListener("dragleave", this._onDragLeave);
         this._dragContainerElement.addEventListener("drop", this.dispose);
         this._dragContainerElement.addEventListener("dragover", this._onDragOver);
@@ -4750,9 +4752,12 @@ class ContentEditorFileDragState {
             event.target instanceof Element &&
             view.dom.contains(event.target) &&
             !!event.dataTransfer &&
+            // In Safari, `event.dataTransfer.items` is an empty array during the
+            // `dragenter` event but it exists in Chrome. `event.dataTransfer.types` works
+            // across both browsers.
             iterableSome(
-                event.dataTransfer.items,
-                item => item.kind === "file" || item.type === "application/x.alpine.file",
+                event.dataTransfer.types,
+                type => type === "Files" || type === "application/x.alpine.file",
             );
         if (!isDraggingFile) return null;
 
@@ -4767,6 +4772,7 @@ class ContentEditorFileDragState {
         assert(!this._isDisposed);
         this._isDisposed = true;
 
+        this._dragContainerElement.removeEventListener("dragenter", this._onDragEnter);
         this._dragContainerElement.removeEventListener("dragleave", this._onDragLeave);
         this._dragContainerElement.removeEventListener("drop", this.dispose);
         this._dragContainerElement.removeEventListener("dragover", this._onDragOver);
@@ -4783,11 +4789,32 @@ class ContentEditorFileDragState {
         return this._dropTarget;
     }
 
-    private readonly _onDragLeave = (event: DragEvent) => {
-        if (
-            event.relatedTarget instanceof Element &&
-            this._dragContainerElement.contains(event.relatedTarget)
-        ) {
+    private readonly _onDragEnter = () => {
+        // We don't need to increment on our static `onDragEnter` function that
+        // constructs this class because that function is called in response to a
+        // `dragenter` event on our EditorView's DOM whereas this `dragenter` event is
+        // attached to our scrollable element. So due to event bubbling this method
+        // will be called immediately after the static `onDragEnter` function.
+        this._dragEnterCount++;
+    };
+
+    private readonly _onDragLeave = () => {
+        this._dragEnterCount--;
+
+        // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
+        // reliably had access to `event.relatedTarget` we'd check:
+        // `this._dragContainerElement.contains(event.relatedTarget)`.
+        //
+        // Instead we look at `dragenter` event counts. Once we reach 0 that means the
+        // user has fully dragged out of the container. We got the idea for this fix
+        // from [this Gist][2].
+        //
+        // We use this method in Chrome as well (even though we could use
+        // `event.relatedTarget`) to have consistent behavior across all browsers.
+        //
+        // [1]: https://bugs.webkit.org/show_bug.cgi?id=66547
+        // [2]: https://gist.github.com/alexreardon/10c595cbb840608a2828db56df99fa79
+        if (this._dragEnterCount > 0) {
             return;
         }
 
