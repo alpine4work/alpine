@@ -25,6 +25,7 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {FileContentType, isFileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
@@ -33,6 +34,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Resize a file from Cloudflare R2. You provide the `width` as a URL search
@@ -228,6 +230,8 @@ export async function resizeFile(
         } else {
             contentType = file.contentType;
         }
+
+        parentSpan.addData({file: getTracerEventFileData(file)});
 
         if (!isFileWebSafeImageContentType(contentType)) {
             throw new FailedPreconditionError(
@@ -438,4 +442,50 @@ export async function resizeFile(
             },
         );
     }
+}
+
+function getTracerEventFileData(file: FileModel): NonNullable<TracerEventData["file"]> {
+    let preview: NonNullable<TracerEventData["file"]>["preview"];
+    let alternative: NonNullable<TracerEventData["file"]>["alternative"];
+
+    if (file.alternative && !file.alternative.isProcessing && file.alternative.ok) {
+        alternative = {
+            contentType: file.alternative.contentType,
+            contentLength: file.alternative.contentLength,
+            contentLengthRatio: file.alternative.contentLength / file.contentLength,
+        };
+    }
+
+    if (file.preview && !file.preview.isProcessing && file.preview.ok) {
+        preview = {
+            contentType:
+                file.preview.type === "Image" && file.preview.content
+                    ? file.preview.content.contentType
+                    : undefined,
+            contentLength:
+                file.preview.type === "Image" && file.preview.content
+                    ? file.preview.content.contentLength
+                    : undefined,
+            contentLengthRatio:
+                file.preview.type === "Image" && file.preview.content
+                    ? file.preview.content.contentLength / file.contentLength
+                    : undefined,
+            imageWidth: file.preview.type === "Image" ? file.preview.size.width : undefined,
+            imageHeight: file.preview.type === "Image" ? file.preview.size.height : undefined,
+            imageScale: file.preview.type === "Image" ? file.preview.size.scale : undefined,
+            imageHasAlpha: file.preview.type === "Image" ? file.preview.size.hasAlpha : undefined,
+            imageVideoDurationMs:
+                file.preview.type === "Image" ? file.preview.videoDuration : undefined,
+            audioDurationMs: file.preview.type === "Audio" ? file.preview.duration : undefined,
+            codeContentLength:
+                file.preview.type === "Code" ? file.preview.content.serialize().length : undefined,
+        };
+    }
+
+    return {
+        contentType: file.contentType,
+        contentLength: file.contentLength,
+        alternative,
+        preview,
+    };
 }
