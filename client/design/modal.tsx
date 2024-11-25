@@ -344,6 +344,9 @@ export function Modal({
                                     ? modalStyles.modalOverlayFadeInAnimation
                                     : undefined,
                                 backdropFilter: withBlurBackdropFilter ? "blur(15px)" : undefined,
+                                WebkitBackdropFilter: withBlurBackdropFilter
+                                    ? "blur(15px)"
+                                    : undefined,
                             }}
                         >
                             <Box
