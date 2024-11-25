@@ -24,18 +24,17 @@ import {Mark} from "prosemirror-model";
 import {Command, EditorState, Selection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
+    Dispatch,
     ReactNode,
-    Ref,
     RefObject,
-    forwardRef,
+    SetStateAction,
     useEffect,
-    useImperativeHandle,
     useMemo,
     useRef,
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {
     insertContentCodeBlock,
@@ -93,40 +92,27 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
-export type ContentEditorMobileKeyboardSubstituteRef = {
-    closeWithAnimation(): void;
-};
-
-const ContentEditorMobileKeyboardSubstituteForwardRef = forwardRef(
-    ContentEditorMobileKeyboardSubstitute,
-);
-export {ContentEditorMobileKeyboardSubstituteForwardRef as ContentEditorMobileKeyboardSubstitute};
-
 let contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver: PromiseResolver<void> | null =
     null;
 
-function ContentEditorMobileKeyboardSubstitute(
-    {
-        state,
-        viewRef,
-        onClose,
-        onLinkModalOpen,
-    }: {
-        state: EditorState & {schema: ContentProsemirrorSchema};
-        viewRef: RefObject<
-            | (EditorView & {
-                  insertFiles: (
-                      posOrSelection: number | Selection,
-                      files: ReadonlyArray<File>,
-                  ) => void;
-              })
-            | null
-        >;
-        onClose: () => void;
-        onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
-    },
-    ref: Ref<ContentEditorMobileKeyboardSubstituteRef>,
-) {
+export function ContentEditorMobileKeyboardSubstitute({
+    state,
+    viewRef,
+    isFocused,
+    onClose,
+    onLinkModalOpen,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    viewRef: RefObject<
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
+    >;
+    isFocused: boolean;
+    onClose: () => void;
+    onLinkModalOpen: (state: ContentEditorMobileLinkModalState) => void;
+}) {
     const {schema} = state;
 
     const portalElement = assertExists(
@@ -187,17 +173,17 @@ function ContentEditorMobileKeyboardSubstitute(
         });
     });
 
-    useImperativeHandle(
-        ref,
-        () => ({
-            closeWithAnimation: () => {
-                setIsClosing(true);
-            },
-        }),
-        [],
-    );
-
     const [variant, setVariant] = useState<"Styles" | "HighlightStyle" | "Insert">("Styles");
+
+    const [insertVariantSelectingFilesCount, setInsertVariantSelectingFilesCount] = useState(0);
+    if (insertVariantSelectingFilesCount !== 0 && variant !== "Insert")
+        setInsertVariantSelectingFilesCount(0);
+
+    useEffect(() => {
+        if (!isFocused && insertVariantSelectingFilesCount === 0) {
+            setIsClosing(true);
+        }
+    }, [insertVariantSelectingFilesCount, isFocused]);
 
     if (!schema.marks.highlight && variant === "HighlightStyle") setVariant("Styles");
 
@@ -353,7 +339,11 @@ function ContentEditorMobileKeyboardSubstitute(
                         onSelectHighlightColor={selectHighlightColor}
                     />
                 ) : variant === "Insert" ? (
-                    <ContentEditorMobileKeyboardSubstituteInsert state={state} viewRef={viewRef} />
+                    <ContentEditorMobileKeyboardSubstituteInsert
+                        state={state}
+                        viewRef={viewRef}
+                        setSelectingFilesCount={setInsertVariantSelectingFilesCount}
+                    />
                 ) : (
                     throwError(exhaustive(variant))
                 )}
@@ -841,6 +831,7 @@ function ContentEditorMobileKeyboardSubstituteHighlightStyleButton({
 function ContentEditorMobileKeyboardSubstituteInsert({
     state,
     viewRef,
+    setSelectingFilesCount,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<
@@ -849,6 +840,7 @@ function ContentEditorMobileKeyboardSubstituteInsert({
           })
         | null
     >;
+    setSelectingFilesCount: Dispatch<SetStateAction<number>>;
 }) {
     const {schema} = state;
 
@@ -882,61 +874,93 @@ function ContentEditorMobileKeyboardSubstituteInsert({
                 icon={<Image />}
                 label="Image"
                 onPress={() => {
-                    selectFiles(assertExists(containerRef.current), {
-                        multiple: true,
-                        acceptContentTypes: getFileImageContentTypes(),
-                    })
-                        .then(files => {
-                            if (files.length === 0) return;
-                            if (!viewRef.current) return;
-                            insertContentFiles(viewRef.current, files);
+                    // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
+                    // usually updated in a `flushSync()`.
+                    flushSync(() => {
+                        setSelectingFilesCount(n => n + 1);
+
+                        selectFiles(assertExists(containerRef.current), {
+                            multiple: true,
+                            acceptContentTypes: getFileImageContentTypes(),
                         })
-                        .catch(scheduleUncaughtError);
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError)
+                            .finally(() => setSelectingFilesCount(n => n - 1));
+                    });
                 }}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<VideoIcon />}
                 label="Video"
                 onPress={() => {
-                    selectFiles(assertExists(containerRef.current), {
-                        multiple: true,
-                        acceptContentTypes: getFileVideoContentTypes(),
-                    })
-                        .then(files => {
-                            if (files.length === 0) return;
-                            if (!viewRef.current) return;
-                            insertContentFiles(viewRef.current, files);
+                    // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
+                    // usually updated in a `flushSync()`.
+                    flushSync(() => {
+                        setSelectingFilesCount(n => n + 1);
+
+                        selectFiles(assertExists(containerRef.current), {
+                            multiple: true,
+                            acceptContentTypes: getFileVideoContentTypes(),
                         })
-                        .catch(scheduleUncaughtError);
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError)
+                            .finally(() => setSelectingFilesCount(n => n - 1));
+                    });
                 }}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<WaveformIcon />}
                 label="Audio"
                 onPress={() => {
-                    selectFiles(assertExists(containerRef.current), {
-                        multiple: true,
-                        acceptContentTypes: getFileAudioContentTypes(),
-                    })
-                        .then(files => {
-                            if (files.length === 0) return;
-                            if (!viewRef.current) return;
-                            insertContentFiles(viewRef.current, files);
+                    // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
+                    // usually updated in a `flushSync()`.
+                    flushSync(() => {
+                        setSelectingFilesCount(n => n + 1);
+
+                        selectFiles(assertExists(containerRef.current), {
+                            multiple: true,
+                            acceptContentTypes: getFileAudioContentTypes(),
                         })
-                        .catch(scheduleUncaughtError);
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError)
+                            .finally(() => setSelectingFilesCount(n => n - 1));
+                    });
                 }}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<File />}
                 label="File"
                 onPress={() => {
-                    selectFiles(assertExists(containerRef.current), {multiple: true})
-                        .then(files => {
-                            if (files.length === 0) return;
-                            if (!viewRef.current) return;
-                            insertContentFiles(viewRef.current, files);
-                        })
-                        .catch(scheduleUncaughtError);
+                    // The `flushSync()` makes sure `selectingFilesCount` and `isFocused` (from
+                    // `<ContentEditor>`) are updated in the same render given `isFocused` is
+                    // usually updated in a `flushSync()`.
+                    flushSync(() => {
+                        setSelectingFilesCount(n => n + 1);
+
+                        selectFiles(assertExists(containerRef.current), {multiple: true})
+                            .then(files => {
+                                if (files.length === 0) return;
+                                if (!viewRef.current) return;
+                                insertContentFiles(viewRef.current, files);
+                            })
+                            .catch(scheduleUncaughtError)
+                            .finally(() => setSelectingFilesCount(n => n - 1));
+                    });
                 }}
             />
             <Box />

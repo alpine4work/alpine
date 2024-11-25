@@ -41,14 +41,37 @@ export function selectFiles(
         temporaryInputElement.style.position = "fixed";
         temporaryInputElement.style.top = "0px";
 
-        temporaryInputElement.addEventListener("change", () => {
+        const resolveAndCleanup = (files: Array<File>) => {
+            document.removeEventListener("focusin", handleDocumentFocusIn);
             temporaryInputElement.remove();
+            resolve(files);
+        };
 
+        temporaryInputElement.addEventListener("change", () => {
             const files = temporaryInputElement.files
                 ? Array.from(temporaryInputElement.files)
                 : [];
-            resolve(files);
+
+            resolveAndCleanup(files);
         });
+
+        const handleDocumentFocusIn = (event: FocusEvent) => {
+            if (event.target !== temporaryInputElement) {
+                resolveAndCleanup([]);
+            }
+        };
+
+        // If we focus on anything other than `temporaryInputElement` then resolve this
+        // promise with an empty array since it probably means our file selection
+        // dialog closed. We can't listen for `blur`/`focusout` events because:
+        //
+        // 1. The `blur` event doesn't fire if the focused element is removed from the
+        //    DOM in Safari (I think I remember this being the case?).
+        //
+        // 2. It looks like in Chrome the `blur` event is fired immediately after the
+        //    file selection dialog opens. Probably because focus is leaving the window
+        //    and entering the selection dialog.
+        document.addEventListener("focusin", handleDocumentFocusIn);
 
         containerElement.appendChild(temporaryInputElement);
 
