@@ -1,21 +1,46 @@
 import {ContentFilePollerContext} from "~/client/content/internal/content_file_poller.js";
-import {ProgressValueStoreWithCancel} from "~/client/content/internal/progress_store.js";
+import {
+    ProgressValueStore,
+    ProgressValueStoreWithCancel,
+} from "~/client/content/internal/progress_store.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getGlobalContext} from "~/client/helpers/global_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
+import {
+    AbortedError,
+    ErrorBase,
+    InternalError,
+    InvalidArgumentError,
+    UnavailableError,
+    UnknownError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
 import {
+    maxFileContentLength,
+    maxFileMultipartUploadPartContentLength,
+} from "~/shared/files/file_constants.js";
+import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
     getPathFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {
+    CompleteFileMultipartUploadRequestPart,
+    CompleteFileMultipartUploadRequestSchema,
+    CreateFileMultipartUploadRequestSchema,
+    CreateFileMultipartUploadResponseSchema,
+    PutFileMultipartUploadPartResponseSchema,
+    UploadFileResponse,
+    UploadFileResponseSchema,
+} from "~/shared/files/upload_file_protocol.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -23,6 +48,8 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {lerp} from "~/shared/helpers/number/lerp.js";
 import {ReadonlyTuple} from "~/shared/helpers/types/tuple.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
@@ -83,48 +110,10 @@ async function actuallyUploadFileFromContentEditor(
         onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
     },
 ) {
-    const uploadUrl = new URL(`/api/files/${spaceId}/upload`, window.location.href);
-    if (fileId) uploadUrl.searchParams.set("id", fileId);
-
-    // Once the file has been created, attach it to our attachment target.
-    //
-    // We attach the file before persisting any changes to our content (e.g.
-    // persisting document steps or saving a newly created post). This is important
-    // since if other accounts are watching the attachment target in realtime then
-    // the attachment needs to exist for them to be able to see the file. However,
-    // by attaching early here it means we may successfully attach a file but fail
-    // to persist the content changes.
-    //
-    // We should consider building a file garbage collector that looks at all
-    // attachments and if they're still valid. Any attachments that aren't valid
-    // should get cleaned up.
-    //
-    // ## Implementation gotcha for documents
-    //
-    // We don't currently detach files from documents. Once a file is attached to a
-    // document it's there forever. Because even if you delete a file from a
-    // document's content you can still go into version history and bring an old
-    // version of the document back. Or you can see the file in a resolved document
-    // comment thread's preview snippet. This is the same behavior as text added to
-    // a document. Once you add text to a document it can be recovered at any point
-    // by a document editor. This isn't great for our security posture. Some
-    // thoughts:
-    //
-    // 1. We should add document deletion. Once a document is deleted then it's
-    //    safe to cleanup all its files.
-    //
-    // 2. We could consider changing permissions so that if a file is removed from
-    //    a document you need at least comment access to see it (comment access
-    //    lets you see it in a comment thread snippet, edit access lets you restore
-    //    from a previous version). However, if we give view-only users the ability
-    //    to look at a document's version history then view-only users still need
-    //    to see files that have been removed from the document.
-    uploadUrl.searchParams.set("target", serializeFileAttachmentTargetString(attachmentTarget));
-
     let contentType: FileContentType | undefined;
     let contentLength: number | undefined;
     let body: File | Uint8Array | ReadableStream<Uint8Array> | undefined;
-    let extraPromise: Promise<unknown> | undefined;
+    let downloadPromise: Promise<unknown> | undefined;
 
     switch (input.type) {
         case "File": {
@@ -141,21 +130,7 @@ async function actuallyUploadFileFromContentEditor(
 
             contentLength = input.file.size;
 
-            // Unfortunately, `ReadableStream` request bodies are only available over
-            // HTTP/2 and HTTP/3. In development we use HTTP/1 and we don't even use HTTPS.
-            // So for now, in development, we can't use `input.file.stream()` which means
-            // we can't measure upload progress.
-            //
-            // We test for the `https://` protocol to check if we're in development. If we
-            // ever switch our development server to use HTTPS instead of HTTP then we
-            // should also switch our development server to use HTTP/2.
-            //
-            // TODO(calebmer, #files): Test that streaming works in production?
-            if (uploadUrl.protocol !== "https:") {
-                body = input.file;
-            } else {
-                body = input.file.stream();
-            }
+            body = input.file;
             break;
         }
         case "Url": {
@@ -174,7 +149,7 @@ async function actuallyUploadFileFromContentEditor(
                 return errorDisplayMessage`Can’t add ${contentTypeNoun} from ${linkSegment} because the ${contentTypeNoun} is in an incorrect format. Try adding a different ${contentTypeNoun}.`;
             };
 
-            extraPromise = fetchWithTracer(
+            downloadPromise = fetchWithTracer(
                 context.tracer.getTracer(),
                 new URL(
                     `/files/cors-proxy/${encodeURIComponent(input.url.toString())}`,
@@ -184,6 +159,7 @@ async function actuallyUploadFileFromContentEditor(
                     serviceName: "EdgeService",
                     route: "/files/cors-proxy/:url",
                     method: "GET",
+                    credentials: "omit",
                 },
                 async response => {
                     const responseContentLengthString = response.headers.get("content-length");
@@ -219,9 +195,9 @@ async function actuallyUploadFileFromContentEditor(
                         new ReadableStream({start: controller => controller.close()});
 
                     if (responseContentLength === null) {
-                        // No `Content-Length` header available. Hard to estimate download time. We'll
-                        // say 3s which works well medium files on a fast network but not small or
-                        // large files.
+                        // No `Content-Length` header available. So we can't estimate download time.
+                        // We'll say 3s which works well for medium files on a fast network but not
+                        // small or large files.
                         downloadProgressStore.ease(3000);
                     } else {
                         let count = 0;
@@ -255,12 +231,8 @@ async function actuallyUploadFileFromContentEditor(
                         // should also switch our development server to use HTTP/2.
                         //
                         // TODO(calebmer, #files): Test that streaming works in production?
-                        uploadUrl.protocol !== "https:"
+                        window.location.protocol !== "https:"
                     ) {
-                        // We won't be able to measure upload time if body isn't a stream. So
-                        // preemptively cancel upload progress store.
-                        uploadProgressStore.cancel();
-
                         body = await waitForReadableStreamUint8Array(responseBody);
                         contentLength = body.byteLength;
                         readyPromiseResolver.resolve();
@@ -297,7 +269,7 @@ async function actuallyUploadFileFromContentEditor(
 
             // No unhandled promise exception warnings. Exceptions will be handled by the
             // `runAllPromises()` call below which includes this promise.
-            extraPromise.catch(() => {});
+            downloadPromise.catch(() => {});
 
             await readyPromiseResolver.promise;
             break;
@@ -310,44 +282,17 @@ async function actuallyUploadFileFromContentEditor(
     assert(contentType !== undefined);
     assert(contentLength !== undefined);
 
-    if (!(body instanceof ReadableStream)) {
-        uploadProgressStore.cancel();
-    } else {
-        let count = 0;
-
-        body = body.pipeThrough(
-            new TransformStream({
-                transform: (chunk, controller) => {
-                    count += chunk.length;
-                    uploadProgressStore.set(count / contentLength!);
-                    controller.enqueue(chunk);
-                },
-                flush: () => {
-                    uploadProgressStore.set(1);
-                },
-            }),
-        );
-    }
-
     const uploadAndProcessPromise = (async () => {
-        const {signedUrlSearch, file: initialFile} = await fetchWithTracer(
-            context.tracer.getTracer(),
-            uploadUrl,
+        const {signedUrlSearch, file: initialFile} = await uploadFileWithMultipartUploadIfNeeded(
+            context,
             {
-                serviceName: "EdgeService",
-                method: "POST",
-                route: "/api/files/:spaceId/upload",
-                headers: {
-                    "content-type": contentType,
-                    "content-length": String(contentLength),
-                },
-                duplex: "half",
+                spaceId,
+                fileId: fileId ?? null,
+                contentType,
+                contentLength,
+                attachTarget: attachmentTarget,
                 body,
-            },
-            async response => {
-                const responseBody = UploadFileResponseSchema.deserialize(await response.json());
-                if (!responseBody.ok) throw responseBody.error;
-                return responseBody;
+                uploadProgressStore,
             },
         );
 
@@ -431,12 +376,12 @@ async function actuallyUploadFileFromContentEditor(
         processProgressStore.set(1);
     })();
 
-    await runAllPromises([extraPromise, uploadAndProcessPromise]);
+    await runAllPromises([downloadPromise, uploadAndProcessPromise]);
 
     // If this function finishes successfully then all our progress stores should
     // have either been cancelled or set their values to 1.
     assert(downloadProgressStore.isCancelled() || downloadProgressStore.getSnapshot() === 1);
-    assert(uploadProgressStore.isCancelled() || uploadProgressStore.getSnapshot() === 1);
+    assert(uploadProgressStore.getSnapshot() === 1);
     assert(processProgressStore.getSnapshot() === 1);
 }
 
@@ -628,4 +573,470 @@ function estimateProcessFileDurationMs(
     // processing `application/msword` is very slow per byte so we end up
     // multiplying the duration by ~48 (874.4886418 / 18.09815219).
     return durationMs * (874.4886418 / contentLengthPerMs);
+}
+
+async function uploadFileWithMultipartUploadIfNeeded(
+    context: AppContext,
+    {
+        spaceId,
+        fileId: providedFileId,
+        contentType,
+        contentLength,
+        attachTarget,
+        body,
+        uploadProgressStore,
+    }: {
+        spaceId: SpaceId;
+        fileId: FileId | null;
+        contentType: FileContentType;
+        contentLength: number;
+        attachTarget: FileAttachmentTarget;
+        body: File | Uint8Array | ReadableStream<Uint8Array>;
+        uploadProgressStore: ProgressValueStore;
+    },
+): Promise<UploadFileResponse & {ok: true}> {
+    const initialProgress = clamp(
+        0,
+        lerp(0.4, 0, clamp(0, contentLength / maxFileContentLength, 1)),
+        0.4,
+    );
+
+    let getProgress = () => 0;
+
+    let progressEaseTimeout: Timeout | null = null;
+
+    // Unfortunately, Chrome only emits the `XMLHttpRequest` `progress` event:
+    //
+    // - ~2 seconds after the upload starts
+    // - Every ~1 second thereafter
+    //
+    // So smooth our progress store by running an `ease()` function every 2 seconds
+    // to update our upload progress to the current value.
+    const updateProgress = () => {
+        if (progressEaseTimeout !== null) return;
+
+        const progress = initialProgress + getProgress() * (1 - initialProgress);
+        if (progress < uploadProgressStore.getSnapshot()) return;
+
+        uploadProgressStore.ease(2000, uploadProgressStore.getSnapshot(), progress);
+
+        progressEaseTimeout = createTimeout(() => {
+            progressEaseTimeout = null;
+            updateProgress();
+        }, 1000);
+    };
+
+    updateProgress();
+
+    // If the file is small enough, we can upload directly. Otherwise we'll need to
+    // perform a multipart upload.
+    if (contentLength <= maxFileMultipartUploadPartContentLength) {
+        const uploadUrlSearchParams = new URLSearchParams();
+        if (providedFileId) uploadUrlSearchParams.set("id", providedFileId);
+
+        // Once the file has been created, attach it to our attachment target.
+        //
+        // We attach the file before persisting any changes to our content (e.g.
+        // persisting document steps or saving a newly created post). This is important
+        // since if other accounts are watching the attachment target in realtime then
+        // the attachment needs to exist for them to be able to see the file. However,
+        // by attaching early here it means we may successfully attach a file but fail
+        // to persist the content changes.
+        //
+        // We should consider building a file garbage collector that looks at all
+        // attachments and if they're still valid. Any attachments that aren't valid
+        // should get cleaned up.
+        //
+        // ## Implementation gotcha for documents
+        //
+        // We don't currently detach files from documents. Once a file is attached to a
+        // document it's there forever. Because even if you delete a file from a
+        // document's content you can still go into version history and bring an old
+        // version of the document back. Or you can see the file in a resolved document
+        // comment thread's preview snippet. This is the same behavior as text added to
+        // a document. Once you add text to a document it can be recovered at any point
+        // by a document editor. This isn't great for our security posture. Some
+        // thoughts:
+        //
+        // 1. We should add document deletion. Once a document is deleted then it's
+        //    safe to cleanup all its files.
+        //
+        // 2. We could consider changing permissions so that if a file is removed from
+        //    a document you need at least comment access to see it (comment access
+        //    lets you see it in a comment thread snippet, edit access lets you restore
+        //    from a previous version). However, if we give view-only users the ability
+        //    to look at a document's version history then view-only users still need
+        //    to see files that have been removed from the document.
+        uploadUrlSearchParams.set("target", serializeFileAttachmentTargetString(attachTarget));
+
+        const uploadUrlSearchParamsString =
+            uploadUrlSearchParams.size > 0 ? `?${uploadUrlSearchParams.toString()}` : "";
+
+        const uploadUrl = new URL(
+            `/api/files/${spaceId}/upload${uploadUrlSearchParamsString}`,
+            window.location.href,
+        );
+
+        let progress = 0;
+        getProgress = () => progress;
+
+        return fetchWithTracer(
+            context.tracer.getTracer(),
+            uploadUrl,
+            {
+                serviceName: "EdgeService",
+                method: "POST",
+                route: "/api/files/:spaceId/upload",
+                headers: {
+                    "content-type": contentType,
+                    "content-length": String(contentLength),
+                },
+                // We provide our own `fetch()` implementation that uses `XMLHttpRequest` since
+                // `XMLHttpRequest` emits a `progress` event that we show to the user to let
+                // them know their file upload progress.
+                //
+                // You'll notice we don't pass `body` to this `fetchWithTracer()` call. Instead
+                // opting to pass the body in directly here. Since if `body` is a `File` we
+                // want the browser to stream the file from disk without loading any data to
+                // memory.
+                fetch: async request => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.responseType = "arraybuffer";
+
+                    xhr.upload.addEventListener("progress", event => {
+                        if (event.lengthComputable) {
+                            progress = event.loaded / event.total;
+                            updateProgress();
+                        }
+                    });
+
+                    const responsePromise = new Promise<Response>((resolve, reject) => {
+                        xhr.addEventListener("load", () => {
+                            const responseHeaders = new Headers();
+                            const responseHeadersString = xhr.getAllResponseHeaders();
+
+                            for (const responseHeadersStringLine of responseHeadersString
+                                .trim()
+                                .split(/[\r\n]+/g)) {
+                                const [headerName, headerValue] = responseHeadersStringLine.split(
+                                    ": ",
+                                    2,
+                                );
+
+                                responseHeaders.set(headerName!, headerValue ?? "");
+                            }
+
+                            resolve(
+                                new Response(xhr.response, {
+                                    status: xhr.status,
+                                    statusText: xhr.statusText,
+                                    headers: responseHeaders,
+                                }),
+                            );
+                        });
+
+                        xhr.addEventListener("abort", () => {
+                            reject(new AbortedError("Upload HTTP request aborted"));
+                        });
+
+                        xhr.addEventListener("error", () => {
+                            reject(new UnknownError("Upload HTTP request failed"));
+                        });
+                    });
+
+                    xhr.open(request.method, request.url, true);
+
+                    for (const [headerName, headerValue] of request.headers) {
+                        xhr.setRequestHeader(headerName, headerValue);
+                    }
+
+                    if (body instanceof ReadableStream) {
+                        // Unfortunately, `XMLHttpRequest` doesn't support streaming request bodies. So
+                        // we have to load the readable stream's entire data into memory. We could use
+                        // `fetch()` which supports streaming request bodies in Chrome only. But since
+                        // we need the `progress` event we're stuck with `XMLHttpRequest` since Safari
+                        // doesn't give us a way to inspect progress in a `fetch()` request.
+                        xhr.send(await waitForReadableStreamUint8Array(body));
+                    } else {
+                        xhr.send(body);
+                    }
+
+                    return responsePromise;
+                },
+            },
+            async response => {
+                const responseBody = UploadFileResponseSchema.deserialize(await response.json());
+                if (!responseBody.ok) throw responseBody.error;
+
+                // Make sure the upload progress store is finished.
+                uploadProgressStore.set(1);
+
+                return responseBody;
+            },
+        );
+    }
+
+    let stream: ReadableStream<Uint8Array>;
+    if (body instanceof File) {
+        stream = body.stream();
+    } else if (body instanceof Uint8Array) {
+        stream = new ReadableStream({
+            start: controller => {
+                controller.enqueue(body);
+                controller.close();
+            },
+        });
+    } else {
+        stream = body;
+    }
+
+    const reader = stream.getReader();
+
+    const {fileId, uploadId} = await fetchWithTracer(
+        context.tracer.getTracer(),
+        new URL(`/api/files/${spaceId}/multipart-upload`, window.location.href),
+        {
+            serviceName: "EdgeService",
+            method: "POST",
+            route: "/api/files/:spaceId/multipart-upload",
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify(
+                CreateFileMultipartUploadRequestSchema.serialize({
+                    fileId: providedFileId,
+                    contentType,
+                    contentLength,
+                    attachTarget,
+                }),
+            ),
+        },
+        async response => {
+            const responseBody = CreateFileMultipartUploadResponseSchema.deserialize(
+                await response.json(),
+            );
+            if (!responseBody.ok) throw responseBody.error;
+            return responseBody;
+        },
+    );
+
+    // Only send 3 part upload requests to the server at once. So we don't
+    // completely saturate the browser's HTTP connection limit which in Chrome is
+    // 6 per domain.
+    const mutexes = createArrayWithLength(3, () => new Mutex());
+
+    const partPromises: Array<Promise<CompleteFileMultipartUploadRequestPart>> = [];
+    const partContentLength = maxFileMultipartUploadPartContentLength;
+    const partCount = Math.ceil(contentLength / partContentLength);
+    const partProgresses = createArrayWithLength(partCount, () => 0);
+
+    getProgress = () => {
+        let progress = 0;
+        for (const partProgress of partProgresses) progress += partProgress;
+        progress /= partProgresses.length;
+        return progress;
+    };
+
+    let currentPartData = new Uint8Array(
+        Math.min(partContentLength, contentLength - partPromises.length * partContentLength),
+    );
+    let currentPartOffset = 0;
+
+    const abortController = new AbortController();
+
+    while (true) {
+        // If we aborted, don't make any more requests. We don't throw so we'll wait
+        // for any pending promises (`await runAllPromises()` below) before returning
+        // to the user.
+        if (abortController.signal.aborted) break;
+
+        const {done, value: data} = await reader.read();
+        if (!data) break;
+
+        let dataOffset = 0;
+
+        while (dataOffset < data.length) {
+            // If we aborted, don't make any more requests. We don't throw so we'll wait
+            // for any pending promises (`await runAllPromises()` below) before returning
+            // to the user.
+            if (abortController.signal.aborted) break;
+
+            if (partPromises.length >= partCount) {
+                throw new InternalError("More parts than expected");
+            }
+
+            const currentPartRemainingLength = currentPartData.length - currentPartOffset;
+
+            if (data.length - dataOffset < currentPartRemainingLength) {
+                currentPartData.set(data.subarray(dataOffset), currentPartOffset);
+                currentPartOffset += data.length;
+                dataOffset += data.length - dataOffset;
+            } else {
+                currentPartData.set(
+                    data.subarray(dataOffset, dataOffset + currentPartRemainingLength),
+                    currentPartOffset,
+                );
+                currentPartOffset += currentPartRemainingLength;
+                dataOffset += currentPartRemainingLength;
+
+                const partNumber = partPromises.length + 1;
+                const partData = currentPartData;
+
+                if (partNumber >= partCount) {
+                    currentPartData = new Uint8Array(0);
+                    currentPartOffset = 0;
+                } else {
+                    currentPartData = new Uint8Array(
+                        Math.min(
+                            partContentLength,
+                            contentLength - partPromises.length * partContentLength,
+                        ),
+                    );
+                    currentPartOffset = 0;
+                }
+
+                // Wait for a mutex to become available before sending our request. By awaiting
+                // here we will also pause the `ReadableStream` reader loop. So we won't read
+                // more data from our stream until a mutex is available. This will avoid
+                // loading the entire file into memory.
+                const mutex = mutexes[(partNumber - 1) % mutexes.length]!;
+                const unlock = await mutex.lock();
+
+                partPromises.push(
+                    fetchWithTracer(
+                        context.tracer.getTracer(),
+                        new URL(
+                            `/api/files/${spaceId}/multipart-upload/${fileId}/part/${partNumber}?upload=${uploadId}`,
+                            window.location.href,
+                        ),
+                        {
+                            serviceName: "EdgeService",
+                            method: "PUT",
+                            route: "/api/files/:spaceId/multipart-upload/:fileId/part/:partNumber",
+                            headers: {
+                                "content-type": "application/octet-stream",
+                                "content-length": String(partData.length),
+                            },
+                            // We provide our own `fetch()` implementation that uses `XMLHttpRequest` since
+                            // `XMLHttpRequest` emits a `progress` event that we show to the user to let
+                            // them know their file upload progress.
+                            //
+                            // You'll notice we don't pass `body` to this `fetchWithTracer()` call. Instead
+                            // opting to pass the body in directly here. Since if `body` is a `File` we
+                            // want the browser to stream the file from disk without loading any data to
+                            // memory.
+                            fetch: async request => {
+                                const xhr = new XMLHttpRequest();
+                                xhr.responseType = "arraybuffer";
+
+                                abortController.signal.addEventListener("abort", () => {
+                                    if (xhr.readyState !== XMLHttpRequest.DONE) {
+                                        xhr.abort();
+                                    }
+                                });
+
+                                xhr.upload.addEventListener("progress", event => {
+                                    if (event.lengthComputable) {
+                                        partProgresses[partNumber - 1] = event.loaded / event.total;
+                                        updateProgress();
+                                    }
+                                });
+
+                                const responsePromise = new Promise<Response>((resolve, reject) => {
+                                    xhr.addEventListener("load", () => {
+                                        // Make sure we set our part's progress to 1 once this part
+                                        // is done uploading.
+                                        partProgresses[partNumber - 1] = 1;
+                                        updateProgress();
+
+                                        const responseHeaders = new Headers();
+                                        const responseHeadersString = xhr.getAllResponseHeaders();
+
+                                        for (const responseHeadersStringLine of responseHeadersString
+                                            .trim()
+                                            .split(/[\r\n]+/g)) {
+                                            const [headerName, headerValue] =
+                                                responseHeadersStringLine.split(": ", 2);
+
+                                            responseHeaders.set(headerName!, headerValue ?? "");
+                                        }
+
+                                        resolve(
+                                            new Response(xhr.response, {
+                                                status: xhr.status,
+                                                statusText: xhr.statusText,
+                                                headers: responseHeaders,
+                                            }),
+                                        );
+                                    });
+
+                                    xhr.addEventListener("abort", () => {
+                                        const error = new AbortedError(
+                                            "Multipart upload part HTTP request aborted",
+                                        );
+                                        reject(error);
+                                        abortController.abort(error);
+                                    });
+
+                                    xhr.addEventListener("error", () => {
+                                        const error = new UnknownError(
+                                            "Multipart upload part HTTP request failed",
+                                        );
+                                        reject(error);
+                                        abortController.abort(error);
+                                    });
+                                });
+
+                                xhr.open(request.method, request.url, true);
+
+                                for (const [headerName, headerValue] of request.headers) {
+                                    xhr.setRequestHeader(headerName, headerValue);
+                                }
+
+                                xhr.send(partData);
+
+                                return responsePromise;
+                            },
+                        },
+                        async response => {
+                            const responseBody =
+                                PutFileMultipartUploadPartResponseSchema.deserialize(
+                                    await response.json(),
+                                );
+                            if (!responseBody.ok) throw responseBody.error;
+                            return responseBody;
+                        },
+                    ).finally(unlock),
+                );
+            }
+        }
+
+        if (done) break;
+    }
+
+    const parts = await runAllPromises(partPromises);
+
+    if (abortController.signal.aborted) throw abortController.signal.reason;
+
+    return fetchWithTracer(
+        context.tracer.getTracer(),
+        new URL(
+            `/api/files/${spaceId}/multipart-upload/${fileId}/complete?upload=${uploadId}`,
+            window.location.href,
+        ),
+        {
+            serviceName: "EdgeService",
+            method: "POST",
+            route: "/api/files/:spaceId/multipart-upload/:fileId/complete",
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify(CompleteFileMultipartUploadRequestSchema.serialize({parts})),
+        },
+        async response => {
+            const responseBody = UploadFileResponseSchema.deserialize(await response.json());
+            if (!responseBody.ok) throw responseBody.error;
+
+            // Make sure the upload progress store is finished.
+            uploadProgressStore.set(1);
+
+            return responseBody;
+        },
+    );
 }

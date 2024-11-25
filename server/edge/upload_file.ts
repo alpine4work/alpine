@@ -8,8 +8,9 @@ import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {deserializeFileAttachmentTargetString} from "~/shared/files/file_attachment_target.js";
+import {maxFileContentLength} from "~/shared/files/file_constants.js";
 import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
-import {UploadFileResponseSchema, maxFileContentLength} from "~/shared/files/file_model.js";
+import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -20,20 +21,16 @@ import {
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+interface R2BucketInterface {
+    put(key: string, body: any, options: {httpMetadata: {contentType: string}}): Promise<unknown>;
+}
+
 // This file is used both by `EdgeService` and in tests. So we don't want to
 // depend on anything `EdgeService` specific here.
 export async function uploadFile(
     createContext: (payload: SessionTokenPayload) => Context<{rpc: RpcContextModuleBase}>,
     executionContext: {},
-    env: {
-        FilesBucket: {
-            put: (
-                key: string,
-                body: ReadableStream<Uint8Array> | null,
-                options: {httpMetadata: {contentType: string}},
-            ) => Promise<unknown>;
-        };
-    },
+    env: {FilesBucket: R2BucketInterface},
     tokenAgent: TokenAgent,
     request: Request,
     url: URL,
@@ -128,10 +125,6 @@ export async function uploadFile(
                 },
             });
 
-            // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
-            // someday if we want to support users on spotty internet connections or speed
-            // up large file uploads (for files >100 MB).
-            //
             // TODO(calebmer, #files): Consider transitioning objects to infrequent access
             // after 1-3 months?
             // https://developers.cloudflare.com/r2/buckets/object-lifecycles
@@ -161,8 +154,6 @@ export async function uploadFile(
     } catch (error) {
         span.addException(error);
 
-        const statusCode = isSystemError(error) ? 500 : 400;
-
         return new Response(
             JSON.stringify(
                 UploadFileResponseSchema.serialize({
@@ -171,7 +162,7 @@ export async function uploadFile(
                 }),
             ),
             {
-                status: statusCode,
+                status: isSystemError(error) ? 500 : 400,
                 headers: {"content-type": "application/json"},
             },
         );

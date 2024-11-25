@@ -1068,6 +1068,9 @@ export type TracerEventData = {
             /** The Cloudflare R2 bucket being accessed or modified. */
             readonly bucket?: string;
 
+            /** The ID of the Cloudflare multipart upload this is a part of. */
+            readonly multipartUploadId?: string;
+
             /** Information about a single Cloudflare R2 object. */
             readonly object?: {
                 /** The Cloudflare R2 object key being accessed or modified. */

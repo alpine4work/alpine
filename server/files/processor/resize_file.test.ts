@@ -32,7 +32,8 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileContentType, FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -150,7 +151,7 @@ async function uploadFileForTest(
                     rpc: new TestUploadFileRpcContextModule(),
                 }),
             {},
-            {FilesBucket: r2Bucket as any},
+            {FilesBucket: r2Bucket},
             edgeTokenAgent,
             request,
             url,

@@ -23,7 +23,7 @@ import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
-import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_model.js";
+import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_constants.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 // IMPORTANT: `FileProcessorService` has a pretty broad attack surface given
