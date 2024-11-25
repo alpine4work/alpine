@@ -173,7 +173,7 @@ export class AwsFileProcessorService extends Construct {
             // We have to figure out the right value here based on trial and error. If we
             // ask for too much memory we don't get an error, instead our ECS tasks will
             // be stuck with the "Provisioning" status and never start.
-            memoryLimitMiB: 935,
+            memoryLimitMiB: 1845,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
