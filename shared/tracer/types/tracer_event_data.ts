@@ -1068,9 +1068,6 @@ export type TracerEventData = {
             /** The Cloudflare R2 bucket being accessed or modified. */
             readonly bucket?: string;
 
-            /** The ID of the Cloudflare multipart upload this is a part of. */
-            readonly multipartUploadId?: string;
-
             /** Information about a single Cloudflare R2 object. */
             readonly object?: {
                 /** The Cloudflare R2 object key being accessed or modified. */
@@ -1081,6 +1078,21 @@ export type TracerEventData = {
 
                 /** The content length of our Cloudflare R2 object. */
                 readonly contentLength?: number;
+            };
+
+            /** Information regarding a Cloudflare R2 multipart upload. */
+            readonly multipartUpload?: {
+                /** The ID of the Cloudflare multipart upload this is a part of. */
+                readonly id?: string;
+
+                /** What's the number of this part in the multipart upload? */
+                readonly partNumber?: number;
+
+                /** What's the length of this part in the multipart upload in bytes? */
+                readonly partContentLength?: number;
+
+                /** What's the total number of parts in this multipart upload? */
+                readonly totalPartCount?: number;
             };
         };
     };

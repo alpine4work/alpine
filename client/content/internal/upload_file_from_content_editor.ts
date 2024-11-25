@@ -818,10 +818,9 @@ async function uploadFileWithMultipartUploadIfNeeded(
         },
     );
 
-    // Only send 3 part upload requests to the server at once. So we don't
-    // completely saturate the browser's HTTP connection limit which in Chrome is
-    // 6 per domain.
-    const mutexes = createArrayWithLength(3, () => new Mutex());
+    // Only send 2 part upload requests to the server at once. Users with slow
+    // internet upload speeds won't benefit from parallelism.
+    const mutexes = createArrayWithLength(2, () => new Mutex());
 
     const partPromises: Array<Promise<CompleteFileMultipartUploadRequestPart>> = [];
     const partContentLength = maxFileMultipartUploadPartContentLength;
