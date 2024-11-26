@@ -9,17 +9,20 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
+import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -29,19 +32,33 @@ import {
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ChatView({
+    withInboxBanner,
     chat,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
 }: {
+    withInboxBanner: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
 }) {
     return (
-        <Box width="full" height="full" display="flex" flexDirection="column">
-            <ChatViewTopBar chat={chat} />
+        <Box
+            position="relative"
+            width="full"
+            height="full"
+            style={{
+                // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
+                // like it.
+                "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${addRemLengths(
+                    withInboxBanner ? inboxBannerHeight : "0",
+                    navigationBarHeight,
+                )})`,
+            }}
+        >
+            <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
             <ChatMessagingView
                 chat={chat}
                 initialMessages={initialMessages}
@@ -52,7 +69,8 @@ export function ChatView({
     );
 }
 
-function ChatViewTopBar({chat}: {chat: ChatModel}) {
+// NOCOMMIT: Don't update to "You sent a message"
+function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat: ChatModel}) {
     assert(chat.accounts.length > 0);
 
     const platform = usePlatform();
@@ -69,18 +87,34 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
     return (
         <Box
             data-testid="ChatViewTopBar"
-            flexShrink="0"
+            zIndex="10"
+            position="absolute"
             width="full"
-            paddingTop="safe-area-inset"
             display="flex"
+            justifyContent="center"
             alignItems="center"
+            backgroundColor="grey-0-opacity-95"
+            style={{
+                paddingTop: `calc(var(--safe-area-inset-top-base, 0px) + ${
+                    spacing[withInboxBanner ? inboxBannerHeight : "0"]
+                })`,
+                backdropFilter: `saturate(200%) blur(${spacing["1"]})`,
+                WebkitBackdropFilter: `saturate(200%) blur(${spacing["1"]})`,
+            }}
         >
             <Box
+                position="relative"
                 height={navigationBarHeight}
                 width="full"
+                maxWidth={messageViewMaxWidth}
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
+                // If this route has an inbox banner then optically center our navigation bar
+                // content so there's not a bunch of dead space.
+                paddingBottom={
+                    withInboxBanner ? chatViewTopBarWithInboxBannerAdjustmentY[platform] : undefined
+                }
             >
                 {platform === "mobile" && (
                     <Box flexShrink="0" paddingLeft="3">
@@ -97,7 +131,6 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                 )}
                 <Box
                     width="full"
-                    maxWidth={messageViewMaxWidth}
                     paddingX={screenPaddingX}
                     display="flex"
                     flexDirection={platform !== "mobile" ? "row" : "column"}
@@ -114,6 +147,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                         className={sprinkles({
                             fontStyle: platform !== "mobile" ? "truncate-semi-bold" : "truncate",
                             fontSize: platform !== "mobile" ? "200" : "50",
+                            userSelect: platform !== "mobile" ? "text" : undefined,
                         })}
                     >
                         {otherChatAccounts.length === 1 ? (
@@ -212,6 +246,7 @@ function ChatMessagingView({
                     ),
                 [chat.id, chat.spaceId],
             )}
+            scrollbarInsetTop={safeAreaOnlyScrollbarInsetTop}
         />
     );
 }

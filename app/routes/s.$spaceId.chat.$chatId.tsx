@@ -117,6 +117,7 @@ export default function ChatRoute() {
             <ChatView
                 // Remount whenever we navigate to a different chat.
                 key={chat.id}
+                withInboxBanner={!!inboxEntry}
                 chat={chat}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}

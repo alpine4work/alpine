@@ -842,7 +842,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             >
                 <div
                     className={sprinkles({
-                        paddingX: "2",
                         color: "grey-40",
                         fontSize: "75",
                     })}
