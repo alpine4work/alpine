@@ -434,6 +434,7 @@ const lineBreakCountByNodeType: {
     table: 0,
     tableRow: 1,
     tableCell: 0,
+    tableHeader: 0,
 };
 
 /**
@@ -477,4 +478,5 @@ const dontCutLeadingChildrenByNodeType: {
     table: false,
     tableRow: true,
     tableCell: false,
+    tableHeader: false,
 };
