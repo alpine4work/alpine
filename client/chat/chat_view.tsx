@@ -69,7 +69,6 @@ export function ChatView({
     );
 }
 
-// NOCOMMIT: Don't update to "You sent a message"
 function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat: ChatModel}) {
     assert(chat.accounts.length > 0);
 
