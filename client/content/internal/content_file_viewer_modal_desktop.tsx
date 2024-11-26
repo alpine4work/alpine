@@ -9,12 +9,12 @@ import {
 } from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useState} from "react";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {ContentFileAudioViewerDesktop} from "~/client/content/internal/content_file_audio_viewer_desktop.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
 import {handleDownloadContentFile} from "~/client/content/internal/content_file_preview.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {ContentFileVideoViewerDesktop} from "~/client/content/internal/content_file_video_viewer_desktop.js";
 import {
@@ -48,7 +48,7 @@ import {getFileContentTypeName} from "~/shared/content/code/get_file_content_typ
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {isFileImageContentType} from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {isFileModelDataLoading} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -65,18 +65,14 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  */
 export function ContentFileViewerModalDesktop({
     file,
-    signedUrlSearch,
     attachmentTarget,
     ownedByElement,
-    expirationTimers,
     loaderDataPromise,
     onClose,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     attachmentTarget: FileAttachmentTarget;
     ownedByElement: Element | null;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
@@ -118,7 +114,7 @@ export function ContentFileViewerModalDesktop({
     };
 
     const withProcessingIndicator =
-        file.isLoading() &&
+        isFileModelDataLoading(file) &&
         // If the file has an image preview where the size or placeholder are
         // processing then we'll be showing a large spinner in the center of the entire
         // modal so we don't need to also show a small spinner here.
@@ -259,11 +255,7 @@ export function ContentFileViewerModalDesktop({
                                         file.contentType,
                                     )}`}
                                     onPress={() => {
-                                        handleDownloadContentFile({
-                                            spaceId: space.id,
-                                            file,
-                                            signedUrlSearch,
-                                        });
+                                        handleDownloadContentFile({spaceId: space.id, file});
                                     }}
                                 >
                                     Download
@@ -315,10 +307,8 @@ export function ContentFileViewerModalDesktop({
                             {viewerSize && (
                                 <ContentFileDesktopViewer
                                     file={file}
-                                    signedUrlSearch={signedUrlSearch}
                                     attachmentTarget={attachmentTarget}
                                     viewerSize={viewerSize}
-                                    expirationTimers={expirationTimers}
                                     loaderDataPromise={loaderDataPromise}
                                     zoomScale={zoomScale}
                                     maxZoomScale={maxZoomScale}
@@ -333,16 +323,14 @@ export function ContentFileViewerModalDesktop({
 }
 
 function ContentFileDesktopViewer(props: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
     maxZoomScale: number;
 }) {
-    const {file, signedUrlSearch, viewerSize} = props;
+    const {file, viewerSize} = props;
 
     const spacingScale = useSpacingScale();
 
@@ -413,7 +401,6 @@ function ContentFileDesktopViewer(props: {
                 >
                     <ContentFilePdfViewer
                         file={file}
-                        signedUrlSearch={signedUrlSearch}
                         viewerWidth={
                             viewerSize.width -
                             convertRemLengthToPx(contentFileViewerDesktopMarginX, spacingScale) * 2

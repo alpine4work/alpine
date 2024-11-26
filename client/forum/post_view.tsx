@@ -107,9 +107,6 @@ export function PostView({
         <PostListView
             ref={postListRef}
             posts={posts}
-            onMergePostContentReferences={useCallback((postId, references) => {
-                setPosts(posts => posts.mergePostContentReferences(postId, references));
-            }, [])}
             onTogglePostComments={useCallback(postId => {
                 setPosts(posts => posts.togglePostComments(postId));
             }, [])}

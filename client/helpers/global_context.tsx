@@ -1,25 +1,13 @@
-import {
-    ReactElement,
-    ReactNode,
-    createContext,
-    useContext,
-    useInsertionEffect,
-    useState,
-} from "react";
+import {ReactElement, ReactNode, createContext, useContext, useState} from "react";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 let nextGlobalContextId = 1;
-
-// Provide a default context implementation in unit tests so you don't need to
-// use `useGlobalContextProvider()`.
-const actualGlobalContextForTest = import.meta.jest ? new Map() : null;
-
 let actualGlobalContext: Map<number, any> | null = null;
 
 // eslint-disable-next-line react-refresh/only-export-components
-const ActualGlobalContext = createContext<Map<number, any> | null>(actualGlobalContextForTest);
+const ActualGlobalContext = createContext<Map<number, any> | null>(null);
 
 export type GlobalContext<Value> = {
     readonly id: number;
@@ -67,6 +55,10 @@ export function useGlobalContext<Value>(context: GlobalContext<Value>): Value {
     const actualGlobalContext = useContext(ActualGlobalContext);
 
     if (actualGlobalContext === null) {
+        if (import.meta.jest) {
+            return getGlobalContext(context);
+        }
+
         throw new InternalError(
             `Expected \`useGlobalContextProvider()\` hook to be used at the root of the app`,
         );
@@ -80,18 +72,10 @@ export function useGlobalContext<Value>(context: GlobalContext<Value>): Value {
  * server-side rendering. You may only call this on the client.
  */
 export function getGlobalContext<Value>(context: GlobalContext<Value>): Value {
-    assert(actualGlobalContext !== null);
+    assert(typeof window !== "undefined" || import.meta.jest);
 
+    actualGlobalContext ??= new Map();
     return actuallyGetGlobalContext(actualGlobalContext, context);
-}
-
-/**
- * Get a global context in Jest unit tests.
- */
-export function getGlobalContextForTest<Value>(context: GlobalContext<Value>): Value {
-    assert(import.meta.jest);
-
-    return actuallyGetGlobalContext(actualGlobalContextForTest!, context);
 }
 
 export function useGlobalContextProvider(children: ReactNode): ReactElement {
@@ -103,17 +87,14 @@ export function useGlobalContextProvider(children: ReactNode): ReactElement {
         );
     }
 
-    const [actualGlobalContextFromState] = useState(() => new Map());
-
-    // On the client, we should only have one global context provider. That way
-    // global contexts can be accessed outside of React.
-    useInsertionEffect(() => {
-        assert(actualGlobalContext === null);
-        actualGlobalContext = actualGlobalContextFromState;
-        return () => {
-            actualGlobalContext = null;
-        };
-    }, [actualGlobalContextFromState]);
+    const [actualGlobalContextFromState] = useState(() => {
+        if (typeof window !== "undefined" || import.meta.jest) {
+            actualGlobalContext ??= new Map();
+            return actualGlobalContext;
+        } else {
+            return new Map();
+        }
+    });
 
     return (
         <ActualGlobalContext.Provider value={actualGlobalContextFromState}>

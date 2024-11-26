@@ -265,7 +265,8 @@ export async function putFileMultipartUploadPart(
         // Throws an error if the file doesn't exist or the session actor doesn't have
         // access to the file.
         const {file} = await getFileWithoutSignedUrlAsUploader(context, {spaceId, fileId});
-        if (!file.isUploading) throw new FailedPreconditionError("File has finished uploading");
+        if (!file.initialData.isUploading)
+            throw new FailedPreconditionError("File has finished uploading");
 
         // Make sure the user isn't allowed to upload more parts than what's necessary
         // to fulfill the `Content-Length` they originally declared when starting the
@@ -390,7 +391,7 @@ export async function completeFileMultipartUpload(
             spaceId,
             fileId,
         });
-        if (!uploadingFile.isUploading)
+        if (!uploadingFile.initialData.isUploading)
             throw new FailedPreconditionError("File has finished uploading");
 
         // Create a span with the same format as the `PutObject` span created by

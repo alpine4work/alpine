@@ -25,7 +25,7 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {FileContentType, isFileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
@@ -181,38 +181,39 @@ export async function resizeFile(
             });
         }
 
+        const fileData = file.initialData;
         let contentType: FileContentType;
 
         if (variant === "preview") {
-            if (file.preview?.type !== "Image") {
+            if (fileData.preview?.type !== "Image") {
                 throw new FailedPreconditionError(
                     "File preview variants only exist for files with an image preview",
                 );
             }
 
-            if (file.preview.content === undefined) {
+            if (fileData.preview.content === undefined) {
                 throw new FailedPreconditionError("File preview variant doesn't exist");
             }
 
-            if (typeof file.preview.content === "string") {
+            if (typeof fileData.preview.content === "string") {
                 throw new FailedPreconditionError(
-                    quote`File preview variant isn't accessible because image preview is in ${file.preview.content} state`,
+                    quote`File preview variant isn't accessible because image preview is in ${fileData.preview.content} state`,
                 );
             }
 
-            contentType = file.preview.content.contentType;
+            contentType = fileData.preview.content.contentType;
         } else if (variant === "alternative") {
-            if (file.alternative === null) {
+            if (fileData.alternative === null) {
                 throw new FailedPreconditionError("File alternative variant doesn't exist");
             }
 
-            if (file.alternative.isProcessing) {
+            if (fileData.alternative.isProcessing) {
                 throw new FailedPreconditionError(
                     "File alternative variant isn't accessible because it's processing",
                 );
             }
 
-            if (!file.alternative.ok) {
+            if (!fileData.alternative.ok) {
                 throw new FailedPreconditionError(
                     "File alternative variant isn't accessible because it failed to process",
                 );
@@ -220,18 +221,18 @@ export async function resizeFile(
 
             // A Cloudflare object won't exist with the suffix `-alternative` if the file's
             // alternative is backed by image preview content.
-            if (file.alternative.isImagePreviewContent) {
+            if (fileData.alternative.isImagePreviewContent) {
                 throw new FailedPreconditionError(
                     'File alternative is stored as the file\'s image preview content, you must use a variant of "preview" instead',
                 );
             }
 
-            contentType = file.alternative.contentType;
+            contentType = fileData.alternative.contentType;
         } else {
             contentType = file.contentType;
         }
 
-        parentSpan.addData({file: getTracerEventFileData(file)});
+        parentSpan.addData({file: getTracerEventFileData(fileData)});
 
         if (!isFileWebSafeImageContentType(contentType)) {
             throw new FailedPreconditionError(
@@ -250,11 +251,11 @@ export async function resizeFile(
         if (contentType === "image/jpeg") {
             isDefinitelyMissingAlphaChannel = true;
         } else if (contentType === "image/png" || contentType === "image/apng") {
-            if (file.preview?.type !== "Image" || typeof file.preview.size === "string") {
+            if (fileData.preview?.type !== "Image" || typeof fileData.preview.size === "string") {
                 throw new FailedPreconditionError("Preview size has not finished processing");
             }
 
-            isDefinitelyMissingAlphaChannel = !file.preview.size.hasAlpha;
+            isDefinitelyMissingAlphaChannel = !fileData.preview.size.hasAlpha;
         }
 
         await parentSpan.withSpan(
@@ -444,7 +445,7 @@ export async function resizeFile(
     }
 }
 
-function getTracerEventFileData(file: FileModel): NonNullable<TracerEventData["file"]> {
+function getTracerEventFileData(file: FileModelData): NonNullable<TracerEventData["file"]> {
     let preview: NonNullable<TracerEventData["file"]>["preview"];
     let alternative: NonNullable<TracerEventData["file"]>["alternative"];
 

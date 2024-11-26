@@ -2,11 +2,11 @@
 
 import {render} from "@testing-library/react";
 import {ContentView} from "~/client/content/content_view.js";
+import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
 import {
     getSelectionClipboardData,
     handleCopyEventIfNotTextInputElement,
 } from "~/client/content/handle_copy_event_if_not_text_input_element.js";
-import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/content_file_preview.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -24,7 +24,6 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -39,7 +38,7 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-disableContentFilePreviewSignedUrlRefreshForTest();
+disableStartMaintainingFileForTest();
 
 const space = new SpaceModel({
     id: generateId(),
@@ -234,10 +233,6 @@ function testSelectionClipboardData(selection: {
     return result1;
 }
 
-function unimplementedForTest() {
-    throw new UnimplementedError("Unimplemented for test");
-}
-
 beforeAll(async () => {
     await contentCodeBlockLanguageById.typescript.getParser()?.promise;
 });
@@ -247,7 +242,6 @@ test("can copy when selection is entirely in content view", () => {
         <TestSpaceContextProvider space={space} currentAccount={account}>
             <ContentView
                 content={testDocument}
-                onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testDocumentFileAttachmentTarget}
             />
         </TestSpaceContextProvider>,

@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {useMemo, useRef} from "react";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     addContentFileVideoPlayerBehavior,
@@ -17,7 +17,6 @@ import {
     greyElevated2ClassName,
 } from "~/client/styles/styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -25,25 +24,19 @@ import {HtmlFragmentGenerator} from "~/shared/helpers/html/html_generator.js";
 
 export function ContentFileVideoViewerDesktop({
     file,
-    signedUrlSearch,
     attachmentTarget,
-    expirationTimers,
     loaderDataPromise,
     viewerSize,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
 }) {
     return (
         <ContentFileImageViewerDesktop
             file={file}
-            signedUrlSearch={signedUrlSearch}
             attachmentTarget={attachmentTarget}
-            expirationTimers={expirationTimers}
             loaderDataPromise={loaderDataPromise}
             viewerSize={viewerSize}
             zoomScale={1}
@@ -52,7 +45,6 @@ export function ContentFileVideoViewerDesktop({
                 file.preview?.type === "Image" && typeof file.preview.videoDuration === "number" ? (
                     <ContentFileVideoViewerDesktopInner
                         file={file}
-                        signedUrlSearch={signedUrlSearch}
                         durationMs={file.preview.videoDuration}
                     />
                 ) : null
@@ -63,11 +55,9 @@ export function ContentFileVideoViewerDesktop({
 
 function ContentFileVideoViewerDesktopInner({
     file,
-    signedUrlSearch,
     durationMs,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     durationMs: number;
 }) {
     if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
@@ -87,7 +77,6 @@ function ContentFileVideoViewerDesktopInner({
 
         renderContentFileVideoPlayer(containerHtml, {
             spaceId: space.id,
-            signedUrlSearch,
             file,
             durationMs,
             layout: null,
@@ -97,7 +86,7 @@ function ContentFileVideoViewerDesktopInner({
         });
 
         return containerHtml;
-    }, [durationMs, file, signedUrlSearch, space.id]);
+    }, [durationMs, file, space.id]);
 
     const previousContainerHtmlRef = useRef<HtmlFragmentGenerator | null>(null);
 

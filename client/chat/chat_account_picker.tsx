@@ -17,7 +17,7 @@ import {
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";

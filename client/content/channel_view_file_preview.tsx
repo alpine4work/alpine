@@ -1,11 +1,11 @@
 import classNames from "classnames";
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {useMemo, useRef, useState} from "react";
+import {useMemo, useRef} from "react";
+import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
-import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -28,7 +28,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 import {PostId} from "~/shared/id/types/id_types.js";
-import {computeStore} from "~/shared/store/compute_store.js";
 
 // Create a temporary schema we can use for constructing a `file` node we
 // can copy.
@@ -45,13 +44,13 @@ const prosemirrorSchema = new Lazy(
 
 export function ChannelViewFilePreview({
     postId,
-    file: initialFile,
-    signedUrlSearch: initialSignedUrlSearch,
+    signedUrlSearch,
+    file: fileFromProps,
     size,
 }: {
     postId: PostId;
-    file: FileModel;
     signedUrlSearch: string;
+    file: FileModel;
     size: number;
 }) {
     const context = useAppContext();
@@ -62,61 +61,47 @@ export function ChannelViewFilePreview({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
+    const fileStore = useFileClientStore();
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const [file, setFile] = useState(initialFile);
-    const [signedUrlSearch, setSignedUrlSearch] = useState(initialSignedUrlSearch);
-
-    const expirationTimers = useContentFilePreviewExpirationTimers();
-
-    const htmlGenerator = useStore(
-        useMemo(() => {
-            return computeStore(get => {
-                const html = renderContentFilePreview(get, {
-                    spaceId: space.id,
-                    node: prosemirrorSchema.get().node("file", {fileId: file.id}),
-                    reference: {signedUrlSearch, file},
-                    layout: {width: size, widthFr: 1, height: size},
-                    // `screenWidth` is used to scale down code file previews. Code previews at
-                    // 100% of this width (minus `screenPaddingX * 2`) are rendered with a font
-                    // size of 75. Set a `screenWidth` that'll scale the code preview down to a
-                    // font size of 25.
-                    screenWidth:
-                        size *
-                            (fontSizesBySpacingScale["75"].small.fontSize /
-                                fontSizesBySpacingScale["25"].small.fontSize) +
-                        screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
-                    platform,
-                    spacingScale,
-                    isInitialAppRender,
-                    expirationTimers,
-                    // Disable video and audio file interactivity. When pressed we should always
-                    // open the post in a peek.
-                    withoutInteractivity: true,
-                });
-
-                html.setAttribute(
-                    "class",
-                    classNames(
-                        html.getAttribute("class"),
-                        contentStyles.fileChannelViewPreviewClassName,
-                    ),
-                );
-
-                return html;
-            });
-        }, [
-            expirationTimers,
-            file,
-            isInitialAppRender,
-            platform,
-            signedUrlSearch,
-            size,
-            space.id,
-            spacingScale,
-        ]),
+    const file = useStore(
+        useMemo(
+            () => fileStore.getFileStore({signedUrlSearch, file: fileFromProps}),
+            [fileFromProps, fileStore, signedUrlSearch],
+        ),
     );
+
+    const htmlGenerator = useMemo(() => {
+        const html = renderContentFilePreview({
+            spaceId: space.id,
+            node: prosemirrorSchema.get().node("file", {fileId: file.id}),
+            file,
+            layout: {width: size, widthFr: 1, height: size},
+            // `screenWidth` is used to scale down code file previews. Code previews at
+            // 100% of this width (minus `screenPaddingX * 2`) are rendered with a font
+            // size of 75. Set a `screenWidth` that'll scale the code preview down to a
+            // font size of 25.
+            screenWidth:
+                size *
+                    (fontSizesBySpacingScale["75"].small.fontSize /
+                        fontSizesBySpacingScale["25"].small.fontSize) +
+                screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
+            platform,
+            spacingScale,
+            isInitialAppRender,
+            // Disable video and audio file interactivity. When pressed we should always
+            // open the post in a peek.
+            withoutInteractivity: true,
+        });
+
+        html.setAttribute(
+            "class",
+            classNames(html.getAttribute("class"), contentStyles.fileChannelViewPreviewClassName),
+        );
+
+        return html;
+    }, [file, isInitialAppRender, platform, size, space.id, spacingScale]);
 
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 
@@ -159,19 +144,11 @@ export function ChannelViewFilePreview({
             {
                 spaceId: space.id,
                 node: prosemirrorSchema.get().node("file", {fileId: file.id}),
-                reference: {signedUrlSearch, file},
+                file,
                 attachmentTarget: {type: "Post", postId},
-                expirationTimers,
                 isInitialAppRender,
                 rootNavigate,
                 getReporter: () => reporter,
-                onUpdate: (file, signedUrlSearch) => {
-                    setFile(file);
-                    setSignedUrlSearch(signedUrlSearch);
-                },
-                onSignedUrlRefresh: signedUrlSearch => {
-                    setSignedUrlSearch(signedUrlSearch);
-                },
                 onOpenViewer: () => {
                     navigate(`/s/${space.id}/posts/${postId}?scroll=file-${file.id}`);
 
@@ -185,7 +162,6 @@ export function ChannelViewFilePreview({
         };
     }, [
         context,
-        expirationTimers,
         file,
         isInitialAppRender,
         navigate,

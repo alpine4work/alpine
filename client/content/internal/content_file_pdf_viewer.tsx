@@ -1,3 +1,4 @@
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
@@ -6,7 +7,6 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {FileModel} from "~/shared/files/file_model.js";
 
 // TODO(calebmer): Currently we render PDFs using the browser's built in
 // `<iframe>`. This is not the best user experience (e.g. the `<iframe>` traps
@@ -18,12 +18,10 @@ import {FileModel} from "~/shared/files/file_model.js";
 // renders the first page of PDFs and won't render PDFs with a password.
 export function ContentFilePdfViewer({
     file,
-    signedUrlSearch,
     viewerWidth,
     viewerHeight,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     viewerWidth: number;
     viewerHeight: number;
 }) {
@@ -35,7 +33,7 @@ export function ContentFilePdfViewer({
     const platform = usePlatform();
     const {space} = useSpaceContext();
 
-    const src = getContentFileViewerSrc({spaceId: space.id, signedUrlSearch, file});
+    const src = getContentFileViewerSrc({spaceId: space.id, file});
 
     const viewerAspectRatio = viewerWidth / viewerHeight;
 

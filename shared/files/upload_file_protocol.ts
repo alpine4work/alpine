@@ -10,7 +10,7 @@ export const UploadFileResponseSchema = Schema.result(
     Schema.object({
         ok: Schema.value(true),
         signedUrlSearch: Schema.string,
-        file: FileModel.schema(),
+        file: FileModel.schema,
     }),
     Schema.object({
         ok: Schema.value(false),

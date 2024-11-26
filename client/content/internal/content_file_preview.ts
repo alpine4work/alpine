@@ -1,7 +1,9 @@
 import classNames from "classnames";
 import Color from "color";
 import prettyBytes from "pretty-bytes";
-import {Node} from "prosemirror-model";
+import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     addContentFileAudioPlayerBehavior,
@@ -11,8 +13,6 @@ import {
     ContentFileLayout,
     getFilePreviewSize,
 } from "~/client/content/internal/content_file_layout_computations.js";
-import {ContentFilePollerContext} from "~/client/content/internal/content_file_poller.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     addContentFileVideoPlayerBehavior,
@@ -30,7 +30,6 @@ import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
-import {getGlobalContext} from "~/client/helpers/global_context.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
 import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
@@ -50,6 +49,8 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
+import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {
     codeBlockClassName,
     codeBlockLineClassName,
@@ -77,7 +78,7 @@ import {
     FileImagePreviewPlaceholder,
     fileImagePreviewPlaceholderBaseSize,
 } from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileModel, FileModelData} from "~/shared/files/file_model.js";
 import {
     FileCodePreview,
     FileImagePreview,
@@ -111,17 +112,8 @@ import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {getFileSignedUrlFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
-import {Store} from "~/shared/store/store.js";
-
-let isContentFilePreviewSignedUrlRefreshDisabledForTest = false;
-
-export function disableContentFilePreviewSignedUrlRefreshForTest() {
-    assert(import.meta.jest);
-    isContentFilePreviewSignedUrlRefreshDisabledForTest = true;
-}
 
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
@@ -134,43 +126,38 @@ export function disableContentFilePreviewSignedUrlRefreshForTest() {
  * type. The inline preview, the fullscreen desktop modal, and the fullscreen
  * mobile modal. They should all look and behave about the same.
  */
-export function renderContentFilePreview(
-    get: <Value>(store: Store<Value>) => Value,
-    {
-        spaceId,
-        node,
-        reference,
-        layout,
-        screenWidth,
-        platform,
-        spacingScale,
-        isInitialAppRender,
-        withoutInteractivity = false,
-        expirationTimers,
-    }: {
-        spaceId: SpaceId;
-        node: Node;
-        reference: {signedUrlSearch: string; file: FileModel} | undefined;
-        layout: ContentFileLayout;
-        screenWidth: number;
-        platform: Platform;
-        spacingScale: SpacingScale;
-        isInitialAppRender: boolean;
-        withoutInteractivity?: boolean;
-        expirationTimers: ContentFilePreviewExpirationTimers;
-    },
-): HtmlElementGenerator {
+export function renderContentFilePreview({
+    spaceId,
+    node,
+    file,
+    layout,
+    screenWidth,
+    platform,
+    spacingScale,
+    isInitialAppRender,
+    withoutInteractivity = false,
+}: {
+    spaceId: SpaceId;
+    node: Node;
+    file: FileClientStoreData | undefined;
+    layout: ContentFileLayout;
+    screenWidth: number;
+    platform: Platform;
+    spacingScale: SpacingScale;
+    isInitialAppRender: boolean;
+    withoutInteractivity?: boolean;
+}): HtmlElementGenerator {
     assert(node.type.name === "file");
 
     const {html} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
 
     assert(html instanceof HtmlElementGenerator);
 
-    if (process.env.NODE_ENV !== "production" && reference) {
-        html.setAttribute("data-testid", `ContentFile:${reference.file.contentType}`);
+    if (process.env.NODE_ENV !== "production" && file) {
+        html.setAttribute("data-testid", `ContentFile:${file.contentType}`);
     }
 
-    if (!reference) {
+    if (!file) {
         const blankHtml = new HtmlElementGenerator("div");
         html.appendChild(blankHtml);
 
@@ -184,7 +171,7 @@ export function renderContentFilePreview(
         );
 
         appendImageHtmlForSelection(blankHtml, platform);
-    } else if (!reference.file.preview) {
+    } else if (!file.preview) {
         const containerHtml = new HtmlElementGenerator("div");
         html.appendChild(containerHtml);
 
@@ -235,40 +222,32 @@ export function renderContentFilePreview(
         unknownLabelHtml.setAttribute("class", sprinkles({textAlign: "center"}));
         unknownLabelHtml.appendChild(new HtmlTextGenerator("Unknown"));
         unknownLabelHtml.appendChild(new HtmlElementGenerator("br"));
-        unknownLabelHtml.appendChild(
-            new HtmlTextGenerator(prettyBytes(reference.file.contentLength)),
-        );
+        unknownLabelHtml.appendChild(new HtmlTextGenerator(prettyBytes(file.contentLength)));
 
         appendImageHtmlForSelection(containerHtml, platform);
     } else {
-        switch (reference.file.preview.type) {
+        switch (file.preview.type) {
             case "Image": {
-                renderContentFileImagePreview(get, html, {
+                renderContentFileImagePreview(html, {
                     spaceId,
-                    signedUrlSearch: reference.signedUrlSearch,
-                    file: reference.file,
-                    filePreview: reference.file.preview,
+                    file,
+                    filePreview: file.preview,
                     layout,
                     platform,
                     isInitialAppRender,
                     withoutInteractivity,
-                    expirationTimers,
                 });
                 break;
             }
             case "Audio": {
-                const audioSrc = getContentFileViewerSrc({
-                    spaceId,
-                    signedUrlSearch: reference.signedUrlSearch,
-                    file: reference.file,
-                });
+                const audioSrc = getContentFileViewerSrc({spaceId, file});
 
-                if (reference.file.preview.isProcessing || audioSrc === null) {
-                    renderContentFileProcessingPreview(html, {file: reference.file, layout});
-                } else if (!reference.file.preview.ok) {
+                if (file.preview.isProcessing || audioSrc === null) {
+                    renderContentFileProcessingPreview(html, {file, layout});
+                } else if (!file.preview.ok) {
                     renderContentFileProcessorErrorPreview(html, {
-                        contentType: reference.file.contentType,
-                        error: reference.file.preview.error,
+                        contentType: file.contentType,
+                        error: file.preview.error,
                         layout,
                     });
                 } else {
@@ -283,8 +262,8 @@ export function renderContentFilePreview(
                     );
 
                     renderContentFileAudioPlayer(containerHtml, {
-                        file: reference.file,
-                        filePreview: reference.file.preview,
+                        file,
+                        filePreview: file.preview,
                         audioSrc,
                         platform,
                         isInitialAppRender,
@@ -298,8 +277,8 @@ export function renderContentFilePreview(
             }
             case "Code": {
                 renderContentFileCodePreview(html, {
-                    file: reference.file,
-                    filePreview: reference.file.preview,
+                    file,
+                    filePreview: file.preview,
                     layout,
                     screenWidth,
                     platform,
@@ -308,7 +287,7 @@ export function renderContentFilePreview(
                 break;
             }
             default:
-                throw exhaustive(reference.file.preview);
+                throw exhaustive(file.preview);
         }
     }
 
@@ -340,7 +319,7 @@ function renderContentFileProcessingPreview(
         file,
         layout,
     }: {
-        file: FileModel;
+        file: FileClientStoreData;
         layout: {width: number; height: number};
     },
 ) {
@@ -548,28 +527,23 @@ function renderContentFileProcessorErrorPreview(
 }
 
 function renderContentFileImagePreview(
-    get: <Value>(store: Store<Value>) => Value,
     html: HtmlElementGenerator,
     {
         spaceId,
-        signedUrlSearch,
         file,
         filePreview,
         layout,
         platform,
         isInitialAppRender,
         withoutInteractivity,
-        expirationTimers,
     }: {
         spaceId: SpaceId;
-        signedUrlSearch: string;
-        file: FileModel;
+        file: FileClientStoreData;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
-        expirationTimers: ContentFilePreviewExpirationTimers;
     },
 ) {
     if (
@@ -593,9 +567,8 @@ function renderContentFileImagePreview(
     // size of the file use `reference.file.preview.size`.
     const fileSize = getFilePreviewSize(file);
 
-    renderContentFileImagePreviewInner(get, html, {
+    renderContentFileImagePreviewInner(html, {
         spaceId,
-        signedUrlSearch,
         file,
         fileSize,
         filePreview,
@@ -605,16 +578,13 @@ function renderContentFileImagePreview(
         platform,
         isInitialAppRender,
         withoutInteractivity,
-        expirationTimers,
     });
 }
 
 function renderContentFileImagePreviewInner(
-    get: <Value>(store: Store<Value>) => Value,
     html: HtmlElementGenerator,
     {
         spaceId,
-        signedUrlSearch,
         file,
         fileSize,
         filePreview,
@@ -624,11 +594,9 @@ function renderContentFileImagePreviewInner(
         platform,
         isInitialAppRender,
         withoutInteractivity,
-        expirationTimers,
     }: {
         spaceId: SpaceId;
-        signedUrlSearch: string;
-        file: FileModel;
+        file: FileClientStoreData;
         fileSize: {width: number; height: number};
         filePreview: Exclude<FileImagePreview, {ok: false}>;
         filePreviewSize: FileImagePreviewSize;
@@ -637,7 +605,6 @@ function renderContentFileImagePreviewInner(
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
-        expirationTimers: ContentFilePreviewExpirationTimers;
     },
 ) {
     const adjustments = getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder);
@@ -680,11 +647,8 @@ function renderContentFileImagePreviewInner(
     // When the signature expires we re-render the file to remove the image from
     // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
     // signatures that haven't expired.
-    if (
-        !get(expirationTimers.getExpiredTimerStore(signedUrlSearch)) &&
-        filePreview.content !== "Processing"
-    ) {
-        const imageSourceBase = `/files/${spaceId}/${file.id}${signedUrlSearch}${
+    if (!file.isSignedUrlExpired && filePreview.content !== "Processing") {
+        const imageSourceBase = `/files/${spaceId}/${file.id}${file.signedUrlSearch}${
             filePreview.content !== undefined ? "&variant=preview" : ""
         }`;
 
@@ -788,7 +752,6 @@ function renderContentFileImagePreviewInner(
 
         renderContentFileVideoPlayer(videoPlayerHtml, {
             spaceId,
-            signedUrlSearch,
             file,
             durationMs: filePreview.videoDuration,
             layout,
@@ -820,7 +783,7 @@ function renderContentFileCodePreview(
         platform,
         spacingScale,
     }: {
-        file: FileModel;
+        file: FileClientStoreData;
         filePreview: FileCodePreview;
         layout: ContentFileLayout;
         screenWidth: number;
@@ -1157,7 +1120,7 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
  * image.
  */
 function generateFileProcessingPreviewPlaceholder(
-    file: FileModel,
+    file: FileModelData,
 ): ReadonlyArray<ReadonlyArray<ColorWithShade>> {
     const fileSize = getFilePreviewSize(file);
 
@@ -1304,16 +1267,13 @@ export function addContentFilePreviewBehavior(
     {
         spaceId,
         node,
-        reference,
+        file,
         attachmentTarget,
-        expirationTimers,
         isInert = false,
         isInitialAppRender,
         isEditorInitialAppRender = false,
         rootNavigate,
         getReporter,
-        onUpdate,
-        onSignedUrlRefresh,
         onShiftMouseDown,
         onLongPress,
         onDrag,
@@ -1321,16 +1281,13 @@ export function addContentFilePreviewBehavior(
     }: {
         spaceId: SpaceId;
         node: Node;
-        reference: {signedUrlSearch: string; file: FileModel} | undefined;
+        file: FileClientStoreData | undefined;
         attachmentTarget: FileAttachmentTarget;
-        expirationTimers: ContentFilePreviewExpirationTimers;
         isInert?: boolean;
         isInitialAppRender: boolean;
         isEditorInitialAppRender?: boolean;
         rootNavigate: NavigateFunction;
         getReporter: () => Reporter;
-        onUpdate: (file: FileModel, signedUrlSearch: string) => void;
-        onSignedUrlRefresh: (fileId: FileId, signedUrlSearch: string) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
         onLongPress?: () => void;
         onDrag?: (dragPromise: Promise<void>) => void;
@@ -1342,64 +1299,6 @@ export function addContentFilePreviewBehavior(
     let hasCleanedUp = false;
     let pollTimeout: Timeout | null = null;
     let unsubscribeFromRefreshTimer: (() => void) | null = null;
-
-    /* ========================================================================== *\
-     *                             Poll loading file                              *
-    \* ========================================================================== */
-
-    let cleanupPoll: (() => void) | undefined;
-
-    if (reference?.file && reference.file.isLoading()) {
-        cleanupPoll = getGlobalContext(ContentFilePollerContext).startPolling(getContext, {
-            spaceId,
-            fileId: reference.file.id,
-            target: attachmentTarget,
-            onPoll: ({file: newFile, signedUrlSearch}) => {
-                onUpdate(newFile, signedUrlSearch);
-            },
-        });
-    }
-
-    /* ========================================================================== *\
-     *                             Refresh signed URL                             *
-    \* ========================================================================== */
-
-    if (!isContentFilePreviewSignedUrlRefreshDisabledForTest && reference) {
-        const refreshTimerStore = expirationTimers.getRefreshTimerStore(reference.signedUrlSearch);
-
-        const refresh = () => {
-            getFileSignedUrlFromAttachment(getContext(), {
-                spaceId,
-                fileId: reference.file.id,
-                target: attachmentTarget,
-            }).then(
-                output => {
-                    onSignedUrlRefresh(reference.file.id, output.signedUrlSearch);
-                },
-                error => {
-                    getContext()
-                        .tracer.getRoot()
-                        .logUncaughtException(
-                            "Couldn't refresh expired file preview URL signature",
-                            error,
-                        );
-                },
-            );
-        };
-
-        if (refreshTimerStore.getSnapshot()) {
-            refresh();
-        } else {
-            unsubscribeFromRefreshTimer = refreshTimerStore.subscribe(() => {
-                if (!refreshTimerStore.getSnapshot()) return;
-
-                unsubscribeFromRefreshTimer?.();
-                unsubscribeFromRefreshTimer = null;
-
-                refresh();
-            });
-        }
-    }
 
     /* ========================================================================== *\
      *                                Press event                                 *
@@ -1540,12 +1439,12 @@ export function addContentFilePreviewBehavior(
             if (result?.preventDefault) return;
         }
 
-        if (!reference) return;
-        const {file} = reference;
+        if (!file) return;
 
         handoffContentFilePreviewState({
             ownedByElement: element,
-            reference,
+            signedUrlSearch: file.signedUrlSearch,
+            file: new FileModel(file),
         });
 
         rootNavigate(location => {
@@ -1604,7 +1503,7 @@ export function addContentFilePreviewBehavior(
             return;
         }
 
-        if (!reference) return;
+        if (!file) return;
         if (!event.dataTransfer) return;
 
         // Don't propagate to ProseMirror. If the user starts dragging on a file and
@@ -1618,7 +1517,12 @@ export function addContentFilePreviewBehavior(
                 () => spaceId,
                 () => ({
                     ...emptyContentReferences,
-                    fileById: new Map([[reference.file.id, reference]]),
+                    fileById: new Map([
+                        [
+                            file.id,
+                            {signedUrlSearch: file.signedUrlSearch, file: new FileModel(file)},
+                        ],
+                    ]),
                 }),
                 () => attachmentTarget,
             );
@@ -1677,7 +1581,7 @@ export function addContentFilePreviewBehavior(
      *                             Context menu event                             *
     \* ========================================================================== */
 
-    const fileContentTypeNoun = getFileContentTypeNoun(reference?.file.contentType);
+    const fileContentTypeNoun = getFileContentTypeNoun(file?.contentType);
 
     const handleContextMenu = (event: MouseEvent) => {
         if (!navigator.clipboard) return;
@@ -1686,34 +1590,23 @@ export function addContentFilePreviewBehavior(
             [
                 {
                     label: `Copy ${fileContentTypeNoun}`,
-                    isDisabled: reference?.file.isUploading ?? true,
+                    isDisabled: file?.isUploading ?? true,
                     pressErrorTitle: `Couldn’t copy ${fileContentTypeNoun}`,
                     onPress: async () => {
                         await handleCopyContentFile(element, {
                             spaceId,
-                            node,
-                            references: {
-                                ...emptyContentReferences,
-                                fileById: reference
-                                    ? new Map([[reference.file.id, reference]])
-                                    : new Map(),
-                            },
+                            file: file ?? null,
                             attachmentTarget,
                         });
                     },
                 },
                 {
                     label: `Download ${fileContentTypeNoun}`,
-                    isDisabled: reference?.file.isUploading ?? true,
+                    isDisabled: file?.isUploading ?? true,
                     pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
                     onPress: () => {
-                        if (!reference) return;
-
-                        handleDownloadContentFile({
-                            spaceId,
-                            file: reference.file,
-                            signedUrlSearch: reference.signedUrlSearch,
-                        });
+                        if (!file) return;
+                        handleDownloadContentFile({spaceId, file});
                     },
                 },
             ],
@@ -1769,17 +1662,14 @@ export function addContentFilePreviewBehavior(
         onPress: () => {preventDefault: boolean} | void;
         cleanup: () => void;
     } | null = null;
-    if (
-        reference?.file.preview?.type === "Image" &&
-        typeof reference.file.preview.videoDuration === "number"
-    ) {
+    if (file?.preview?.type === "Image" && typeof file.preview.videoDuration === "number") {
         const containerElement = element.getElementsByClassName(
             contentFileVideoPlayerStyles.containerClassName,
         )[0];
 
         if (containerElement) {
             videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
-                durationMs: reference.file.preview.videoDuration,
+                durationMs: file.preview.videoDuration,
                 isInitialAppRender,
                 getReporter,
                 onOpenViewer: openViewer,
@@ -1791,18 +1681,14 @@ export function addContentFilePreviewBehavior(
         onPress: () => {preventDefault: boolean} | void;
         cleanup: () => void;
     } | null = null;
-    if (
-        reference?.file.preview?.type === "Audio" &&
-        !reference.file.preview.isProcessing &&
-        reference.file.preview.ok
-    ) {
+    if (file?.preview?.type === "Audio" && !file.preview.isProcessing && file.preview.ok) {
         const containerElement = element.getElementsByClassName(
             contentFileAudioPlayerStyles.containerClassName,
         )[0];
 
         if (containerElement) {
             audioPlayerBehavior = addContentFileAudioPlayerBehavior(containerElement, {
-                filePreview: reference.file.preview,
+                filePreview: file.preview,
                 isInitialAppRender,
                 getReporter,
                 onOpenViewer: openViewer,
@@ -1810,16 +1696,14 @@ export function addContentFilePreviewBehavior(
         }
     }
 
-    // Retain after all other behavior code runs to make sure we'll always release
-    // even if an error is thrown.
-    expirationTimers.retain();
+    const stopMaintainingFile = file
+        ? getFileClientStore(spaceId).startMaintainingFile(getContext, file, attachmentTarget)
+        : null;
 
     return () => {
-        expirationTimers.release();
-
         hasCleanedUp = true;
 
-        cleanupPoll?.();
+        stopMaintainingFile?.();
 
         videoPlayerBehavior?.cleanup();
         audioPlayerBehavior?.cleanup();
@@ -1897,18 +1781,43 @@ export async function handleCopyContentFile(
     element: Element,
     {
         spaceId,
-        node,
-        references,
+        file,
         attachmentTarget,
     }: {
         spaceId: SpaceId;
-        node: Node;
-        references: ContentReferences;
+        file: FileClientStoreData | null;
         attachmentTarget: FileAttachmentTarget;
     },
 ) {
+    // Create a temporary schema we can use for constructing a `file` node we
+    // can copy.
+    const schema = new ProsemirrorSchema({
+        nodes: {
+            ...contentBaseProsemirrorSchemaSpec.nodes,
+            ...createContentFileProsemirrorNodeSpecs(),
+        },
+        marks: contentBaseProsemirrorSchemaSpec.marks,
+    });
+
+    const node = schema.node("file", {fileId: file?.id ?? null});
+
+    const references: ContentReferences = {
+        ...emptyContentReferences,
+        fileById: file
+            ? new Map([
+                  [
+                      file.id,
+                      {
+                          signedUrlSearch: file.signedUrlSearch,
+                          file: new FileModel(file),
+                      },
+                  ],
+              ])
+            : new Map(),
+    };
+
     const clipboardSerializer = ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
-        node.type.schema,
+        schema,
         () => spaceId,
         () => references,
         () => attachmentTarget,
@@ -2009,11 +1918,9 @@ export async function handleCopyContentFile(
 export function handleDownloadContentFile({
     spaceId,
     file,
-    signedUrlSearch,
 }: {
     spaceId: SpaceId;
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
 }) {
     if (file.isUploading) {
         throw new FailedPreconditionError("File hasn't finished uploading", {
@@ -2025,12 +1932,12 @@ export function handleDownloadContentFile({
 
     downloadLinkElement.setAttribute("download", getContentFileDownloadName(file));
 
-    downloadLinkElement.href = `/files/${spaceId}/${file.id}${signedUrlSearch}`;
+    downloadLinkElement.href = `/files/${spaceId}/${file.id}${file.signedUrlSearch}`;
 
     downloadLinkElement.click();
 }
 
-export function getContentFileDownloadName(file: FileModel) {
+export function getContentFileDownloadName(file: FileModelData) {
     return (
         getFileContentTypeNoun(file.contentType) +
         "." +

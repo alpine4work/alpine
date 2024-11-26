@@ -1,4 +1,5 @@
 import classNames from "classnames";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {
     addContentFileVideoAndAudioPlayerControlsBehavior,
     formatContentFileVideoAndAudioPlayerDurationString,
@@ -21,7 +22,6 @@ import {
 import {Platform} from "~/shared/design/core/platform.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -48,7 +48,6 @@ export function renderContentFileVideoPlayer(
     containerHtml: HtmlContainerGenerator,
     {
         spaceId,
-        signedUrlSearch,
         file,
         durationMs,
         layout,
@@ -57,8 +56,7 @@ export function renderContentFileVideoPlayer(
         withoutInteractivity,
     }: {
         spaceId: SpaceId;
-        signedUrlSearch: string;
-        file: FileModel;
+        file: FileClientStoreData;
         durationMs: number;
         layout: {width: number; height: number} | null;
         platform: Platform;
@@ -66,7 +64,7 @@ export function renderContentFileVideoPlayer(
         withoutInteractivity: boolean;
     },
 ) {
-    const videoSrc = getContentFileViewerSrc({spaceId, signedUrlSearch, file});
+    const videoSrc = getContentFileViewerSrc({spaceId, file});
 
     if (videoSrc === null) {
         const processingHtml = new HtmlElementGenerator("div");

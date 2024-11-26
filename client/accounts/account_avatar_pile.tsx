@@ -3,7 +3,7 @@ import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";

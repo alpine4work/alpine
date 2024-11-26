@@ -4,10 +4,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
-import {
-    getFileContentTypeNoun,
-    getFileContentTypeStartOfSentenceNoun,
-} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
@@ -36,10 +33,9 @@ export class ContentFileProcessorError
         switch (error.type) {
             case "Unknown": {
                 const noun = getFileContentTypeNoun(contentType);
-                const startOfSentenceNoun = getFileContentTypeStartOfSentenceNoun(contentType);
 
                 title = `Couldn’t open ${noun}`;
-                displayMessage = errorDisplayMessage`${startOfSentenceNoun} may be corrupted. Try downloading the ${noun} and opening it in another application.`;
+                displayMessage = errorDisplayMessage`The ${noun} may be corrupted. Try downloading the ${noun} and opening it in another application.`;
                 break;
             }
             case "PasswordProtected": {

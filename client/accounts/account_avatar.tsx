@@ -1,6 +1,6 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
-import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";

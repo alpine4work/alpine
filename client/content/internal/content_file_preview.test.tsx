@@ -1,6 +1,5 @@
 import {render, screen} from "@testing-library/react";
 import {ReactNode, useState} from "react";
-import {act} from "react-dom/test-utils";
 import {ContentEditor} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
@@ -171,12 +170,7 @@ test("will refresh signed URL when it's about to expire", async () => {
         signedUrlSearch: `?exp=${expirationTime2Seconds}&sig=test-image-b`,
     });
 
-    // We need to wait two macrotasks to 1) wait for the promise resolver
-    // microtask, 2) wait for `onSignedUrlRefresh` macrotask batching.
-    await act(async () => {
-        await waitMacrotask();
-        await waitMacrotask();
-    });
+    await waitMacrotask();
 
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(1);
     expect(screen.getByRole("img")).toHaveAttribute(
@@ -211,12 +205,7 @@ test("will refresh signed URL when it's about to expire", async () => {
         signedUrlSearch: `?exp=${expirationTime3Seconds}&sig=test-image-c`,
     });
 
-    // We need to wait two macrotasks to 1) wait for the promise resolver
-    // microtask, 2) wait for `onSignedUrlRefresh` macrotask batching.
-    await act(async () => {
-        await waitMacrotask();
-        await waitMacrotask();
-    });
+    await waitMacrotask();
 
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(2);
     expect(screen.getByRole("img")).toHaveAttribute(

@@ -1,4 +1,4 @@
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
@@ -51,7 +51,7 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const accountStore = getAccountClientStoreForClient(generateId());
+const accountStore = getAccountClientStore(generateId());
 
 const account1 = new AccountModel({
     id: generateId(),

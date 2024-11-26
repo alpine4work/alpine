@@ -2,12 +2,12 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {FileClientStore, FileClientStoreData} from "~/client/content/file_client_store.js";
 import {
     layoutContentFile,
     layoutContentFileParent,
 } from "~/client/content/internal/content_file_layout.js";
 import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
@@ -28,6 +28,7 @@ import {
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
@@ -50,6 +51,7 @@ export function renderContentToHtmlStore(
     options: {
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
+        fileStore: FileClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
         platform: Platform;
@@ -57,7 +59,6 @@ export function renderContentToHtmlStore(
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
-        filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<string> {
     return renderContentFragmentToHtmlGeneratorStore(content, options).map(
@@ -86,6 +87,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
     {
         spaceId,
         accountStore,
+        fileStore,
         currentAccount,
         screenWidth,
         platform,
@@ -96,10 +98,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         placeholder,
         decorations,
         shouldHighlightComment,
-        filePreviewExpirationTimers,
     }: {
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
+        fileStore: FileClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
         platform: Platform;
@@ -110,7 +112,6 @@ export function renderContentFragmentToHtmlGeneratorStore(
         placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
-        filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<HtmlFragmentGenerator> {
     return computeStore(get => {
@@ -315,7 +316,25 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                     assert(html instanceof HtmlElementGenerator);
 
-                    const layouts = layoutContentFileParent(content.references, node, {
+                    const fileById = new Map(
+                        filterMapIterable(
+                            node.content.content,
+                            (childNode): [FileId, FileClientStoreData] | undefined => {
+                                if (childNode.type.name !== "file") return;
+
+                                const fileId: FileId = childNode.attrs.fileId;
+
+                                const fileReference = fileId
+                                    ? content.references.fileById.get(fileId)
+                                    : undefined;
+                                if (!fileReference) return;
+
+                                return [fileId, get(fileStore.getFileStore(fileReference))];
+                            },
+                        ),
+                    );
+
+                    const layouts = layoutContentFileParent(fileById, node, {
                         screenWidth,
                         platform,
                         spacingScale,
@@ -346,7 +365,25 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     const childNode = node.content.content[0]!;
                     assert(childNode.type.name === "file");
 
-                    const layouts = layoutContentFileParent(content.references, node, {
+                    const fileById = new Map(
+                        filterMapIterable(
+                            node.content.content,
+                            (childNode): [FileId, FileClientStoreData] | undefined => {
+                                if (childNode.type.name !== "file") return;
+
+                                const fileId: FileId = childNode.attrs.fileId;
+
+                                const fileReference = fileId
+                                    ? content.references.fileById.get(fileId)
+                                    : undefined;
+                                if (!fileReference) return;
+
+                                return [fileId, get(fileStore.getFileStore(fileReference))];
+                            },
+                        ),
+                    );
+
+                    const layouts = layoutContentFileParent(fileById, node, {
                         screenWidth,
                         platform,
                         spacingScale,
@@ -370,22 +407,25 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         ? content.references.fileById.get(fileId)
                         : undefined;
 
-                    const layout = layoutContentFile(content.references, content.doc, pos, node, {
+                    const file = fileReference
+                        ? get(fileStore.getFileStore(fileReference))
+                        : undefined;
+
+                    const layout = layoutContentFile(file, content.doc, pos, node, {
                         screenWidth,
                         platform,
                         spacingScale,
                     });
 
-                    const html = renderContentFilePreview(get, {
+                    const html = renderContentFilePreview({
                         spaceId: assertExists(spaceId),
                         node,
-                        reference: fileReference,
+                        file,
                         layout,
                         screenWidth,
                         platform,
                         spacingScale,
                         isInitialAppRender,
-                        expirationTimers: assertExists(filePreviewExpirationTimers),
                     });
 
                     return {html};

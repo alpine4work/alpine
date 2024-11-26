@@ -59,7 +59,7 @@ export class ChannelPostFilesModel extends Model(
         files: Schema.array(
             Schema.object({
                 signedUrlSearch: Schema.string,
-                file: FileModel.schema(),
+                file: FileModel.schema,
             }),
         ).minLength(1),
     }),

@@ -51,6 +51,7 @@ import {
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
@@ -85,7 +86,6 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
-import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
@@ -201,7 +201,6 @@ import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
-import {Store} from "~/shared/store/store.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -609,7 +608,6 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     isCompact,
     isExtraCompact,
     state,
-    onChange,
     placeholder,
     className,
     "aria-label": ariaLabel,
@@ -697,14 +695,6 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 isCompact={isCompact}
                 isExtraCompact={isExtraCompact}
                 content={state.getContent()}
-                onMergeContentReferences={references => {
-                    const unwrappedState = unwrap(state);
-                    const transaction = updateContentEditorReferences(unwrappedState.tr, {
-                        type: "Merge",
-                        references,
-                    });
-                    onChange(wrap(unwrappedState.apply(transaction)), transaction);
-                }}
                 placeholder={placeholder}
                 className={className}
                 aria-label={ariaLabel}
@@ -766,7 +756,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
-    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -819,7 +808,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     const reporterRef = useRef(reporter);
     const contextRef = useRef(context);
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
-    const filePreviewExpirationTimersRef = useRef(filePreviewExpirationTimers);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
@@ -834,7 +822,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         reporterRef.current = reporter;
         contextRef.current = context;
         addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
-        filePreviewExpirationTimersRef.current = filePreviewExpirationTimers;
         spaceContextRef.current = spaceContext;
     });
 
@@ -1124,6 +1111,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getCurrentAccountIfExists: () => spaceContextRef.current?.currentAccount ?? null,
             }),
             fileRow: createContentEditorFileRowNodeViewConstructor({
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
@@ -1131,6 +1119,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             }),
             fileFloat: createContentEditorFileFloatNodeViewConstructor({
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
@@ -1144,7 +1133,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getReporter: () => reporterRef.current,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
-                getExpirationTimers: () => filePreviewExpirationTimersRef.current,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -1682,7 +1670,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             });
 
             async function run(context: AppContext) {
-                let hasCalledAction = false;
                 const promiseWaiter = new PromiseWaiter();
 
                 const accountsPromise =
@@ -1746,7 +1733,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         case "UploadFile": {
                             const fileReferencePromiseResolver = createPromiseResolver<{
                                 signedUrlSearch: string;
-                                fileStore: Store<FileModel>;
+                                file: FileModel;
                             }>();
 
                             const [progressCompositeStore, progressStores] =
@@ -1755,8 +1742,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 );
 
                             const promise = (async () => {
-                                let unsubscribeFromFileStore: (() => void) | undefined;
-
                                 try {
                                     await uploadFileFromContentEditor(context, {
                                         spaceId,
@@ -1766,36 +1751,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         attachmentTarget: toTarget,
                                         input: temporaryPastedFileInfo.input,
                                         progressStores,
-                                        onAttach: ({signedUrlSearch, fileStore}) => {
-                                            // Whenever the file changes during the upload, make sure to update it in
-                                            // our content references. We unsubscribe once the upload has finished since
-                                            // after that the file should be immutable.
-                                            unsubscribeFromFileStore = fileStore.subscribe(() => {
-                                                // Before we paste the file won't exist in our content so there's no point in
-                                                // updating content editor references.
-                                                if (!hasCalledAction) return;
-
-                                                view.dispatch(
-                                                    updateContentEditorReferences(view.state.tr, {
-                                                        type: "SetFile",
-                                                        signedUrlSearch,
-                                                        file: fileStore.getSnapshot(),
-                                                    }),
-                                                );
-                                            });
-
-                                            fileReferencePromiseResolver.resolve({
-                                                signedUrlSearch,
-                                                fileStore,
-                                            });
-                                        },
+                                        onAttach: fileReferencePromiseResolver.resolve,
                                     });
                                 } catch (error) {
                                     hasUploadFileError = true;
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
-                                } finally {
-                                    unsubscribeFromFileStore?.();
                                 }
                             })();
 
@@ -1810,13 +1771,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 progressStore: progressCompositeStore,
                             });
 
-                            const {signedUrlSearch, fileStore} =
-                                await fileReferencePromiseResolver.promise;
-
-                            return () => ({
-                                signedUrlSearch,
-                                file: fileStore.getSnapshot(),
-                            });
+                            return fileReferencePromiseResolver.promise;
                         }
                         default:
                             throw exhaustive(temporaryPastedFileInfo);
@@ -1842,9 +1797,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 filterMapIterable(fileReferences, fileReference => {
                                     if (!fileReference) return;
 
-                                    if (typeof fileReference === "function")
-                                        fileReference = fileReference();
-
                                     return {
                                         type: "SetFile",
                                         signedUrlSearch: fileReference.signedUrlSearch,
@@ -1862,7 +1814,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     slice,
                     createTransaction,
                 );
-                hasCalledAction = true;
 
                 await promiseWaiter.wait();
             }
@@ -2580,10 +2531,20 @@ function ContentEditor<Content extends ContentWithReferences>(
                 )[0];
 
                 if (selectedNodeElement) {
+                    const spaceId = assertExists(spaceContextRef.current?.space.id);
+                    const fileId: FileId | null = view.state.selection.node.attrs.fileId;
+
+                    const fileReference = fileId
+                        ? getContentEditorReferences(view.state).references.fileById.get(fileId)
+                        : undefined;
+
+                    const file = fileReference
+                        ? getFileClientStore(spaceId).getFileStore(fileReference).getSnapshot()
+                        : null;
+
                     handleCopyContentFile(selectedNodeElement, {
-                        spaceId: assertExists(spaceContextRef.current?.space.id),
-                        node: view.state.selection.node,
-                        references: getContentEditorReferences(view.state).references,
+                        spaceId,
+                        file,
                         attachmentTarget: assertExists(propsRef.current.fileAttachmentTarget),
                     }).catch(scheduleUncaughtError);
                 }

@@ -398,9 +398,9 @@ export function testFileProcessorContentTypes(
                             }
 
                             const imagePreviewPlaceholder =
-                                file.preview?.type === "Image" &&
-                                typeof file.preview.placeholder !== "string"
-                                    ? file.preview.placeholder
+                                file.initialData.preview?.type === "Image" &&
+                                typeof file.initialData.preview.placeholder !== "string"
+                                    ? file.initialData.preview.placeholder
                                     : undefined;
 
                             if (!expectedImagePreviewPlaceholder) {
@@ -416,9 +416,9 @@ export function testFileProcessorContentTypes(
                             }
 
                             const codePreviewContent =
-                                file.preview?.type === "Code" &&
-                                typeof file.preview.content !== "string"
-                                    ? file.preview.content
+                                file.initialData.preview?.type === "Code" &&
+                                typeof file.initialData.preview.content !== "string"
+                                    ? file.initialData.preview.content
                                     : undefined;
 
                             expect(

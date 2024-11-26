@@ -9,7 +9,8 @@ let handoffContentFilePreviewStatesByFileId: Map<
     FileId,
     Set<{
         ownedByElement: Element;
-        reference: {signedUrlSearch: string; file: FileModel};
+        signedUrlSearch: string;
+        file: FileModel;
     }>
 > | null = null;
 
@@ -19,13 +20,14 @@ let handoffContentFilePreviewStatesByFileId: Map<
  */
 export function handoffContentFilePreviewState(state: {
     ownedByElement: Element;
-    reference: {signedUrlSearch: string; file: FileModel};
+    signedUrlSearch: string;
+    file: FileModel;
 }) {
     handoffContentFilePreviewStatesByFileId ??= new Map();
 
     const handoffContentFilePreviewStates = getOrSetDefaultMapValue(
         handoffContentFilePreviewStatesByFileId,
-        state.reference.file.id,
+        state.file.id,
         () => new Set(),
     );
 
@@ -37,7 +39,7 @@ export function handoffContentFilePreviewState(state: {
         handoffContentFilePreviewStates.delete(state);
 
         if (handoffContentFilePreviewStates.size === 0)
-            handoffContentFilePreviewStatesByFileId?.delete(state.reference.file.id);
+            handoffContentFilePreviewStatesByFileId?.delete(state.file.id);
     }, 1000);
 }
 

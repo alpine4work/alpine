@@ -1,10 +1,9 @@
-import {ContentFilePollerContext} from "~/client/content/internal/content_file_poller.js";
+import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {
     ProgressValueStore,
     ProgressValueStoreWithCancel,
 } from "~/client/content/internal/progress_store.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {getGlobalContext} from "~/client/helpers/global_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
@@ -29,7 +28,7 @@ import {
     canonicalizeFileContentTypeIfExists,
     getPathFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {
     CompleteFileMultipartUploadRequestPart,
@@ -54,9 +53,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {ReadonlyTuple} from "~/shared/helpers/types/tuple.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {ConstStore} from "~/shared/store/const_store.js";
-import {Store} from "~/shared/store/store.js";
-import {ValueStore} from "~/shared/store/value_store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 declare global {
@@ -85,7 +81,7 @@ export function uploadFileFromContentEditor(
         attachmentTarget: FileAttachmentTarget;
         input: UploadFileFromContentEditorInput;
         progressStores: ReadonlyTuple<ProgressValueStoreWithCancel, 3>;
-        onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
+        onAttach: (options: {signedUrlSearch: string; file: FileModel}) => void;
     },
 ) {
     return context.tracer.withSpan("Content editor upload file", (context, span) => {
@@ -109,7 +105,7 @@ async function actuallyUploadFileFromContentEditor(
         attachmentTarget: FileAttachmentTarget;
         input: UploadFileFromContentEditorInput;
         progressStores: ReadonlyTuple<ProgressValueStoreWithCancel, 3>;
-        onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
+        onAttach: (options: {signedUrlSearch: string; file: FileModel}) => void;
     },
 ) {
     let contentType: FileContentType | undefined;
@@ -285,26 +281,21 @@ async function actuallyUploadFileFromContentEditor(
     assert(contentLength !== undefined);
 
     const uploadAndProcessPromise = (async () => {
-        const {signedUrlSearch, file: initialFile} = await uploadFileWithMultipartUploadIfNeeded(
-            context,
-            {
-                spaceId,
-                fileId: fileId ?? null,
-                contentType,
-                contentLength,
-                attachTarget: attachmentTarget,
-                body,
-                uploadProgressStore,
-            },
-        );
+        const fileReference = await uploadFileWithMultipartUploadIfNeeded(context, {
+            spaceId,
+            fileId: fileId ?? null,
+            contentType,
+            contentLength,
+            attachTarget: attachmentTarget,
+            body,
+            uploadProgressStore,
+        });
 
-        if (initialFile.getAttachReadiness() === "Ready") {
+        if (getFileModelDataAttachReadiness(fileReference.file.initialData) === "Ready") {
             processProgressStore.set(1);
-            onAttach({signedUrlSearch, fileStore: new ConstStore(initialFile)});
+            onAttach(fileReference);
             return;
         }
-
-        const fileStore = new ValueStore(initialFile);
 
         const processDurationMsEstimate = estimateProcessFileDurationMs(contentType, contentLength);
         processProgressStore.ease(processDurationMsEstimate);
@@ -313,67 +304,82 @@ async function actuallyUploadFileFromContentEditor(
         let callOnAttachTimeout: Timeout | null = null;
         const promiseResolver = createPromiseResolver();
 
-        const stopPolling = getGlobalContext(ContentFilePollerContext).startPolling(() => context, {
-            spaceId,
-            fileId: initialFile.id,
-            target: attachmentTarget,
-            onPoll: ({signedUrlSearch, file: newFile}) => {
-                const attachReadiness = newFile.getAttachReadiness();
+        const fileStore = getFileClientStore(spaceId).getFileStore(fileReference);
 
-                switch (attachReadiness) {
-                    case "PreviewUnavailable": {
-                        fileStore.set(newFile);
+        const update = () => {
+            const file = fileStore.getSnapshot();
+            const attachReadiness = getFileModelDataAttachReadiness(file);
 
-                        // Don't attach yet...
-                        break;
-                    }
-                    case "PreviewPartiallyAvailable": {
-                        fileStore.set(newFile);
-
-                        if (!hasCalledOnAttach) {
-                            // Wait a bit to call `onAttach()` in case the server quickly gives us the data
-                            // we need to show a full preview so we can avoid showing the user a loading
-                            // spinner.
-                            callOnAttachTimeout ??= createTimeout(() => {
-                                hasCalledOnAttach = true;
-                                callOnAttachTimeout = null;
-                                try {
-                                    onAttach({signedUrlSearch, fileStore});
-                                } catch (error) {
-                                    scheduleUncaughtError(error);
-                                }
-
-                                // Use the screen transition delay since attaching a file is a big layout
-                                // shift. Ideally we'd have the data we need to render a good preview.
-                            }, delayScreenTransitionLoadingIndicatorLimitMs);
-                        }
-                        break;
-                    }
-                    case "Ready": {
-                        fileStore.finalSet(newFile);
-
-                        stopPolling();
-                        promiseResolver.resolve();
-
-                        if (!hasCalledOnAttach) {
+            switch (attachReadiness) {
+                case "PreviewUnavailable": {
+                    // Don't attach yet...
+                    break;
+                }
+                case "PreviewPartiallyAvailable": {
+                    if (!hasCalledOnAttach) {
+                        // Wait a bit to call `onAttach()` in case the server quickly gives us the data
+                        // we need to show a full preview so we can avoid showing the user a loading
+                        // spinner.
+                        callOnAttachTimeout ??= createTimeout(() => {
                             hasCalledOnAttach = true;
-                            callOnAttachTimeout?.clear();
                             callOnAttachTimeout = null;
                             try {
-                                onAttach({signedUrlSearch, fileStore});
+                                const file = fileStore.getSnapshot();
+
+                                onAttach({
+                                    signedUrlSearch: file.signedUrlSearch,
+                                    file: new FileModel(file),
+                                });
                             } catch (error) {
                                 scheduleUncaughtError(error);
                             }
-                        }
-                        break;
-                    }
-                    default:
-                        throw exhaustive(attachReadiness);
-                }
-            },
-        });
 
-        await promiseResolver.promise;
+                            // Use the screen transition delay since attaching a file is a big layout
+                            // shift. Ideally we'd have the data we need to render a good preview.
+                        }, delayScreenTransitionLoadingIndicatorLimitMs);
+                    }
+                    break;
+                }
+                case "Ready": {
+                    promiseResolver.resolve();
+
+                    if (!hasCalledOnAttach) {
+                        hasCalledOnAttach = true;
+                        callOnAttachTimeout?.clear();
+                        callOnAttachTimeout = null;
+                        try {
+                            const file = fileStore.getSnapshot();
+
+                            onAttach({
+                                signedUrlSearch: file.signedUrlSearch,
+                                file: new FileModel(file),
+                            });
+                        } catch (error) {
+                            scheduleUncaughtError(error);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(attachReadiness);
+            }
+        };
+
+        const unsubscribe = fileStore.subscribe(update);
+        update();
+
+        const stopMaintainingFile = getFileClientStore(spaceId).startMaintainingFile(
+            () => context,
+            fileReference,
+            attachmentTarget,
+        );
+
+        try {
+            await promiseResolver.promise;
+        } finally {
+            stopMaintainingFile();
+            unsubscribe();
+        }
 
         processProgressStore.set(1);
     })();

@@ -3,7 +3,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
@@ -67,7 +67,7 @@ export type ContentFileLayout = {
  * [2]: https://github.com/lume/kiwi
  * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
-export function computeContentFileRowLayout<Files extends Array<FileModel | null>>(
+export function computeContentFileRowLayout<Files extends Array<FileModelData | null>>(
     files: Files,
     {
         screenWidth,
@@ -339,7 +339,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
  */
 export function computeContentFileFloatLayout(
     direction: "left" | "right",
-    file: FileModel | null,
+    file: FileModelData | null,
     {
         screenWidth,
         platform,
@@ -559,7 +559,7 @@ const fileImagePreviewSizeDownScale = 2;
  * this function but we will shrink files to fit in our available space if
  * necessary.
  */
-export function getFilePreviewSize(file: FileModel | null): {width: number; height: number} {
+export function getFilePreviewSize(file: FileModelData | null): {width: number; height: number} {
     if (!file?.preview) {
         return smallFallbackFileSize;
     }

@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientStore,
@@ -50,7 +50,7 @@ afterAll(() => {
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountStore = getAccountClientStoreForClient(generateId());
+const accountStore = getAccountClientStore(generateId());
 
 const account1 = new AccountModel({
     id: generateId(),
