@@ -746,63 +746,31 @@ function VirtualizedScrollView(
         lastScrollTopRef.current = scrollElement.scrollTop =
             scrollElement.scrollHeight - scrollElement.clientHeight;
 
-        // When we initially scroll to the bottom, use the last rendered element as our
+        // When we initially scroll to the bottom, use the bottom of our view as our
         // scroll anchor. That way as we measure items rendered above the content
         // doesn't shift for the user.
-        {
-            const contentElement = assertExists(contentRef.current);
-            let selectedElement: HTMLElement | null = null;
-            let selectedKey: Key | null = null;
-
-            // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
-            // refs in sorted order we can break after we find the first item within the
-            // scroll window.
-            for (const [key, elementRef] of iterateItemRefs()) {
-                // Ignore elements that are positioned within an element other than our
-                // absolutely positioned content element. This could happen for items using
-                // custom layout.
-                if (elementRef.element.offsetParent !== contentElement) continue;
-
-                // Select the last element.
-                if (
-                    (selectedElement === null ||
-                        elementRef.element.offsetTop > selectedElement.offsetTop) &&
-                    // Don't allow `position: sticky` elements to be the anchor element. Since as we
-                    // adjust the scroll position the anchor element will move causing us to try and
-                    // reset the scroll position again so on and so forth forever.
-                    getComputedStyle(elementRef.element).position === "absolute"
-                ) {
-                    selectedKey = key;
-                    selectedElement = elementRef.element;
-                }
-            }
-
-            if (selectedElement) {
-                const scrollAnchorElement = selectedElement;
-
-                scrollAnchorRef.current = {
-                    keyForDebugging: selectedKey!,
-                    // Use the last element as the anchor until it is scrolled offscreen. Then
-                    // resume regular anchor selection. (First visible element.)
-                    shouldAnchorWhileVisible: true,
-                    lastPosition: getElementPosition(
-                        scrollElement,
-                        scrollAnchorElement,
-                        // Scroll anchor adjustment initializes to null.
-                        null,
-                    ),
-                    getPosition: ({scrollAnchorAdjustmentDuringMobileWebKitScroll}) => {
-                        if (!document.body.contains(scrollAnchorElement)) return null;
-                        return getElementPosition(
-                            scrollElement,
-                            scrollAnchorElement,
-                            scrollAnchorAdjustmentDuringMobileWebKitScroll,
-                        );
-                    },
-                };
-            }
-        }
-    }, [initialScrollOffset, actualState.hasInitiallyScrolledRef]);
+        scrollAnchorRef.current = {
+            keyForDebugging: "initialScrollOffset:bottom",
+            // Use the last element as the anchor until it is scrolled offscreen. Then
+            // resume regular anchor selection. (First visible element.)
+            shouldAnchorWhileVisible: true,
+            lastPosition: {
+                offset: stateRef.current.state.getContentHeight() - 1,
+                height: 1,
+                nextElementSibling: "ignore",
+                previousElementSibling: "ignore",
+            },
+            getPosition: ({state, scrollAnchorAdjustmentDuringMobileWebKitScroll}) => ({
+                offset:
+                    state.getContentHeight() +
+                    (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0) -
+                    1,
+                height: 1,
+                nextElementSibling: "ignore",
+                previousElementSibling: "ignore",
+            }),
+        };
+    }, [initialScrollOffset, actualState.hasInitiallyScrolledRef, spacingScale]);
 
     const itemsRef = useRef<{
         hasScheduledCleanup: boolean;

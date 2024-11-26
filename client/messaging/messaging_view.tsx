@@ -583,7 +583,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useScrollToNewMessages({
         viewRef,
         inputRef,
-        isInputStickyPositioned: false,
+        isInputStickyPositioned: true,
         messages: state.messages,
         getItemKey: useCallback(
             (item: MessageListItem<Message>) => getMessageListItemKey(item, null),
@@ -629,16 +629,26 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         withManualLayout: true,
                         key: "Input",
                         minHeight: messageInputMinHeight[platform],
-                        render: ({ref, height, minHeight}) => (
+                        render: ({
+                            ref,
+                            viewHeight,
+                            height,
+                            minHeight,
+                            shouldRenderWithRelativePositioning,
+                        }) => (
                             <div
                                 ref={ref}
                                 style={{
                                     minHeight,
-                                    position: "sticky",
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    top: `calc(100% - ${height}px)`,
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "sticky",
+                                              left: 0,
+                                              right: 0,
+                                              bottom: 0,
+                                              top: viewHeight - height,
+                                          }),
                                 }}
                             >
                                 <MessageInput
