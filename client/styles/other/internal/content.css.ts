@@ -2022,10 +2022,6 @@ globalStyle(`${tableClassName} td, ${tableClassName} th`, {
     position: "relative",
 });
 
-globalStyle(`${tableClassName} > *`, {
-    marginBottom: "0",
-});
-
 globalStyle(`${tableClassName} .selectedCell:after`, {
     zIndex: 2,
     position: "absolute",

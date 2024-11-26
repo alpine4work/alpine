@@ -406,6 +406,12 @@ function consumeLinesOfText(
  *
  * Basically boils down to true if the node is styled with `display: block` and
  * false if the node is styled with `display: inline`.
+ *
+ * 1: The node type causes a line break.
+ * This is typical for block-level elements, which naturally start on a new line.
+ *
+ * 0: The node type does not cause a line break.
+ * This is typical for inline elements, which flow within the same line.
  */
 const lineBreakCountByNodeType: {
     [Key in Exclude<ContentNodeTypeName, "text">]: number;
@@ -431,8 +437,14 @@ const lineBreakCountByNodeType: {
     // Set as `float: left` and `float: right`. Multiple adjacent `fileFloat`s
     // should not be counted as lines for the purpose of snippet cutting
     fileFloat: 0,
+
+    // A table itself doesn't inherently cause a line break because it's a
+    // container for rows, which handle the line breaks.
     table: 0,
+    // A table row is treated as a block element, so it causes a line break.
     tableRow: 1,
+    // A table cell and header are treated as inline elements, so they do
+    // not cause a line break.
     tableCell: 0,
     tableHeader: 0,
 };
@@ -475,8 +487,20 @@ const dontCutLeadingChildrenByNodeType: {
     mention: true,
     heading: true,
     divider: true,
+    // It's okay to cut the leading children of a table because the table's
+    // structure is defined by its rows, not its position in the document.
     table: false,
+    // Avoid cutting the leading children of a table row to maintain the structure
+    // of the table.
     tableRow: true,
+    // It's okay to cut the leading content within a table cell and table header.
+    // The reason is that cutting content inside a cell doesn't disrupt the overall
+    // table structure. Each cell is independent in terms of layout, so removing
+    // content from the start of a cell doesn't affect the alignment or
+    // structure of the table as a whole.
+    //
+    // One more reason to `false` on tableCell and tableHeader is that the content
+    // these are nothing but tableBlock which we already handle above
     tableCell: false,
     tableHeader: false,
 };

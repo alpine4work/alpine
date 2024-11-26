@@ -5617,8 +5617,8 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         },
                         "Contributors": {
-                            "id": 1,
-                            "orderKey": "a1",
+                            "id": 2,
+                            "orderKey": "a0V",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
                                 "type": "Object",
@@ -5651,8 +5651,8 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         },
                         "PostFiles": {
-                            "id": 2,
-                            "orderKey": "a2",
+                            "id": 1,
+                            "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "postCreatedTime": {
                                     "type": "Reverse",

@@ -102,8 +102,5 @@ export const tableClassName = process.env.NODE_ENV !== "production" ? "content_t
 export const tableCellClassName =
     process.env.NODE_ENV !== "production" ? "content_tableCell" : "c_tc";
 
-export const tableAlignClassName =
-    process.env.NODE_ENV !== "production" ? "content_tableAlign" : "c_ta";
-
 export const tableHeaderClassName =
     process.env.NODE_ENV !== "production" ? "content_tableHeader" : "c_th";

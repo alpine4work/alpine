@@ -82,20 +82,11 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
-    ];
-
-    const hasTableSupport = !!schema.nodes.table;
-
-    assert(hasTableSupport);
-
-    plugins.push(
         tableEditing({
             allowTableNodeSelection: true,
         }),
         contentEditorTableColumnResizingPlugin(),
-    );
-
-    plugins.push();
+    ];
 
     return plugins;
 }

@@ -1084,6 +1084,9 @@ async function chunkSearchContentBySentenceForBlockNode(
             return null;
         }
         case "table": {
+            // TODO(rohitt-gupta, #table-search): Implement table chunking for
+            // semantic search.
+            // https://github.com/cyberworlds/cyberworlds/pull/45#discussion_r1858742869
             return null;
         }
         default:
