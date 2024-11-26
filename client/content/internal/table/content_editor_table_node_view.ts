@@ -8,16 +8,8 @@ export class ContentEditorTableNodeView implements NodeView {
     public table: HTMLTableElement;
     public colgroup: HTMLTableColElement;
     public contentDOM: HTMLTableSectionElement;
-    private readonly _unsubscribeFromSelectionUpdate: () => void;
 
-    constructor(
-        public node: Node,
-        public defaultCellMinWidth: number,
-        public view: EditorView,
-        {}: {subscribeToSelectionUpdate},
-    ) {
-        view.state.selection;
-
+    constructor(public node: Node, public defaultCellMinWidth: number, public view: EditorView) {
         this.dom = document.createElement("div");
         this.dom.className = tableClassName;
         this.dom.setAttribute("data-scrollbar", "false");
@@ -33,10 +25,6 @@ export class ContentEditorTableNodeView implements NodeView {
             undefined,
         );
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
-
-        this._unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
-            // ...
-        });
     }
 
     update(node: Node): boolean {
@@ -59,10 +47,6 @@ export class ContentEditorTableNodeView implements NodeView {
             record.type == "attributes" &&
             (record.target == this.table || this.colgroup.contains(record.target))
         );
-    }
-
-    destroy() {
-        this._unsubscribeFromSelectionUpdate();
     }
 }
 
