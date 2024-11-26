@@ -823,7 +823,7 @@ async function uploadFileWithMultipartUploadIfNeeded(
     const mutexes = createArrayWithLength(3, () => new Mutex());
 
     const partPromises: Array<Promise<CompleteFileMultipartUploadRequestPart>> = [];
-    const partContentLength = maxFileMultipartUploadPartContentLength;
+    const partContentLength = Math.floor(maxFileMultipartUploadPartContentLength / 2);
     const partCount = Math.ceil(contentLength / partContentLength);
     const partProgresses = createArrayWithLength(partCount, () => 0);
 
