@@ -1,0 +1,588 @@
+diff --git a/2021-11-03/index.d.ts b/2021-11-03/index.d.ts
+index 476041538f10351a18208b337703e0ae9563777f..9a53d4e830d401de53137e20914ce715f74879ea 100755
+--- a/2021-11-03/index.d.ts
++++ b/2021-11-03/index.d.ts
+@@ -1507,7 +1507,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1897,7 +1900,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2021-11-03/index.ts b/2021-11-03/index.ts
+index 06c42952b6dd7d4a714789b5e802b6b21e3ed5cd..b36460c162be3d18d244e1709efbc32b9be1fe64 100755
+--- a/2021-11-03/index.ts
++++ b/2021-11-03/index.ts
+@@ -1512,7 +1512,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1905,7 +1908,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2022-01-31/index.d.ts b/2022-01-31/index.d.ts
+index 6d1866f71ce01a7fa5ed5708485c318688c05e57..8d64e817af23be7a30b99346af14cc38662b07d7 100755
+--- a/2022-01-31/index.d.ts
++++ b/2022-01-31/index.d.ts
+@@ -1513,7 +1513,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1903,7 +1906,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2022-01-31/index.ts b/2022-01-31/index.ts
+index a15bbdc0eed0924c670564f0ba472c159b2da5f2..66f899234a4b05f0462d40a8bdebd0a1e96af090 100755
+--- a/2022-01-31/index.ts
++++ b/2022-01-31/index.ts
+@@ -1518,7 +1518,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1911,7 +1914,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2022-03-21/index.d.ts b/2022-03-21/index.d.ts
+index 017eb7949e99a74624ea1477b76c5ce9ba8a1e2b..fe9fad593bee58c39910e6810a57ecc118768eee 100755
+--- a/2022-03-21/index.d.ts
++++ b/2022-03-21/index.d.ts
+@@ -1530,7 +1530,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1920,7 +1923,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2022-03-21/index.ts b/2022-03-21/index.ts
+index abce26917add32809b74596251a236f9d2913822..f292ef8ce014528c539a7d64f7622866cbdcc605 100755
+--- a/2022-03-21/index.ts
++++ b/2022-03-21/index.ts
+@@ -1535,7 +1535,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1928,7 +1931,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2022-08-04/index.d.ts b/2022-08-04/index.d.ts
+index 64e26829bdf7f9aad10327d7c79ac190e60b08f2..19414f36ccba1caecd19609fa74aba30504294d5 100755
+--- a/2022-08-04/index.d.ts
++++ b/2022-08-04/index.d.ts
+@@ -1530,7 +1530,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1921,7 +1924,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2022-08-04/index.ts b/2022-08-04/index.ts
+index 785d5b6911cc5e185ef577a1b121e99f7d329806..f1b702aa04d58bd2fdc8ad3c465f43c3e2b319f8 100755
+--- a/2022-08-04/index.ts
++++ b/2022-08-04/index.ts
+@@ -1535,7 +1535,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1929,7 +1932,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2022-10-31/index.d.ts b/2022-10-31/index.d.ts
+index eb1b4eb2bdcd7a62afe0124eef91a6dded263a9f..a85490bd63b2c3749471669377f6e8765aa1d981 100755
+--- a/2022-10-31/index.d.ts
++++ b/2022-10-31/index.d.ts
+@@ -1530,7 +1530,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1921,7 +1924,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2022-10-31/index.ts b/2022-10-31/index.ts
+index 8857f6738c6fe9f9ffd422d2abcbfb2aef55bb80..bdbea520629c91086eb2a434840b26514a5f0b4c 100755
+--- a/2022-10-31/index.ts
++++ b/2022-10-31/index.ts
+@@ -1535,7 +1535,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1929,7 +1932,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2022-11-30/index.d.ts b/2022-11-30/index.d.ts
+index e92d4e9b1ae8c08b1bf67e796b227f5cc5a908bc..213df0e29eea7e119034474bff745ad5fb9979d9 100755
+--- a/2022-11-30/index.d.ts
++++ b/2022-11-30/index.d.ts
+@@ -1535,7 +1535,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1926,7 +1929,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2022-11-30/index.ts b/2022-11-30/index.ts
+index b22416c16a6109471d4905bc5fbebc1ce9479329..6296226acad536353803114b3bd6af8cd1d646dc 100755
+--- a/2022-11-30/index.ts
++++ b/2022-11-30/index.ts
+@@ -1540,7 +1540,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1934,7 +1937,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2023-03-01/index.d.ts b/2023-03-01/index.d.ts
+index 5f28c0758f4d66405f97b9cec3147a9dd718d4b4..e1c46762440af0c5abec24ab3207c83b688a1402 100755
+--- a/2023-03-01/index.d.ts
++++ b/2023-03-01/index.d.ts
+@@ -1537,7 +1537,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1928,7 +1931,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2023-03-01/index.ts b/2023-03-01/index.ts
+index fc82fafa5cef46c7d432449a214163fc10c7c8a6..aeded1d7a59e7cbcda6b16b26b2165a938c274cc 100755
+--- a/2023-03-01/index.ts
++++ b/2023-03-01/index.ts
+@@ -1542,7 +1542,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1936,7 +1939,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/2023-07-01/index.d.ts b/2023-07-01/index.d.ts
+index 5856ab7a43a342a19ada04301c4027c2c8e014a9..ff7c6045f7fe9186ac1c39df46d00a718dc39c0e 100755
+--- a/2023-07-01/index.d.ts
++++ b/2023-07-01/index.d.ts
+@@ -1537,7 +1537,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1928,7 +1931,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/2023-07-01/index.ts b/2023-07-01/index.ts
+index dc8396770082058392d330004c7de55b4fd6cb92..35d1c9cbb30dfd58c5ae3603ca6f146334166264 100755
+--- a/2023-07-01/index.ts
++++ b/2023-07-01/index.ts
+@@ -1542,7 +1542,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1936,7 +1939,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/experimental/index.d.ts b/experimental/index.d.ts
+index 94cfce6fa2f7a19f3c90e9045767c6870a9902a8..de06f08d82ff81ba4db65ee1b50c2ac89e05f202 100755
+--- a/experimental/index.d.ts
++++ b/experimental/index.d.ts
+@@ -1544,7 +1544,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1979,7 +1982,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/experimental/index.ts b/experimental/index.ts
+index 03f7494197fd6d0b7f9810bd6a5a37522a42aab2..dff8cdbd7c7a68419068c57bbc1fff12556f8a8d 100755
+--- a/experimental/index.ts
++++ b/experimental/index.ts
+@@ -1549,7 +1549,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1987,7 +1990,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/index.ts b/index.ts
+index 03a533053a3df6af46009d5254b0d5f094552bdd..29aca120dc3ee5bb9e00aa5720b58b5f6ba04996 100755
+--- a/index.ts
++++ b/index.ts
+@@ -1512,7 +1512,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1905,7 +1908,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =
+diff --git a/oldest/index.d.ts b/oldest/index.d.ts
+index 2fa0c22b34a71723cba9a1a44a273616c4612fe6..236708e8aeb59060cff3aa540ec96e356c389075 100755
+--- a/oldest/index.d.ts
++++ b/oldest/index.d.ts
+@@ -1507,7 +1507,10 @@ declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1897,7 +1900,10 @@ interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ type R2Range =
+diff --git a/oldest/index.ts b/oldest/index.ts
+index 03a533053a3df6af46009d5254b0d5f094552bdd..29aca120dc3ee5bb9e00aa5720b58b5f6ba04996 100755
+--- a/oldest/index.ts
++++ b/oldest/index.ts
+@@ -1512,7 +1512,10 @@ export declare abstract class Body {
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/text) */
+   text(): Promise<string>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/json) */
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/formData) */
+   formData(): Promise<FormData>;
+   /* [MDN Reference](https://developer.mozilla.org/docs/Web/API/Request/blob) */
+@@ -1905,7 +1908,10 @@ export interface R2ObjectBody extends R2Object {
+   get bodyUsed(): boolean;
+   arrayBuffer(): Promise<ArrayBuffer>;
+   text(): Promise<string>;
+-  json<T>(): Promise<T>;
++  // NOTE(calebmer): Use the same types as TypeScript so when we have both
++  // globals installed TypeScript doesn't get confused.
++  // https://github.com/microsoft/TypeScript/blob/c5281bf7003abc09164a093ce643ae8ba422c40f/src/lib/dom.generated.d.ts#L3134-L3135
++  json(): Promise<any>;
+   blob(): Promise<Blob>;
+ }
+ export type R2Range =

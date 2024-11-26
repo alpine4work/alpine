@@ -9,6 +9,7 @@ import {
     getContentReferencedIdsForSteps,
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -85,7 +86,10 @@ export async function getContentReferences(
                 // correct size changing the document's layout. We're ok with showing a
                 // partially available preview since at least the layout will be stable even if
                 // we don't have e.g. the image preview's placeholder.
-                if (!file || file.getAttachReadiness() !== "PreviewUnavailable") {
+                if (
+                    !file ||
+                    getFileModelDataAttachReadiness(file.initialData) !== "PreviewUnavailable"
+                ) {
                     file = await getFileIfExistsFromAttachment(
                         context,
                         spaceId,

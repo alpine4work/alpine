@@ -1,4 +1,4 @@
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -13,7 +13,7 @@ import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountStore = getAccountClientStoreForClient(generateId());
+const accountStore = getAccountClientStore(generateId());
 
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();

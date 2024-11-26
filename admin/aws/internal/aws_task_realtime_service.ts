@@ -171,16 +171,22 @@ export class AwsTaskRealtimeService extends Construct {
 
         const ports = createArrayWithLength(instanceCpuCount, index => portBase + index + 1);
 
+        const cpu = 2048;
+
         // Memory available to our container. We can't use the full available memory
         // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
         // to function.
         //
-        // We have to figure out the right value here based on trial and error. If we
-        // ask for too much memory we don't get an error, instead our ECS tasks will
-        // be stuck with the "Provisioning" status and never start.
-        const memoryLimitMiB = 935;
+        // The right value is available on the container instance screen in the AWS
+        // console. Specifically under the "Resources & networking" tab. You want to
+        // look at "Total capacity" and make sure we're reserving all of it.
+        //
+        // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
+        // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
+        // stuck in the "Provisioning" status forever.
+        const memoryLimitMiB = 936;
 
-        const gatewayMemoryPercent = 0.02;
+        const gatewayResourcePercent = 0.02;
 
         this.taskDefinition.addContainer("Container", {
             image: ContainerImage.fromTarball(
@@ -191,8 +197,9 @@ export class AwsTaskRealtimeService extends Construct {
                         : "cyberworlds/server/tasks/realtime/realtime_image_tarball_load/tarball.tar",
                 ),
             ),
+            cpu: cpu - Math.floor(cpu * gatewayResourcePercent),
             memoryReservationMiB:
-                memoryLimitMiB - Math.floor(memoryLimitMiB * gatewayMemoryPercent),
+                memoryLimitMiB - Math.floor(memoryLimitMiB * gatewayResourcePercent),
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -294,7 +301,8 @@ export class AwsTaskRealtimeService extends Construct {
                         : "cyberworlds/server/tasks/realtime/gateway/gateway_image_tarball_load/tarball.tar",
                 ),
             ),
-            memoryReservationMiB: Math.floor(memoryLimitMiB * gatewayMemoryPercent),
+            cpu: Math.floor(cpu * gatewayResourcePercent),
+            memoryReservationMiB: Math.floor(memoryLimitMiB * gatewayResourcePercent),
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,

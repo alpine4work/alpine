@@ -24,10 +24,22 @@ export const finishUploadingAndStartProcessingFile = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
+        validateContentLength: Schema.integer.optional(),
     },
     output: {
         signedUrlSearch: Schema.string,
-        file: FileModel.schema(),
+        file: FileModel.schema,
+    },
+});
+
+export const getFileWithoutSignedUrlAsUploader = defineRpc({
+    name: "getFileWithoutSignedUrlAsUploader",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        fileId: Schema.id<FileId>(),
+    },
+    output: {
+        file: FileModel.schema,
     },
 });
 
@@ -40,7 +52,7 @@ export const getFileFromAttachment = defineRpc({
     },
     output: {
         signedUrlSearch: Schema.string,
-        file: FileModel.schema(),
+        file: FileModel.schema,
     },
 });
 
@@ -52,7 +64,7 @@ export const getFileWithoutSignedUrlFromAttachment = defineRpc({
         target: FileAttachmentTargetSchema,
     },
     output: {
-        file: FileModel.schema(),
+        file: FileModel.schema,
     },
 });
 
@@ -88,6 +100,6 @@ export const attachFileFromAttachment = defineRpc({
     },
     output: {
         signedUrlSearch: Schema.string,
-        file: FileModel.schema(),
+        file: FileModel.schema,
     },
 });

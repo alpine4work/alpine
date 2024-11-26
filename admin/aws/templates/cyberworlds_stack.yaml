@@ -1849,6 +1849,7 @@ Resources:
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
+                  Cpu: 2008
                   Environment:
                       - Name: BAZEL_BINDIR
                         Value: .
@@ -1877,7 +1878,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionContainerLogGroup64BE4AA7
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 917
+                  MemoryReservation: 918
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4001
@@ -1952,6 +1953,7 @@ Resources:
                       - /var/www/server/tasks/realtime/gateway/gateway
                       - --port=4001
                       - --port=4002
+                  Cpu: 40
                   Environment:
                       - Name: NODE_ENV
                         Value: production
@@ -2561,6 +2563,7 @@ Resources:
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
                                 --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY"
+                  Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
@@ -2584,7 +2587,7 @@ Resources:
                               Ref: AppServiceTaskDefinitionContainerLogGroup1060112F
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 935
+                  Memory: 936
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -3335,6 +3338,7 @@ Resources:
                                 --apnsCertificate=\\$APNS_CERTIFICATE
                                 --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY
                                 --githubAppPrivateKey=\\$GITHUB_APP_PRIVATE_KEY"
+                  Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
@@ -3358,7 +3362,7 @@ Resources:
                               Ref: JobQueueServiceTaskDefinitionContainerLogGroup4CA57652
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 935
+                  Memory: 936
                   Name: Container
                   Secrets:
                       - Name: APP_SERVICE_PUBLIC_KEY
@@ -4073,7 +4077,7 @@ Resources:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
+            InstanceType: t4g.small
             SecurityGroups:
                 - Fn::GetAtt:
                       - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
@@ -4210,6 +4214,7 @@ Resources:
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
+                  Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
@@ -4233,7 +4238,7 @@ Resources:
                               Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 935
+                  Memory: 1934
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000

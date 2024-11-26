@@ -1,0 +1,26 @@
+diff --git a/dist/src/index.js b/dist/src/index.js
+index acea30a3f84102e3a4cb62222b7ebf1ace767a68..d5c61a8e62f401390f86eba1318a0d005461230d 100644
+--- a/dist/src/index.js
++++ b/dist/src/index.js
+@@ -192,7 +192,20 @@ function underscoreReplacement(match) {
+   return "".padStart(match.length, "_");
+ }
+ function sanitisePath(unsafe) {
+-  return unsafe.replace(namespaceRegexp, import_path.default.sep).replace(dotRegexp, dotReplacement).replace(dotRegexp, dotReplacement).replace(illegalRegexp, "_").replace(windowsReservedRegexp, "_").replace(leadingRegexp, underscoreReplacement).replace(trailingRegexp, underscoreReplacement).substring(0, 255);
++  // NOTE(calebmer): Don't truncate paths that are more than 255 characters long.
++  // This is causing issues for multipart file uploads in development since the
++  // `uploadId` + `spaceId` + `fileId` can get quite long. Chopping of the end
++  // removes the critical part number which makes Cloudflare think all multipart
++  // upload parts have the same underlying file system path.
++  //
++  // Example key passed to this function on the first line then the same key
++  // truncated to 255 characters on the second line:
++  //
++  // ```
++  // __MINIFLARE_INTERNAL__:multipart:P782if0mnEK8TXMZbIkizCSCE1cesgurNrBch8Y_7ex2D8czxAGyOYMdcuCsqM8QfNsUNImWC4GgJYJSGBz356st0Rz4BGMjxmdFi4DXLbLhRDMCI5n0buYtCK8yZutjIFLBjnxiN1giPToFhEc9tXZ4SpOqE1v1lnJD5GwxGNM:ywcffewdn377x442nkxd5x41r0/069p8ytze2whcejkp43a0xrvv8:3
++  // __MINIFLARE_INTERNAL__:multipart:P782if0mnEK8TXMZbIkizCSCE1cesgurNrBch8Y_7ex2D8czxAGyOYMdcuCsqM8QfNsUNImWC4GgJYJSGBz356st0Rz4BGMjxmdFi4DXLbLhRDMCI5n0buYtCK8yZutjIFLBjnxiN1giPToFhEc9tXZ4SpOqE1v1lnJD5GwxGNM:ywcffewdn377x442nkxd5x41r0/069p8ytze2whcejkp43a0xr
++  // ```
++  return unsafe.replace(namespaceRegexp, import_path.default.sep).replace(dotRegexp, dotReplacement).replace(dotRegexp, dotReplacement).replace(illegalRegexp, "_").replace(windowsReservedRegexp, "_").replace(leadingRegexp, underscoreReplacement).replace(trailingRegexp, underscoreReplacement);
+ }
+ 
+ // packages/shared/src/compat.ts

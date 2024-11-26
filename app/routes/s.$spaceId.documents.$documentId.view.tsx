@@ -46,7 +46,7 @@ export default function DocumentViewRoute() {
             <DocumentContentView
                 // Re-render when the document changes
                 key={document.id}
-                initialDocument={document}
+                document={document}
             />
         </Box>
     );

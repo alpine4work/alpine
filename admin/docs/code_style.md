@@ -587,6 +587,8 @@ function myFunction() {
 ### Helper functions should be in individual modules
 
 Avoid files with many unrelated helper functions. Instead, create a separate file for each helper.
+For example, files ending with `_utils.ts`, `_helpers.ts`, or `_methods.ts` typically contain
+unrelated helper functions and should be avoided.
 
 A good heuristic is if you have multiple functions in a file which don't call each other or you have
 multiple functions in a file whose implementation details aren't coupled then you may be better
@@ -595,6 +597,14 @@ served by putting those functions in different files.
 **Why?** Files with unrelated helper functions can be difficult to discover both when you need to
 add a new helper function and when you need to find the file a helper function is defined in. Also,
 unrelated code in a single file will bloat frontend bundle sizes.
+
+-   When you need to add a couple new helper functions and there's an existing `_utils.ts` file you
+    don't know about you're instinct may be to create a new `_utils.ts` file somewhere else. Putting
+    helper functions in separate files avoids this.
+
+-   If you're looking for the definition of a particular helper function you may use the fuzzy file
+    search feature in your editor and search for the function's name. If the function is in a
+    `_utils.ts` file you won't be able to find it with this method.
 
 ### Avoid classes
 

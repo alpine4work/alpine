@@ -1,7 +1,7 @@
 import {ArrowUpRight, CaretDown, CaretUp, Check} from "phosphor-react";
 import {ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
 import {createPath, useLocation} from "react-router";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";

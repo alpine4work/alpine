@@ -22,7 +22,7 @@ import {
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context.js";
 import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";

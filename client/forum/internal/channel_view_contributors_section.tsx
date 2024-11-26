@@ -1,6 +1,6 @@
 import {useMemo} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useStore} from "~/client/helpers/use_store.js";

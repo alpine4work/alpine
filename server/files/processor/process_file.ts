@@ -28,11 +28,11 @@ import {
     FailedPreconditionError,
     InternalError,
 } from "~/shared/error/error.js";
+import {fileProcessorTimeoutMs} from "~/shared/files/file_constants.js";
 import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {fileProcessorTimeoutMs} from "~/shared/files/file_model.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

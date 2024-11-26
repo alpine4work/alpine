@@ -10,6 +10,7 @@ ts_project(
     data = ["@ffmpeg"],
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
+        "//:node_modules/@miniflare/core",
         "//:node_modules/get-port",
         "//:node_modules/looks-same",
         "//server/dynamo/test_helpers",

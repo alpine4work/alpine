@@ -22,9 +22,9 @@ overrides:
 packageExtensionsChecksum: 9802277858eb9b88fcf0707518e05e7d
 
 patchedDependencies:
-  '@cloudflare/workers-types@3.18.0':
-    hash: hd2oz2xlphxbe5w65c4x3qmfrm
-    path: admin/patches/@cloudflare__workers-types@3.18.0.patch
+  '@cloudflare/workers-types@4.20241112.0':
+    hash: ylo6ppuxbnnn5eh5o4zhyyzoeq
+    path: admin/patches/@cloudflare__workers-types@4.20241112.0.patch
   '@cloudsnorkel/cdk-github-runners@0.14.1':
     hash: nphwwozstceqoszw4afqrnyipu
     path: admin/patches/@cloudsnorkel__cdk-github-runners@0.14.1.patch
@@ -34,6 +34,9 @@ patchedDependencies:
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
     path: admin/patches/@dnd-kit__utilities@3.2.1.patch
+  '@miniflare/shared@2.14.4':
+    hash: m6jebwjv43srf2hg7s5gfg7nfy
+    path: admin/patches/@miniflare__shared@2.14.4.patch
   '@popperjs/core@2.11.6':
     hash: tltraktq5mjexvnyazyo6z5vd4
     path: admin/patches/@popperjs__core@2.11.6.patch
@@ -196,8 +199,8 @@ importers:
         specifier: ^5.7.1
         version: 5.7.1
       '@cloudflare/workers-types':
-        specifier: ^3.18.0
-        version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
+        specifier: 4.20241112.0
+        version: 4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)
       '@cloudsnorkel/cdk-github-runners':
         specifier: 0.14.1
         version: 0.14.1(patch_hash=nphwwozstceqoszw4afqrnyipu)(aws-cdk-lib@2.149.0(constructs@10.1.143))(constructs@10.1.143)
@@ -297,9 +300,15 @@ importers:
       '@lume/kiwi':
         specifier: ^0.4.3
         version: 0.4.3
+      '@miniflare/core':
+        specifier: 2.14.4
+        version: 2.14.4
       '@miniflare/r2':
         specifier: 2.14.4
         version: 2.14.4
+      '@miniflare/shared':
+        specifier: 2.14.4
+        version: 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-file':
         specifier: 2.14.4
         version: 2.14.4
@@ -362,7 +371,7 @@ importers:
         version: 3.21.0(react@18.2.0)
       '@remix-run/dev':
         specifier: 2.9.2
-        version: 2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm))(bufferutil@4.0.7)(utf-8-validate@5.0.10))
+        version: 2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10))
       '@remix-run/eslint-config':
         specifier: 2.9.2
         version: 2.9.2(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(jest@29.4.0(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)))(react@18.2.0)(typescript@5.1.3)
@@ -929,7 +938,7 @@ importers:
         version: 4.0.0
       wrangler:
         specifier: ^3.87.0
-        version: 3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
+        version: 3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       ws:
         specifier: ^8.10.0
         version: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
@@ -1528,8 +1537,8 @@ packages:
     resolution: {integrity: sha512-46cP5FCrl3TrvHeoHLb5SRuiDMKH5kc9Yvo36SAfzt8dqJI/qJRoY1GP3ioHn/gP7v2QIoUOTAzIl7Ml7MnfrA==}
     engines: {node: '>=16.7.0'}
 
-  '@cloudflare/workers-types@3.18.0':
-    resolution: {integrity: sha512-ehKOJVLMeR+tZkYhWEaLYQxl0TaIZu/kE86HF3/RidR8Xv5LuQxpbh+XXAoKVqsaphWLhIgBhgnlN5HGdheXSQ==}
+  '@cloudflare/workers-types@4.20241112.0':
+    resolution: {integrity: sha512-Q4p9bAWZrX14bSCKY9to19xl0KMU7nsO5sJ2cTVspHoypsjPUMeQCsjHjmsO2C4Myo8/LPeDvmqFmkyNAPPYZw==}
 
   '@cloudsnorkel/cdk-github-runners@0.14.1':
     resolution: {integrity: sha512-0hHpRdX0k37CzK+e+IWaEaqbKYasc9m7LwqbiYFVdD9eZDsG7M2HM8+fN1Ie8Mk4OJxwyVt8v1ABDXWcVD4gXQ==}
@@ -9974,7 +9983,7 @@ snapshots:
       mime: 3.0.0
       zod: 3.23.8
 
-  '@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)': {}
+  '@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)': {}
 
   '@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=nphwwozstceqoszw4afqrnyipu)(aws-cdk-lib@2.149.0(constructs@10.1.143))(constructs@10.1.143)':
     dependencies:
@@ -10758,20 +10767,20 @@ snapshots:
   '@miniflare/cache@2.14.4':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       http-cache-semantics: 4.1.0
       undici: 5.28.4
 
   '@miniflare/cli-parser@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       kleur: 4.1.5
 
   '@miniflare/core@2.14.4':
     dependencies:
       '@iarna/toml': 2.2.5
       '@miniflare/queues': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/watcher': 2.14.4
       busboy: 1.6.0
       dotenv: 10.0.0
@@ -10783,26 +10792,26 @@ snapshots:
   '@miniflare/d1@2.14.4':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
 
   '@miniflare/durable-objects@2.14.4':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-memory': 2.14.4
       undici: 5.28.4
 
   '@miniflare/html-rewriter@2.14.4':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       html-rewriter-wasm: 0.4.1
       undici: 5.28.4
 
   '@miniflare/http-server@2.14.4(bufferutil@4.0.7)(utf-8-validate@5.0.10)':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/web-sockets': 2.14.4(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       kleur: 4.1.5
       selfsigned: 2.1.1
@@ -10815,29 +10824,29 @@ snapshots:
 
   '@miniflare/kv@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
 
   '@miniflare/queues@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
 
   '@miniflare/r2@2.14.4':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       undici: 5.28.4
 
   '@miniflare/runner-vm@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
 
   '@miniflare/scheduler@2.14.4':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       cron-schedule: 3.0.6
 
-  '@miniflare/shared@2.14.4':
+  '@miniflare/shared@2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)':
     dependencies:
       '@types/better-sqlite3': 7.6.4
       kleur: 4.1.5
@@ -10847,26 +10856,26 @@ snapshots:
   '@miniflare/sites@2.14.4':
     dependencies:
       '@miniflare/kv': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-file': 2.14.4
 
   '@miniflare/storage-file@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/storage-memory': 2.14.4
 
   '@miniflare/storage-memory@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
 
   '@miniflare/watcher@2.14.4':
     dependencies:
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
 
   '@miniflare/web-sockets@2.14.4(bufferutil@4.0.7)(utf-8-validate@5.0.10)':
     dependencies:
       '@miniflare/core': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       undici: 5.28.4
       ws: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
@@ -11945,7 +11954,7 @@ snapshots:
       '@react-types/shared': 3.21.0(react@18.2.0)
       react: 18.2.0
 
-  '@remix-run/dev@2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm))(bufferutil@4.0.7)(utf-8-validate@5.0.10))':
+  '@remix-run/dev@2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10))':
     dependencies:
       '@babel/core': 7.25.2
       '@babel/generator': 7.25.0
@@ -12006,7 +12015,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.1.3
       vite: 5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6)
-      wrangler: 3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
+      wrangler: 3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -16730,7 +16739,7 @@ snapshots:
       '@miniflare/r2': 2.14.4
       '@miniflare/runner-vm': 2.14.4
       '@miniflare/scheduler': 2.14.4
-      '@miniflare/shared': 2.14.4
+      '@miniflare/shared': 2.14.4(patch_hash=m6jebwjv43srf2hg7s5gfg7nfy)
       '@miniflare/sites': 2.14.4
       '@miniflare/storage-file': 2.14.4
       '@miniflare/storage-memory': 2.14.4
@@ -19053,7 +19062,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20241106.1
       '@cloudflare/workerd-windows-64': 1.20241106.1
 
-  wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm))(bufferutil@4.0.7)(utf-8-validate@5.0.10):
+  wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.3.4
       '@cloudflare/workers-shared': 0.7.1
@@ -19075,7 +19084,7 @@ snapshots:
       workerd: 1.20241106.1
       xxhash-wasm: 1.0.2
     optionalDependencies:
-      '@cloudflare/workers-types': 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
+      '@cloudflare/workers-types': 4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil

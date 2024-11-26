@@ -35,8 +35,8 @@ export class AccountClientStore {
     // using it unless they know what they're doing.
     //
     // We could use a simple `Map` but that would lead to a memory leak since
-    // account data is never garbage collected. Account data is small so arguably a
-    // memory leak is acceptable.
+    // account data would never be garbage collected. Account data is small so
+    // arguably a memory leak is acceptable.
     private readonly _accountDataStoreById = new AdvancedWeakValuesMap<
         AccountId,
         ValueStore<AccountModelData>

@@ -1,10 +1,10 @@
 import {Tree} from "@lezer/common";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -60,13 +60,11 @@ export type ContentFileViewerLoaderData =
  */
 export async function loadContentFileViewerData({
     spaceId,
-    signedUrlSearch,
     file,
     platform,
 }: {
     spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
+    file: FileClientStoreData;
     platform: Platform;
 }): Promise<ContentFileViewerLoaderData | null> {
     switch (file.contentType) {
@@ -84,12 +82,7 @@ export async function loadContentFileViewerData({
         case "image/ico":
         case "image/tiff":
         case "image/heif": {
-            return loadContentFileImageViewer({
-                spaceId,
-                signedUrlSearch,
-                file,
-                platform,
-            });
+            return loadContentFileImageViewer({spaceId, file, platform});
         }
         case "application/pdf":
         case "application/msword":
@@ -110,15 +103,10 @@ export async function loadContentFileViewerData({
         case "video/mpeg":
         case "video/x-matroska": {
             if (platform === "mobile") {
-                return loadContentFileVideoViewerMobile({
-                    spaceId,
-                    signedUrlSearch,
-                    file,
-                });
+                return loadContentFileVideoViewerMobile({spaceId, file});
             } else {
                 return loadContentFileImageViewer({
                     spaceId,
-                    signedUrlSearch,
                     file,
                     platform,
                     // Load the preview image when loading videos. We don't load the video itself
@@ -134,11 +122,7 @@ export async function loadContentFileViewerData({
         case "audio/mp4": {
             if (platform !== "mobile") return null;
 
-            return loadContentFileAudioViewerMobile({
-                spaceId,
-                signedUrlSearch,
-                file,
-            });
+            return loadContentFileAudioViewerMobile({spaceId, file});
         }
         case "text/plain":
         case "text/javascript":
@@ -177,11 +161,7 @@ export async function loadContentFileViewerData({
         case "text/x-clojure":
         case "text/x-erlang":
         case "text/x-ocaml": {
-            return loadContentFileCodeViewer({
-                spaceId,
-                signedUrlSearch,
-                file,
-            });
+            return loadContentFileCodeViewer({spaceId, file});
         }
         default:
             throw exhaustive(file.contentType);
@@ -190,45 +170,41 @@ export async function loadContentFileViewerData({
 
 export function getContentFileViewerSrc({
     spaceId,
-    signedUrlSearch,
     file,
     asPreview = false,
 }: {
     spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
+    file: FileClientStoreData;
     asPreview?: boolean;
 }): string | null {
     if (asPreview) {
         if (file.preview?.type !== "Image") return null;
         if (file.preview.content === "Processing" || file.preview.content === "Error") return null;
 
-        return `/files/${spaceId}/${file.id}${signedUrlSearch}&variant=preview`;
+        return `/files/${spaceId}/${file.id}${file.signedUrlSearch}&variant=preview`;
     }
 
     if (file.alternative) {
         if (file.alternative.isProcessing || !file.alternative.ok) return null;
 
-        return `/files/${spaceId}/${file.id}${signedUrlSearch}&variant=${
+        return `/files/${spaceId}/${file.id}${file.signedUrlSearch}&variant=${
             file.alternative.isImagePreviewContent ? "preview" : "alternative"
         }`;
     } else {
         if (file.isUploading) return null;
 
-        return `/files/${spaceId}/${file.id}${signedUrlSearch}`;
+        return `/files/${spaceId}/${file.id}${file.signedUrlSearch}`;
     }
 }
 
 async function loadContentFileImageViewer({
     spaceId,
-    signedUrlSearch,
     file,
     platform,
     asPreview = false,
 }: {
     spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
+    file: FileClientStoreData;
     platform: Platform;
     asPreview?: boolean;
 }): Promise<ContentFileViewerLoaderData> {
@@ -244,12 +220,7 @@ async function loadContentFileImageViewer({
         return {type: "Image", imageElement: null};
     }
 
-    const src = getContentFileViewerSrc({
-        spaceId,
-        signedUrlSearch,
-        file,
-        asPreview,
-    });
+    const src = getContentFileViewerSrc({spaceId, file, asPreview});
     if (!src) return {type: "Image", imageElement: null};
 
     const image = new Image();
@@ -269,26 +240,15 @@ async function loadContentFileImageViewer({
 
 async function loadContentFileVideoViewerMobile({
     spaceId,
-    signedUrlSearch,
     file,
 }: {
     spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
+    file: FileClientStoreData;
 }): Promise<ContentFileViewerLoaderData> {
-    const src = getContentFileViewerSrc({
-        spaceId,
-        signedUrlSearch,
-        file,
-    });
+    const src = getContentFileViewerSrc({spaceId, file});
     if (!src) return {type: "VideoMobile", videoElement: null};
 
-    const previewSrc = getContentFileViewerSrc({
-        spaceId,
-        signedUrlSearch,
-        file,
-        asPreview: true,
-    });
+    const previewSrc = getContentFileViewerSrc({spaceId, file, asPreview: true});
 
     const videoElement = document.createElement("video");
     videoElement.preload = "metadata";
@@ -309,18 +269,12 @@ async function loadContentFileVideoViewerMobile({
 
 async function loadContentFileAudioViewerMobile({
     spaceId,
-    signedUrlSearch,
     file,
 }: {
     spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
+    file: FileClientStoreData;
 }): Promise<ContentFileViewerLoaderData> {
-    const src = getContentFileViewerSrc({
-        spaceId,
-        signedUrlSearch,
-        file,
-    });
+    const src = getContentFileViewerSrc({spaceId, file});
     if (!src) return {type: "AudioMobile", audioElement: null};
 
     const audio = new Audio();
@@ -341,12 +295,10 @@ async function loadContentFileAudioViewerMobile({
 
 async function loadContentFileCodeViewer({
     spaceId,
-    signedUrlSearch,
     file,
 }: {
     spaceId: SpaceId;
-    signedUrlSearch: string;
-    file: FileModel;
+    file: FileClientStoreData;
 }): Promise<ContentFileViewerLoaderData> {
     const languageId =
         getFileContentTypeContentCodeBlockLanguageIdIfExists(file.contentType) ?? "text";
@@ -357,7 +309,7 @@ async function loadContentFileCodeViewer({
         await language.getParser()?.promise,
         (async () => {
             // eslint-disable-next-line no-global-fetch
-            const response = await fetch(`/files/${spaceId}/${file.id}${signedUrlSearch}`);
+            const response = await fetch(`/files/${spaceId}/${file.id}${file.signedUrlSearch}`);
 
             if (!response.ok) {
                 throw new InternalError(

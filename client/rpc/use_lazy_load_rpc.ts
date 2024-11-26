@@ -1,7 +1,6 @@
 import {useMemo} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
-import {createRpcCacheFetcher, getRpcCacheKey} from "~/client/rpc/rpc_cache.js";
-import {useIdlyPreloadSwr, useSwr} from "~/client/rpc/use_swr.js";
+import {AppContext, useAppContext} from "~/client/context/app_context.js";
+import {useIdlyPreloadSwr, useSwr} from "~/client/rpc/internal/use_swr.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
@@ -36,7 +35,6 @@ export function useLazyLoadRpc<Input, Output extends {}>(
     input: Input | null,
     {
         keepPreviousData,
-        withoutAutomaticRevalidation,
         initialOutput,
     }: {
         /**
@@ -52,13 +50,6 @@ export function useLazyLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
-
-        /**
-         * Disable revalidating the entry on browser activation (e.g. when the browser
-         * window becomes visible after being hidden). Useful for immutable data you
-         * know won't change over time.
-         */
-        withoutAutomaticRevalidation?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
@@ -80,7 +71,6 @@ export function useLazyLoadRpc<Input, Output extends {}>(
 
     const {isLoading, isValidating, data} = useSwr(key !== null ? key : null, fetcher, {
         keepPreviousData: keepPreviousData && input !== null,
-        withoutAutomaticRevalidation,
         initialData: useMemo(
             () => (initialOutput ? {...initialOutput, input} : null),
             [initialOutput, input],
@@ -108,4 +98,31 @@ export function useIdlyPreloadRpc<Input, Output extends {}>(
     const key = useMemo(() => getRpcCacheKey(rpc, input), [input, rpc]);
 
     useIdlyPreloadSwr(key, fetcher);
+}
+
+export function getRpcCacheKey<Input, Output extends {}>(
+    rpc: RpcDefinition<Input, Output>,
+    input: Input,
+) {
+    // NOTE(calebmer): `JSON.stringify()` preserves the order of keys. So if object
+    // key order changes then we re-create the value. However if we checked
+    // `isDeepEqual()` on two objects with different key orders then the key order
+    // wouldn't matter. Given the browser heavily optimizes `JSON.stringify()` this
+    // is an acceptable tradeoff. If we determine key order does matter we can use
+    // a package like `json-stable-stringify`.
+    const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
+
+    return `${rpc.name}:${inputString}`;
+}
+
+export function createRpcCacheFetcher<Input, Output extends {}>(
+    context: AppContext,
+    rpc: RpcDefinition<Input, Output>,
+) {
+    return async (key: string): Promise<Replace<Output, {readonly input: Input}>> => {
+        const inputString = key.slice(rpc.name.length + 1);
+        const input = rpc.inputSchema.deserialize(JSON.parse(inputString));
+        const output = await rpc(context, input);
+        return Object.assign(output, {input});
+    };
 }

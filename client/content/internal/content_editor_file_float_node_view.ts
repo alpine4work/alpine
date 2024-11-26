@@ -1,6 +1,8 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
@@ -15,11 +17,16 @@ import {
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {nullStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 
 export function createContentEditorFileFloatNodeViewConstructor({
+    getSpaceId,
     getLayoutScreenWidth,
     subscribeToReferencesUpdate,
 }: {
+    getSpaceId: () => SpaceId;
     getLayoutScreenWidth: () => number;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
@@ -38,8 +45,9 @@ export function createContentEditorFileFloatNodeViewConstructor({
         let isDestroyed = false;
         let lastDirection: "left" | "right" | null = null;
         let lastLayouts: ReadonlyArray<ContentFileLayout> | null = null;
+        let cleanup: (() => void) | null = null;
 
-        const update = () => {
+        const updateFromState = () => {
             assert(!isDestroyed);
 
             const platform = getPlatformWithoutListening();
@@ -61,25 +69,60 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 }
             }
 
-            const layouts = layoutContentFileParent(references, node, {
-                screenWidth: getLayoutScreenWidth(),
-                platform,
-                spacingScale,
+            const fileStores = node.content.content.map(childNode => {
+                if (childNode.type.name !== "file") return nullStore;
+
+                const fileId: FileId = childNode.attrs.fileId;
+
+                const fileReference = fileId ? references.fileById.get(fileId) : undefined;
+                if (!fileReference) return nullStore;
+
+                return getFileClientStore(getSpaceId()).getFileStore(fileReference);
             });
 
-            if (lastLayouts !== layouts) {
-                lastLayouts = layouts;
+            const filesStore = Store.mapMany(fileStores, files => {
+                const fileById = new Map<FileId, FileClientStoreData>();
 
-                dom.style.width = `${layouts[0]!.width}px`;
-                dom.style.height = `${layouts[0]!.height}px`;
-            }
+                for (const file of files) {
+                    if (file) {
+                        fileById.set(file.id, file);
+                    }
+                }
+
+                return fileById;
+            });
+
+            cleanup?.();
+            cleanup = null;
+
+            const updateFromStore = () => {
+                const layouts = layoutContentFileParent(filesStore.getSnapshot(), node, {
+                    screenWidth: getLayoutScreenWidth(),
+                    platform,
+                    spacingScale,
+                });
+
+                if (lastLayouts !== layouts) {
+                    lastLayouts = layouts;
+
+                    dom.style.width = `${layouts[0]!.width}px`;
+                    dom.style.height = `${layouts[0]!.height}px`;
+                }
+            };
+
+            const unsubscribeFromStore = filesStore.subscribe(updateFromStore);
+            updateFromStore();
+
+            cleanup = () => {
+                unsubscribeFromStore();
+            };
         };
 
-        update();
+        updateFromState();
 
-        const unsubscribeFromPlatformChange = subscribeToPlatformChange(update);
-        const unsubscribeFromFileScaleChange = subscribeToSpacingScaleChange(update);
-        const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);
+        const unsubscribeFromPlatformChange = subscribeToPlatformChange(updateFromState);
+        const unsubscribeFromFileScaleChange = subscribeToSpacingScaleChange(updateFromState);
+        const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(updateFromState);
 
         return {
             dom,
@@ -88,7 +131,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 if (node.type !== newNode.type) return false;
 
                 node = newNode;
-                update();
+                updateFromState();
 
                 // Run update after a microtask since when deleting nodes ProseMirror deletes
                 // the parent node first then the children. We don't want to dispatch an update
@@ -106,6 +149,9 @@ export function createContentEditorFileFloatNodeViewConstructor({
             destroy: () => {
                 if (isDestroyed) return;
                 isDestroyed = true;
+
+                cleanup?.();
+                cleanup = null;
 
                 unsubscribeFromPlatformChange();
                 unsubscribeFromFileScaleChange();

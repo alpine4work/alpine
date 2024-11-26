@@ -3261,6 +3261,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     func canSwitchTab() -> Bool {
         return webViewHealthState.isHealthy && !webViewHealthState.isLoading
+            && webViewHealthState.lastPingTime != nil
             && webViewHealthState.navigationError == nil
     }
 

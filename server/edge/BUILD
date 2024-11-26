@@ -14,9 +14,14 @@ alias(
     ],
 )
 
+UPLOAD_FILE_SRCS = [
+    "upload_file.ts",
+    "file_multipart_upload.ts",
+]
+
 ts_project(
     name = "upload_file",
-    srcs = ["upload_file.ts"],
+    srcs = UPLOAD_FILE_SRCS,
     # We lint and format everything with the below `ts_project()`.
     lint_and_format_srcs = [],
     test_srcs = [],
@@ -38,10 +43,7 @@ ts_project(
     name = "edge_lib",
     srcs = glob(
         ["**/*.ts"],
-        exclude = [
-            "upload_file.ts",
-            "**/*.test.ts",
-        ],
+        exclude = UPLOAD_FILE_SRCS + ["**/*.test.ts"],
     ),
     deps = [
         ":upload_file",

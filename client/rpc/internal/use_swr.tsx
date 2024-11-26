@@ -9,8 +9,8 @@ import {
     createSwrCacheEntryHistoryStack,
     disabledSwrCacheEntryResult,
     pendingSwrCacheEntryResult,
-} from "~/client/rpc/swr_cache.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+} from "~/client/rpc/internal/swr_cache.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
@@ -52,7 +52,6 @@ export function useSwr(
     {
         keepPreviousData = false,
         dedupingInterval = swrDefaultDedupingIntervalMs,
-        withoutAutomaticRevalidation,
         initialData: initialDataFromProps = null,
     }: {
         /**
@@ -71,13 +70,6 @@ export function useSwr(
          * the existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
-
-        /**
-         * Disable revalidating the entry on browser activation (e.g. when the browser
-         * window becomes visible after being hidden). Useful for immutable data you
-         * know won't change over time.
-         */
-        withoutAutomaticRevalidation?: boolean;
 
         /**
          * Initial data to return from this hook. If provided then on initial mount we
@@ -125,11 +117,14 @@ export function useSwr(
         } else {
             let isCancelled = false;
 
-            // Wait a microtask before putting our initial data in the cache. So if there
+            // Wait a macrotask before putting our initial data in the cache. So if there
             // are two `useSwr()` hooks looking at the same key no matter what order the
             // hooks are mounted in we'll send a network request if one of the hooks
             // doesn't have `initialData`.
-            scheduleMicrotask(() => {
+            //
+            // If another network request is sent then this `revalidateEntry()` call will
+            // be a noop because of `dedupingInterval`.
+            scheduleMacrotask(() => {
                 if (isCancelled) return;
                 cache.revalidateEntry(key, () => Promise.resolve(initial.data), {dedupingInterval});
             });
@@ -145,12 +140,10 @@ export function useSwr(
     useEffect(() => {
         if (key === null) return;
 
-        if (withoutAutomaticRevalidation) return;
-
         return cache.subscribeToBrowserActivated(() => {
             cache.revalidateEntry(key, fetcher, {dedupingInterval});
         });
-    }, [cache, dedupingInterval, fetcher, key, withoutAutomaticRevalidation]);
+    }, [cache, dedupingInterval, fetcher, key]);
 
     const [originalHistoryStack, setHistoryStack] = useState<SwrCacheEntryHistoryStack | null>(() =>
         keepPreviousData && key !== null

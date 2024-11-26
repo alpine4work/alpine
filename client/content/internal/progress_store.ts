@@ -2,6 +2,7 @@ import {Easing, easeOutQuint} from "~/shared/design/core/easing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -122,6 +123,7 @@ export function createProgressCompositeStore<const Weights extends ReadonlyArray
  */
 export class ProgressValueStore extends Store<number> {
     private readonly _store = new ValueStore(0);
+    private _cancelEase: (() => void) | null = null;
 
     public override isFinal(): boolean {
         return this._store.isFinal();
@@ -162,6 +164,8 @@ export class ProgressValueStore extends Store<number> {
         if (oldProgress !== newProgress) {
             if (newProgress === 1) {
                 this._store.finalSet(newProgress);
+                this._cancelEase?.();
+                this._cancelEase = null;
             } else {
                 this._store.set(newProgress);
             }
@@ -179,16 +183,20 @@ export class ProgressValueStore extends Store<number> {
      *
      * Updates the store every `perceivedAsInstantLimitMs`.
      */
-    public ease(duration: number) {
+    public ease(duration: number, startProgress: number = 0, endProgress: number = 0.99) {
         // `easeOutCirc(1 / 3)` is ~0.86
-        this._ease(easeOutQuint, duration, 0, 0.99);
+        this._ease(easeOutQuint, duration, startProgress, endProgress);
     }
 
     private _ease(easing: Easing, duration: number, startProgress: number, endProgress: number) {
+        this._cancelEase?.();
+        this._cancelEase = null;
+
         startProgress = clamp(0, startProgress, 1);
         endProgress = clamp(0, endProgress, 1);
 
         const startTime = Date.now();
+        let timeout: Timeout | undefined;
 
         const loop = () => {
             const currentTime = Date.now();
@@ -203,10 +211,14 @@ export class ProgressValueStore extends Store<number> {
             );
 
             if (this._store.getSnapshot() < endProgress) {
-                setTimeout(loop, perceivedAsInstantLimitMs);
+                timeout = createTimeout(loop, perceivedAsInstantLimitMs);
             }
         };
 
         loop();
+
+        this._cancelEase = () => {
+            timeout?.clear();
+        };
     }
 }

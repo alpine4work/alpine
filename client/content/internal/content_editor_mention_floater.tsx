@@ -19,7 +19,7 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {
     setContentEditorQuickUndo,
     updateContentEditorReferences,

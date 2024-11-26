@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {useMemo, useRef} from "react";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {
     addContentFileAudioPlayerBehavior,
     renderContentFileAudioPlayer,
@@ -27,7 +28,6 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {minFilePreviewAspectRatio} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
@@ -37,18 +37,16 @@ import {HtmlFragmentGenerator} from "~/shared/helpers/html/html_generator.js";
 
 export function ContentFileAudioViewerDesktop({
     file,
-    signedUrlSearch,
     viewerSize,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     viewerSize: {width: number; height: number};
 }) {
     assert(file.preview?.type === "Audio");
 
     const {space} = useSpaceContext();
 
-    const audioSrc = getContentFileViewerSrc({spaceId: space.id, signedUrlSearch, file});
+    const audioSrc = getContentFileViewerSrc({spaceId: space.id, file});
 
     if (file.preview.isProcessing || !audioSrc) {
         return (
@@ -96,7 +94,7 @@ function ContentFileAudioViewerDesktopInner({
     audioSrc,
     viewerSize,
 }: {
-    file: FileModel;
+    file: FileClientStoreData;
     filePreview: FileAudioPreview & {isProcessing: false};
     audioSrc: string;
     viewerSize: {width: number; height: number};

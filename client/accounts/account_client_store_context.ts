@@ -1,26 +1,19 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
+import {
+    createGlobalContext,
+    getGlobalContext,
+    useGlobalContext,
+} from "~/client/helpers/global_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
-let accountClientStoreByIdForClient: Map<SpaceId, AccountClientStore> | null = null;
-
-const AccountClientStoreContext = createGlobalContext(() => {
-    // On the server, there is no global access to the task realtime client.
-    if (typeof window === "undefined") {
-        return new Map<SpaceId, AccountClientStore>();
-    } else {
-        accountClientStoreByIdForClient ??= new Map();
-        return accountClientStoreByIdForClient;
-    }
-});
+const AccountClientStoreContext = createGlobalContext(() => new Map<SpaceId, AccountClientStore>());
 
 /**
- * On the client you have global access the account client store. Not just
+ * On the client you have global access to the account client store. Not just
  * access through React context.
  *
  * If the global client store hasn't been initialized yet (since a context
@@ -29,13 +22,9 @@ const AccountClientStoreContext = createGlobalContext(() => {
  *
  * Will throw an error if we're not running in a web browser.
  */
-export function getAccountClientStoreForClient(spaceId: SpaceId): AccountClientStore {
-    assert(typeof window !== "undefined");
-
-    accountClientStoreByIdForClient ??= new Map();
-
+export function getAccountClientStore(spaceId: SpaceId): AccountClientStore {
     return getOrSetDefaultMapValue(
-        accountClientStoreByIdForClient,
+        getGlobalContext(AccountClientStoreContext),
         spaceId,
         () => new AccountClientStore(),
     );

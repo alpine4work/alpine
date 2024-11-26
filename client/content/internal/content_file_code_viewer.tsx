@@ -3,6 +3,7 @@ import {highlightCode} from "@lezer/highlight";
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useMemo} from "react";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -24,7 +25,6 @@ import {
     codeBlockWrapperClassName,
 } from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -32,7 +32,7 @@ export function ContentFileCodeViewer({
     file,
     loaderDataPromise,
 }: {
-    file: FileModel;
+    file: FileClientStoreData;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
 }) {
     if (file.preview && !file.preview.isProcessing && !file.preview.ok) {

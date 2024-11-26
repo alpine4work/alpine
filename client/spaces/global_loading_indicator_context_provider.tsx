@@ -180,9 +180,9 @@ export function GlobalLoadingIndicatorChip({indicator}: {indicator: GlobalLoadin
                 {progress !== null
                     ? ` (${clamp(
                           0,
+                          Math.round(progress * 100),
                           // We never want to show 100%. The most we'll show is 99%. 100% means done. As
                           // long as the loading indicator is visible, clearly we're not done.
-                          Math.round(progress * 99),
                           99,
                       )}%)`
                     : null}

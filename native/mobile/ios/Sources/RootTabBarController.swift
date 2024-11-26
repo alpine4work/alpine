@@ -153,6 +153,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         appearance.compactInlineLayoutAppearance = itemAppearance
         appearance.inlineLayoutAppearance = itemAppearance
 
+        // TODO(calebmer): `blur()` for tab bar that matches what we do in
+        // `navigation_bar_internal.tsx`. This is annoying to do since iOS's easy blur
+        // effect (`UIBlurEffect`) only allows you to use Apple blur presets. So our
+        // best option is to hook into low level rendering code and apply a gaussian
+        // blur ourselves. We'd ideally also like to make our gaussian blur hardware
+        // accelerated for performance. We probably need to contract someone with
+        // extensive low-level iOS experience who can implement this.
         tabBar.isTranslucent = false
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance

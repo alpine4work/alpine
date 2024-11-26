@@ -2,16 +2,15 @@
 
 import {render} from "@testing-library/react";
 import {ContentView} from "~/client/content/content_view.js";
+import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
 import {
     getSelectionClipboardData,
     handleCopyEventIfNotTextInputElement,
 } from "~/client/content/handle_copy_event_if_not_text_input_element.js";
-import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/content_file_preview.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -19,7 +18,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-disableContentFilePreviewSignedUrlRefreshForTest();
+disableStartMaintainingFileForTest();
 
 const space = new SpaceModel({
     id: generateId(),
@@ -80,10 +79,6 @@ function testSelectionClipboardData(selection: {
     expect(result1).toEqual(result2);
 
     return result1;
-}
-
-function unimplementedForTest() {
-    throw new UnimplementedError("Unimplemented for test");
 }
 
 test("can copy when selection contains hidden content", () => {
@@ -212,7 +207,6 @@ test("can copy when selection is partially within content view and partially out
                     ),
                     references: emptyContentReferences,
                 }}
-                onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testPostFileAttachmentTarget}
             />
             <div>
@@ -229,7 +223,6 @@ test("can copy when selection is partially within content view and partially out
                     ),
                     references: emptyContentReferences,
                 }}
-                onMergeContentReferences={unimplementedForTest}
                 fileAttachmentTarget={testPostFileAttachmentTarget}
             />
             <p className="test-p">

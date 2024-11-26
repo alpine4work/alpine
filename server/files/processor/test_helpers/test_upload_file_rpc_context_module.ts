@@ -1,6 +1,7 @@
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {
     finishUploadingAndStartProcessingFile,
+    getFileAsUploader,
     startUploadingFile,
 } from "~/server/files/data/files_table.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -39,6 +40,7 @@ export class TestUploadFileRpcContextModule extends RpcContextModuleBase<ServerS
             const file = await finishUploadingAndStartProcessingFile(this._context, {
                 spaceId: input.spaceId,
                 fileId: input.fileId,
+                validateContentLength: input.validateContentLength,
             });
 
             return {
@@ -46,6 +48,20 @@ export class TestUploadFileRpcContextModule extends RpcContextModuleBase<ServerS
                 file,
             } satisfies RpcDefinitionOutputType<
                 typeof fileRpcDefinitions.finishUploadingAndStartProcessingFile
+            >;
+        }
+
+        if (definition === fileRpcDefinitions.getFileWithoutSignedUrlAsUploader) {
+            const input: RpcDefinitionInputType<
+                typeof fileRpcDefinitions.getFileWithoutSignedUrlAsUploader
+            > = anyInput;
+
+            const file = await getFileAsUploader(this._context, input.spaceId, input.fileId);
+
+            return {
+                file,
+            } satisfies RpcDefinitionOutputType<
+                typeof fileRpcDefinitions.getFileWithoutSignedUrlAsUploader
             >;
         }
 

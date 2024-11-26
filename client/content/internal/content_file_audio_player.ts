@@ -1,4 +1,5 @@
 import prettyBytes from "pretty-bytes";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {
     addContentFileVideoAndAudioPlayerControlsBehavior,
     renderContentFileVideoAndAudioPlayerControls,
@@ -13,7 +14,6 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -96,7 +96,7 @@ export function renderContentFileAudioPlayer(
         withoutInteractivity,
         layout,
     }: {
-        file: FileModel;
+        file: FileClientStoreData;
         filePreview: FileAudioPreview & {isProcessing: false; ok: true};
         audioSrc: string;
         platform: Platform;

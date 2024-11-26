@@ -45,8 +45,9 @@ import {
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
+import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -216,7 +217,7 @@ export function testFileProcessorContentTypes(
                             rpc: new TestUploadFileRpcContextModule(),
                         }),
                     {},
-                    {FilesBucket: r2Bucket as any},
+                    {FilesBucket: r2Bucket},
                     edgeTokenAgent,
                     request,
                     url,
@@ -397,9 +398,9 @@ export function testFileProcessorContentTypes(
                             }
 
                             const imagePreviewPlaceholder =
-                                file.preview?.type === "Image" &&
-                                typeof file.preview.placeholder !== "string"
-                                    ? file.preview.placeholder
+                                file.initialData.preview?.type === "Image" &&
+                                typeof file.initialData.preview.placeholder !== "string"
+                                    ? file.initialData.preview.placeholder
                                     : undefined;
 
                             if (!expectedImagePreviewPlaceholder) {
@@ -415,9 +416,9 @@ export function testFileProcessorContentTypes(
                             }
 
                             const codePreviewContent =
-                                file.preview?.type === "Code" &&
-                                typeof file.preview.content !== "string"
-                                    ? file.preview.content
+                                file.initialData.preview?.type === "Code" &&
+                                typeof file.initialData.preview.content !== "string"
+                                    ? file.initialData.preview.content
                                     : undefined;
 
                             expect(
