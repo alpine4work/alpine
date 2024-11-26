@@ -5,11 +5,7 @@ import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {Context} from "~/shared/context/context.js";
-import {
-    FailedPreconditionError,
-    InternalError,
-    InvalidArgumentError,
-} from "~/shared/error/error.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {
     maxFileContentLength,
@@ -39,7 +35,6 @@ interface R2BucketInterface {
         body: any,
         options: {httpMetadata: {contentType: string}},
     ): Promise<R2ObjectInterface | null>;
-    head(key: string): Promise<R2ObjectInterface | null>;
     delete(keys: string): Promise<void>;
     createMultipartUpload(
         key: string,
@@ -400,7 +395,7 @@ export async function completeFileMultipartUpload(
 
         // Create a span with the same format as the `PutObject` span created by
         // `CloudflareR2Client`.
-        await span.withSpan(
+        const object = await span.withSpan(
             `Cloudflare R2 CompleteMultipartUpload ${filesBucketName}`,
             async span => {
                 const key = `${spaceId}/${fileId}`;
@@ -426,41 +421,6 @@ export async function completeFileMultipartUpload(
                 const object = await multipartUpload.complete(
                     requestBody.parts as Array<R2UploadedPartInterface>,
                 );
-
-                span.addData({
-                    cloudflare: {
-                        r2: {
-                            object: {
-                                contentType: object.httpMetadata?.contentType,
-                                contentLength: object.size,
-                            },
-                        },
-                    },
-                });
-            },
-        );
-
-        // TODO(calebmer, #files): `CompleteMultipartUpload` is returning the wrong
-        // `object.size`. If this works document why we call `head()`.
-        const object = await span.withSpan(
-            `Cloudflare R2 HeadObject ${filesBucketName}`,
-            async span => {
-                const key = `${spaceId}/${fileId}`;
-
-                span.addData({
-                    cloudflare: {
-                        r2: {
-                            action: "HeadObject",
-                            bucket: filesBucketName,
-                            object: {
-                                key,
-                            },
-                        },
-                    },
-                });
-
-                const object = await env.FilesBucket.head(key);
-                if (!object) throw new InternalError("File not found after multipart upload");
 
                 span.addData({
                     cloudflare: {

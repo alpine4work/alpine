@@ -6,6 +6,7 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {getGlobalContext} from "~/client/helpers/global_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
     AbortedError,
     ErrorBase,
@@ -45,6 +46,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {waitForAbort} from "~/shared/helpers/async/wait_for_abort.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -700,68 +702,21 @@ async function uploadFileWithMultipartUploadIfNeeded(
                 // want the browser to stream the file from disk without loading any data to
                 // memory.
                 fetch: async request => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.responseType = "arraybuffer";
-
-                    xhr.upload.addEventListener("progress", event => {
-                        if (event.lengthComputable) {
-                            progress = event.loaded / event.total;
+                    return fetchWithXhr(request, {
+                        body:
+                            // Unfortunately, `XMLHttpRequest` doesn't support streaming request bodies. So
+                            // we have to load the readable stream's entire data into memory. We could use
+                            // `fetch()` which supports streaming request bodies in Chrome only. But since
+                            // we need the `progress` event we're stuck with `XMLHttpRequest` since Safari
+                            // doesn't give us a way to inspect progress in a `fetch()` request.
+                            body instanceof ReadableStream
+                                ? await waitForReadableStreamUint8Array(body)
+                                : body,
+                        onProgress: newProgress => {
+                            progress = newProgress;
                             updateProgress();
-                        }
+                        },
                     });
-
-                    const responsePromise = new Promise<Response>((resolve, reject) => {
-                        xhr.addEventListener("load", () => {
-                            const responseHeaders = new Headers();
-                            const responseHeadersString = xhr.getAllResponseHeaders();
-
-                            for (const responseHeadersStringLine of responseHeadersString
-                                .trim()
-                                .split(/[\r\n]+/g)) {
-                                const [headerName, headerValue] = responseHeadersStringLine.split(
-                                    ": ",
-                                    2,
-                                );
-
-                                responseHeaders.set(headerName!, headerValue ?? "");
-                            }
-
-                            resolve(
-                                new Response(xhr.response, {
-                                    status: xhr.status,
-                                    statusText: xhr.statusText,
-                                    headers: responseHeaders,
-                                }),
-                            );
-                        });
-
-                        xhr.addEventListener("abort", () => {
-                            reject(new AbortedError("Upload HTTP request aborted"));
-                        });
-
-                        xhr.addEventListener("error", () => {
-                            reject(new UnknownError("Upload HTTP request failed"));
-                        });
-                    });
-
-                    xhr.open(request.method, request.url, true);
-
-                    for (const [headerName, headerValue] of request.headers) {
-                        xhr.setRequestHeader(headerName, headerValue);
-                    }
-
-                    if (body instanceof ReadableStream) {
-                        // Unfortunately, `XMLHttpRequest` doesn't support streaming request bodies. So
-                        // we have to load the readable stream's entire data into memory. We could use
-                        // `fetch()` which supports streaming request bodies in Chrome only. But since
-                        // we need the `progress` event we're stuck with `XMLHttpRequest` since Safari
-                        // doesn't give us a way to inspect progress in a `fetch()` request.
-                        xhr.send(await waitForReadableStreamUint8Array(body));
-                    } else {
-                        xhr.send(body);
-                    }
-
-                    return responsePromise;
                 },
             },
             async response => {
@@ -822,8 +777,7 @@ async function uploadFileWithMultipartUploadIfNeeded(
     // internet upload speeds won't benefit from parallelism.
     const mutexes = createArrayWithLength(3, () => new Mutex());
 
-    const partPromises: Array<Promise<CompleteFileMultipartUploadRequestPart>> = [];
-    const partContentLength = Math.floor(maxFileMultipartUploadPartContentLength / 2);
+    const partContentLength = maxFileMultipartUploadPartContentLength;
     const partCount = Math.ceil(contentLength / partContentLength);
     const partProgresses = createArrayWithLength(partCount, () => 0);
 
@@ -834,186 +788,150 @@ async function uploadFileWithMultipartUploadIfNeeded(
         return progress;
     };
 
-    let currentPartData = new Uint8Array(
-        Math.min(partContentLength, contentLength - partPromises.length * partContentLength),
-    );
-    let currentPartOffset = 0;
-
     const abortController = new AbortController();
 
-    while (true) {
-        // If we aborted, don't make any more requests. We don't throw so we'll wait
-        // for any pending promises (`await runAllPromises()` below) before returning
-        // to the user.
-        if (abortController.signal.aborted) break;
+    const partPromises: Array<Promise<CompleteFileMultipartUploadRequestPart>> = [];
 
-        const {done, value: data} = await reader.read();
-        if (!data) break;
+    const promise = (async () => {
+        let nextPartData = new Uint8Array(
+            Math.min(partContentLength, contentLength - partPromises.length * partContentLength),
+        );
+        let nextPartOffset = 0;
 
-        let dataOffset = 0;
+        while (true) {
+            // Stop our loop if we aborted.
+            if (abortController.signal.aborted) throw abortController.signal.reason;
 
-        while (dataOffset < data.length) {
-            // If we aborted, don't make any more requests. We don't throw so we'll wait
-            // for any pending promises (`await runAllPromises()` below) before returning
-            // to the user.
-            if (abortController.signal.aborted) break;
+            const {done, value: chunkData} = await reader.read();
+            if (!chunkData) break;
 
-            if (partPromises.length >= partCount) {
-                throw new InternalError("More parts than expected");
-            }
+            let chunkOffset = 0;
 
-            const currentPartRemainingLength = currentPartData.length - currentPartOffset;
+            while (chunkOffset < chunkData.length) {
+                // Stop our loop if we aborted.
+                if (abortController.signal.aborted) throw abortController.signal.reason;
 
-            if (data.length - dataOffset < currentPartRemainingLength) {
-                currentPartData.set(data.subarray(dataOffset), currentPartOffset);
-                currentPartOffset += data.length;
-                dataOffset += data.length - dataOffset;
-            } else {
-                currentPartData.set(
-                    data.subarray(dataOffset, dataOffset + currentPartRemainingLength),
-                    currentPartOffset,
-                );
-                currentPartOffset += currentPartRemainingLength;
-                dataOffset += currentPartRemainingLength;
-
-                const partNumber = partPromises.length + 1;
-                const partData = currentPartData;
-
-                if (partNumber >= partCount) {
-                    currentPartData = new Uint8Array(0);
-                    currentPartOffset = 0;
-                } else {
-                    currentPartData = new Uint8Array(
-                        Math.min(
-                            partContentLength,
-                            contentLength - partPromises.length * partContentLength,
-                        ),
-                    );
-                    currentPartOffset = 0;
+                if (partPromises.length >= partCount) {
+                    throw new InternalError("More parts than expected");
                 }
 
-                // Wait for a mutex to become available before sending our request. By awaiting
-                // here we will also pause the `ReadableStream` reader loop. So we won't read
-                // more data from our stream until a mutex is available. This will avoid
-                // loading the entire file into memory.
-                const mutex = mutexes[(partNumber - 1) % mutexes.length]!;
-                const unlock = await mutex.lock();
+                const chunkRemainingLength = chunkData.length - chunkOffset;
+                const nextPartRemainingLength = nextPartData.length - nextPartOffset;
 
-                partPromises.push(
-                    fetchWithTracer(
-                        context.tracer.getTracer(),
-                        new URL(
-                            `/api/files/${spaceId}/multipart-upload/${fileId}/part/${partNumber}?upload=${uploadId}`,
-                            window.location.href,
-                        ),
-                        {
-                            serviceName: "EdgeService",
-                            method: "PUT",
-                            route: "/api/files/:spaceId/multipart-upload/:fileId/part/:partNumber",
-                            headers: {
-                                "content-type": "application/octet-stream",
-                                "content-length": String(partData.length),
-                            },
-                            // We provide our own `fetch()` implementation that uses `XMLHttpRequest` since
-                            // `XMLHttpRequest` emits a `progress` event that we show to the user to let
-                            // them know their file upload progress.
-                            //
-                            // You'll notice we don't pass `body` to this `fetchWithTracer()` call. Instead
-                            // opting to pass the body in directly here. Since if `body` is a `File` we
-                            // want the browser to stream the file from disk without loading any data to
-                            // memory.
-                            fetch: async request => {
-                                const xhr = new XMLHttpRequest();
-                                xhr.responseType = "arraybuffer";
+                if (chunkRemainingLength < nextPartRemainingLength) {
+                    nextPartData.set(chunkData.subarray(chunkOffset), nextPartOffset);
+                    nextPartOffset += chunkRemainingLength;
+                    chunkOffset += chunkRemainingLength;
+                } else {
+                    nextPartData.set(
+                        chunkData.subarray(chunkOffset, chunkOffset + nextPartRemainingLength),
+                        nextPartOffset,
+                    );
+                    nextPartOffset += nextPartRemainingLength;
+                    chunkOffset += nextPartRemainingLength;
 
-                                abortController.signal.addEventListener("abort", () => {
-                                    if (xhr.readyState !== XMLHttpRequest.DONE) {
-                                        xhr.abort();
-                                    }
-                                });
+                    const partNumber = partPromises.length + 1;
+                    const partData = nextPartData;
 
-                                xhr.upload.addEventListener("progress", event => {
-                                    if (event.lengthComputable) {
-                                        partProgresses[partNumber - 1] = event.loaded / event.total;
-                                        updateProgress();
-                                    }
-                                });
+                    if (partNumber >= partCount) {
+                        nextPartData = new Uint8Array(0);
+                        nextPartOffset = 0;
+                    } else {
+                        nextPartData = new Uint8Array(
+                            Math.min(
+                                partContentLength,
+                                contentLength - partNumber * partContentLength,
+                            ),
+                        );
+                        nextPartOffset = 0;
+                    }
 
-                                const responsePromise = new Promise<Response>((resolve, reject) => {
-                                    xhr.addEventListener("load", () => {
-                                        // Make sure we set our part's progress to 1 once this part
-                                        // is done uploading.
-                                        partProgresses[partNumber - 1] = 1;
-                                        updateProgress();
+                    // Wait for a mutex to become available before sending our request. By awaiting
+                    // here we will also pause the `ReadableStream` reader loop. So we won't read
+                    // more data from our stream until a mutex is available. This will avoid
+                    // loading the entire file into memory.
+                    const mutex = mutexes[(partNumber - 1) % mutexes.length]!;
+                    const unlock = await mutex.lock();
 
-                                        const responseHeaders = new Headers();
-                                        const responseHeadersString = xhr.getAllResponseHeaders();
+                    partPromises.push(
+                        fetchWithTracer(
+                            context.tracer.getTracer(),
+                            new URL(
+                                `/api/files/${spaceId}/multipart-upload/${fileId}/part/${partNumber}?upload=${uploadId}`,
+                                window.location.href,
+                            ),
+                            {
+                                serviceName: "EdgeService",
+                                method: "PUT",
+                                route: "/api/files/:spaceId/multipart-upload/:fileId/part/:partNumber",
+                                headers: {
+                                    "content-type": "application/octet-stream",
+                                    "content-length": String(partData.length),
+                                },
+                                // We provide our own `fetch()` implementation that uses `XMLHttpRequest` since
+                                // `XMLHttpRequest` emits a `progress` event that we show to the user to let
+                                // them know their file upload progress.
+                                //
+                                // You'll notice we don't pass `body` to this `fetchWithTracer()` call. Instead
+                                // opting to pass the body in directly here. Since if `body` is a `File` we
+                                // want the browser to stream the file from disk without loading any data to
+                                // memory.
+                                fetch: async request => {
+                                    try {
+                                        const response = await fetchWithXhr(request, {
+                                            signal: abortController.signal,
+                                            body: partData,
+                                            onProgress: progress => {
+                                                partProgresses[partNumber - 1] = progress;
+                                                updateProgress();
+                                            },
+                                        });
 
-                                        for (const responseHeadersStringLine of responseHeadersString
-                                            .trim()
-                                            .split(/[\r\n]+/g)) {
-                                            const [headerName, headerValue] =
-                                                responseHeadersStringLine.split(": ", 2);
-
-                                            responseHeaders.set(headerName!, headerValue ?? "");
-                                        }
-
-                                        resolve(
-                                            new Response(xhr.response, {
-                                                status: xhr.status,
-                                                statusText: xhr.statusText,
-                                                headers: responseHeaders,
-                                            }),
-                                        );
-                                    });
-
-                                    xhr.addEventListener("abort", () => {
-                                        const error = new AbortedError(
-                                            "Multipart upload part HTTP request aborted",
-                                        );
-                                        reject(error);
+                                        return response;
+                                    } catch (error) {
                                         abortController.abort(error);
-                                    });
-
-                                    xhr.addEventListener("error", () => {
-                                        const error = new UnknownError(
-                                            "Multipart upload part HTTP request failed",
-                                        );
-                                        reject(error);
-                                        abortController.abort(error);
-                                    });
-                                });
-
-                                xhr.open(request.method, request.url, true);
-
-                                for (const [headerName, headerValue] of request.headers) {
-                                    xhr.setRequestHeader(headerName, headerValue);
-                                }
-
-                                xhr.send(partData);
-
-                                return responsePromise;
+                                        throw error;
+                                    }
+                                },
                             },
-                        },
-                        async response => {
-                            const responseBody =
-                                PutFileMultipartUploadPartResponseSchema.deserialize(
-                                    await response.json(),
-                                );
-                            if (!responseBody.ok) throw responseBody.error;
-                            return responseBody;
-                        },
-                    ).finally(unlock),
-                );
+                            async response => {
+                                const responseBody =
+                                    PutFileMultipartUploadPartResponseSchema.deserialize(
+                                        await response.json(),
+                                    );
+                                if (!responseBody.ok) throw responseBody.error;
+                                return responseBody;
+                            },
+                        ).finally(unlock),
+                    );
+                }
             }
+
+            assert(chunkOffset === chunkData.length);
+
+            if (done) break;
         }
+    })();
 
-        if (done) break;
+    const parts = await Promise.race([waitForAbort(abortController.signal), promise]).then(
+        () => runAllPromises(partPromises),
+
+        // Even if an error is thrown, still wait for our `partPromises` in case there
+        // are any additional errors we need to log.
+        async error => {
+            try {
+                await runAllPromises(partPromises);
+            } catch (otherError) {
+                throw createAggregateError([error, otherError]);
+            }
+
+            throw error;
+        },
+    );
+
+    if (parts.length !== partCount) {
+        throw new InternalError(`Expected ${partCount} parts but got ${parts.length} parts`);
     }
-
-    const parts = await runAllPromises(partPromises);
-
-    if (abortController.signal.aborted) throw abortController.signal.reason;
 
     return fetchWithTracer(
         context.tracer.getTracer(),
@@ -1038,4 +956,76 @@ async function uploadFileWithMultipartUploadIfNeeded(
             return responseBody;
         },
     );
+}
+
+function fetchWithXhr(
+    request: Request,
+    {
+        signal,
+        body,
+        onProgress,
+    }: {
+        signal?: AbortSignal;
+        body: Uint8Array | File;
+        onProgress: (progress: number) => void;
+    },
+): Promise<Response> {
+    const xhr = new XMLHttpRequest();
+    xhr.responseType = "arraybuffer";
+
+    signal?.addEventListener("abort", () => {
+        if (xhr.readyState !== XMLHttpRequest.DONE) {
+            xhr.abort();
+        }
+    });
+
+    xhr.upload.addEventListener("progress", event => {
+        if (event.lengthComputable) {
+            onProgress(event.loaded / event.total);
+        }
+    });
+
+    const responsePromise = new Promise<Response>((resolve, reject) => {
+        xhr.addEventListener("load", () => {
+            // Make sure progress is updated to 1 after we're done loading.
+            onProgress(1);
+
+            const responseHeaders = new Headers();
+            const responseHeadersString = xhr.getAllResponseHeaders();
+
+            for (const responseHeadersStringLine of responseHeadersString
+                .trim()
+                .split(/[\r\n]+/g)) {
+                const [headerName, headerValue] = responseHeadersStringLine.split(": ", 2);
+
+                responseHeaders.set(headerName!, headerValue ?? "");
+            }
+
+            resolve(
+                new Response(xhr.response, {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    headers: responseHeaders,
+                }),
+            );
+        });
+
+        xhr.addEventListener("abort", () => {
+            reject(new AbortedError("Multipart upload part HTTP request aborted"));
+        });
+
+        xhr.addEventListener("error", () => {
+            reject(new UnknownError("Multipart upload part HTTP request failed"));
+        });
+    });
+
+    xhr.open(request.method, request.url, true);
+
+    for (const [headerName, headerValue] of request.headers) {
+        xhr.setRequestHeader(headerName, headerValue);
+    }
+
+    xhr.send(body);
+
+    return responsePromise;
 }
