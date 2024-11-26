@@ -84,6 +84,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "prosemirror-keymap",
     "prosemirror-model",
     "prosemirror-state",
+    "prosemirror-tables",
     "prosemirror-transform",
     "prosemirror-view",
     "prosemirror-view/style/prosemirror.css",

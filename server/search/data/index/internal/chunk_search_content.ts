@@ -1087,7 +1087,7 @@ async function chunkSearchContentBySentenceForBlockNode(
             return null;
         }
         default:
-            throw exhaustive(typeName as never);
+            throw exhaustive(typeName);
     }
 }
 
