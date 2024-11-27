@@ -25,6 +25,19 @@ function actuallyTrimContentEnd(node: Node): Node {
 
     if (!oldLastChildNode.isText) {
         const newLastChildNode = actuallyTrimContentEnd(oldLastChildNode);
+
+        // If the last node is an empty paragraph, then remove it and then try trimming
+        // the new last node.
+        if (
+            node.childCount > 1 &&
+            newLastChildNode.type.name === "paragraph" &&
+            newLastChildNode.content.size === 0
+        ) {
+            return actuallyTrimContentEnd(
+                node.type.create(node.attrs, node.content.content.slice(0, -1)),
+            );
+        }
+
         if (oldLastChildNode === newLastChildNode) return node;
 
         return node.type.create(node.attrs, [

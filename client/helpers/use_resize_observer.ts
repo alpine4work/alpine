@@ -1,6 +1,6 @@
 import {RefCallback, useCallback, useState} from "react";
+import {flushSync} from "react-dom";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -110,10 +110,10 @@ function createResizeObserver() {
     const resizeObserver = new ResizeObserver(entries => {
         const entryTargets = new Set<Element>();
 
-        // Run resize observer listeners with immediate priority. React component
-        // updates made in resize listeners should happen in the same browser paint
-        // where they were dispatched so the user doesn't see a tear in the UI.
-        runWithImmediatePriority(() => {
+        // Run resize observer listeners synchronously. React component updates made in
+        // resize listeners should happen in the same browser paint where they were
+        // dispatched so the user doesn't see a tear in the UI.
+        flushSync(() => {
             for (const entry of entries) {
                 entryTargets.add(entry.target);
 

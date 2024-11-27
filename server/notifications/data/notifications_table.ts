@@ -381,6 +381,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }),
 
                         /**
+                         * If the chat was archived by a message then this will be set to the message's
+                         * index. Check this to make sure you don't unarchive when processing an older
+                         * message.
+                         */
+                        latestArchivingMessageIndex: Schema.integer.nullable().default(null),
+
+                        /**
                          * Another account in the chat. May or may not have sent a message to the
                          * chat. If the chat has three members this will always be the member that's
                          * not the owner of the inbox or the `lastMessage` author.
@@ -439,6 +446,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean.default(false),
                         }).nullable(),
+
+                        /**
+                         * If the chat was archived by a message then this will be set to the message's
+                         * index. Check this to make sure you don't unarchive when processing an older
+                         * message.
+                         */
+                        latestArchivingCommentIndex: Schema.integer.nullable().default(null),
 
                         /**
                          * A second commenting account which we'll show on the inbox entry to imply a
@@ -551,6 +565,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }),
 
                         /**
+                         * If the chat was archived by a message then this will be set to the message's
+                         * index. Check this to make sure you don't unarchive when processing an older
+                         * message.
+                         */
+                        latestArchivingCommentIndex: Schema.integer.nullable().default(null),
+
+                        /**
                          * A second commenting account which we'll show on the inbox entry to imply a
                          * conversation between multiple users. We compute this as the account which
                          * commented before `latestComment`. Will never be the same account as the
@@ -652,6 +673,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean,
                         }),
+
+                        /**
+                         * If the chat was archived by a message then this will be set to the message's
+                         * index. Check this to make sure you don't unarchive when processing an older
+                         * message.
+                         */
+                        latestArchivingCommentIndex: Schema.integer.nullable().default(null),
 
                         /**
                          * A second commenting account which we'll show on the inbox entry to imply a
@@ -2669,7 +2697,10 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 // If the events were received out-of-order we keep the last archive state
                 // of the entry.
                 const isArchived =
-                    !oldItem || event.messageIndex > oldItem.latestMessage.index
+                    !oldItem ||
+                    (event.messageIndex > oldItem.latestMessage.index &&
+                        (oldItem.latestArchivingMessageIndex === null ||
+                            event.messageIndex > oldItem.latestArchivingMessageIndex))
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
@@ -2734,10 +2765,15 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 //
                 // Or if the latest comment was a mention then we'll leave that in place even
                 // if there are further comments added.
+                //
+                // Or if the message from our event is from the same account as the inbox's
+                // then don't update the latest message. Leave the last message from an account
+                // other than our inbox's account in the entry.
                 if (
                     oldItem &&
                     (oldItem.latestMessage.index >= event.messageIndex ||
-                        (oldItem.latestMessage.isStickyMention && !isMention && !isArchived))
+                        (oldItem.latestMessage.isStickyMention && !isMention && !isArchived) ||
+                        accountId === event.authorId)
                 ) {
                     latestMessage = oldItem.latestMessage;
                     otherAccountId = oldItem.otherAccountId;
@@ -2790,6 +2826,10 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         isArchived && latestMessage.isStickyMention
                             ? {...latestMessage, isStickyMention: false}
                             : latestMessage,
+                    latestArchivingMessageIndex:
+                        isArchived && !oldItem?.isArchived
+                            ? event.messageIndex
+                            : oldItem?.latestArchivingMessageIndex ?? null,
                     otherAccountId,
                 };
             },
@@ -2883,7 +2923,10 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 // If the events were received out-of-order we keep the last archive state
                 // of the entry.
                 const isArchived =
-                    !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
+                    !oldItem?.latestComment ||
+                    (event.commentIndex > oldItem.latestComment.index &&
+                        (oldItem.latestArchivingCommentIndex === null ||
+                            event.commentIndex > oldItem.latestArchivingCommentIndex))
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
@@ -2920,10 +2963,15 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 //
                 // Or if the latest comment was a mention then we'll leave that in place even
                 // if there are further comments added.
+                //
+                // Or if the message from our event is from the same account as the inbox's
+                // then don't update the latest message. Leave the last message from an account
+                // other than our inbox's account in the entry.
                 if (
                     oldItem?.latestComment &&
                     (oldItem.latestComment.index >= event.commentIndex ||
-                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived))
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
@@ -2967,6 +3015,10 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                         isArchived && latestComment.isStickyMention
                             ? {...latestComment, isStickyMention: false}
                             : latestComment,
+                    latestArchivingCommentIndex:
+                        isArchived && !oldItem?.isArchived
+                            ? event.commentIndex
+                            : oldItem?.latestArchivingCommentIndex ?? null,
                     otherCommentAuthorId,
                 };
             },
@@ -3068,6 +3120,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                         postCreatedTime: event.createdTime,
                         postContentSnippetIfMentioned: event.contentSnippet,
                         latestComment: null,
+                        latestArchivingCommentIndex: null,
                         otherCommentAuthorId: null,
                     };
                 },
@@ -3238,7 +3291,10 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 // If the events were received out-of-order we keep the last archive state
                 // of the entry.
                 const isArchived =
-                    !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
+                    !oldItem?.latestComment ||
+                    (event.commentIndex > oldItem.latestComment.index &&
+                        (oldItem.latestArchivingCommentIndex === null ||
+                            event.commentIndex > oldItem.latestArchivingCommentIndex))
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
@@ -3275,10 +3331,15 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 //
                 // Or if the latest comment was a mention then we'll leave that in place even
                 // if there are further comments added.
+                //
+                // Or if the message from our event is from the same account as the inbox's
+                // then don't update the latest message. Leave the last message from an account
+                // other than our inbox's account in the entry.
                 if (
                     oldItem?.latestComment &&
                     (oldItem.latestComment.index >= event.commentIndex ||
-                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived))
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
@@ -3324,6 +3385,10 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                         isArchived && latestComment.isStickyMention
                             ? {...latestComment, isStickyMention: false}
                             : latestComment,
+                    latestArchivingCommentIndex:
+                        isArchived && !oldItem?.isArchived
+                            ? event.commentIndex
+                            : oldItem?.latestArchivingCommentIndex ?? null,
                     otherCommentAuthorId,
                 };
             },
@@ -3431,7 +3496,10 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
                 // If the events were received out-of-order we keep the last archive state
                 // of the entry.
                 const isArchived =
-                    !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
+                    !oldItem?.latestComment ||
+                    (event.commentIndex > oldItem.latestComment.index &&
+                        (oldItem.latestArchivingCommentIndex === null ||
+                            event.commentIndex > oldItem.latestArchivingCommentIndex))
                         ? accountId === event.authorId
                         : oldItem.isArchived;
 
@@ -3468,10 +3536,15 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
                 //
                 // Or if the latest comment was a mention then we'll leave that in place even
                 // if there are further comments added.
+                //
+                // Or if the message from our event is from the same account as the inbox's
+                // then don't update the latest message. Leave the last message from an account
+                // other than our inbox's account in the entry.
                 if (
                     oldItem?.latestComment &&
                     (oldItem.latestComment.index >= event.commentIndex ||
-                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived))
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
@@ -3506,6 +3579,10 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
                         isArchived && latestComment.isStickyMention
                             ? {...latestComment, isStickyMention: false}
                             : latestComment,
+                    latestArchivingCommentIndex:
+                        isArchived && !oldItem?.isArchived
+                            ? event.commentIndex
+                            : oldItem?.latestArchivingCommentIndex ?? null,
                     otherCommentAuthorId,
                 };
             },

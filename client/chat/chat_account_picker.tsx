@@ -611,7 +611,7 @@ export function ChatAccountPicker({
                             alignItems: "center",
                             // Smaller on mobile since we render the navigation bar above.
                             height: platform !== "mobile" ? "12" : "10",
-                            paddingLeft: screenPaddingX,
+                            paddingLeft: {desktop: "4", mobile: "2"},
                             paddingRight: {desktop: "3", mobile: "1.5"},
                             fontSize: {desktop: "100", mobile: "50"},
                             color: "grey-50",

@@ -736,6 +736,10 @@ globalStyle(codeBlockLineClassName, {
     display: "flex",
     width: "100%",
     counterIncrement: "code-block-line-number",
+    // Make sure we have a text cursor when hovering over a code block in a
+    // `<ContentView>`. For some reason `cursor: auto` doesn't use a text cursor in
+    // Chrome. We haven't debugged why this is.
+    cursor: "text",
 });
 
 globalStyle(`${codeBlockLineClassName}::before`, {

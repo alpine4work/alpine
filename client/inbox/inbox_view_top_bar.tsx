@@ -2,7 +2,7 @@ import {Box} from "~/client/design/box.js";
 import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {desktopLayoutInboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
+import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 
 export function InboxViewTopBar({filter}: {filter: "New" | "Archive"}) {
     const navigate = useNavigate();
@@ -12,7 +12,7 @@ export function InboxViewTopBar({filter}: {filter: "New" | "Archive"}) {
         <Box
             flexShrink="0"
             width="full"
-            height={desktopLayoutInboxBannerHeight}
+            height={inboxBannerHeight}
             backgroundColor="grey-0"
             position="relative"
             zIndex="10"

@@ -1307,7 +1307,6 @@ function PostListView(
                                                 maxWidth: contentStyles.contentMaxWidth,
                                                 pointerEvents: "auto",
                                                 paddingLeft: postCommentSectionGuidelineSpace,
-                                                backgroundColor: "grey-0",
                                             })}
                                             style={{
                                                 flex: postViewFlex,
@@ -1319,6 +1318,7 @@ function PostListView(
                                         >
                                             <div
                                                 className={sprinkles({
+                                                    zIndex: "10",
                                                     position: "absolute",
                                                     top: "0",
                                                     bottom: "7",
