@@ -13,7 +13,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const cellAttrs: Record<string, AttributeSpec> = {
     colspan: {default: 1, schema: Schema.integer},
     rowspan: {default: 1, schema: Schema.integer},
-    colwidth: {default: null, schema: Schema.float.nullable()},
+    colwidth: {default: null, schema: Schema.array(Schema.integer).nullable()},
 };
 
 export const contentTableProsemirrorNodeSpec = {
