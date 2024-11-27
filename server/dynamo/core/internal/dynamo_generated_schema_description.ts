@@ -5651,8 +5651,8 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         },
                         "PostFiles": {
-                            "id": 2,
-                            "orderKey": "a0V",
+                            "id": 1,
+                            "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "postCreatedTime": {
                                     "type": "Reverse",
