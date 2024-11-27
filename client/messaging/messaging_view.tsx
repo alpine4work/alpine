@@ -30,7 +30,7 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {messageInputMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -60,8 +60,7 @@ type MessagingViewStateItem<Message extends MessageModel> =
           readonly type: "Header";
           readonly item: DistributiveOmit<VirtualizedScrollViewItem, "key">;
       }
-    | (MessageListItem<Message> & {readonly messageIndex: number})
-    | {readonly type: "Input"};
+    | (MessageListItem<Message> & {readonly messageIndex: number});
 
 class MessagingViewState<Message extends MessageModel> {
     private readonly _header: DistributiveOmit<VirtualizedScrollViewItem, "key"> | null;
@@ -77,7 +76,7 @@ class MessagingViewState<Message extends MessageModel> {
     }
 
     public getItemCount() {
-        return this.messages.getItemCount() + (this._header ? 1 : 0) + 1;
+        return this.messages.getItemCount() + (this._header ? 1 : 0);
     }
 
     public getItem(index: number): MessagingViewStateItem<Message> {
@@ -89,10 +88,6 @@ class MessagingViewState<Message extends MessageModel> {
                 };
             }
             index -= 1;
-        }
-
-        if (index === this.messages.getItemCount()) {
-            return {type: "Input"};
         }
 
         return {
@@ -117,16 +112,9 @@ class MessagingViewState<Message extends MessageModel> {
     ): {startIndex: number; endIndex: number} | null {
         if (!range) return null;
 
-        const itemCount = this.getItemCount();
-
-        assert(0 <= range.startIndex && range.startIndex < itemCount);
-        assert(0 <= range.endIndex && range.endIndex < itemCount);
+        assert(0 <= range.startIndex && range.startIndex < this.getItemCount());
+        assert(0 <= range.endIndex && range.endIndex < this.getItemCount());
         assert(range.startIndex <= range.endIndex);
-
-        if (range.startIndex >= itemCount - 1) return null;
-
-        if (range.endIndex >= itemCount - 1)
-            range = {startIndex: range.startIndex, endIndex: itemCount - 2};
 
         if (!this._header) return range;
 
@@ -624,86 +612,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         key: "Header",
                     };
                 }
-                case "Input": {
-                    return {
-                        withManualLayout: true,
-                        key: "Input",
-                        minHeight: messageInputMinHeight[platform],
-                        render: ({
-                            ref,
-                            viewHeight,
-                            height,
-                            minHeight,
-                            shouldRenderWithRelativePositioning,
-                        }) => (
-                            <div
-                                ref={ref}
-                                style={{
-                                    minHeight,
-                                    ...(shouldRenderWithRelativePositioning
-                                        ? {position: "relative"}
-                                        : {
-                                              position: "sticky",
-                                              left: 0,
-                                              right: 0,
-                                              bottom: 0,
-                                              top: viewHeight - height,
-                                          }),
-                                }}
-                            >
-                                <MessageInput
-                                    ref={inputRef}
-                                    messageNoun={messageNoun}
-                                    messages={state.messages}
-                                    isMessageCreationDisabled={isMessageCreationDisabled}
-                                    onUpdateMessages={update => setMessages(update)}
-                                    createMessage={async input => {
-                                        await createMessage(input);
-                                    }}
-                                    messageEditing={messageEditing}
-                                    replyingToMessage={
-                                        replyingToMessageIndex !== null
-                                            ? state.messages.getLoadedMessageIfExists(
-                                                  replyingToMessageIndex,
-                                              )
-                                            : null
-                                    }
-                                    onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
-                                    onJumpToMessage={handleJumpToMessage}
-                                    onDeleteMessage={async messageIndex => {
-                                        await deleteMessage({messageIndex});
-                                    }}
-                                    onShowTypingIndicator={() => {
-                                        startTypingInMessageInput({})
-                                            // Don't show an error updating typing indicators to the user. We will see an
-                                            // error in our logs but the user won't see any weird behavior if the
-                                            // request fails.
-                                            .catch(error =>
-                                                reporter.logErrorWithoutDisplaying(
-                                                    "Couldn't update typing indicator",
-                                                    error,
-                                                ),
-                                            );
-                                    }}
-                                    onHideTypingIndicator={() => {
-                                        stopTypingInMessageInput({})
-                                            // Don't show an error updating typing indicators to the user. We will see an
-                                            // error in our logs but the user won't see any weird behavior if the
-                                            // request fails.
-                                            .catch(error =>
-                                                reporter.logErrorWithoutDisplaying(
-                                                    "Couldn't update typing indicator",
-                                                    error,
-                                                ),
-                                            );
-                                    }}
-                                    restoreStateRef={inputRestoreStateRef}
-                                    paddingX={paddingX}
-                                />
-                            </div>
-                        ),
-                    };
-                }
                 default: {
                     return renderMessageListItem({
                         platform,
@@ -738,44 +646,92 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             }
         },
         [
-            createMessage,
             deleteMessage,
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
-            inputRestoreStateRef,
-            isMessageCreationDisabled,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
             paddingX,
             platform,
             randomSeedForShimmer,
-            replyingToMessageIndex,
-            reporter,
             roomDisplayedCreatedTime,
-            startTypingInMessageInput,
             state,
-            stopTypingInMessageInput,
         ],
     );
 
     return (
         <>
             {modals}
-            <VirtualizedScrollView
-                ref={viewRef}
-                elementRef={elementRef}
-                renderItem={renderItem}
-                extraChildren={extraChildren}
-                initialScrollOffset={initialScrollOffset}
-                bufferedItemHeight={bufferedMessageViewHeight}
-                itemCount={state.getItemCount()}
-                alwaysRenderAdditionalItemIndexes={[state.getItemCount() - 1]}
-                onRenderedRangeChange={tryLoadingMoreData}
-                scrollbarInsetTop={scrollbarInsetTop}
-                scrollbarInsetBottomItemIndex={state.getItemCount() - 1}
-            />
+            <div
+                className={sprinkles({
+                    flexGrow: "1",
+                    height: "full",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                })}
+            >
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    elementRef={elementRef}
+                    renderItem={renderItem}
+                    extraChildren={extraChildren}
+                    initialScrollOffset={initialScrollOffset}
+                    bufferedItemHeight={bufferedMessageViewHeight}
+                    itemCount={state.getItemCount()}
+                    onRenderedRangeChange={tryLoadingMoreData}
+                    scrollbarInsetTop={scrollbarInsetTop}
+                />
+                <MessageInput
+                    ref={inputRef}
+                    messageNoun={messageNoun}
+                    messages={state.messages}
+                    isMessageCreationDisabled={isMessageCreationDisabled}
+                    onUpdateMessages={update => setMessages(update)}
+                    createMessage={async input => {
+                        await createMessage(input);
+                    }}
+                    messageEditing={messageEditing}
+                    replyingToMessage={
+                        replyingToMessageIndex !== null
+                            ? state.messages.getLoadedMessageIfExists(replyingToMessageIndex)
+                            : null
+                    }
+                    onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
+                    onJumpToMessage={handleJumpToMessage}
+                    onDeleteMessage={async messageIndex => {
+                        await deleteMessage({messageIndex});
+                    }}
+                    onShowTypingIndicator={() => {
+                        startTypingInMessageInput({})
+                            // Don't show an error updating typing indicators to the user. We will see an
+                            // error in our logs but the user won't see any weird behavior if the
+                            // request fails.
+                            .catch(error =>
+                                reporter.logErrorWithoutDisplaying(
+                                    "Couldn't update typing indicator",
+                                    error,
+                                ),
+                            );
+                    }}
+                    onHideTypingIndicator={() => {
+                        stopTypingInMessageInput({})
+                            // Don't show an error updating typing indicators to the user. We will see an
+                            // error in our logs but the user won't see any weird behavior if the
+                            // request fails.
+                            .catch(error =>
+                                reporter.logErrorWithoutDisplaying(
+                                    "Couldn't update typing indicator",
+                                    error,
+                                ),
+                            );
+                    }}
+                    restoreStateRef={inputRestoreStateRef}
+                    paddingX={paddingX}
+                />
+            </div>
         </>
     );
 }
