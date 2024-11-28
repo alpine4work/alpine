@@ -79,11 +79,7 @@ export function ContentFileViewerModalDesktop({
     const {isAppleDevice} = useClientInfo();
     const {space} = useSpaceContext();
 
-    const [viewerRef, viewerSize] = useResizeObserver({
-        // Don't use the `getBoundingClientRect` method because the dimensions will be
-        // affected by the modal's fade in animation which scales the modal element.
-        method: "clientWidthAndHeight",
-    });
+    const [viewerRef, viewerSize] = useResizeObserver();
 
     // Only allow zooming on image files that have finished loading.
     const withZoom =

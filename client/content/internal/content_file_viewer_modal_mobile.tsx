@@ -72,17 +72,8 @@ export function ContentFileViewerModalMobile({
 }) {
     const {space} = useSpaceContext();
 
-    const [navigationBarRef, navigationBarSize] = useResizeObserver({
-        // Don't use the `getBoundingClientRect` method because the dimensions will be
-        // affected by the modal's fade in animation which scales the modal element.
-        method: "clientWidthAndHeight",
-    });
-
-    const [viewerRef, viewerSize] = useResizeObserver({
-        // Don't use the `getBoundingClientRect` method because the dimensions will be
-        // affected by the modal's fade in animation which scales the modal element.
-        method: "clientWidthAndHeight",
-    });
+    const [navigationBarRef, navigationBarSize] = useResizeObserver();
+    const [viewerRef, viewerSize] = useResizeObserver();
 
     const [windowSafeAreaInsetBottom, setWindowSafeAreaInsetBottom] = useState<number | null>(null);
 

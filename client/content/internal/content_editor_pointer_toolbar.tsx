@@ -251,7 +251,14 @@ export function ContentEditorPointerToolbar({
             isPointerDown = true;
             setHasPointerMovedWhileDown(false);
 
-            if (event.pointerType === "mouse") {
+            if (
+                event.pointerType === "mouse" &&
+                // Ignore clicks outside of our `EditorView` for triple click detection
+                // purposes. This will happen in integration tests where we click in a document
+                // then the pointer toolbar in rapid succession.
+                event.target instanceof Node &&
+                viewRef.current?.dom.contains(event.target)
+            ) {
                 const mouseDownTime = Date.now();
 
                 if (
@@ -309,7 +316,7 @@ export function ContentEditorPointerToolbar({
             document.removeEventListener("pointercancel", handlePointerCancel, true);
             document.removeEventListener("dragstart", handleDragStart, true);
         };
-    }, []);
+    }, [viewRef]);
 
     const initialSelection = useConstant(() => state.selection);
 
