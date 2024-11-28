@@ -578,14 +578,15 @@ function ContentEditorPointerToolbarOverlay({
         <Overlay
             ref={overlayRef}
             isVisible={true}
-            placement="top"
+            placement="top-start"
             // The pointer toolbar needs to flip to the bottom if it would otherwise
             // conflict with the navigation bar. For example, try opening a post view on
             // desktop then editing the post, then selecting text at the top of the post.
             // The toolbar needs to flip down.
-            fallbackPlacements={["bottom"]}
+            fallbackPlacements={["bottom-start"]}
             overflowTop={navigationBarHeight}
             offset="3"
+            offsetAlong="-4"
             overlay={
                 <div
                     className={overlayAnimateContainerClassName}
