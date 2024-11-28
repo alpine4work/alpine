@@ -92,13 +92,11 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
             display="flex"
             justifyContent="center"
             alignItems="center"
-            backgroundColor="grey-0-opacity-95"
+            backgroundColor="grey-0-glass"
             style={{
                 paddingTop: `calc(var(--safe-area-inset-top-base, 0px) + ${
                     spacing[withInboxBanner ? inboxBannerHeight : "0"]
                 })`,
-                backdropFilter: `saturate(200%) blur(${spacing["1"]})`,
-                WebkitBackdropFilter: `saturate(200%) blur(${spacing["1"]})`,
             }}
         >
             <Box

@@ -515,10 +515,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 data-testid={dataTestId}
                 id={id}
                 width="full"
-                backgroundColor="grey-0-opacity-95"
+                backgroundColor="grey-0-glass"
                 style={{
-                    backdropFilter: `saturate(200%) blur(${spacing["1"]})`,
-                    WebkitBackdropFilter: `saturate(200%) blur(${spacing["1"]})`,
                     minHeight: !isBottomBar
                         ? messageInputMinHeight[platform]
                         : `calc(${

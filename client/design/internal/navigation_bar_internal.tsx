@@ -959,13 +959,11 @@ export function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             top="0"
                             left="0"
                             right="0"
-                            backgroundColor="grey-0-opacity-95"
+                            backgroundColor="grey-0-glass"
                             display="flex"
                             justifyContent="center"
                             pointerEvents="auto"
                             style={{
-                                backdropFilter: `saturate(200%) blur(${spacing["1"]})`,
-                                WebkitBackdropFilter: `saturate(200%) blur(${spacing["1"]})`,
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
                         />
