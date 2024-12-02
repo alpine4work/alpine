@@ -3,7 +3,6 @@ import {flushSync} from "react-dom";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
@@ -17,29 +16,11 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  * reference of the `ref` object passed in. We will only observe a new element
  * when this object changes.
  *
- * You may choose the method for measuring the element. Different methods have
- * different pros/cons.
- *
- * - `getBoundingClientRect`: Uses `element.getBoundingClientRect()` and
- *   returns dimensions with sub-pixel accuracy. Any CSS transformations will
- *   be applied to this rect.
- *
- * - `clientWidthAndHeight`: Uses `element.clientWidth` and
- *   `element.clientHeight`. Dimensions will be rounded to the nearest integer.
- *   CSS transformations will not be applied to this rect.
- *
- * The default is `getBoundingClientRect` since it returns accurate sub-pixel
- * measurements. However, if your element is part of an animation that changes
- * its scale you may want `clientWidthAndHeight` instead which'll ignore any
- * CSS transformations.
- *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
  */
 export function useResizeObserver({
-    method = "getBoundingClientRect",
     withSuppressResizeLoopErrorNotification = false,
 }: {
-    method?: "getBoundingClientRect" | "clientWidthAndHeight";
     withSuppressResizeLoopErrorNotification?: boolean;
 } = emptyObject): [
     RefCallback<HTMLElement>,
@@ -50,25 +31,11 @@ export function useResizeObserver({
     const ref = useLifecycleRef<HTMLElement>(
         useCallback(
             element => {
-                const listener = () => {
-                    let width: number;
-                    let height: number;
-
-                    switch (method) {
-                        case "getBoundingClientRect": {
-                            ({height, width} = element.getBoundingClientRect());
-                            break;
-                        }
-                        case "clientWidthAndHeight": {
-                            width = element.clientWidth;
-                            height = element.clientHeight;
-                            break;
-                        }
-                        default:
-                            throw exhaustive(method);
-                    }
-
-                    const newContentRect = {height, width};
+                const listener = (entry: ResizeObserverEntry) => {
+                    const newContentRect = {
+                        width: entry.contentRect.width,
+                        height: entry.contentRect.height,
+                    };
 
                     setContentRect(contentRect => {
                         return newContentRect.width !== contentRect?.width ||
@@ -77,10 +44,6 @@ export function useResizeObserver({
                             : contentRect;
                     });
                 };
-
-                // Immediately populate the content rect with our element's dimensions
-                // on mount.
-                listener();
 
                 if (withSuppressResizeLoopErrorNotification)
                     addSuppressResizeLoopErrorNotificationForElement(element);
@@ -92,7 +55,7 @@ export function useResizeObserver({
                         removeSuppressResizeLoopErrorNotificationForElement(element);
                 };
             },
-            [method, withSuppressResizeLoopErrorNotification],
+            [withSuppressResizeLoopErrorNotification],
         ),
     );
 
@@ -110,16 +73,39 @@ function createResizeObserver() {
     const resizeObserver = new ResizeObserver(entries => {
         const entryTargets = new Set<Element>();
 
-        // Run resize observer listeners synchronously. React component updates made in
-        // resize listeners should happen in the same browser paint where they were
-        // dispatched so the user doesn't see a tear in the UI.
-        flushSync(() => {
-            for (const entry of entries) {
-                entryTargets.add(entry.target);
+        const update: Array<{
+            entry: ResizeObserverEntry;
+            resizeListeners: Set<(entry: ResizeObserverEntry) => void>;
+        }> = [];
 
+        for (const entry of entries) {
+            entryTargets.add(entry.target);
+
+            const lastEntry = lastResizeObserverEntryByElement.get(entry.target);
+
+            // We've seen some `ResizeObserver` events emitted when the width/height
+            // hasn't actually changed. So check to make sure the width/height has actually
+            // changed before calling any resize listeners.
+            if (
+                lastEntry === undefined ||
+                lastEntry.contentRect.width !== entry.contentRect.width ||
+                lastEntry.contentRect.height !== entry.contentRect.height
+            ) {
                 lastResizeObserverEntryByElement.set(entry.target, entry);
+
                 const resizeListeners = resizeListenersByElement.get(entry.target);
-                if (resizeListeners) {
+                if (resizeListeners !== undefined) {
+                    update.push({resizeListeners, entry});
+                }
+            }
+        }
+
+        if (update.length > 0) {
+            // Run resize observer listeners synchronously. React component updates made in
+            // resize listeners should happen in the same browser paint where they were
+            // dispatched so the user doesn't see a tear in the UI.
+            flushSync(() => {
+                for (const {resizeListeners, entry} of update) {
                     for (const listener of resizeListeners) {
                         try {
                             listener(entry);
@@ -128,8 +114,8 @@ function createResizeObserver() {
                         }
                     }
                 }
-            }
-        });
+            });
+        }
 
         lastEntryTargets = entryTargets;
     });

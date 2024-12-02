@@ -125,26 +125,12 @@ export function useContentEditorTracker({
                     // `<ContentEditorPointerToolbar>` when editing a post view on desktop with text
                     // selected at the start of the post will need to flip down to avoid the post
                     // navigation bar.
-                    if (
-                        Math.abs(coordsFrom.top - coordsTo.top) <= 1 &&
-                        Math.abs(coordsFrom.bottom - coordsTo.bottom) <= 1
-                    ) {
-                        coords = {
-                            top: Math.min(coordsFrom.top, coordsTo.top),
-                            bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
-                            left: Math.min(coordsFrom.left, coordsTo.left),
-                            right: Math.max(coordsFrom.right, coordsTo.right),
-                        };
-                    } else {
-                        const viewRect = viewRef.current.dom.getBoundingClientRect();
-
-                        coords = {
-                            top: Math.min(coordsFrom.top, coordsTo.top),
-                            bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
-                            left: viewRect.left,
-                            right: viewRect.right,
-                        };
-                    }
+                    coords = {
+                        top: Math.min(coordsFrom.top, coordsTo.top),
+                        bottom: Math.max(coordsFrom.bottom, coordsTo.bottom),
+                        left: Math.min(coordsFrom.left, coordsTo.left),
+                        right: Math.max(coordsFrom.right, coordsTo.right),
+                    };
                 }
             }
 

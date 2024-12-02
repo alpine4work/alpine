@@ -361,10 +361,17 @@ const colorProperties = defineProperties({
     defaultCondition: "default",
     properties: {
         color: colorSchemeVars,
-        backgroundColor: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
-            backgroundColor: colorSchemeVar,
-            vars: {[backgroundColorVar]: colorSchemeVar},
-        })),
+        backgroundColor: {
+            ...mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+                backgroundColor: colorSchemeVar,
+                vars: {[backgroundColorVar]: colorSchemeVar},
+            })),
+            "grey-0-glass": {
+                backgroundColor: colorSchemeVarsWithTransparent["grey-0-opacity-95"],
+                vars: {[backgroundColorVar]: colorSchemeVars["grey-0"]},
+                backdropFilter: `saturate(150%) blur(${spacing["4"]})`,
+            },
+        },
         fill: colorSchemeVars,
 
         // Default to thin 1px borders over chunky borders.

@@ -624,6 +624,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         key: "Header",
                     };
                 }
+
+                // The sticky `<MessageInput>` needs to be an item in our virtualized scroll
+                // view because the height of our message input changes. Unlike
+                // `useNavigationBar()` which adds a sticky navigation bar with
+                // `extraChildren` and adds a constant amount of space to the virtualized
+                // scroll view.
                 case "Input": {
                     return {
                         withManualLayout: true,
@@ -704,6 +710,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         ),
                     };
                 }
+
                 default: {
                     return renderMessageListItem({
                         platform,
