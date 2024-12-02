@@ -29,9 +29,10 @@ import {
     FileAttachmentTargetByArea,
 } from "~/shared/files/file_attachment_target.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
+import {maxFileContentLength} from "~/shared/files/file_constants.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel, maxFileContentLength} from "~/shared/files/file_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {
     FileAudioPreviewMetadata,
     FileImagePreviewSize,
@@ -637,9 +638,11 @@ export async function finishUploadingAndStartProcessingFile(
     {
         spaceId,
         fileId,
+        validateContentLength,
     }: {
         spaceId: SpaceId;
         fileId: FileId;
+        validateContentLength?: number;
     },
 ): Promise<FileModel> {
     if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
@@ -665,6 +668,14 @@ export async function finishUploadingAndStartProcessingFile(
 
         if (!item.isUploading) {
             throw new FailedPreconditionError("File has already finished uploading");
+        }
+
+        if (validateContentLength !== undefined && item.contentLength !== validateContentLength) {
+            throw new FailedPreconditionError(
+                `Expected file to be ${prettyBytes(
+                    item.contentLength,
+                )} but instead the file was ${prettyBytes(validateContentLength)}`,
+            );
         }
 
         item = {

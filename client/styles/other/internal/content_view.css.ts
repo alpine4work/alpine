@@ -34,6 +34,8 @@ export const seeButtonClassName = style({
     cursor: "pointer",
     userSelect: "none",
     color: colorSchemeVars["grey-90"],
+    // Don't allow "See more" and "See less" text to wrap onto separate lines.
+    whiteSpace: "nowrap",
 });
 
 export const seeButtonPressedClassName = style({

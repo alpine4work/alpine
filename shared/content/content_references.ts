@@ -40,7 +40,7 @@ export const ContentReferencesSchema = Schema.object({
         Schema.id<FileId>(),
         Schema.object({
             signedUrlSearch: Schema.string,
-            file: FileModel.schema(),
+            file: FileModel.schema,
         }),
     ),
 });

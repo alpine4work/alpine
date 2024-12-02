@@ -33,7 +33,8 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel, UploadFileResponseSchema} from "~/shared/files/file_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -132,7 +133,7 @@ beforeAll(async () => {
                                 rpc: new TestUploadFileRpcContextModule(),
                             }),
                         {},
-                        {FilesBucket: r2Bucket as any},
+                        {FilesBucket: r2Bucket},
                         edgeTokenAgent,
                         request,
                         url,

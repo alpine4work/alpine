@@ -1,7 +1,7 @@
 import {ArrowsLeftRight, PencilSimple, Recycle, SignOut} from "phosphor-react";
 import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {Spacer} from "~/client/design/spacer.js";

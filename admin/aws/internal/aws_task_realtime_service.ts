@@ -2,6 +2,7 @@ import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Peer, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -85,7 +86,7 @@ export class AwsTaskRealtimeService extends Construct {
         this.autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
             instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: partitionCount * partitionInstanceCount,
             // During a deploy, we double our capacity needs since we keep running old
@@ -170,12 +171,22 @@ export class AwsTaskRealtimeService extends Construct {
 
         const ports = createArrayWithLength(instanceCpuCount, index => portBase + index + 1);
 
-        // This appears to be the available memory for our containers. Unclear how we
-        // get this number from 1024 (the instance type's memory). It makes sense that
-        // we'd need some overhead for ECS.
-        const memoryLimitMiB = 944;
+        const cpu = 2048;
 
-        const gatewayMemoryPercent = 0.02;
+        // Memory available to our container. We can't use the full available memory
+        // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
+        // to function.
+        //
+        // The right value is available on the container instance screen in the AWS
+        // console. Specifically under the "Resources & networking" tab. You want to
+        // look at "Total capacity" and make sure we're reserving all of it.
+        //
+        // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
+        // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
+        // stuck in the "Provisioning" status forever.
+        const memoryLimitMiB = 936;
+
+        const gatewayResourcePercent = 0.02;
 
         this.taskDefinition.addContainer("Container", {
             image: ContainerImage.fromTarball(
@@ -186,8 +197,9 @@ export class AwsTaskRealtimeService extends Construct {
                         : "cyberworlds/server/tasks/realtime/realtime_image_tarball_load/tarball.tar",
                 ),
             ),
+            cpu: cpu - Math.floor(cpu * gatewayResourcePercent),
             memoryReservationMiB:
-                memoryLimitMiB - Math.floor(memoryLimitMiB * gatewayMemoryPercent),
+                memoryLimitMiB - Math.floor(memoryLimitMiB * gatewayResourcePercent),
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -270,7 +282,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/tasks/realtime/realtime.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "${ports
+                    `/var/www/server/tasks/realtime/realtime.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "${ports
                         .map(
                             port =>
                                 `{ const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') } }`,
@@ -289,7 +301,8 @@ export class AwsTaskRealtimeService extends Construct {
                         : "cyberworlds/server/tasks/realtime/gateway/gateway_image_tarball_load/tarball.tar",
                 ),
             ),
-            memoryReservationMiB: Math.floor(memoryLimitMiB * gatewayMemoryPercent),
+            cpu: Math.floor(cpu * gatewayResourcePercent),
+            memoryReservationMiB: Math.floor(memoryLimitMiB * gatewayResourcePercent),
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -311,7 +324,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/tasks/realtime/gateway/gateway.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:80/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/tasks/realtime/gateway/gateway.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:80/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });

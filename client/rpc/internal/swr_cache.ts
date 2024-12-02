@@ -179,26 +179,6 @@ export class SwrCache {
     }
 
     /**
-     * Force revalidate an entry with the provided fetcher function ignoring the
-     * previous `dedupingInterval`.
-     */
-    public forceRevalidateEntry(
-        key: string,
-        fetcher: (key: string) => PromiseLike<object>,
-        options: {dedupingInterval: number},
-    ) {
-        const referenceState = this._referenceStateByKey.get(key);
-        if (!((referenceState?.referenceCount ?? 0) > 0)) {
-            throw new FailedPreconditionError("Must retain entry before it can be referenced");
-        }
-
-        const currentTime = Date.now();
-        const entryStack = this._entryStackByKey.getSnapshot(key);
-
-        return this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
-    }
-
-    /**
      * Revalidate an entry with the provided fetcher function but only if the entry
      * has not yet been initialized in the cache. If the entry is available in our
      * cache do nothing.

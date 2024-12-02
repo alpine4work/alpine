@@ -2681,7 +2681,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // appropriately.
                 + ((webView.url?.query() ?? "")
                     .contains(WebNavigationController.inboxBannerUrlQueryRegex)
-                    ? mobileLayoutInboxBannerHeight : 0),
+                    ? inboxBannerHeight : 0),
             left: safeAreaInsets.left,
             bottom: safeAreaInsets.bottom,
             right: safeAreaInsets.right
@@ -3261,6 +3261,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     func canSwitchTab() -> Bool {
         return webViewHealthState.isHealthy && !webViewHealthState.isLoading
+            && webViewHealthState.lastPingTime != nil
             && webViewHealthState.navigationError == nil
     }
 

@@ -87,6 +87,7 @@ import {
     convertRemLengthToPx,
     parseRemLength,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -104,10 +105,16 @@ import {
 } from "~/shared/remix/peek_path_helpers.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const peekHeight = "38rem";
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];
+
+const maxPeekHeight = "42rem";
+const viewportPeekMarginTop = spacing["4"];
+const peekHeight = `min(100vh - ${viewportPeekMarginTop}, ${maxPeekHeight})`;
+const peekHeightWithUnderlayOffset =
+    `min(100vh + ${subtractRemLengths(peekBottomBuffer, viewportPeekMarginTop)}, ` +
+    `${addRemLengths(maxPeekHeight, peekBottomBuffer)})`;
 
 const peekControlsHeight = "6";
 
@@ -983,8 +990,6 @@ function PeekStackOverlay({
         !state.disableEntranceAnimationsDuringNextRender && index === 0,
     );
     {
-        const translateY = addRemLengths(peekHeight, peekUnderlayOffset);
-
         const isUnmounting = index < 0 || state.isUnmountingAll;
 
         const isAnimatingOpenRef = useRef(false);
@@ -995,7 +1000,14 @@ function PeekStackOverlay({
             isAnimatingOpenRef.current = true;
             trackNavigationAnimationStart();
 
+            const overlayElement = assertExists(overlayRef.current);
             const overlayContainerElement = assertExists(overlayContainerRef.current);
+
+            const spacingScale = getSpacingScaleWithoutListening();
+            const translateY =
+                overlayElement.clientHeight -
+                convertRemLengthToPx(peekBottomBuffer, spacingScale) +
+                convertRemLengthToPx(peekUnderlayOffset, spacingScale);
 
             const animation = animate(
                 overlayContainerElement,
@@ -1004,7 +1016,7 @@ function PeekStackOverlay({
                     // independent transforms like `y` with a spring so it can overshoot
                     // correctly.
                     // https://motion.dev/dom/spring
-                    y: [convertRemLengthToPx(translateY, getSpacingScaleWithoutListening()), 0],
+                    y: [translateY, 0],
                 },
                 {
                     easing: spring({
@@ -1030,7 +1042,6 @@ function PeekStackOverlay({
             index,
             isAnimatingOpen,
             state.disableEntranceAnimationsDuringNextRender,
-            translateY,
         ]);
 
         const hasStartedUnmountingRef = useRef(false);
@@ -1039,6 +1050,7 @@ function PeekStackOverlay({
             if (hasStartedUnmountingRef.current) return;
             hasStartedUnmountingRef.current = true;
 
+            const overlayElement = assertExists(overlayRef.current);
             const overlayContainerElement = assertExists(overlayContainerRef.current);
 
             // If the overlay we're unmounting contains the focused element then unfocus
@@ -1050,6 +1062,12 @@ function PeekStackOverlay({
                 document.activeElement.blur();
             }
 
+            const spacingScale = getSpacingScaleWithoutListening();
+            const translateY =
+                overlayElement.clientHeight -
+                convertRemLengthToPx(peekBottomBuffer, spacingScale) +
+                convertRemLengthToPx(peekUnderlayOffset, spacingScale);
+
             const animation = animate(
                 overlayContainerElement,
                 {
@@ -1057,7 +1075,7 @@ function PeekStackOverlay({
                     // independent transforms like `y` with a spring so it can overshoot
                     // correctly.
                     // https://motion.dev/dom/spring
-                    y: [0, convertRemLengthToPx(translateY, getSpacingScaleWithoutListening())],
+                    y: [0, translateY],
                 },
                 {
                     easing: spring({
@@ -1071,7 +1089,7 @@ function PeekStackOverlay({
                 // We use `indexRef` here so we don't capture an old index in this closure.
                 dispatch({type: "FinishUnmounting", unmountingStackIndex: -indexRef.current - 1});
             });
-        }, [dispatch, isUnmounting, translateY]);
+        }, [dispatch, isUnmounting]);
     }
 
     // Animation 2: Shift overlays later in the stack right and down.
@@ -1270,7 +1288,7 @@ function PeekStackOverlay({
                     className={greyElevated1ClassName}
                     style={{
                         width: spacing[peekMobileLayoutWidth],
-                        height: addRemLengths(peekHeight, peekBottomBuffer),
+                        height: peekHeightWithUnderlayOffset,
                         paddingBottom: peekBottomBuffer,
                     }}
                 >

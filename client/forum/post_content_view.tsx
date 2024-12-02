@@ -51,7 +51,6 @@ import {
     contentViewStyles,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {ContentReferences} from "~/shared/content/content_references.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
@@ -88,7 +87,6 @@ export function PostContentView({
     isPostView,
     initialScroll,
     idBase,
-    onMergePostContentReferences,
     onTogglePostComments,
     onLoadInitialPostComments,
     onScrollToIfNotVisible,
@@ -101,7 +99,6 @@ export function PostContentView({
     isPostView: boolean;
     initialScroll: PostContentViewInitialScroll | null;
     idBase: string;
-    onMergePostContentReferences: (references: ContentReferences) => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
     onScrollToIfNotVisible: () => void;
@@ -279,7 +276,6 @@ export function PostContentView({
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({padding: postContentViewInnerMarginY})}
-                            onMergeContentReferences={onMergePostContentReferences}
                         />
                     ) : (
                         <ContentViewWithSeeMoreToggle
@@ -288,7 +284,6 @@ export function PostContentView({
                             className={sprinkles({padding: postContentViewInnerMarginY})}
                             content={post.content}
                             contentSnippet={postSnippet}
-                            onMergeContentReferences={onMergePostContentReferences}
                         />
                     )
                 ) : (

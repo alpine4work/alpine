@@ -1,6 +1,8 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -18,6 +20,7 @@ import {
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -101,7 +104,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const dom = document.createElement("span");
             const mention: ContentMention = node.attrs.mention;
             const mentionText = createContentMentionTextStore(
-                getAccountClientStoreForClient(this._getSpaceId()),
+                getAccountClientStore(this._getSpaceId()),
                 this._getContentReferences(),
                 mention,
             ).getSnapshot();
@@ -161,7 +164,28 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         if (node.type.name === "fileRow" || node.type.name === "fileFloat") {
             const fileRowDom = document.createElement("div");
 
-            const layouts = layoutContentFileParent(this._getContentReferences(), node, {
+            const fileStore = getFileClientStore(this._getSpaceId());
+            const contentReferences = this._getContentReferences();
+
+            const fileById = new Map(
+                filterMapIterable(
+                    node.content.content,
+                    (childNode): [FileId, FileClientStoreData] | undefined => {
+                        if (childNode.type.name !== "file") return;
+
+                        const fileId: FileId = childNode.attrs.fileId;
+
+                        const fileReference = fileId
+                            ? contentReferences.fileById.get(fileId)
+                            : undefined;
+                        if (!fileReference) return;
+
+                        return [fileId, fileStore.getFileStore(fileReference).getSnapshot()];
+                    },
+                ),
+            );
+
+            const layouts = layoutContentFileParent(fileById, node, {
                 screenWidth: getClientInfo().screenWidth,
                 platform: "desktop",
                 spacingScale: "small",

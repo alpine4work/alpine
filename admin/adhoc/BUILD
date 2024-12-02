@@ -28,6 +28,7 @@ ts_project(
         "//server/tracer",
         "//shared/content",
         "//shared/context",
+        "//shared/design",
         "//shared/error",
         "//shared/files",
         "//shared/helpers",

@@ -14,7 +14,7 @@ import {
     ContentEditorState,
     getContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
-import {disableContentFilePreviewSignedUrlRefreshForTest} from "~/client/content/internal/content_file_preview.js";
+import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
@@ -47,7 +47,7 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 // We use constant, expired, signed URLs so our test snapshots don't change
 // every test run. Disable URL refreshing in this test file.
-disableContentFilePreviewSignedUrlRefreshForTest();
+disableStartMaintainingFileForTest();
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

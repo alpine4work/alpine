@@ -446,15 +446,15 @@ for (const [currentProcessingType, processingMultiple] of [
                     taskOwner: await scenario.session1.get(),
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: taskCommentFromSession1.createdTime,
+                        author: await scenario.session2.get(),
+                        createdTime: taskCommentFromSession2.createdTime,
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 1"),
+                            doc: createSimpleMessageContent("task comment from session 2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: await scenario.session3.get(),
                 }),
             });
 

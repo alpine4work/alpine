@@ -251,7 +251,14 @@ export function ContentEditorPointerToolbar({
             isPointerDown = true;
             setHasPointerMovedWhileDown(false);
 
-            if (event.pointerType === "mouse") {
+            if (
+                event.pointerType === "mouse" &&
+                // Ignore clicks outside of our `EditorView` for triple click detection
+                // purposes. This will happen in integration tests where we click in a document
+                // then the pointer toolbar in rapid succession.
+                event.target instanceof Node &&
+                viewRef.current?.dom.contains(event.target)
+            ) {
                 const mouseDownTime = Date.now();
 
                 if (
@@ -309,7 +316,7 @@ export function ContentEditorPointerToolbar({
             document.removeEventListener("pointercancel", handlePointerCancel, true);
             document.removeEventListener("dragstart", handleDragStart, true);
         };
-    }, []);
+    }, [viewRef]);
 
     const initialSelection = useConstant(() => state.selection);
 
@@ -578,14 +585,15 @@ function ContentEditorPointerToolbarOverlay({
         <Overlay
             ref={overlayRef}
             isVisible={true}
-            placement="top"
+            placement="top-start"
             // The pointer toolbar needs to flip to the bottom if it would otherwise
             // conflict with the navigation bar. For example, try opening a post view on
             // desktop then editing the post, then selecting text at the top of the post.
             // The toolbar needs to flip down.
-            fallbackPlacements={["bottom"]}
+            fallbackPlacements={["bottom-start"]}
             overflowTop={navigationBarHeight}
             offset="3"
+            offsetAlong="-4"
             overlay={
                 <div
                     className={overlayAnimateContainerClassName}

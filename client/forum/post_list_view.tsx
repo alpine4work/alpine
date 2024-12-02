@@ -85,7 +85,6 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {ContentReferences} from "~/shared/content/content_references.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -156,7 +155,6 @@ function PostListView(
     {
         channelHeader,
         posts: postsWithoutChannelHeader,
-        onMergePostContentReferences,
         onTogglePostComments,
         onUpdatePostComments,
         onLoadMorePosts,
@@ -177,11 +175,6 @@ function PostListView(
          * The post content to be rendered in this post list view.
          */
         posts: PostListInterface;
-
-        /**
-         * Update the content references for a post.
-         */
-        onMergePostContentReferences: Memo<(postId: PostId, references: ContentReferences) => void>;
 
         /**
          * Toggle the comments for a post open and closed.
@@ -872,9 +865,6 @@ function PostListView(
                                                 : null
                                         }
                                         idBase={idBase}
-                                        onMergePostContentReferences={references =>
-                                            onMergePostContentReferences(item.post.id, references)
-                                        }
                                         onTogglePostComments={() =>
                                             onTogglePostComments(item.post.id)
                                         }
@@ -1295,7 +1285,6 @@ function PostListView(
                                                 maxWidth: contentStyles.contentMaxWidth,
                                                 pointerEvents: "auto",
                                                 paddingLeft: postCommentSectionGuidelineSpace,
-                                                backgroundColor: "grey-0",
                                             })}
                                             style={{
                                                 flex: postViewFlex,
@@ -1307,6 +1296,7 @@ function PostListView(
                                         >
                                             <div
                                                 className={sprinkles({
+                                                    zIndex: "10",
                                                     position: "absolute",
                                                     top: "0",
                                                     bottom: "7",
@@ -1448,7 +1438,6 @@ function PostListView(
             shouldNotShowChannelId,
             initialScrollForFirstPost,
             idBase,
-            onMergePostContentReferences,
             onTogglePostComments,
             loadInitialPostComments,
             platform,

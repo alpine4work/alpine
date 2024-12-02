@@ -9,7 +9,7 @@ declare global {
     }
 
     interface Response {
-        readonly webSocket?: globalThis.WebSocket;
+        webSocket: globalThis.WebSocket | null;
     }
 }
 
@@ -24,7 +24,7 @@ if (process.versions.node) {
     // https://github.com/cloudflare/miniflare/blob/7e4d906e19cc69cd3446512bfeb7f8aee3a2bda7/packages/core/src/standards/http.ts#L624-L635
     class Response extends OriginalResponse {
         private readonly _status?: number;
-        private readonly _webSocket?: globalThis.WebSocket;
+        private readonly _webSocket: globalThis.WebSocket | null;
 
         constructor(body?: BodyInit | null, init?: ResponseInit) {
             let status: number | undefined;
@@ -44,7 +44,7 @@ if (process.versions.node) {
             super(body, init);
 
             if (status !== undefined) this._status = status;
-            if (webSocket !== undefined) this._webSocket = webSocket;
+            this._webSocket = webSocket ?? null;
         }
 
         public override get status() {

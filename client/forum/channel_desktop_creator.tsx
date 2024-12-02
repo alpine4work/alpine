@@ -97,7 +97,6 @@ export function ChannelDesktopCreator({
                 () => PostBasicList.new({type: "Many", hasMorePosts: false, posts: []}),
                 [],
             )}
-            onMergePostContentReferences={useCallback(() => {}, [])}
             onTogglePostComments={useCallback(() => {}, [])}
             onUpdatePostComments={useCallback(() => {}, [])}
             onLoadMorePosts={asyncNoop}

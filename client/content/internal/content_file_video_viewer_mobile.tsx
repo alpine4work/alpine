@@ -1,6 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {useRef} from "react";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
@@ -14,10 +14,8 @@ import {Box} from "~/client/design/box.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,13 +23,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function ContentFileVideoViewerMobile({
     file,
-    signedUrlSearch,
-    expirationTimers,
     loaderDataPromise,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
-    expirationTimers: ContentFilePreviewExpirationTimers;
+    file: FileClientStoreData;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
 }) {
     if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
@@ -86,33 +80,20 @@ export function ContentFileVideoViewerMobile({
         );
     }
 
-    return (
-        <ContentFileVideoViewerMobileInner
-            signedUrlSearch={signedUrlSearch}
-            expirationTimers={expirationTimers}
-            videoElement={videoElement}
-        />
-    );
+    return <ContentFileVideoViewerMobileInner file={file} videoElement={videoElement} />;
 }
 
 function ContentFileVideoViewerMobileInner({
-    signedUrlSearch,
-    expirationTimers,
+    file,
     videoElement,
 }: {
-    signedUrlSearch: string;
-    expirationTimers: ContentFilePreviewExpirationTimers;
-
+    file: FileClientStoreData;
     videoElement: HTMLVideoElement;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const isSignedUrlSearchExpired = useStore(
-        expirationTimers.getExpiredTimerStore(signedUrlSearch),
-    );
-
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (isSignedUrlSearchExpired) return;
+        if (file.isSignedUrlExpired) return;
 
         const containerElement = assertExists(containerRef.current);
 
@@ -121,7 +102,7 @@ function ContentFileVideoViewerMobileInner({
         return () => {
             videoElement.remove();
         };
-    }, [isSignedUrlSearchExpired, videoElement]);
+    }, [file.isSignedUrlExpired, videoElement]);
 
     return (
         <Box

@@ -5,11 +5,10 @@ import {
     computeContentFileRowLayout,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
-import {ContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileModelData} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -20,7 +19,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
         screenWidth: number,
         platform: Platform,
         spacingScale: SpacingScale,
-        ...files: Array<FileModel | null>
+        ...files: Array<FileModelData | null>
     ) => {
         switch (node.type.name) {
             case "fileRow": {
@@ -58,13 +57,17 @@ const actuallyLayoutContentFileParent = createCachedFunction(
  * the exact same (referentially equal) value.
  */
 export function layoutContentFileParent(
-    references: ContentReferences,
+    fileById: Map<FileId, FileModelData> | FileModelData | null | undefined,
     node: Node,
     {
         screenWidth,
         platform,
         spacingScale,
-    }: {screenWidth: number; platform: Platform; spacingScale: SpacingScale},
+    }: {
+        screenWidth: number;
+        platform: Platform;
+        spacingScale: SpacingScale;
+    },
 ): ReadonlyArray<ContentFileLayout> {
     const files = node.content.content.map(childNode => {
         if (childNode.type.name !== "file") {
@@ -73,9 +76,16 @@ export function layoutContentFileParent(
             );
         }
 
+        if (!fileById) return null;
+
         const fileId: FileId | null = childNode.attrs.fileId;
+
+        if ("contentType" in fileById) {
+            return fileById.id === fileId ? fileById : null;
+        }
+
         if (!fileId) return null;
-        return references.fileById.get(fileId)?.file ?? null;
+        return fileById.get(fileId) ?? null;
     });
 
     return actuallyLayoutContentFileParent(node, screenWidth, platform, spacingScale, ...files);
@@ -93,7 +103,7 @@ export function layoutContentFileParent(
  * (referentially equal) layout without needing to recompute layout.
  */
 export function layoutContentFile(
-    references: ContentReferences,
+    file: FileModelData | null | undefined,
     doc: Node,
     pos: number,
     node: Node,
@@ -101,6 +111,6 @@ export function layoutContentFile(
 ): ContentFileLayout {
     const $pos = doc.resolve(pos);
     assert($pos.nodeAfter && $pos.nodeAfter.eq(node));
-    const layouts = layoutContentFileParent(references, $pos.parent, options);
+    const layouts = layoutContentFileParent(file, $pos.parent, options);
     return layouts[$pos.index()]!;
 }

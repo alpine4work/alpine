@@ -427,8 +427,9 @@ function VirtualizedScrollView(
         stateKey,
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
+        scrollbarInsetBottomItemIndex,
         scrollbarInsetTop: actualScrollbarInsetTop,
-        scrollbarInsetBottom,
+        scrollbarInsetBottom: actualScrollbarInsetBottom,
         extraChildren,
         extraChildrenOutsideContentElement,
         extraChildrenContentHeight = 0,
@@ -541,6 +542,12 @@ function VirtualizedScrollView(
          * out of range.
          */
         scrollbarInsetTopItemIndex?: number;
+
+        /**
+         * Inset the scrollbar before this item index. Throws an error if the index is
+         * out of range.
+         */
+        scrollbarInsetBottomItemIndex?: number;
 
         /**
          * Inset the scrollbar by this many pixels. If both
@@ -739,59 +746,31 @@ function VirtualizedScrollView(
         lastScrollTopRef.current = scrollElement.scrollTop =
             scrollElement.scrollHeight - scrollElement.clientHeight;
 
-        // When we initially scroll to the bottom, use the last rendered element as our
+        // When we initially scroll to the bottom, use the bottom of our view as our
         // scroll anchor. That way as we measure items rendered above the content
         // doesn't shift for the user.
-        {
-            const contentElement = assertExists(contentRef.current);
-            let selectedElement: HTMLElement | null = null;
-            let selectedKey: Key | null = null;
-
-            // NOTE(calebmer): There's room to optimize this algorithm. If we keep our item
-            // refs in sorted order we can break after we find the first item within the
-            // scroll window.
-            for (const [key, elementRef] of iterateItemRefs()) {
-                // Ignore elements that are positioned within an element other than our
-                // absolutely positioned content element. This could happen for items using
-                // custom layout.
-                if (elementRef.element.offsetParent !== contentElement) continue;
-
-                // Select the last element.
-                if (
-                    selectedElement === null ||
-                    elementRef.element.offsetTop > selectedElement.offsetTop
-                ) {
-                    selectedKey = key;
-                    selectedElement = elementRef.element;
-                }
-            }
-
-            if (selectedElement) {
-                const scrollAnchorElement = selectedElement;
-
-                scrollAnchorRef.current = {
-                    keyForDebugging: selectedKey!,
-                    // Use the last element as the anchor until it is scrolled offscreen. Then
-                    // resume regular anchor selection. (First visible element.)
-                    shouldAnchorWhileVisible: true,
-                    lastPosition: getElementPosition(
-                        scrollElement,
-                        scrollAnchorElement,
-                        // Scroll anchor adjustment initializes to null.
-                        null,
-                    ),
-                    getPosition: ({scrollAnchorAdjustmentDuringMobileWebKitScroll}) => {
-                        if (!document.body.contains(scrollAnchorElement)) return null;
-                        return getElementPosition(
-                            scrollElement,
-                            scrollAnchorElement,
-                            scrollAnchorAdjustmentDuringMobileWebKitScroll,
-                        );
-                    },
-                };
-            }
-        }
-    }, [initialScrollOffset, actualState.hasInitiallyScrolledRef]);
+        scrollAnchorRef.current = {
+            keyForDebugging: "initialScrollOffset:bottom",
+            // Use the last element as the anchor until it is scrolled offscreen. Then
+            // resume regular anchor selection. (First visible element.)
+            shouldAnchorWhileVisible: true,
+            lastPosition: {
+                offset: stateRef.current.state.getContentHeight() - 1,
+                height: 1,
+                nextElementSibling: "ignore",
+                previousElementSibling: "ignore",
+            },
+            getPosition: ({state, scrollAnchorAdjustmentDuringMobileWebKitScroll}) => ({
+                offset:
+                    state.getContentHeight() +
+                    (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0) -
+                    1,
+                height: 1,
+                nextElementSibling: "ignore",
+                previousElementSibling: "ignore",
+            }),
+        };
+    }, [initialScrollOffset, actualState.hasInitiallyScrolledRef, spacingScale]);
 
     const itemsRef = useRef<{
         hasScheduledCleanup: boolean;
@@ -915,10 +894,10 @@ function VirtualizedScrollView(
 
                             // IMPORTANT: Be careful about using props in this function because we will
                             // capture a version of props when the component is rendered.
-                            const handleResize = () => {
-                                // We must use `getBoundingClientRect()` so we get the sub-pixel height.
+                            const handleResize = (entry: ResizeObserverEntry) => {
+                                // We must use `entry.contentRect` so we get the sub-pixel height.
                                 // `offsetHeight` is rounded (at least on iOS Safari).
-                                const {height} = element.getBoundingClientRect();
+                                const {height} = entry.contentRect;
 
                                 // If the element was removed from the DOM its height will be zero. Don't
                                 // record that height.
@@ -1075,13 +1054,17 @@ function VirtualizedScrollView(
 
             if (
                 // Start our comparison with the first element we see.
-                selectedElement === null ||
-                // Pick the earliest element in the scroll view.
-                elementRef.element.offsetTop < selectedElement.offsetTop ||
-                // If the current element is completely outside the scroll window, then prefer
-                // an element inside the scroll window.
-                (selectedElement.offsetTop + selectedElement.offsetHeight < scrollTop &&
-                    elementRef.element.offsetTop < scrollTop + clientHeight)
+                (selectedElement === null ||
+                    // Pick the earliest element in the scroll view.
+                    elementRef.element.offsetTop < selectedElement.offsetTop ||
+                    // If the current element is completely outside the scroll window, then prefer
+                    // an element inside the scroll window.
+                    (selectedElement.offsetTop + selectedElement.offsetHeight < scrollTop &&
+                        elementRef.element.offsetTop < scrollTop + clientHeight)) &&
+                // Don't allow `position: sticky` elements to be the anchor element. Since as we
+                // adjust the scroll position the anchor element will move causing us to try and
+                // reset the scroll position again so on and so forth forever.
+                getComputedStyle(elementRef.element).position === "absolute"
             ) {
                 selectedKey = key;
                 selectedElement = elementRef.element;
@@ -1287,6 +1270,14 @@ function VirtualizedScrollView(
     } else if (scrollbarInsetTopItemIndex !== undefined) {
         const {offset, height} = state.getPositionByIndex(scrollbarInsetTopItemIndex);
         scrollbarInsetTop = offset + height;
+    }
+
+    let scrollbarInsetBottom: ScrollbarInset | undefined;
+    if (actualScrollbarInsetBottom !== undefined) {
+        scrollbarInsetBottom = actualScrollbarInsetBottom;
+    } else if (scrollbarInsetBottomItemIndex !== undefined) {
+        const {offset} = state.getPositionByIndex(scrollbarInsetBottomItemIndex);
+        scrollbarInsetBottom = contentHeight - offset;
     }
 
     const stateRefCurrent = {
@@ -1790,6 +1781,8 @@ function VirtualizedScrollView(
         [],
     );
 
+    const actualContentHeight = Math.max(contentHeight, extraChildrenContentHeight);
+
     return (
         <>
             <div
@@ -1820,7 +1813,7 @@ function VirtualizedScrollView(
                 }}
                 onScroll={handleScroll}
             >
-                <div style={{height: Math.max(contentHeight, extraChildrenContentHeight)}} />
+                <div style={{height: actualContentHeight}} />
                 <div
                     ref={contentRef}
                     style={{
@@ -1828,7 +1821,7 @@ function VirtualizedScrollView(
                         left: 0,
                         right: 0,
                         top: 0 - (scrollAnchorAdjustmentDuringMobileWebKitScroll ?? 0),
-                        height: Math.max(contentHeight, extraChildrenContentHeight),
+                        height: actualContentHeight,
                         zIndex: "0", // Make sure we create a new z-index stacking context
                     }}
                 >

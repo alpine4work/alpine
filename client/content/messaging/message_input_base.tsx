@@ -519,7 +519,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 data-testid={dataTestId}
                 id={id}
                 width="full"
-                backgroundColor="grey-0"
+                backgroundColor="grey-0-glass"
                 style={{
                     minHeight: !isBottomBar
                         ? messageInputMinHeight[platform]

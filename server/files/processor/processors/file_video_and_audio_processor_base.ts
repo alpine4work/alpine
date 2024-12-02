@@ -13,10 +13,10 @@ export const ffmpegImagePreviewContentOutputContentType: FileContentType = "imag
 
 /**
  * The maximum number of threads for FFmpeg to use. We set this limit to avoid
- * resource contention. In unit tests we only use 2 threads since we'll be
+ * resource contention. In unit tests we only use 1 thread since we'll be
  * running many tests in parallel.
  */
-export const ffmpegThreadCount = import.meta.jest ? 1 : 4;
+export const ffmpegThreadCount = import.meta.jest ? 1 : 2;
 
 /**
  * What FFmpeg video codecs supported by MP4 files are web safe? We don't have

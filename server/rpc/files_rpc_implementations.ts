@@ -5,6 +5,7 @@ import {
     attachFileAsUploader,
     attachFileFromAttachment,
     finishUploadingAndStartProcessingFile,
+    getFileAsUploader,
     getFileFromAttachment,
     startUploadingFile,
 } from "~/server/files/data/files_table.js";
@@ -74,6 +75,14 @@ export default implementRpcs(definitions, {
                 signedUrlSearch: signedUrl.search,
                 file,
             };
+        },
+    },
+
+    getFileWithoutSignedUrlAsUploader: {
+        visibility: ["EdgeService"],
+        execute: async (context, input) => {
+            const file = await getFileAsUploader(context, input.spaceId, input.fileId);
+            return {file};
         },
     },
 

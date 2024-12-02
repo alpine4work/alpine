@@ -19,10 +19,7 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
 import {isContinuouslyTypingInContentEditor} from "~/client/content/content_editor_state.js";
 import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_input_rules_plugin.js";
-import {
-    ContentEditorMobileKeyboardSubstitute,
-    ContentEditorMobileKeyboardSubstituteRef,
-} from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
+import {ContentEditorMobileKeyboardSubstitute} from "~/client/content/internal/content_editor_mobile_keyboard_substitute.js";
 import {ContentEditorMobileLinkModalState} from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
@@ -86,7 +83,6 @@ export function ContentEditorMobileKeyboardToolbar({
     );
 
     const toolbarRef = useRef<HTMLDivElement>(null);
-    const substituteRef = useRef<ContentEditorMobileKeyboardSubstituteRef>(null);
     const id = useId();
 
     const [isToolbarRenderedFromState, setIsToolbarRendered] = useState(false);
@@ -162,13 +158,6 @@ export function ContentEditorMobileKeyboardToolbar({
     }, [isFocused, isToolbarRenderedFromState]);
 
     const [isSubstituteOpen, setIsSubstituteOpen] = useState(false);
-
-    useEffect(() => {
-        if (!isFocused && isSubstituteOpen) {
-            const substitute = assertExists(substituteRef.current);
-            substitute.closeWithAnimation();
-        }
-    }, [isSubstituteOpen, isFocused]);
 
     // If we unmounted while the substitute is open then we need to run
     // `cleanupAfterSubstitute()`.
@@ -450,9 +439,9 @@ export function ContentEditorMobileKeyboardToolbar({
                 )}
             {isSubstituteOpen && (
                 <ContentEditorMobileKeyboardSubstitute
-                    ref={substituteRef}
                     state={state}
                     viewRef={viewRef}
+                    isFocused={isFocused}
                     onClose={() => {
                         setIsSubstituteOpen(false);
                         void NativeMobileBridge?.keyboard.cleanupAfterSubstitute();

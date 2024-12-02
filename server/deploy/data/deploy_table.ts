@@ -235,6 +235,11 @@ function isTimeDeployable(time: ZonedDateTime): boolean {
     // Is this a weekday according to what the US considers weekdays vs weekends?
     if (!isWeekday(time, "en-US")) return false;
 
+    // TODO(calebmer): Deploy all the time on weekdays if tests pass. It's really
+    // annoying for me when we're out of the deploy window since I work long hours.
+    // As the team grows set a proper deployable time policy.
+    if (true) return true;
+
     // Is the time within 9am-3:30pm? A standard workday is 9am-5pm.
     //
     // We deploy continuously during work hours. Starting at 9am. We stop deploying

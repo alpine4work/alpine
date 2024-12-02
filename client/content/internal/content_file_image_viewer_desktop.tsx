@@ -2,8 +2,8 @@
 
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
-import {Schema as ProsemirrorSchema} from "prosemirror-model";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     getFileImagePreviewRenderingAdjustments,
@@ -11,7 +11,6 @@ import {
     handleDownloadContentFile,
     renderFileImagePreviewPlaceholder,
 } from "~/client/content/internal/content_file_preview.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerDesktopMarginBottom,
@@ -30,18 +29,13 @@ import {MenuAction} from "~/client/design/menu.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
-import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -51,19 +45,15 @@ import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url
 
 export function ContentFileImageViewerDesktop({
     file,
-    signedUrlSearch,
     attachmentTarget,
-    expirationTimers,
     loaderDataPromise,
     viewerSize,
     zoomScale,
     maxZoomScale,
     extraChildrenForVideo,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
@@ -112,9 +102,7 @@ export function ContentFileImageViewerDesktop({
         <ContentFileImageDesktopViewerInner
             file={file}
             filePreviewPlaceholder={file.preview.placeholder}
-            signedUrlSearch={signedUrlSearch}
             attachmentTarget={attachmentTarget}
-            expirationTimers={expirationTimers}
             loaderDataPromise={loaderDataPromise}
             viewerSize={viewerSize}
             zoomScale={zoomScale}
@@ -127,20 +115,16 @@ export function ContentFileImageViewerDesktop({
 function ContentFileImageDesktopViewerInner({
     file,
     filePreviewPlaceholder,
-    signedUrlSearch,
     attachmentTarget,
-    expirationTimers,
     loaderDataPromise,
     viewerSize,
     zoomScale,
     maxZoomScale,
     extraChildrenForVideo,
 }: {
-    file: FileModel;
+    file: FileClientStoreData;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
-    signedUrlSearch: string;
     attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
@@ -186,10 +170,6 @@ function ContentFileImageDesktopViewerInner({
         [filePreviewPlaceholder],
     );
 
-    const isSignedUrlSearchExpired = useStore(
-        expirationTimers.getExpiredTimerStore(signedUrlSearch),
-    );
-
     const setErrorState = useErrorState();
 
     const fileContentTypeNoun = getFileContentTypeNoun(file.contentType);
@@ -203,23 +183,9 @@ function ContentFileImageDesktopViewerInner({
                 onPress: async () => {
                     const element = assertExists(imageRef.current);
 
-                    // Create a temporary schema we can use for constructing a `file` node we
-                    // can copy.
-                    const schema = new ProsemirrorSchema({
-                        nodes: {
-                            ...contentBaseProsemirrorSchemaSpec.nodes,
-                            ...createContentFileProsemirrorNodeSpecs(),
-                        },
-                        marks: contentBaseProsemirrorSchemaSpec.marks,
-                    });
-
                     await handleCopyContentFile(element, {
                         spaceId: space.id,
-                        node: schema.node("file", {fileId: file.id}),
-                        references: {
-                            ...emptyContentReferences,
-                            fileById: new Map([[file.id, {file, signedUrlSearch}]]),
-                        },
+                        file,
                         attachmentTarget,
                     });
                 },
@@ -229,11 +195,7 @@ function ContentFileImageDesktopViewerInner({
                 isDisabled: file.isUploading,
                 pressErrorTitle: `Couldn’t download ${fileContentTypeNoun}`,
                 onPress: () => {
-                    handleDownloadContentFile({
-                        spaceId: space.id,
-                        file,
-                        signedUrlSearch,
-                    });
+                    handleDownloadContentFile({spaceId: space.id, file});
                 },
             },
         ],
@@ -294,7 +256,7 @@ function ContentFileImageDesktopViewerInner({
     }, [isLoaded, isLoadedAndAnimated]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (isSignedUrlSearchExpired) return;
+        if (file.isSignedUrlExpired) return;
 
         if (loaderDataResult.isPending) return;
         assert(loaderDataResult.value?.type === "Image");
@@ -347,7 +309,7 @@ function ContentFileImageDesktopViewerInner({
             imageContentElement.remove();
         };
     }, [
-        isSignedUrlSearchExpired,
+        file.isSignedUrlExpired,
         loaderDataResult,
         maxScaledFileHeight,
         maxScaledFileWidth,
@@ -355,7 +317,7 @@ function ContentFileImageDesktopViewerInner({
     ]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (isSignedUrlSearchExpired) return;
+        if (file.isSignedUrlExpired) return;
 
         if (loaderDataResult.isPending) return;
         assert(loaderDataResult.value?.type === "Image");
@@ -372,8 +334,8 @@ function ContentFileImageDesktopViewerInner({
         // improves zooming performance in Chrome.
         imageContentElement.style.transform = `scale(${zoomScale / maxZoomScale})`;
     }, [
+        file.isSignedUrlExpired,
         fileSize.width,
-        isSignedUrlSearchExpired,
         loaderDataResult,
         maxZoomScale,
         scaledFileWidth,

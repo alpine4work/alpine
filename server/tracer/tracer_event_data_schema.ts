@@ -363,6 +363,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
                 contentType: Schema.string,
                 contentLength: Schema.integer,
             },
+            multipartUpload: {
+                id: Schema.string,
+                partNumber: Schema.integer,
+                partContentLength: Schema.integer,
+                totalPartCount: Schema.integer,
+            },
         },
     },
     github: {

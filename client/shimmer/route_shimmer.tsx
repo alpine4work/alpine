@@ -26,6 +26,7 @@ import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
+import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
 import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderPaddingY,
@@ -56,10 +57,7 @@ import {
     postViewFlex,
     postViewNavigationBarSpace,
 } from "~/client/styles/forum_shared_styles.js";
-import {
-    desktopLayoutInboxBannerHeight,
-    mobileLayoutInboxBannerHeight,
-} from "~/client/styles/inbox_shared_styles.js";
+import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
     messageInputAccountAvatarSize,
     messageInputMinHeight,
@@ -145,7 +143,12 @@ const shimmerOptionsByRouteId: {
     readonly [key: string]:
         | {
               inboxBannerMaxWidth?: Spacing | "full";
-              component: ComponentType<{}>;
+              component: ComponentType<{
+                  withInboxBanner: boolean;
+                  // Avoid TypeScript error "object has no properties in common" error.
+                  withBackButton?: undefined;
+                  titleWidth?: undefined;
+              }>;
           }
         | false;
 } = {
@@ -245,7 +248,7 @@ function RouteShimmer({
     if (!withInboxBanner) {
         return (
             <Box ref={containerRef} width="full" height="full" overflow="hidden">
-                <shimmerOptions.component />
+                <shimmerOptions.component withInboxBanner={withInboxBanner} />
             </Box>
         );
     } else {
@@ -259,13 +262,7 @@ function RouteShimmer({
                 style={{
                     // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
                     // like it.
-                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${
-                        spacing[
-                            routeLayout === "narrow"
-                                ? mobileLayoutInboxBannerHeight
-                                : desktopLayoutInboxBannerHeight
-                        ]
-                    })`,
+                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
                 }}
             >
                 <Box
@@ -281,11 +278,7 @@ function RouteShimmer({
                         alignItems="center"
                         marginX="center"
                         maxWidth={shimmerOptions.inboxBannerMaxWidth ?? "full"}
-                        height={
-                            routeLayout === "narrow"
-                                ? mobileLayoutInboxBannerHeight
-                                : desktopLayoutInboxBannerHeight
-                        }
+                        height={inboxBannerHeight}
                         paddingX={screenPaddingX}
                     >
                         <TextShimmer fontSize="50" width="16" />
@@ -316,7 +309,7 @@ function RouteShimmer({
                     </Box>
                 </Box>
                 <Box width="full" height="full" overflow="hidden">
-                    <shimmerOptions.component />
+                    <shimmerOptions.component withInboxBanner={withInboxBanner} />
                 </Box>
             </Box>
         );
@@ -588,7 +581,7 @@ function ChannelFilesRouteShimmer() {
     );
 }
 
-function ChatRouteShimmer() {
+function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
     const platform = usePlatform();
 
     return (
@@ -618,6 +611,11 @@ function ChatRouteShimmer() {
                         height="full"
                         marginX="center"
                         paddingX={screenPaddingX}
+                        paddingBottom={
+                            withInboxBanner
+                                ? chatViewTopBarWithInboxBannerAdjustmentY[platform]
+                                : undefined
+                        }
                     >
                         <Box
                             className={pulseAnimationClassName}

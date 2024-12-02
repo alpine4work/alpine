@@ -4,6 +4,11 @@ import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_con
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
 import {fetchFile} from "~/server/edge/fetch_file.js";
+import {
+    completeFileMultipartUpload,
+    createFileMultipartUpload,
+    putFileMultipartUploadPart,
+} from "~/server/edge/file_multipart_upload.js";
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -178,6 +183,9 @@ async function handleFetch(
         | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
         | {type: "TaskRealtimeService"; spaceId: SpaceId}
         | {type: "UploadFile"; spaceId: SpaceId}
+        | {type: "CreateFileMultipartUpload"; spaceId: SpaceId}
+        | {type: "PutFileMultipartUploadPart"; spaceId: SpaceId; fileId: FileId; partNumber: string}
+        | {type: "CompleteFileMultipartUpload"; spaceId: SpaceId; fileId: FileId}
         | {type: "File"; spaceId: SpaceId; fileId: FileId}
         | {type: "FileCorsProxy"; url: string} = "AppService";
 
@@ -285,13 +293,34 @@ async function handleFetch(
         }
     } else if (url.pathname.startsWith("/api/files/")) {
         const pathSegments = url.pathname.slice("/api/files/".length).split("/");
-        if (
-            pathSegments.length === 2 &&
-            isId<SpaceId>(pathSegments[0]!) &&
-            pathSegments[1] === "upload"
-        ) {
-            routeString = "/api/files/:spaceId/upload";
-            route = {type: "UploadFile", spaceId: pathSegments[0]};
+        if (isId<SpaceId>(pathSegments[0]!)) {
+            if (pathSegments.length === 2 && pathSegments[1] === "upload") {
+                routeString = "/api/files/:spaceId/upload";
+                route = {type: "UploadFile", spaceId: pathSegments[0]};
+            } else if (pathSegments[1] === "multipart-upload") {
+                if (pathSegments.length === 2) {
+                    routeString = "/api/files/:spaceId/multipart-upload";
+                    route = {type: "CreateFileMultipartUpload", spaceId: pathSegments[0]};
+                } else if (pathSegments.length > 2 && isId<FileId>(pathSegments[2]!)) {
+                    if (pathSegments.length === 4 && pathSegments[3] === "complete") {
+                        routeString = "/api/files/:spaceId/multipart-upload/:fileId/complete";
+                        route = {
+                            type: "CompleteFileMultipartUpload",
+                            spaceId: pathSegments[0],
+                            fileId: pathSegments[2],
+                        };
+                    } else if (pathSegments.length === 5 && pathSegments[3] === "part") {
+                        routeString =
+                            "/api/files/:spaceId/multipart-upload/:fileId/part/:partNumber";
+                        route = {
+                            type: "PutFileMultipartUploadPart",
+                            spaceId: pathSegments[0],
+                            fileId: pathSegments[2],
+                            partNumber: pathSegments[4]!,
+                        };
+                    }
+                }
+            }
         }
     }
 
@@ -509,7 +538,10 @@ async function handleFetch(
                         );
                     }
 
-                    case "UploadFile": {
+                    case "UploadFile":
+                    case "CreateFileMultipartUpload":
+                    case "PutFileMultipartUploadPart":
+                    case "CompleteFileMultipartUpload": {
                         // Can't forward a request to upgrade to a WebSocket connection to
                         // `FileProcessorService`. All WebSocket connection routes are enumerated above.
                         if (request.headers.has("upgrade"))
@@ -531,16 +563,58 @@ async function handleFetch(
                                 }),
                             });
 
-                        return uploadFile(
-                            createContext,
-                            executionContext,
-                            env,
-                            tokenAgent,
-                            request,
-                            url,
-                            span,
-                            route,
-                        );
+                        switch (route.type) {
+                            case "UploadFile": {
+                                return uploadFile(
+                                    createContext,
+                                    executionContext,
+                                    env,
+                                    tokenAgent,
+                                    request,
+                                    url,
+                                    span,
+                                    route,
+                                );
+                            }
+                            case "CreateFileMultipartUpload": {
+                                return createFileMultipartUpload(
+                                    createContext,
+                                    executionContext,
+                                    env,
+                                    tokenAgent,
+                                    request,
+                                    url,
+                                    span,
+                                    route,
+                                );
+                            }
+                            case "PutFileMultipartUploadPart": {
+                                return putFileMultipartUploadPart(
+                                    createContext,
+                                    executionContext,
+                                    env,
+                                    tokenAgent,
+                                    request,
+                                    url,
+                                    span,
+                                    route,
+                                );
+                            }
+                            case "CompleteFileMultipartUpload": {
+                                return completeFileMultipartUpload(
+                                    createContext,
+                                    executionContext,
+                                    env,
+                                    tokenAgent,
+                                    request,
+                                    url,
+                                    span,
+                                    route,
+                                );
+                            }
+                            default:
+                                throw exhaustive(route);
+                        }
                     }
 
                     // NOTE(calebmer, 2024-09-26): A minor optimization here would be to move file
@@ -634,10 +708,25 @@ async function handleFetch(
                         }
 
                         // eslint-disable-next-line no-global-fetch
-                        return fetch(proxyUrl, {
+                        let response = await fetch(proxyUrl, {
                             method: "GET",
                             headers: proxyHeaders,
                         });
+
+                        // Don't allow the proxied domain to set cookies with the `set-cookie` header.
+                        // This feels like it could be an attack vector though I can't currently think
+                        // of an attack that would use this ability.
+                        if (response.headers.has("set-cookie")) {
+                            const responseHeaders = new Headers(response.headers);
+                            responseHeaders.delete("set-cookie");
+
+                            response = new Response(response.body, {
+                                status: response.status,
+                                headers: responseHeaders,
+                            });
+                        }
+
+                        return response;
                     }
                     default:
                         throw exhaustive(route);
@@ -705,12 +794,19 @@ async function handleFetch(
         } catch (error) {
             span.addException(error);
 
-            const status = isSystemError(error) ? 500 : 400;
-            const statusMessage = isSystemError(error) ? "Internal Server Error" : "Bad Request";
+            let status;
+            let statusMessage;
+            if (isSystemError(error)) {
+                status = 500;
+                statusMessage = "Internal Server Error";
+            } else {
+                status = 400;
+                statusMessage = "Bad Request";
+            }
 
             return new Response(
                 `${status} ${statusMessage}${
-                    process.env.NODE_ENV === "development"
+                    process.env.NODE_ENV !== "production"
                         ? `\n\n${
                               error instanceof Error ? error.stack ?? error.message : String(error)
                           }`

@@ -259,8 +259,8 @@ export async function run({
         queueUrl: jobQueueUrl,
 
         // We'll run at most 100 jobs at once per Node.js worker.
-        maxConsumeCallMessageCount: 10,
-        maxRunningConsumeCallCount: 10,
+        maxFiberCount: 10,
+        maxFiberMessageCount: 10,
 
         processJob: (_actionContext, job, jobStartTime, span) => {
             // Jobs are already processed in a system context so this isn't actually an

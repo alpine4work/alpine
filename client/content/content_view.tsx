@@ -3,15 +3,15 @@ import {Node} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
-import {useContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {
@@ -49,10 +49,7 @@ import {
     createContentCodeBlockHtmlSerializationDecorationsStore,
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {
-    ContentWithReferences,
-    emptyContentReferences,
-} from "~/shared/content/content_references.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {
     codeBlockWrapperClassName,
     fileClassName,
@@ -77,6 +74,7 @@ import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {undefinedStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 
 const ContentViewCodeBlockDecorationsSchema = Schema.array(
@@ -112,18 +110,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * The content to render.
      */
     content: Content;
-
-    /**
-     * Update the references associated with `content`. Should merge the new
-     * references with the old ones with `mergeContentReferences()`.
-     *
-     * This is important for files. If you have a recently uploaded file then
-     * we'll poll the file until it's finished processing. Once it's finished
-     * processing this function is called to update our `FileModel` in state.
-     * If we don't update the `FileModel` in state it'll look like the file is
-     * processing forever.
-     */
-    onMergeContentReferences?: (contentReferences: Content["references"]) => void;
 
     /**
      * This prop puts an `(updated)` message at the end of our content with a
@@ -232,7 +218,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
  */
 export function ContentView<Content extends ContentWithReferences>({
     content,
-    onMergeContentReferences,
     contentUpdatedTime,
     placeholder,
     className,
@@ -254,11 +239,6 @@ export function ContentView<Content extends ContentWithReferences>({
         "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
     );
 
-    assert(
-        !content.doc.type.schema.nodes.file || onMergeContentReferences,
-        "When the ProseMirror schema supports files then the prop `onMergeContentReferences` is required",
-    );
-
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
     const clientInfo = useClientInfo();
@@ -268,6 +248,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
+    const fileStore = useFileClientStore();
     const reporter = useReporter();
 
     // Don't get the current account when running in a unit test so we don't need
@@ -291,12 +272,9 @@ export function ContentView<Content extends ContentWithReferences>({
 
     const events = useEvents({
         getContent: () => content,
-        onMergeContentReferences: onMergeContentReferences ?? noop,
         onSeeMoreContent: onSeeMoreContent ?? noop,
         onSeeLessContent: onSeeLessContent ?? noop,
     });
-
-    const filePreviewExpirationTimers = useContentFilePreviewExpirationTimers();
 
     const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
         readonly doc: Node;
@@ -460,6 +438,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 renderContentFragmentToHtmlGeneratorStore(content, {
                     spaceId,
                     accountStore,
+                    fileStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
                     platform,
@@ -470,7 +449,6 @@ export function ContentView<Content extends ContentWithReferences>({
                     placeholder,
                     decorations: [decorations, codeBlockDecorations],
                     shouldHighlightComment,
-                    filePreviewExpirationTimers,
                 }).map(htmlGenerator => ({
                     htmlGenerator,
                     codeBlockDecorations,
@@ -492,6 +470,7 @@ export function ContentView<Content extends ContentWithReferences>({
             htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
                 spaceId,
                 accountStore,
+                fileStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
                 platform,
@@ -502,7 +481,6 @@ export function ContentView<Content extends ContentWithReferences>({
                 placeholder,
                 decorations: [decorations, initialCodeBlockDecorations],
                 shouldHighlightComment,
-                filePreviewExpirationTimers,
             }).map(htmlGenerator => ({
                 htmlGenerator,
                 codeBlockDecorations: initialCodeBlockDecorations!,
@@ -528,12 +506,12 @@ export function ContentView<Content extends ContentWithReferences>({
         id,
         spaceId,
         accountStore,
+        fileStore,
         spaceContext?.currentAccount,
         isInitialAppRender,
         isInert,
         placeholder,
         shouldHighlightComment,
-        filePreviewExpirationTimers,
     ]);
 
     const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
@@ -923,41 +901,41 @@ export function ContentView<Content extends ContentWithReferences>({
                 const fileId: FileId | null = node.attrs.fileId;
                 const fileReference = fileId ? content.references.fileById.get(fileId) : undefined;
 
-                const cleanup = addContentFilePreviewBehavior(
-                    () => assertExists(context),
-                    element,
-                    {
-                        spaceId: assertExists(spaceContext).space.id,
-                        node,
-                        reference: fileReference,
-                        attachmentTarget: assertExists(fileAttachmentTarget),
-                        expirationTimers: assertExists(filePreviewExpirationTimers),
-                        isInert,
-                        isInitialAppRender,
-                        isEditorInitialAppRender,
-                        rootNavigate,
-                        getReporter: () => reporter,
-                        onUpdate: (file, signedUrlSearch) => {
-                            events.onMergeContentReferences({
-                                ...emptyContentReferences,
-                                fileById: new Map([[file.id, {signedUrlSearch, file}]]),
-                            });
-                        },
-                        onSignedUrlRefresh: (fileId, signedUrlSearch) => {
-                            const oldFile = events.getContent().references.fileById.get(fileId);
-                            if (!oldFile) return;
+                const actualFileStore = fileReference
+                    ? fileStore.getFileStore(fileReference)
+                    : undefinedStore;
 
-                            events.onMergeContentReferences({
-                                ...emptyContentReferences,
-                                fileById: new Map([
-                                    [fileId, {signedUrlSearch, file: oldFile.file}],
-                                ]),
-                            });
-                        },
-                    },
-                );
+                let cleanupBehavior: (() => void) | null = null;
 
-                cleanupFunctions.push(cleanup);
+                const update = () => {
+                    cleanupBehavior?.();
+                    cleanupBehavior = null;
+
+                    cleanupBehavior = addContentFilePreviewBehavior(
+                        () => assertExists(context),
+                        element,
+                        {
+                            spaceId: assertExists(spaceContext).space.id,
+                            node,
+                            file: actualFileStore.getSnapshot(),
+                            attachmentTarget: assertExists(fileAttachmentTarget),
+                            isInert,
+                            isInitialAppRender,
+                            isEditorInitialAppRender,
+                            rootNavigate,
+                            getReporter: () => reporter,
+                        },
+                    );
+                };
+
+                const unsubscribeFromStore = actualFileStore.subscribe(update);
+                update();
+
+                cleanupFunctions.push(() => {
+                    unsubscribeFromStore();
+                    cleanupBehavior?.();
+                    cleanupBehavior = null;
+                });
             }
         }
 
@@ -981,10 +959,10 @@ export function ContentView<Content extends ContentWithReferences>({
         isBackgroundColorGrey5,
         context,
         fileAttachmentTarget,
-        filePreviewExpirationTimers,
         isEditorInitialAppRender,
         rootNavigate,
         isInitialAppRender,
+        fileStore,
     ]);
 
     // Watch all parent elements of our content editor for scroll events. When a

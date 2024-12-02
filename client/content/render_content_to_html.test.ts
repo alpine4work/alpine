@@ -1,4 +1,5 @@
-import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/content/content_styles.js";
@@ -7,6 +8,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+
+const spaceId = generateId<SpaceId>();
 
 const contentClassNameAndVars = new Set<string>(
     concatIterables(
@@ -85,7 +89,8 @@ test("will properly number list items", () => {
                 },
                 {
                     spaceId: null,
-                    accountStore: getAccountClientStoreForClient(generateId()),
+                    accountStore: getAccountClientStore(spaceId),
+                    fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
                     screenWidth: 1920,
                     platform: "desktop",
@@ -176,7 +181,8 @@ test("will properly number list items with indentation", () => {
                 },
                 {
                     spaceId: null,
-                    accountStore: getAccountClientStoreForClient(generateId()),
+                    accountStore: getAccountClientStore(spaceId),
+                    fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
                     screenWidth: 1920,
                     platform: "desktop",
@@ -225,7 +231,8 @@ test("will properly number list items in quote blocks", () => {
                 },
                 {
                     spaceId: null,
-                    accountStore: getAccountClientStoreForClient(generateId()),
+                    accountStore: getAccountClientStore(spaceId),
+                    fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
                     screenWidth: 1920,
                     platform: "desktop",
@@ -279,7 +286,8 @@ test("will render code block", () => {
                 },
                 {
                     spaceId: null,
-                    accountStore: getAccountClientStoreForClient(generateId()),
+                    accountStore: getAccountClientStore(spaceId),
+                    fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
                     screenWidth: 1920,
                     platform: "desktop",

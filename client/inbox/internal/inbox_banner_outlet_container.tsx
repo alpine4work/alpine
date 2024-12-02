@@ -1,7 +1,7 @@
 import {ArrowUpRight, CaretDown, CaretUp, Check} from "phosphor-react";
 import {ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
 import {createPath, useLocation} from "react-router";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -28,10 +28,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    desktopLayoutInboxBannerHeight,
-    mobileLayoutInboxBannerHeight,
-} from "~/client/styles/inbox_shared_styles.js";
+import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -198,33 +195,20 @@ export function InboxBannerOutletContainer({
                 style={{
                     // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
                     // like it.
-                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${
-                        spacing[
-                            routeLayout === "narrow"
-                                ? mobileLayoutInboxBannerHeight
-                                : desktopLayoutInboxBannerHeight
-                        ]
-                    })`,
+                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
                 }}
             >
                 <Box
                     position="absolute"
                     left="0"
                     right="0"
-                    zIndex="10"
-                    backgroundColor="grey-0"
-                    style={{
-                        paddingTop: "var(--safe-area-inset-top-base, 0px)",
-                    }}
+                    zIndex="50"
+                    style={{paddingTop: "var(--safe-area-inset-top-base, 0px)"}}
                 >
                     <Box
                         width="full"
                         maxWidth={maxWidth}
-                        height={
-                            routeLayout === "narrow"
-                                ? mobileLayoutInboxBannerHeight
-                                : desktopLayoutInboxBannerHeight
-                        }
+                        height={inboxBannerHeight}
                         marginX="center"
                         display="flex"
                         justifyContent="center"
@@ -243,6 +227,7 @@ export function InboxBannerOutletContainer({
                                 paddingRight={
                                     !navigation && platform !== "mobile" ? "0.5" : undefined
                                 }
+                                userSelect={platform !== "mobile" ? "text" : undefined}
                             >
                                 {platform === "mobile"
                                     ? "Notification"
@@ -346,9 +331,13 @@ export function InboxBannerOutletContainer({
                                             withAnimation: true,
                                         });
 
-                                        if (!navigation) {
+                                        if (!navigation && routeLayout === "narrow") {
                                             // Navigate back, if this is in a peek we'll close the peek. If this is on
                                             // mobile we'll go back to inbox.
+                                            //
+                                            // If this is a wide layout (desktop) then that's because the user expanded
+                                            // the notification. Don't navigate if the user took an intentional action to
+                                            // expand the peek.
                                             await navigate(-1);
                                         }
                                     }

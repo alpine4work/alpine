@@ -5665,6 +5665,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "latestArchivingMessageIndex": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Integer"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "otherAccountId": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -5775,6 +5784,15 @@ export const dynamoGeneratedSchemaDescription: {
                                             }
                                         },
                                         "optional": false
+                                    },
+                                    "latestArchivingCommentIndex": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Integer"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "otherCommentAuthorId": {
                                         "valueSchema": {
@@ -5978,6 +5996,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "latestArchivingCommentIndex": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Integer"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "otherCommentAuthorId": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -6176,6 +6203,15 @@ export const dynamoGeneratedSchemaDescription: {
                                             }
                                         },
                                         "optional": false
+                                    },
+                                    "latestArchivingCommentIndex": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Integer"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "otherCommentAuthorId": {
                                         "valueSchema": {

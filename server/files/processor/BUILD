@@ -10,6 +10,7 @@ ts_project(
     data = ["@ffmpeg"],
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
+        "//:node_modules/@miniflare/core",
         "//:node_modules/get-port",
         "//:node_modules/looks-same",
         "//server/dynamo/test_helpers",
@@ -18,6 +19,9 @@ ts_project(
         "//server/spaces/test_helpers",
     ],
     tests = {
+        "resize_file_test": {
+            "size": "medium",
+        },
         "processors/file_processor_content_types_test": {
             "size": "medium",
         },

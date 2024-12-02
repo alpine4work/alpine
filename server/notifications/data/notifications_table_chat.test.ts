@@ -938,7 +938,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -1007,7 +1007,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: await scenario.session3.get(),
                 }),
             ]);
 
@@ -3690,7 +3690,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            await sendChatMessage(context.action(scenario.session3), {
+            const message2 = await sendChatMessage(context.action(scenario.session3), {
                 chatId: chat1Id,
                 parentMessageIndex: null,
                 content: createSimpleMessageContent("message2"),
@@ -4334,15 +4334,15 @@ for (const [currentProcessingType, processingMultiple] of [
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        createdTime: message2.createdTime,
+                        author: await scenario.session3.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("message3"),
+                            doc: createSimpleMessageContent("message2"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: await scenario.session2.get(),
                 }),
             ]);
 

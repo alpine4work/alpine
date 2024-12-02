@@ -1,12 +1,12 @@
 import {DownloadSimple, Export, FileDotted, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useCallback, useState} from "react";
+import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_file_audio_viewer_mobile.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
 import {getContentFileDownloadName} from "~/client/content/internal/content_file_preview.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/content_file_preview_expiration_timers.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {ContentFileVideoViewerMobile} from "~/client/content/internal/content_file_video_viewer_mobile.js";
 import {
@@ -42,7 +42,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {isFileModelDataLoading} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
@@ -59,34 +59,21 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  */
 export function ContentFileViewerModalMobile({
     file,
-    signedUrlSearch,
     attachmentTarget,
     ownedByElement,
-    expirationTimers,
     loaderDataPromise,
     onClose,
 }: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     attachmentTarget: FileAttachmentTarget;
     ownedByElement: Element | null;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
     const {space} = useSpaceContext();
 
-    const [navigationBarRef, navigationBarSize] = useResizeObserver({
-        // Don't use the `getBoundingClientRect` method because the dimensions will be
-        // affected by the modal's fade in animation which scales the modal element.
-        method: "clientWidthAndHeight",
-    });
-
-    const [viewerRef, viewerSize] = useResizeObserver({
-        // Don't use the `getBoundingClientRect` method because the dimensions will be
-        // affected by the modal's fade in animation which scales the modal element.
-        method: "clientWidthAndHeight",
-    });
+    const [navigationBarRef, navigationBarSize] = useResizeObserver();
+    const [viewerRef, viewerSize] = useResizeObserver();
 
     const [windowSafeAreaInsetBottom, setWindowSafeAreaInsetBottom] = useState<number | null>(null);
 
@@ -101,11 +88,11 @@ export function ContentFileViewerModalMobile({
         let url: string | undefined;
 
         if (file.alternative && !file.alternative.isProcessing && file.alternative.ok) {
-            url = `/files/${space.id}/${file.id}${signedUrlSearch}&variant=${
+            url = `/files/${space.id}/${file.id}${file.signedUrlSearch}&variant=${
                 file.alternative.isImagePreviewContent ? "preview" : "alternative"
             }`;
         } else if (!file.alternative && !file.isUploading) {
-            url = `/files/${space.id}/${file.id}${signedUrlSearch}`;
+            url = `/files/${space.id}/${file.id}${file.signedUrlSearch}`;
         }
 
         if (!url) {
@@ -152,7 +139,7 @@ export function ContentFileViewerModalMobile({
     };
 
     const withProcessingIndicator =
-        file.isLoading() &&
+        isFileModelDataLoading(file) &&
         // If the file has an image preview where the size or placeholder are
         // processing then we'll be showing a large spinner in the center of the entire
         // modal so we don't need to also show a small spinner here.
@@ -313,9 +300,7 @@ export function ContentFileViewerModalMobile({
                                 windowSafeAreaInsetBottom !== null && (
                                     <ContentFileViewerMobile
                                         file={file}
-                                        signedUrlSearch={signedUrlSearch}
                                         attachmentTarget={attachmentTarget}
-                                        expirationTimers={expirationTimers}
                                         loaderDataPromise={loaderDataPromise}
                                         navigationBarSize={navigationBarSize}
                                         viewerSize={viewerSize}
@@ -332,24 +317,15 @@ export function ContentFileViewerModalMobile({
 }
 
 function ContentFileViewerMobile(props: {
-    file: FileModel;
-    signedUrlSearch: string;
+    file: FileClientStoreData;
     attachmentTarget: FileAttachmentTarget;
-    expirationTimers: ContentFilePreviewExpirationTimers;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
     windowSafeAreaInsetBottom: number;
     onShare: () => Promise<void>;
 }) {
-    const {
-        file,
-        signedUrlSearch,
-        navigationBarSize,
-        viewerSize,
-        windowSafeAreaInsetBottom,
-        onShare,
-    } = props;
+    const {file, navigationBarSize, viewerSize, windowSafeAreaInsetBottom, onShare} = props;
 
     switch (props.file.contentType) {
         case "application/octet-stream": {
@@ -431,7 +407,6 @@ function ContentFileViewerMobile(props: {
                 >
                     <ContentFilePdfViewer
                         file={file}
-                        signedUrlSearch={signedUrlSearch}
                         viewerWidth={viewerSize.width}
                         viewerHeight={
                             viewerSize.height - navigationBarSize.height - windowSafeAreaInsetBottom

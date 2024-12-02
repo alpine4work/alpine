@@ -2,6 +2,7 @@ import {Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
+    AmiHardwareType,
     AsgCapacityProvider,
     ContainerImage,
     Ec2Service,
@@ -50,7 +51,7 @@ export class AwsJobQueueService extends Construct {
             // First 750 hours per month of this instance type are free. That effectively
             // translates to 1 free capacity of this instance type across our AWS account.
             instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
-            machineImage: EcsOptimizedImage.amazonLinux2(),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
             minCapacity: 1,
             // During a deploy, we double our capacity needs since we keep running old
@@ -141,10 +142,19 @@ export class AwsJobQueueService extends Construct {
                         : "cyberworlds/server/jobs/queue/queue_image_tarball_load/tarball.tar",
                 ),
             ),
-            // This appears to be the available memory for our containers. Unclear how we
-            // get this number from 1024 (the instance type's memory). It makes sense that
-            // we'd need some overhead for ECS.
-            memoryLimitMiB: 944,
+            cpu: 2048,
+            // Memory available to our container. We can't use the full available memory
+            // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
+            // to function.
+            //
+            // The right value is available on the container instance screen in the AWS
+            // console. Specifically under the "Resources & networking" tab. You want to
+            // look at "Total capacity" and make sure we're reserving all of it.
+            //
+            // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
+            // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
+            // stuck in the "Provisioning" status forever.
+            memoryLimitMiB: 936,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -247,7 +257,7 @@ export class AwsJobQueueService extends Construct {
                     "CMD-SHELL",
                     // `curl` is not installed in container. Use a script with our Node.js binary to
                     // perform healthcheck.
-                    `/var/www/server/jobs/queue/queue.runfiles/nodejs_linux_amd64/bin/nodejs/bin/node --input-type module --eval "import fs from 'fs'; if (fs.readFileSync('/var/www-data/server_jobs_queue_healthcheck.txt', 'utf8').trim() !== 'Healthy') { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/jobs/queue/queue.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "import fs from 'fs'; if (fs.readFileSync('/var/www-data/server_jobs_queue_healthcheck.txt', 'utf8').trim() !== 'Healthy') { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });

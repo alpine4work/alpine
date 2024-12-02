@@ -32,6 +32,7 @@ import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mo
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
@@ -802,8 +803,9 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     scrollableElement.scrollHeight - scrollableElement.clientHeight;
 
                 // If we can't scroll to `newScrollTop` because there's not enough scroll
-                // height, then request an animation frame and try again. This happens on
-                // desktop when a `<PostCommentInput>` at the end of a fully scrolled
+                // height, then `scheduleMicrotask()` and try again. Since we need the scroll
+                // to happen this paint we can't call `requestAnimationFrame()`. This happens
+                // on desktop when a `<PostCommentInput>` at the end of a fully scrolled
                 // `<PostListView>` resizes while you're typing in it (when there are multiple
                 // posts). When the `<PostCommentInput>` resizes, it emits a bottom bar size
                 // change event and re-renders `<VirtualizedScrollView>` with the new height.
@@ -814,7 +816,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 //
                 // [1]: https://gist.github.com/calebmer/6fb261ff2288c0c9734968a1256b01b2
                 if (!isAnimated && newScrollTop > maxScrollTop) {
-                    requestAnimationFrame(() => {
+                    scheduleMicrotask(() => {
                         scrollableElement.scrollTo({
                             top: newScrollTop,
                             behavior: "instant",
