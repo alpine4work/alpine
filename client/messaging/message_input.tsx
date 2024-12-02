@@ -31,6 +31,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {generateId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
@@ -49,6 +50,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     createMessage: (input: {
         parentMessageIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     }) => Promise<void>;
     messageEditing: MessageEditing<RoomKey>;
     replyingToMessage: Message | null;
@@ -214,6 +216,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 parentMessageIndex: replyingToMessage?.index ?? null,
                 content,
                 contentUpdatedTime: null,
+                files: [],
             },
         };
 
@@ -238,6 +241,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     const promise = createMessage({
                         parentMessageIndex: replyingToMessage?.index ?? null,
                         content: content.doc,
+                        // TODO(calebmer, #files): Add file uploading to message input.
+                        fileIds: [],
                     });
 
                     // Sending a message dismisses post comment entries and chat entries.

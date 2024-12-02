@@ -109,12 +109,13 @@ testMessagingImplementation<TaskId>(processContext, {
     },
     async createMessage(
         context,
-        {roomKey: taskId, parentMessageIndex: parentCommentIndex, content},
+        {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds},
     ) {
         const comment = await createTaskComment(context, {
             taskId,
             parentCommentIndex,
             content,
+            fileIds,
         });
 
         return {

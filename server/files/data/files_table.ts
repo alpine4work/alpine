@@ -214,10 +214,9 @@ const FilesTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 {
-                    name: "ChatMessageAttachmentTarget",
+                    name: "ChatMessagesAttachmentTarget",
                     sortKeyAttributes: {
                         chatId: DynamoKeyAttributeSchema.id<ChatId>(),
-                        messageIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -242,11 +241,10 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "DocumentCommentAttachmentTarget",
+                    name: "DocumentCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
                         commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
-                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -272,10 +270,9 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "PostCommentAttachmentTarget",
+                    name: "PostCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         postId: DynamoKeyAttributeSchema.id<PostId>(),
-                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -291,10 +288,9 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "TaskCommentAttachmentTarget",
+                    name: "TaskCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         taskId: DynamoKeyAttributeSchema.id<TaskId>(),
-                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -332,14 +328,13 @@ function getFileAttachmentTargetItemKey(
     target: FileAttachmentTarget,
 ): FileAttachmentTargetItemKey {
     switch (target.type) {
-        case "ChatMessage": {
+        case "ChatMessages": {
             return {
                 partitionType: "File",
-                sortRangeType: "ChatMessageAttachmentTarget",
+                sortRangeType: "ChatMessagesAttachmentTarget",
                 spaceId,
                 fileId,
                 chatId: target.chatId,
-                messageIndex: target.messageIndex,
             };
         }
         case "ChannelDescription": {
@@ -360,15 +355,14 @@ function getFileAttachmentTargetItemKey(
                 documentId: target.documentId,
             };
         }
-        case "DocumentComment": {
+        case "DocumentComments": {
             return {
                 partitionType: "File",
-                sortRangeType: "DocumentCommentAttachmentTarget",
+                sortRangeType: "DocumentCommentsAttachmentTarget",
                 spaceId,
                 fileId,
                 documentId: target.documentId,
                 commentThreadId: target.commentThreadId,
-                commentIndex: target.commentIndex,
             };
         }
         case "Post": {
@@ -390,14 +384,13 @@ function getFileAttachmentTargetItemKey(
                 draftId: target.draftId,
             };
         }
-        case "PostComment": {
+        case "PostComments": {
             return {
                 partitionType: "File",
-                sortRangeType: "PostCommentAttachmentTarget",
+                sortRangeType: "PostCommentsAttachmentTarget",
                 spaceId,
                 fileId,
                 postId: target.postId,
-                commentIndex: target.commentIndex,
             };
         }
         case "TaskNotes": {
@@ -409,14 +402,13 @@ function getFileAttachmentTargetItemKey(
                 taskId: target.taskId,
             };
         }
-        case "TaskComment": {
+        case "TaskComments": {
             return {
                 partitionType: "File",
-                sortRangeType: "TaskCommentAttachmentTarget",
+                sortRangeType: "TaskCommentsAttachmentTarget",
                 spaceId,
                 fileId,
                 taskId: target.taskId,
-                commentIndex: target.commentIndex,
             };
         }
         default:

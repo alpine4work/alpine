@@ -1,5 +1,5 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
-import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     archiveInboxEntry,
@@ -91,10 +91,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -123,11 +124,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -143,7 +140,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -180,7 +177,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -196,11 +193,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session3), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            const message2 = await chat.sendMessage(scenario.session3, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -216,7 +209,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -244,7 +237,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -269,11 +262,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message3 = await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat.sendMessage(scenario.session1, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -298,7 +287,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -326,7 +315,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -351,10 +340,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning someone in a creates a second loud notification for them", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -383,11 +373,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -403,7 +389,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -440,7 +426,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -456,11 +442,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            const message2 = await chat.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -476,7 +461,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -518,7 +503,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -539,11 +524,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message3 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message3 = await chat.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -559,7 +543,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -601,7 +585,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -622,11 +606,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message4 = await sendChatMessage(context.action(scenario.session3), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message4 = await chat.sendMessage(
+                scenario.session3,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -642,7 +625,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 3,
                     latestMessage: {
@@ -675,7 +658,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -709,10 +692,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning yourself does not create an extra loud notification for yourself", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -741,11 +725,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -770,7 +750,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -798,7 +778,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -814,11 +794,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const message2 = await chat.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -834,7 +813,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -876,7 +855,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -897,11 +876,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message3 = await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat.sendMessage(scenario.session1, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -926,7 +901,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -954,7 +929,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -970,11 +945,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message4 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const message4 = await chat.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -990,7 +964,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1032,7 +1006,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1057,18 +1031,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("accounts have separate inboxes for each space", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.sharedSession.account.id],
-            });
+            const chat = await TestChat.get(scenario.session1, scenario.sharedSession);
 
-            const otherChatId = await getOrCreateChatForAccounts(
-                context.action(scenario.otherSession),
-                {
-                    spaceId: scenario.otherSpace.id,
-                    otherAccountIds: [scenario.sharedSession.account.id],
-                },
-            );
+            const otherChat = await TestChat.get(scenario.otherSession, scenario.sharedSession);
 
             expect(
                 await getInboxEntries(context.action(scenario.sharedSession), {
@@ -1088,11 +1053,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1108,7 +1069,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1133,11 +1094,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message2 = await sendChatMessage(context.action(scenario.otherSession), {
-                chatId: otherChatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            const message2 = await otherChat.sendMessage(scenario.otherSession, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1153,7 +1110,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1181,7 +1138,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
-                    chatId: otherChatId,
+                    chatId: otherChat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1201,23 +1158,15 @@ for (const [currentProcessingType, processingMultiple] of [
         test("account can not see mention in chat they don't have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
-
-            const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
-
-            const otherChatId = await getOrCreateChatForAccounts(
-                context.action(scenario.otherSession),
-                {
-                    spaceId: scenario.otherSpace.id,
-                    otherAccountIds: [scenario.sharedSession.account.id],
-                },
+            const chat1 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
             );
+
+            const chat2 = await TestChat.get(scenario.session1, scenario.session2);
+
+            const otherChat = await TestChat.get(scenario.otherSession, scenario.sharedSession);
 
             expect(
                 await getInboxEntries(context.action(scenario.session3), {
@@ -1237,11 +1186,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            const message1 = await chat1.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1257,7 +1205,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1287,11 +1235,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
 
-            await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            await chat2.sendMessage(scenario.session2, scenario.mentionAccount3MessageContent);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1307,7 +1251,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1337,11 +1281,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
 
-            await sendChatMessage(context.action(scenario.otherSession), {
-                chatId: otherChatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            await otherChat.sendMessage(
+                scenario.otherSession,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1357,7 +1300,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1391,10 +1334,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("message notification events processed out of order result in the same latest message", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -1414,11 +1358,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1429,17 +1369,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            await chat.sendMessage(scenario.session1, scenario.mentionAccount2MessageContent);
 
-            const message3 = await sendChatMessage(context.action(scenario.session3), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat.sendMessage(scenario.session3, "message3");
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -1457,7 +1389,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1485,7 +1417,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1516,7 +1448,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1544,7 +1476,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -1564,10 +1496,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("message notification events processed out of order result in the same latest message including implicit archival states", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
+            const chat = await TestChat.get(scenario.session1, scenario.session2);
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -1587,11 +1516,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1602,17 +1527,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session2.account.id,
             );
 
-            await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            await chat.sendMessage(scenario.session1, scenario.mentionAccount2MessageContent);
 
-            const message3 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat.sendMessage(scenario.session2, "message3");
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -1630,7 +1547,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1670,7 +1587,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1699,20 +1616,15 @@ for (const [currentProcessingType, processingMultiple] of [
         test("loud notifications are always at the top of the inbox", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
+            const chat1 = await TestChat.get(scenario.session1, scenario.session2);
 
-            const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session3.account.id],
-            });
+            const chat2 = await TestChat.get(scenario.session1, scenario.session3);
 
-            const chat3Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat3 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1725,11 +1637,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat1.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1745,7 +1653,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1761,11 +1669,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message2 = await chat2.sendMessage(
+                scenario.session3,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1781,7 +1688,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1804,7 +1711,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1820,11 +1727,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message3 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat3Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat3.sendMessage(scenario.session2, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1840,7 +1743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1858,7 +1761,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1881,7 +1784,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1897,11 +1800,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message4 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message4"),
-            });
+            const message4 = await chat1.sendMessage(scenario.session2, "message4");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1917,7 +1816,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1935,7 +1834,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1958,7 +1857,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -1974,11 +1873,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message5"),
-            });
+            await chat2.sendMessage(scenario.session3, "message5");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1994,7 +1889,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2012,7 +1907,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2035,7 +1930,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2051,11 +1946,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message6 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message6 = await chat1.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2071,7 +1965,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -2094,7 +1988,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2112,7 +2006,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2133,11 +2027,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message7"),
-            });
+            await chat2.sendMessage(scenario.session3, "message7");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2153,7 +2043,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -2176,7 +2066,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2194,7 +2084,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2215,11 +2105,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message8 = await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message8 = await chat2.sendMessage(
+                scenario.session3,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2235,7 +2124,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -2258,7 +2147,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -2281,7 +2170,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2309,25 +2198,21 @@ for (const [currentProcessingType, processingMultiple] of [
         test("observing an inbox freezes loud notifications in place", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
+            const chat1 = await TestChat.get(scenario.session1, scenario.session2);
 
-            const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session3.account.id],
-            });
+            const chat2 = await TestChat.get(scenario.session1, scenario.session3);
 
-            const chat3Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat3 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
-            const chat4Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.sharedSession.account.id],
-            });
+            const chat4 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.sharedSession,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2340,11 +2225,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat1.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2360,7 +2241,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2376,11 +2257,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message2 = await chat2.sendMessage(
+                scenario.session3,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2396,7 +2276,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2419,7 +2299,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2435,11 +2315,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message3 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat3Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat3.sendMessage(scenario.session2, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2455,7 +2331,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2473,7 +2349,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2496,7 +2372,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2526,7 +2402,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2544,7 +2420,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2567,7 +2443,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2583,11 +2459,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message4 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat4Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message4"),
-            });
+            const message4 = await chat4.sendMessage(scenario.session2, "message4");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2603,7 +2475,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat4Id,
+                    chatId: chat4.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2621,7 +2493,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2639,7 +2511,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2662,7 +2534,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2678,11 +2550,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message5"),
-            });
+            await chat2.sendMessage(scenario.session3, "message5");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2698,7 +2566,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat4Id,
+                    chatId: chat4.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2716,7 +2584,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2734,7 +2602,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2757,7 +2625,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2773,11 +2641,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message6 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat3Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message6"),
-            });
+            const message6 = await chat3.sendMessage(scenario.session2, "message6");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2793,7 +2657,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat4Id,
+                    chatId: chat4.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2811,7 +2675,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2829,7 +2693,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2852,7 +2716,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2868,11 +2732,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message8 = await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat3Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const message8 = await chat3.sendMessage(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2888,7 +2751,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -2911,7 +2774,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat4Id,
+                    chatId: chat4.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2929,7 +2792,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2952,7 +2815,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -2972,10 +2835,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("sends a loud notification on any message after some period of time", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -2995,11 +2859,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3024,7 +2884,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3040,11 +2900,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session3), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            const message2 = await chat.sendMessage(scenario.session3, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3060,7 +2916,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3088,7 +2944,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3104,11 +2960,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const message3 = await sendChatMessage(context.action(scenario.session3), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat.sendMessage(scenario.session3, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3124,7 +2976,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3152,7 +3004,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3175,11 +3027,7 @@ for (const [currentProcessingType, processingMultiple] of [
             try {
                 Date.now = () => mockTime;
 
-                message4 = await sendChatMessage(context.action(scenario.session3), {
-                    chatId,
-                    parentMessageIndex: null,
-                    content: createSimpleMessageContent("message4"),
-                });
+                message4 = await chat.sendMessage(scenario.session3, "message4");
             } finally {
                 Date.now = originalDateNow;
             }
@@ -3198,7 +3046,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -3226,7 +3074,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 2,
                     latestMessage: {
@@ -3246,19 +3094,18 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can archive inbox entries", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat1 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
-            const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [
-                    scenario.session2.account.id,
-                    scenario.session3.account.id,
-                    scenario.sharedSession.account.id,
-                ],
-            });
+            const chat2 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+                scenario.sharedSession,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3271,29 +3118,16 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            await chat1.sendMessage(scenario.session2, "message1");
 
-            await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            await chat1.sendMessage(scenario.session3, "message2");
 
-            const message3 = await sendChatMessage(context.action(scenario.session1), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat1.sendMessage(scenario.session1, "message3");
 
-            const message4 = await sendChatMessage(context.action(scenario.session1), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const message4 = await chat2.sendMessage(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3318,7 +3152,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3341,7 +3175,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3369,7 +3203,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3392,7 +3226,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3412,7 +3246,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId: chat1Id},
+                    key: {type: "Chat", chatId: chat1.id},
                 },
             );
 
@@ -3437,7 +3271,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3460,7 +3294,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3488,7 +3322,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3513,7 +3347,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId: chat2Id},
+                    key: {type: "Chat", chatId: chat2.id},
                 },
             );
 
@@ -3538,7 +3372,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3566,7 +3400,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3591,7 +3425,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId: chat1Id},
+                    key: {type: "Chat", chatId: chat1.id},
                 },
             );
 
@@ -3625,7 +3459,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3650,24 +3484,20 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can unarchive inbox entries", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
-            });
+            const chat1 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
 
-            const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [
-                    scenario.session2.account.id,
-                    scenario.session3.account.id,
-                    scenario.sharedSession.account.id,
-                ],
-            });
+            const chat2 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+                scenario.sharedSession,
+            );
 
-            const chat3Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
+            const chat3 = await TestChat.get(scenario.session1, scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3682,43 +3512,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            await sendChatMessage(context.action(scenario.session2), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            await chat1.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            const message2 = await sendChatMessage(context.action(scenario.session3), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            const message2 = await chat1.sendMessage(scenario.session3, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            const message3 = await sendChatMessage(context.action(scenario.session1), {
-                chatId: chat1Id,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message3"),
-            });
+            const message3 = await chat1.sendMessage(scenario.session1, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
-            const message4 = await sendChatMessage(context.action(scenario.session1), {
-                chatId: chat2Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const message4 = await chat2.sendMessage(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const message5 = await sendChatMessage(context.action(scenario.session1), {
-                chatId: chat3Id,
-                parentMessageIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const message5 = await chat3.sendMessage(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3743,7 +3559,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3766,7 +3582,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3789,7 +3605,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3817,7 +3633,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3840,7 +3656,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3860,7 +3676,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId: chat1Id},
+                    key: {type: "Chat", chatId: chat1.id},
                 },
             );
 
@@ -3868,7 +3684,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId: chat2Id},
+                    key: {type: "Chat", chatId: chat2.id},
                 },
             );
 
@@ -3876,7 +3692,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId: chat1Id},
+                    key: {type: "Chat", chatId: chat1.id},
                 },
             );
 
@@ -3901,7 +3717,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3934,7 +3750,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -3957,7 +3773,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await unarchiveInboxEntry(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
+                key: {type: "Chat", chatId: chat1.id},
             });
 
             expect(
@@ -3981,7 +3797,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4014,7 +3830,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4032,7 +3848,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4055,7 +3871,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await unarchiveInboxEntry(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat2Id},
+                key: {type: "Chat", chatId: chat2.id},
             });
 
             expect(
@@ -4079,7 +3895,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4102,7 +3918,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4135,7 +3951,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4153,7 +3969,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4176,7 +3992,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await unarchiveInboxEntry(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
+                key: {type: "Chat", chatId: chat1.id},
             });
 
             expect(
@@ -4200,7 +4016,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4218,7 +4034,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4241,7 +4057,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4274,7 +4090,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4292,7 +4108,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4315,7 +4131,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await unarchiveInboxEntry(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
+                key: {type: "Chat", chatId: chat1.id},
             });
 
             expect(
@@ -4330,7 +4146,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4358,7 +4174,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4376,7 +4192,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4399,7 +4215,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    chatId: chat3Id,
+                    chatId: chat3.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4432,7 +4248,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat1Id,
+                    chatId: chat1.id,
                     chatAccountCount: 3,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4450,7 +4266,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    chatId: chat2Id,
+                    chatId: chat2.id,
                     chatAccountCount: 4,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4475,10 +4291,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("notification on an archived entry revives it", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
+            const chat = await TestChat.get(scenario.session1, scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4491,11 +4304,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4511,7 +4320,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4531,7 +4340,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId},
+                    key: {type: "Chat", chatId: chat.id},
                 },
             );
 
@@ -4544,11 +4353,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            const message2 = await chat.sendMessage(scenario.session2, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4564,7 +4369,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4584,10 +4389,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("notification on an archived entry from own account does not revive it", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                otherAccountIds: [scenario.session2.account.id],
-            });
+            const chat = await TestChat.get(scenario.session1, scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4600,11 +4402,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message1 = await sendChatMessage(context.action(scenario.session2), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message1"),
-            });
+            const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4620,7 +4418,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 1,
                     latestMessage: {
@@ -4640,7 +4438,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
-                    key: {type: "Chat", chatId},
+                    key: {type: "Chat", chatId: chat.id},
                 },
             );
 
@@ -4653,11 +4451,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await sendChatMessage(context.action(scenario.session1), {
-                chatId,
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("message2"),
-            });
+            await chat.sendMessage(scenario.session1, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4672,7 +4466,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await unarchiveInboxEntry(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
-                key: {type: "Chat", chatId},
+                key: {type: "Chat", chatId: chat.id},
             });
 
             expect(
@@ -4687,7 +4481,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    chatId,
+                    chatId: chat.id,
                     chatAccountCount: 2,
                     loudNotificationCount: 0,
                     latestMessage: {
@@ -4711,10 +4505,7 @@ for (const [currentProcessingType, processingMultiple] of [
         const session1 = await space.createSession();
         const session2 = await space.createSession();
 
-        const chatId = await getOrCreateChatForAccounts(context.action(session1), {
-            spaceId: space.id,
-            otherAccountIds: [session2.account.id],
-        });
+        const chat = await TestChat.get(session1, session2);
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4727,11 +4518,10 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test comment 2"),
-        });
+        const message1 = await chat.sendMessage(
+            session1,
+            createSimpleMessageContent("Test comment 2"),
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4747,7 +4537,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4763,11 +4553,10 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        const message3 = await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test comment 3"),
-        });
+        const message3 = await chat.sendMessage(
+            session1,
+            createSimpleMessageContent("Test comment 3"),
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4783,7 +4572,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4799,10 +4588,9 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        const message4 = await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: assertMessageContent(
+        const message4 = await chat.sendMessage(
+            session1,
+            assertMessageContent(
                 MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Test comment 4 "),
@@ -4812,7 +4600,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     ]),
                 ]),
             ),
-        });
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4828,7 +4616,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -4841,11 +4629,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test comment 5"),
-        });
+        await chat.sendMessage(session1, createSimpleMessageContent("Test comment 5"));
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4861,7 +4645,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -4874,11 +4658,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test comment 6"),
-        });
+        await chat.sendMessage(session1, createSimpleMessageContent("Test comment 6"));
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4894,7 +4674,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -4907,10 +4687,9 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        const message7 = await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: assertMessageContent(
+        const message7 = await chat.sendMessage(
+            session1,
+            assertMessageContent(
                 MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Test comment 7 "),
@@ -4920,7 +4699,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     ]),
                 ]),
             ),
-        });
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4936,7 +4715,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 3,
                 latestMessage: {
@@ -4949,11 +4728,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test comment 8"),
-        });
+        await chat.sendMessage(session1, createSimpleMessageContent("Test comment 8"));
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -4969,7 +4744,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 3,
                 latestMessage: {
@@ -4984,7 +4759,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
         await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
             spaceId: space.id,
-            key: {type: "Chat", chatId},
+            key: {type: "Chat", chatId: chat.id},
         });
 
         await ProcessContextModule.waitForTestTasks();
@@ -4998,11 +4773,10 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
-        const message9 = await sendChatMessage(session1.action(), {
-            chatId,
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test comment 9"),
-        });
+        const message9 = await chat.sendMessage(
+            session1,
+            createSimpleMessageContent("Test comment 9"),
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -5018,7 +4792,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
-                chatId,
+                chatId: chat.id,
                 chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {

@@ -1,8 +1,8 @@
 import {addMinutes, subMinutes} from "date-fns";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {
     archiveInboxEntry,
     backfillInboxEntries,
@@ -36,10 +36,7 @@ import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
-    emptyPostContent,
-    emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
-import {PostModel} from "~/shared/forum/post_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -96,37 +93,25 @@ async function testGetInboxChannelPostsEntryPosts(
     return {hasMorePosts, posts: posts.map(post => post.model)};
 }
 
+async function getPostContentTextSnippet(post: TestPost) {
+    return printContentSingleLineTextSnippet((await post.get()).content);
+}
+
 test("won't create two inbox entries if inbox is observed between serial event processing", async () => {
     processingType = "TwiceSerially";
 
     const scenario = await createNotificationsScenario(context);
 
-    const _channel = await createChannel(context.action(scenario.session2), {
-        spaceId: scenario.space.id,
-        name: "Test",
-    });
+    const channel = await TestChannel.create(scenario.session2);
 
-    const channel = new ChannelPreviewModel({
-        id: _channel.id,
-        spaceId: scenario.space.id,
-        createdTime: _channel.createdTime,
-        name: "Test",
-    });
-
-    await createPost(context.action(scenario.session1), {
-        channelId: channel.id,
-        content: emptyPostContent,
-    });
+    await channel.createPost(scenario.session1);
     await ProcessContextModule.waitForTestTasks();
 
     const pausePromise1 = notificationEventAfterProcessingTestCheckpoint.pauseForTest(
         scenario.session1.account.id,
     );
 
-    const post2 = await createPost(context.action(scenario.session1), {
-        channelId: channel.id,
-        content: emptyPostContent,
-    });
+    const post2 = await channel.createPost(scenario.session1);
 
     const {unpause: unpause1} = await pausePromise1;
 
@@ -155,16 +140,14 @@ test("won't create two inbox entries if inbox is observed between serial event p
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             loudNotificationCount: 0,
-            channel,
+            channel: await channel.getPreview(),
             bucketGeneration: 0,
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
                 author: await scenario.session1.get(),
                 createdTime: post2.createdTime,
-                contentTextSnippet: printContentSingleLineTextSnippet(
-                    emptyPostContentWithReferences,
-                ),
+                contentTextSnippet: await getPostContentTextSnippet(post2),
             },
             otherPostAuthor: null,
         }),
@@ -183,16 +166,14 @@ test("won't create two inbox entries if inbox is observed between serial event p
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             loudNotificationCount: 0,
-            channel,
+            channel: await channel.getPreview(),
             bucketGeneration: 0,
             postCount: 2,
             postAuthorCount: 1,
             latestPost: {
                 author: await scenario.session1.get(),
                 createdTime: post2.createdTime,
-                contentTextSnippet: printContentSingleLineTextSnippet(
-                    emptyPostContentWithReferences,
-                ),
+                contentTextSnippet: await getPostContentTextSnippet(post2),
             },
             otherPostAuthor: null,
         }),
@@ -224,22 +205,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -265,17 +233,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -294,27 +259,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -332,7 +293,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -362,17 +323,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -391,27 +349,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment2 = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            const comment2 = await post.createComment(
+                scenario.session3,
+                createSimpleMessageContent("comment2"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -429,7 +383,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -460,7 +414,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -480,17 +434,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -509,27 +460,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -556,7 +503,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -576,17 +523,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -606,7 +550,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -626,17 +570,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -651,22 +592,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can get individual inbox entries", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -697,17 +625,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -726,17 +651,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -746,22 +668,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning someone in a post a creates a loud notification for them whether or not they are a subscriber", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -787,17 +696,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -816,27 +722,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -854,7 +756,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -889,17 +791,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -919,7 +818,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -944,27 +843,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment2 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment2 = await post.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -982,7 +877,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1017,17 +912,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1047,7 +939,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1072,27 +964,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment3 = await post.createComment(
+                scenario.session3,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1110,7 +998,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1146,7 +1034,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1171,17 +1059,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1200,17 +1085,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1220,22 +1102,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning yourself does not create a loud notification for yourself", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1261,17 +1130,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1290,27 +1156,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1328,7 +1190,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1363,17 +1225,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1392,27 +1251,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment2 = await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            const comment2 = await post.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment2"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1439,7 +1294,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1459,17 +1314,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1488,27 +1340,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment3 = await post.createComment(
+                scenario.session2,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1526,7 +1374,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1561,17 +1409,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1590,17 +1435,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1610,39 +1452,13 @@ for (const [currentProcessingType, processingMultiple] of [
         test("accounts have separate inboxes for each space", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post = await channel.createPost(scenario.session1);
 
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const otherChannel = await TestChannel.create(scenario.otherSession);
 
-            const _otherChannel = await createChannel(context.action(scenario.otherSession), {
-                spaceId: scenario.otherSpace.id,
-                name: "Test",
-            });
-
-            const otherChannel = new ChannelPreviewModel({
-                id: _otherChannel.id,
-                spaceId: scenario.otherSpace.id,
-                createdTime: _otherChannel.createdTime,
-                name: "Test",
-            });
-
-            const otherPost = await createPost(context.action(scenario.otherSession), {
-                channelId: otherChannel.id,
-                content: emptyPostContent,
-            });
+            const otherPost = await otherChannel.createPost(scenario.otherSession);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1659,17 +1475,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1688,27 +1501,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: otherChannel,
+                    channel: await otherChannel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.otherSession.get(),
                         createdTime: otherPost.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(otherPost),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionSharedAccountMessageContent,
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                scenario.mentionSharedAccountMessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1726,7 +1535,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1754,17 +1563,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1783,27 +1589,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: otherChannel,
+                    channel: await otherChannel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.otherSession.get(),
                         createdTime: otherPost.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(otherPost),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment2 = await createPostComment(context.action(scenario.otherSession), {
-                postId: otherPost.id,
-                parentCommentIndex: null,
-                content: scenario.mentionSharedAccountMessageContent,
-            });
+            const comment2 = await otherPost.createComment(
+                scenario.otherSession,
+                scenario.mentionSharedAccountMessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1821,7 +1623,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1849,17 +1651,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1879,7 +1678,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.sharedSession.account.id,
                     postId: otherPost.id,
                     postAuthor: await scenario.otherSession.get(),
-                    channel: otherChannel,
+                    channel: await otherChannel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: otherPost.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1907,17 +1706,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: otherChannel,
+                    channel: await otherChannel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.otherSession.get(),
                         createdTime: otherPost.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(otherPost),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1927,32 +1723,13 @@ for (const [currentProcessingType, processingMultiple] of [
         test("account can not see mention in a different space", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post = await channel.createPost(scenario.session1);
 
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const otherChannel = await TestChannel.create(scenario.otherSession);
 
-            const otherChannel = await createChannel(context.action(scenario.otherSession), {
-                spaceId: scenario.otherSpace.id,
-                name: "Test",
-            });
-
-            const otherPost = await createPost(context.action(scenario.otherSession), {
-                channelId: otherChannel.id,
-                content: emptyPostContent,
-            });
+            const otherPost = await otherChannel.createPost(scenario.otherSession);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -1969,17 +1746,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -1994,11 +1768,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2016,7 +1789,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2041,17 +1814,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -2066,11 +1836,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
 
-            await createPostComment(context.action(scenario.otherSession), {
-                postId: otherPost.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount3MessageContent,
-            });
+            await otherPost.createComment(
+                scenario.otherSession,
+                scenario.mentionAccount3MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2088,7 +1857,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2113,17 +1882,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -2142,22 +1908,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("comment notification events processed out of order result in the same latest comment", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session2), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session2);
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -2177,11 +1930,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            await post.createComment(scenario.session1, createSimpleMessageContent("comment1"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2192,17 +1941,12 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            await post.createComment(scenario.session1, scenario.mentionAccount2MessageContent);
 
-            const comment3 = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post.createComment(
+                scenario.session3,
+                createSimpleMessageContent("comment3"),
+            );
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -2222,7 +1966,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2242,17 +1986,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -2272,7 +2013,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2306,7 +2047,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2326,17 +2067,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -2356,7 +2094,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2377,22 +2115,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("comment notification events processed out of order result in the same latest comment including implicit archival states", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session2), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session2);
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -2412,11 +2137,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            await post.createComment(scenario.session1, createSimpleMessageContent("comment1"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2427,17 +2148,12 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session2.account.id,
             );
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            await post.createComment(scenario.session1, scenario.mentionAccount2MessageContent);
 
-            const comment3 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment3"),
+            );
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -2457,7 +2173,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2477,17 +2193,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -2519,7 +2232,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2539,17 +2252,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
                 }),
@@ -2568,32 +2278,13 @@ for (const [currentProcessingType, processingMultiple] of [
         test("loud notifications are always at the top of the inbox", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
-
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2606,11 +2297,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post1.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2628,7 +2318,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2645,11 +2335,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment2 = await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2667,7 +2356,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2693,7 +2382,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2710,11 +2399,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post3.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2732,93 +2420,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
-                    loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
-                    latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount1MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session1.account.id, await scenario.session1.get()],
-                                ]),
-                            },
-                        }),
-                        isStickyMention: true,
-                    },
-                    otherCommentAuthor: null,
-                }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel,
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
-                    latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment3"),
-                            references: emptyContentReferences,
-                        }),
-                        isStickyMention: false,
-                    },
-                    otherCommentAuthor: null,
-                }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel,
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
-                    latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment1"),
-                            references: emptyContentReferences,
-                        }),
-                        isStickyMention: false,
-                    },
-                    otherCommentAuthor: null,
-                }),
-            ]);
-
-            const comment4 = await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment4"),
-            });
-
-            await ProcessContextModule.waitForTestTasks();
-
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2844,7 +2446,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2865,7 +2467,92 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
+                    loudNotificationCount: 0,
+                    postCreatedTime: post1.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment1.createdTime,
+                        author: await scenario.session2.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("comment1"),
+                            references: emptyContentReferences,
+                        }),
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            const comment4 = await post1.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment4"),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    postId: post2.id,
+                    postAuthor: await scenario.session1.get(),
+                    channel: await channel.getPreview(),
+                    loudNotificationCount: 1,
+                    postCreatedTime: post2.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment2.createdTime,
+                        author: await scenario.session2.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: scenario.mentionAccount1MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [scenario.session1.account.id, await scenario.session1.get()],
+                                ]),
+                            },
+                        }),
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    postId: post3.id,
+                    postAuthor: await scenario.session1.get(),
+                    channel: await channel.getPreview(),
+                    loudNotificationCount: 0,
+                    postCreatedTime: post3.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment3.createdTime,
+                        author: await scenario.session2.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("comment3"),
+                            references: emptyContentReferences,
+                        }),
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    postId: post1.id,
+                    postAuthor: await scenario.session1.get(),
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2882,11 +2569,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment5"),
-            });
+            await post2.createComment(scenario.session2, createSimpleMessageContent("comment5"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2904,7 +2587,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2930,7 +2613,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2951,7 +2634,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2968,11 +2651,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment6 = await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment6 = await post3.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -2990,7 +2672,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3016,7 +2698,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3042,7 +2724,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3059,11 +2741,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment7"),
-            });
+            await post2.createComment(scenario.session2, createSimpleMessageContent("comment7"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3081,7 +2759,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3107,7 +2785,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3133,7 +2811,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3150,11 +2828,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment8 = await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment8 = await post2.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3172,7 +2849,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 2,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3198,7 +2875,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3224,7 +2901,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3253,37 +2930,15 @@ for (const [currentProcessingType, processingMultiple] of [
         test("observing an inbox freezes loud notifications in place", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
-
-            const post4 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post4 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3296,11 +2951,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post1.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3318,7 +2972,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3335,11 +2989,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment2 = await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3357,7 +3010,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3383,7 +3036,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3400,11 +3053,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post3.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3422,7 +3074,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3448,7 +3100,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3469,7 +3121,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3502,7 +3154,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3528,7 +3180,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3549,7 +3201,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3566,11 +3218,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment4 = await createPostComment(context.action(scenario.session2), {
-                postId: post4.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment4"),
-            });
+            const comment4 = await post4.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment4"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3588,7 +3239,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3609,7 +3260,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3635,7 +3286,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3656,7 +3307,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3673,11 +3324,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment5"),
-            });
+            await post2.createComment(scenario.session2, createSimpleMessageContent("comment5"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3695,7 +3342,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3716,7 +3363,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3742,7 +3389,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3763,7 +3410,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3780,11 +3427,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment6 = await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment6"),
-            });
+            const comment6 = await post3.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment6"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3802,7 +3448,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3823,7 +3469,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3849,7 +3495,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3870,7 +3516,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3887,11 +3533,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment7 = await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment7 = await post3.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3909,7 +3554,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3935,7 +3580,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3956,7 +3601,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3982,7 +3627,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4003,27 +3648,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can archive inbox entries", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
-
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4036,35 +3665,25 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            await post1.createComment(scenario.session2, createSimpleMessageContent("comment1"));
 
             await ProcessContextModule.waitForTestTasks();
 
-            await createPostComment(context.action(scenario.session3), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            await post1.createComment(scenario.session3, createSimpleMessageContent("comment2"));
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment3 = await createPostComment(context.action(scenario.sharedSession), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post1.createComment(
+                scenario.sharedSession,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment4 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment4 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4082,7 +3701,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4113,7 +3732,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4139,7 +3758,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4159,17 +3778,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4189,7 +3805,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4209,17 +3825,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4247,7 +3860,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4278,7 +3891,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4304,7 +3917,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4324,17 +3937,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4353,17 +3963,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4391,7 +3998,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4422,7 +4029,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4442,17 +4049,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4471,17 +4075,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4509,7 +4110,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4539,17 +4140,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4568,17 +4166,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4588,32 +4183,13 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can unarchive inbox entries", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
-
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4626,43 +4202,35 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            await post1.createComment(scenario.session2, createSimpleMessageContent("comment1"));
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment2 = await createPostComment(context.action(scenario.session3), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            const comment2 = await post1.createComment(
+                scenario.session3,
+                createSimpleMessageContent("comment2"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post1.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment4 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment4 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment5 = await createPostComment(context.action(scenario.session1), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment5 = await post3.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -4689,7 +4257,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4715,7 +4283,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4741,7 +4309,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4761,17 +4329,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4791,7 +4356,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4811,17 +4376,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4874,7 +4436,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4899,17 +4461,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4928,17 +4487,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -4975,7 +4531,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5000,17 +4556,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5030,7 +4583,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5050,17 +4603,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5097,7 +4647,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5123,7 +4673,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5148,17 +4698,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5178,7 +4725,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5198,17 +4745,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5245,7 +4789,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5266,7 +4810,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5292,7 +4836,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5317,17 +4861,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5347,7 +4888,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5367,17 +4908,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5405,7 +4943,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5436,7 +4974,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5457,7 +4995,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5483,7 +5021,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5508,17 +5046,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5538,7 +5073,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5558,17 +5093,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -5578,22 +5110,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can not archive or unarchive inbox entries in a space you don't have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5625,22 +5144,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("notification on an archived entry revives it", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5653,11 +5159,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5675,7 +5180,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5709,11 +5214,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment2 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            const comment2 = await post.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment2"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5731,7 +5235,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5752,22 +5256,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("notification on an archived entry revives it clearing old loud notification count", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5780,11 +5271,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount1MessageContent,
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                scenario.mentionAccount1MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5802,7 +5292,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5841,11 +5331,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment2 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            const comment2 = await post.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment2"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5863,7 +5352,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5884,22 +5373,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("notification on an archived entry from own account does not revive it", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5912,11 +5388,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -5934,7 +5409,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5968,11 +5443,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            await post.createComment(scenario.session1, createSimpleMessageContent("comment2"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6007,7 +5478,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -6092,32 +5563,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
-
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6160,11 +5612,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            await post1.createComment(scenario.session2, createSimpleMessageContent("comment1"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6207,11 +5655,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await createPostComment(context.action(scenario.session3), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            await post1.createComment(scenario.session3, createSimpleMessageContent("comment2"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6254,11 +5698,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            await post1.createComment(scenario.session2, createSimpleMessageContent("comment3"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6309,11 +5749,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            await post2.createComment(scenario.session1, scenario.mentionAccount2MessageContent);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6356,11 +5792,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await createPostComment(context.action(scenario.session1), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            await post3.createComment(scenario.session1, scenario.mentionAccount2MessageContent);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6697,63 +6129,33 @@ for (const [currentProcessingType, processingMultiple] of [
         test("start sort key and end sort key work properly in inclusive/exclusive mode", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post4 = await channel.createPost(scenario.session1);
 
-            const post4 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post5 = await channel.createPost(scenario.session1);
 
-            const post5 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
-
-            const post6 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post6 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment1 = await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post1.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment2 = await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment2"),
-            });
+            const comment2 = await post2.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment2"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6775,19 +6177,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment3 = await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post3.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment4 = await createPostComment(context.action(scenario.session2), {
-                postId: post4.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment4"),
-            });
+            const comment4 = await post4.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment4"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6795,19 +6195,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment5 = await createPostComment(context.action(scenario.session2), {
-                postId: post5.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment5"),
-            });
+            const comment5 = await post5.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment5"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
-            const comment6 = await createPostComment(context.action(scenario.session2), {
-                postId: post6.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment6"),
-            });
+            const comment6 = await post6.createComment(
+                scenario.session2,
+                createSimpleMessageContent("comment6"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -6841,7 +6239,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post6.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6867,7 +6265,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post5.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6893,7 +6291,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6919,7 +6317,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6945,7 +6343,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6971,7 +6369,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post1.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7025,7 +6423,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7051,7 +6449,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7077,7 +6475,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7103,7 +6501,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post1.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7158,7 +6556,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7184,7 +6582,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7210,7 +6608,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post1.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7264,7 +6662,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post6.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7290,7 +6688,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post5.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7316,7 +6714,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7342,7 +6740,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7368,7 +6766,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7423,7 +6821,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post6.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7449,7 +6847,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post5.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7475,7 +6873,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7501,7 +6899,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel,
+                            channel: await channel.getPreview(),
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -7526,39 +6924,21 @@ for (const [currentProcessingType, processingMultiple] of [
         test("archiving an entry with loud notifications puts it back at the inbox generation", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const comment1 = await post1.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment1 = await createPostComment(context.action(scenario.session1), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
-
-            const comment2 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -7576,7 +6956,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7602,7 +6982,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7627,17 +7007,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -7665,7 +7042,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7690,27 +7067,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post2.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -7728,7 +7101,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7754,7 +7127,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7774,17 +7147,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -7794,39 +7164,21 @@ for (const [currentProcessingType, processingMultiple] of [
         test("implicitly archiving an entry with loud notifications puts it back at the inbox generation", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const comment1 = await post1.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment1 = await createPostComment(context.action(scenario.session1), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
-
-            const comment2 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -7844,7 +7196,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7870,7 +7222,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7895,27 +7247,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("test"),
-            });
+            await post2.createComment(scenario.session2, createSimpleMessageContent("test"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -7933,7 +7278,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7958,27 +7303,23 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
             ]);
 
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment3"),
-            });
+            const comment3 = await post2.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment3"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -7996,7 +7337,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8022,7 +7363,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8042,17 +7383,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8062,50 +7400,28 @@ for (const [currentProcessingType, processingMultiple] of [
         test("archived entries are in the order they were archived", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const comment1 = await post1.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment1 = await createPostComment(context.action(scenario.session1), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment2 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
-
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment3 = await post3.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -8123,7 +7439,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8149,7 +7465,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8175,7 +7491,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8200,17 +7516,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8247,7 +7560,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8273,7 +7586,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8298,17 +7611,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8328,7 +7638,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8372,7 +7682,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8397,17 +7707,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8427,7 +7734,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8453,7 +7760,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8496,17 +7803,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8526,7 +7830,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8552,7 +7856,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8578,7 +7882,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8604,50 +7908,28 @@ for (const [currentProcessingType, processingMultiple] of [
         test("implicitly archived entries are in the order they were archived", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const comment1 = await post1.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment1 = await createPostComment(context.action(scenario.session1), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment2 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
-
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment3 = await post3.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -8665,7 +7947,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8691,7 +7973,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8717,7 +7999,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8742,17 +8024,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8767,11 +8046,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("test"),
-            });
+            await post3.createComment(scenario.session2, createSimpleMessageContent("test"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -8789,7 +8064,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8815,7 +8090,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8840,17 +8115,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8870,7 +8142,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8892,11 +8164,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("test"),
-            });
+            await post1.createComment(scenario.session2, createSimpleMessageContent("test"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -8914,7 +8182,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8939,17 +8207,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -8969,7 +8234,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8995,7 +8260,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9017,11 +8282,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("test"),
-            });
+            await post2.createComment(scenario.session2, createSimpleMessageContent("test"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9038,17 +8299,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -9068,7 +8326,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9094,7 +8352,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9120,7 +8378,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9146,50 +8404,28 @@ for (const [currentProcessingType, processingMultiple] of [
         test("archive entry order does not change when it updates", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const comment1 = await post1.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment1 = await createPostComment(context.action(scenario.session1), {
-                postId: post1.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment2 = await post2.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
-            const comment2 = await createPostComment(context.action(scenario.session1), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
-
-            const comment3 = await createPostComment(context.action(scenario.session1), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment3 = await post3.createComment(
+                scenario.session1,
+                scenario.mentionAccount2MessageContent,
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9231,7 +8467,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9257,7 +8493,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9283,7 +8519,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9305,11 +8541,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post3.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment4"),
-            });
+            await post3.createComment(scenario.session2, createSimpleMessageContent("comment4"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9327,7 +8559,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9353,7 +8585,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9379,7 +8611,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9401,11 +8633,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await createPostComment(context.action(scenario.session2), {
-                postId: post2.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment5"),
-            });
+            await post2.createComment(scenario.session2, createSimpleMessageContent("comment5"));
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9423,7 +8651,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9449,7 +8677,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9475,7 +8703,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9501,21 +8729,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("mentioning in a post creates an entry for the mentioned account", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -9526,11 +8744,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            const post2 = await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -9541,11 +8759,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            const post3 = await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -9556,7 +8774,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9583,7 +8801,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9616,35 +8834,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: assertPostContent(
-                                PostContentProsemirrorSchema.node("doc", {}, [
-                                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                                        PostContentProsemirrorSchema.text("Hello "),
-                                        PostContentProsemirrorSchema.node("mention", {
-                                            mention: {
-                                                accountId: scenario.session3.account.id,
-                                                isShort: false,
-                                            },
-                                        }),
-                                        PostContentProsemirrorSchema.text("!"),
-                                    ]),
-                                ]),
-                            ),
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session3.account.id, await scenario.session3.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -9664,7 +8861,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9697,35 +8894,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: assertPostContent(
-                                PostContentProsemirrorSchema.node("doc", {}, [
-                                    PostContentProsemirrorSchema.node("paragraph", {}, [
-                                        PostContentProsemirrorSchema.text("Hello "),
-                                        PostContentProsemirrorSchema.node("mention", {
-                                            mention: {
-                                                accountId: scenario.session2.account.id,
-                                                isShort: false,
-                                            },
-                                        }),
-                                        PostContentProsemirrorSchema.text("!"),
-                                    ]),
-                                ]),
-                            ),
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session2.account.id, await scenario.session2.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -9735,21 +8911,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("commenting on a post someone was mentioned on updates an entry for the mentioned account", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            const post = await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -9760,7 +8926,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9778,7 +8944,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9808,11 +8974,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment1 = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post.createComment(
+                scenario.session3,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9830,7 +8995,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9872,21 +9037,11 @@ for (const [currentProcessingType, processingMultiple] of [
         test("commenting on a post revives an archived entry someone was mentioned on", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            const post = await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -9897,7 +9052,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -9915,7 +9070,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9985,7 +9140,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -10015,11 +9170,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment1 = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: createSimpleMessageContent("comment1"),
-            });
+            const comment1 = await post.createComment(
+                scenario.session3,
+                createSimpleMessageContent("comment1"),
+            );
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -10037,7 +9191,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -10067,17 +9221,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("post with mention create event processed after comment event", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
-
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
             const pause1Promise = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
                 scenario.session1.account.id,
@@ -10086,9 +9230,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            const post = await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -10099,13 +9243,12 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
-            const comment = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment = await post.createComment(
+                scenario.session3,
+                scenario.mentionAccount2MessageContent,
+            );
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -10125,7 +9268,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -10164,7 +9307,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -10211,17 +9354,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("post with mention create event processed after comment event and after entry was archived", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
-
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
             const pause1Promise = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
                 scenario.session1.account.id,
@@ -10230,9 +9363,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3.account.id,
             );
 
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: assertPostContent(
+            const post = await channel.createPost(
+                scenario.session1,
+                assertPostContent(
                     PostContentProsemirrorSchema.node("doc", {}, [
                         PostContentProsemirrorSchema.node("paragraph", {}, [
                             PostContentProsemirrorSchema.text("Hello "),
@@ -10243,13 +9376,12 @@ for (const [currentProcessingType, processingMultiple] of [
                         ]),
                     ]),
                 ),
-            });
+            );
 
-            const comment = await createPostComment(context.action(scenario.session3), {
-                postId: post.id,
-                parentCommentIndex: null,
-                content: scenario.mentionAccount2MessageContent,
-            });
+            const comment = await post.createComment(
+                scenario.session3,
+                scenario.mentionAccount2MessageContent,
+            );
 
             const {unpause: unpause1} = await pause1Promise;
             const {unpause: unpause2} = await pause2Promise;
@@ -10269,7 +9401,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -10331,7 +9463,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -10379,7 +9511,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel,
+                    channel: await channel.getPreview(),
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -10405,29 +9537,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("creating posts updates an entry for every member in the space", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel1 = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test 1",
-            });
+            const channel1 = await TestChannel.create(scenario.session2);
 
-            const channel1 = new ChannelPreviewModel({
-                id: _channel1.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel1.createdTime,
-                name: "Test 1",
-            });
-
-            const _channel2 = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test 2",
-            });
-
-            const channel2 = new ChannelPreviewModel({
-                id: _channel2.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel2.createdTime,
-                name: "Test 2",
-            });
+            const channel2 = await TestChannel.create(scenario.session2);
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -10474,10 +9586,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel1.id,
-                content: emptyPostContent,
-            });
+            const post1 = await channel1.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -10503,17 +9612,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10532,17 +9638,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10561,17 +9664,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10586,10 +9686,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel1.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel1.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -10615,17 +9712,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10644,17 +9738,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10673,17 +9764,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10698,10 +9786,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const post3 = await createPost(context.action(scenario.session2), {
-                channelId: channel1.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel1.createPost(scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -10718,17 +9803,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10747,17 +9829,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10776,17 +9855,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: await scenario.session1.get(),
                 }),
@@ -10805,17 +9881,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: await scenario.session1.get(),
                 }),
@@ -10830,10 +9903,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const post4 = await createPost(context.action(scenario.session2), {
-                channelId: channel2.id,
-                content: emptyPostContent,
-            });
+            const post4 = await channel2.createPost(scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -10850,17 +9920,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: channel2,
+                    channel: await channel2.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post4.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post4),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10869,17 +9936,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10898,17 +9962,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10927,17 +9988,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: channel2,
+                    channel: await channel2.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post4.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post4),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10946,17 +10004,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: await scenario.session1.get(),
                 }),
@@ -10975,17 +10030,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: channel2,
+                    channel: await channel2.getPreview(),
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post4.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post4),
                     },
                     otherPostAuthor: null,
                 }),
@@ -10994,17 +10046,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: channel1,
+                    channel: await channel1.getPreview(),
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
                     latestPost: {
                         author: await scenario.session2.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: emptyPostContent,
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: await scenario.session1.get(),
                 }),
@@ -11023,22 +10072,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("can not get inbox entry posts for a space you don't have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11057,29 +10093,13 @@ for (const [currentProcessingType, processingMultiple] of [
         test("getting inbox entry posts freezes the inbox entry", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11096,16 +10116,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11122,34 +10140,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post2.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post2.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                    new PostModel({
-                        id: post1.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post1.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post2.get(), post1.get()]),
             });
 
             await expect(
@@ -11163,10 +10154,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).rejects.toThrow(NotFoundError);
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11183,16 +10171,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 2,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11201,16 +10187,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11227,34 +10211,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post2.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post2.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                    new PostModel({
-                        id: post1.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post1.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post2.get(), post1.get()]),
             });
 
             expect(
@@ -11268,27 +10225,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post3.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post3.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post3.get()]),
             });
 
-            const post4 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post4 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11305,16 +10245,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 4,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post4.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post4),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11323,16 +10261,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 2,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11341,16 +10277,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11367,34 +10301,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post2.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post2.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                    new PostModel({
-                        id: post1.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post1.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post2.get(), post1.get()]),
             });
 
             expect(
@@ -11408,21 +10315,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post3.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post3.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post3.get()]),
             });
 
             expect(
@@ -11436,50 +10329,20 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post4.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post4.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post4.get()]),
             });
         });
 
         test("getting inbox entry posts does not observe if inbox was already observed", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post1 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11496,16 +10359,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11513,10 +10374,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await observeInbox(context.action(scenario.session2), {spaceId: scenario.space.id});
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11533,16 +10391,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 2,
                     postCount: 1,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post3.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11551,16 +10407,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11577,40 +10431,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post2.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post2.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                    new PostModel({
-                        id: post1.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post1.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post2.get(), post1.get()]),
             });
 
-            const post4 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post4 = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -11627,16 +10451,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 2,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post4.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post4),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11645,16 +10467,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel,
+                    channel: await channel.getPreview(),
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
                     latestPost: {
                         author: await scenario.session1.get(),
                         createdTime: post2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet(
-                            emptyPostContentWithReferences,
-                        ),
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
                     },
                     otherPostAuthor: null,
                 }),
@@ -11671,34 +10491,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post2.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post2.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                    new PostModel({
-                        id: post1.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post1.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post2.get(), post1.get()]),
             });
 
             expect(
@@ -11712,211 +10505,38 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    new PostModel({
-                        id: post4.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post4.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                    new PostModel({
-                        id: post3.id,
-                        spaceId: scenario.space.id,
-                        channel,
-                        createdTime: post3.createdTime,
-                        author: await scenario.session1.get(),
-                        content: emptyPostContentWithReferences,
-                        contentUpdatedTime: null,
-                        commentCount: 0,
-                        lastCommentChangeTime: null,
-                        commentAuthorCount: 0,
-                        previewCommentAuthors: [],
-                    }),
-                ],
+                posts: await runAllPromises([post4.get(), post3.get()]),
             });
         });
 
         test("can paginate getting inbox entries", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session2);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post1 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post1 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post2 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post2 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post3 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post3 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post4 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post4 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post5 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post5 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post6 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post6 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post7 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post7 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
-            const post8 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post8 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
-
-            const post1Model = new PostModel({
-                id: post1.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post1.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post2Model = new PostModel({
-                id: post2.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post2.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post3Model = new PostModel({
-                id: post3.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post3.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post4Model = new PostModel({
-                id: post4.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post4.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post5Model = new PostModel({
-                id: post5.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post5.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post6Model = new PostModel({
-                id: post6.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post6.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post7Model = new PostModel({
-                id: post7.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post7.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
-
-            const post8Model = new PostModel({
-                id: post8.id,
-                spaceId: scenario.space.id,
-                channel,
-                createdTime: post8.createdTime,
-                author: await scenario.session1.get(),
-                content: emptyPostContentWithReferences,
-                contentUpdatedTime: null,
-                commentCount: 0,
-                lastCommentChangeTime: null,
-                commentAuthorCount: 0,
-                previewCommentAuthors: [],
-            });
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
@@ -11929,16 +10549,16 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    post8Model,
-                    post7Model,
-                    post6Model,
-                    post5Model,
-                    post4Model,
-                    post3Model,
-                    post2Model,
-                    post1Model,
-                ],
+                posts: await runAllPromises([
+                    post8.get(),
+                    post7.get(),
+                    post6.get(),
+                    post5.get(),
+                    post4.get(),
+                    post3.get(),
+                    post2.get(),
+                    post1.get(),
+                ]),
             });
 
             expect(
@@ -11952,7 +10572,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: true,
-                posts: [post8Model, post7Model, post6Model, post5Model],
+                posts: await runAllPromises([post8.get(), post7.get(), post6.get(), post5.get()]),
             });
 
             expect(
@@ -11966,15 +10586,15 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: true,
-                posts: [
-                    post8Model,
-                    post7Model,
-                    post6Model,
-                    post5Model,
-                    post4Model,
-                    post3Model,
-                    post2Model,
-                ],
+                posts: await runAllPromises([
+                    post8.get(),
+                    post7.get(),
+                    post6.get(),
+                    post5.get(),
+                    post4.get(),
+                    post3.get(),
+                    post2.get(),
+                ]),
             });
 
             expect(
@@ -11988,16 +10608,16 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [
-                    post8Model,
-                    post7Model,
-                    post6Model,
-                    post5Model,
-                    post4Model,
-                    post3Model,
-                    post2Model,
-                    post1Model,
-                ],
+                posts: await runAllPromises([
+                    post8.get(),
+                    post7.get(),
+                    post6.get(),
+                    post5.get(),
+                    post4.get(),
+                    post3.get(),
+                    post2.get(),
+                    post1.get(),
+                ]),
             });
 
             expect(
@@ -12011,7 +10631,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [post4Model, post3Model, post2Model, post1Model],
+                posts: await runAllPromises([post4.get(), post3.get(), post2.get(), post1.get()]),
             });
 
             expect(
@@ -12025,7 +10645,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: false,
-                posts: [post4Model, post3Model, post2Model, post1Model],
+                posts: await runAllPromises([post4.get(), post3.get(), post2.get(), post1.get()]),
             });
 
             expect(
@@ -12039,7 +10659,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: true,
-                posts: [post4Model, post3Model, post2Model],
+                posts: await runAllPromises([post4.get(), post3.get(), post2.get()]),
             });
 
             expect(
@@ -12053,13 +10673,10 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).toEqual({
                 hasMorePosts: true,
-                posts: [post6Model, post5Model, post4Model, post3Model],
+                posts: await runAllPromises([post6.get(), post5.get(), post4.get(), post3.get()]),
             });
 
-            const post9 = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post9 = await channel.createPost(scenario.session1);
             await ProcessContextModule.waitForTestTasks();
 
             await expect(
@@ -12077,32 +10694,13 @@ for (const [currentProcessingType, processingMultiple] of [
         test("account can't backfill in a space it can't access", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
+            const post = await channel.createPost(scenario.session1);
 
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const otherChannel = await TestChannel.create(scenario.otherSession);
 
-            const otherChannel = await createChannel(context.action(scenario.otherSession), {
-                spaceId: scenario.otherSpace.id,
-                name: "Test",
-            });
-
-            await createPost(context.action(scenario.otherSession), {
-                channelId: otherChannel.id,
-                content: emptyPostContent,
-            });
+            await otherChannel.createPost(scenario.otherSession);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -12125,17 +10723,14 @@ for (const [currentProcessingType, processingMultiple] of [
                                 spaceId: scenario.space.id,
                                 accountId: scenario.session3.account.id,
                                 loudNotificationCount: 0,
-                                channel,
+                                channel: await channel.getPreview(),
                                 bucketGeneration: 0,
                                 postCount: 1,
                                 postAuthorCount: 1,
                                 latestPost: {
                                     author: await scenario.session1.get(),
                                     createdTime: post.createdTime,
-                                    contentTextSnippet: printContentSingleLineTextSnippet({
-                                        doc: emptyPostContent,
-                                        references: emptyContentReferences,
-                                    }),
+                                    contentTextSnippet: await getPostContentTextSnippet(post),
                                 },
                                 otherPostAuthor: null,
                             }),
@@ -12156,22 +10751,9 @@ for (const [currentProcessingType, processingMultiple] of [
         test("won't backfill events that happened far in the past", async () => {
             const scenario = await createNotificationsScenario(context);
 
-            const _channel = await createChannel(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                name: "Test",
-            });
+            const channel = await TestChannel.create(scenario.session1);
 
-            const channel = new ChannelPreviewModel({
-                id: _channel.id,
-                spaceId: scenario.space.id,
-                createdTime: _channel.createdTime,
-                name: "Test",
-            });
-
-            const post = await createPost(context.action(scenario.session1), {
-                channelId: channel.id,
-                content: emptyPostContent,
-            });
+            const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -12194,17 +10776,14 @@ for (const [currentProcessingType, processingMultiple] of [
                                 spaceId: scenario.space.id,
                                 accountId: scenario.session3.account.id,
                                 loudNotificationCount: 0,
-                                channel,
+                                channel: await channel.getPreview(),
                                 bucketGeneration: 0,
                                 postCount: 1,
                                 postAuthorCount: 1,
                                 latestPost: {
                                     author: await scenario.session1.get(),
                                     createdTime: post.createdTime,
-                                    contentTextSnippet: printContentSingleLineTextSnippet({
-                                        doc: emptyPostContent,
-                                        references: emptyContentReferences,
-                                    }),
+                                    contentTextSnippet: await getPostContentTextSnippet(post),
                                 },
                                 otherPostAuthor: null,
                             }),
@@ -12260,11 +10839,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await createPostComment(session2.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 1"),
-        });
+        await post.createComment(session2, "Test comment 1");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12304,11 +10879,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 2"),
-        });
+        const comment2 = await post.createComment(session1, "Test comment 2");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12343,11 +10914,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        const comment3 = await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 3"),
-        });
+        const comment3 = await post.createComment(session1, "Test comment 3");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12382,10 +10949,9 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        const comment4 = await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: assertMessageContent(
+        const comment4 = await post.createComment(
+            session1,
+            assertMessageContent(
                 MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Test comment 4 "),
@@ -12395,7 +10961,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     ]),
                 ]),
             ),
-        });
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12427,11 +10993,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 5"),
-        });
+        await post.createComment(session1, "Test comment 5");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12463,11 +11025,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 6"),
-        });
+        await post.createComment(session1, "Test comment 6");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12499,10 +11057,9 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        const comment7 = await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: assertMessageContent(
+        const comment7 = await post.createComment(
+            session1,
+            assertMessageContent(
                 MessageContentProsemirrorSchema.node("doc", {}, [
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Test comment 7 "),
@@ -12512,7 +11069,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     ]),
                 ]),
             ),
-        });
+        );
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12544,11 +11101,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 8"),
-        });
+        await post.createComment(session1, "Test comment 8");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12596,11 +11149,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
-        const comment9 = await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 9"),
-        });
+        const comment9 = await post.createComment(session1, "Test comment 9");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12649,11 +11198,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ).rejects.toThrow(NotFoundError);
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 1"),
-        });
+        await post.createComment(session1, "Test comment 1");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12672,11 +11217,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 2"),
-        });
+        await post.createComment(session1, "Test comment 2");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12695,11 +11236,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 3"),
-        });
+        await post.createComment(session1, "Test comment 3");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12733,11 +11270,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 4"),
-        });
+        await post.createComment(session1, "Test comment 4");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12748,11 +11281,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 5"),
-        });
+        await post.createComment(session1, "Test comment 5");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12783,11 +11312,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 6"),
-        });
+        await post.createComment(session1, "Test comment 6");
 
         await ProcessContextModule.waitForTestTasks();
 
@@ -12806,11 +11331,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         });
 
-        await createPostComment(session1.action(), {
-            postId: post.id,
-            parentCommentIndex: null,
-            content: createSimpleMessageContent("Test comment 7"),
-        });
+        await post.createComment(session1, "Test comment 7");
 
         await ProcessContextModule.waitForTestTasks();
 

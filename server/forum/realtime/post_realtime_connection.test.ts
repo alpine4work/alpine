@@ -100,10 +100,14 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
                         typingStateByConnectionId,
                     };
                 },
-                createMessage: (context, {parentMessageIndex: parentCommentIndex, content}, span) =>
+                createMessage: (
+                    context,
+                    {parentMessageIndex: parentCommentIndex, content, fileIds},
+                    span,
+                ) =>
                     connection.procedures.createComment(
                         context,
-                        {parentCommentIndex, content},
+                        {parentCommentIndex, content, fileIds},
                         span,
                     ),
                 updateMessageContent: (context, {messageIndex: commentIndex, content}, span) =>
@@ -132,12 +136,13 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
     },
     async createMessage(
         context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
+        {roomKey: postId, parentMessageIndex: parentCommentIndex, content, fileIds},
     ) {
         const {comment} = await createPostComment(context, {
             postId,
             parentCommentIndex,
             content,
+            fileIds,
         });
 
         return comment;

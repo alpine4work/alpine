@@ -478,6 +478,7 @@ test("will respond optimistically with a comment thread even if it has not been 
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -614,6 +615,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -727,6 +729,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
     ]);
 });
 
+// NOCOMMIT: Test files in comments
 test("when comment threads are added back to the document they will be loaded", async () => {
     const document = await createDocument(context.action(session1), {
         spaceId: space.id,
@@ -751,6 +754,7 @@ test("when comment threads are added back to the document they will be loaded", 
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
     });
@@ -760,6 +764,7 @@ test("when comment threads are added back to the document they will be loaded", 
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
+        fileIds: [],
     });
 
     await updateDocumentContent(context.action(session1), {
@@ -915,6 +920,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -927,6 +933,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
+        fileIds: [],
     });
 
     await connection1.procedures.updateContent({
@@ -1164,6 +1171,7 @@ test("can create comments in comment threads", async () => {
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -1175,6 +1183,7 @@ test("can create comments in comment threads", async () => {
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -1264,6 +1273,7 @@ test("can create comments in comment threads", async () => {
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
+        fileIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -1290,6 +1300,7 @@ test("can create comments in comment threads", async () => {
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -1321,6 +1332,7 @@ test("can create comments in comment threads", async () => {
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -1368,6 +1380,7 @@ test("can create comments in comment threads", async () => {
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -1416,6 +1429,7 @@ test("can create comments in comment threads", async () => {
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
             new DocumentCommentModel({
@@ -1432,6 +1446,7 @@ test("can create comments in comment threads", async () => {
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -1448,6 +1463,7 @@ test("can create comments in comment threads", async () => {
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 3"),
+        fileIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -1474,6 +1490,7 @@ test("can create comments in comment threads", async () => {
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -1505,6 +1522,7 @@ test("can create comments in comment threads", async () => {
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -1545,6 +1563,7 @@ test("if comment thread is persisting we will wait to create messages but respon
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -1559,6 +1578,7 @@ test("if comment thread is persisting we will wait to create messages but respon
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -1630,6 +1650,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
+        fileIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -1706,6 +1727,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -1749,6 +1771,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -1785,6 +1808,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -1825,6 +1849,7 @@ test("if comment thread update message hasn't been processed we will wait to res
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -1841,6 +1866,7 @@ test("if comment thread update message hasn't been processed we will wait to res
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -2002,6 +2028,7 @@ test("if comment thread update message hasn't been processed we will wait to res
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2014,6 +2041,7 @@ test("if comment thread update message hasn't been processed we will wait to res
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
+        fileIds: [],
     });
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -2051,6 +2079,7 @@ test("if comment thread update message hasn't been processed we will wait to res
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -2087,6 +2116,7 @@ test("if comment thread update message hasn't been processed we will wait to res
                             references: emptyContentReferences,
                         },
                         contentUpdatedTime: null,
+                        files: [],
                     },
                 }),
                 updateOtherTypingState: null,
@@ -2127,6 +2157,7 @@ test("while comment thread is persisting we will respond to comment load request
             commentThreadId,
             parentCommentIndex: null,
             content: createSimpleMessageContent("Test message content 2"),
+            fileIds: [],
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -2141,6 +2172,7 @@ test("while comment thread is persisting we will respond to comment load request
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -2253,6 +2285,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2295,6 +2328,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2375,6 +2409,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2406,6 +2441,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2493,6 +2529,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2524,6 +2561,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2645,6 +2683,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2687,6 +2726,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2767,6 +2807,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2798,6 +2839,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2885,6 +2927,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -2916,6 +2959,7 @@ test("while comment thread is persisting we will respond to comment load request
                         references: emptyContentReferences,
                     },
                     contentUpdatedTime: null,
+                    files: [],
                 },
             }),
         ],
@@ -3030,6 +3074,7 @@ test("will cleanup comment thread marks if from a different document", async () 
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},
@@ -3418,6 +3463,7 @@ test("can add comment thread marks back to document after they've been removed",
             {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [],
             },
         ],
         updateOurPresenceState: {state: null},

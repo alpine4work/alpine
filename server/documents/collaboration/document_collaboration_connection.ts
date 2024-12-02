@@ -342,10 +342,10 @@ export class DocumentCollaborationConnection {
 
         createComment: async (
             context,
-            {commentThreadId, parentCommentIndex: parentMessageIndex, content},
+            {commentThreadId, parentCommentIndex: parentMessageIndex, content, fileIds},
         ) => {
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.createMessage(context, {parentMessageIndex, content});
+            return connection.createMessage(context, {parentMessageIndex, content, fileIds});
         },
 
         updateCommentContent: async (
@@ -656,7 +656,7 @@ export class DocumentCollaborationConnection {
                 ),
             createMessage: async (
                 context,
-                {roomKey, parentMessageIndex: parentCommentIndex, content},
+                {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
             ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
@@ -676,6 +676,7 @@ export class DocumentCollaborationConnection {
                     commentThreadId,
                     parentCommentIndex,
                     content,
+                    fileIds,
                 });
 
                 return comment;
@@ -791,23 +792,24 @@ export class DocumentCollaborationConnection {
         commentThreadId: DocumentCommentThreadId,
         optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
     ) {
-        const commentIndex = 0;
-
-        const {author, contentReferences} = await getOptimisticDocumentCommentReferences(context, {
-            spaceId: this._contentManager.spaceId,
-            documentId: this._contentManager.id,
-            commentThreadId,
-            commentIndex,
-            authorId: optimisticCommentThread.initialComment.authorId,
-            contentReferencedIds: getContentReferencedIdsForNode(
-                optimisticCommentThread.initialComment.content,
-            ),
-        });
+        const {author, contentReferences, files} = await getOptimisticDocumentCommentReferences(
+            context,
+            {
+                spaceId: this._contentManager.spaceId,
+                documentId: this._contentManager.id,
+                commentThreadId,
+                authorId: optimisticCommentThread.initialComment.authorId,
+                contentReferencedIds: getContentReferencedIdsForNode(
+                    optimisticCommentThread.initialComment.content,
+                ),
+                fileIds: optimisticCommentThread.initialComment.fileIds,
+            },
+        );
 
         return new DocumentCommentModel({
             documentId: this._contentManager.id,
             commentThreadId,
-            index: commentIndex,
+            index: 0,
             author,
             createdTime: optimisticCommentThread.createdTime,
             payload: {
@@ -818,6 +820,7 @@ export class DocumentCollaborationConnection {
                     references: contentReferences,
                 },
                 contentUpdatedTime: null,
+                files,
             },
         });
     }

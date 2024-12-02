@@ -69,6 +69,7 @@ test("expanding task from peek opens task detail view", async ({page, context: b
         taskId: task.id,
         parentCommentIndex: null,
         content: content1,
+        fileIds: [],
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -145,6 +146,7 @@ test("task comments are visible in task detail view and can add comments", async
         taskId: task.id,
         parentCommentIndex: null,
         content: content1,
+        fileIds: [],
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -184,6 +186,7 @@ test("mobile task detail view loads comments when window size change", async ({
         taskId: task.id,
         parentCommentIndex: null,
         content: content1,
+        fileIds: [],
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -219,6 +222,7 @@ test("mobile task comments route navigates to task detail view when window size 
         taskId: task.id,
         parentCommentIndex: null,
         content: content1,
+        fileIds: [],
     });
 
     await ProcessContextModule.waitForTestTasks();

@@ -241,6 +241,7 @@ function ContentEditorCommentInput({
         transaction.setMeta(createCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
+            initialCommentFileIds: [],
             openCommentThreadPromiseRef,
         });
 

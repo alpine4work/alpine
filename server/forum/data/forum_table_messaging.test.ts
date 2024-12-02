@@ -62,6 +62,7 @@ testMessagingImplementation<PostId>(context, {
             postId,
             parentCommentIndex,
             content,
+            fileIds: [],
         });
 
         return {

@@ -189,6 +189,7 @@ export function DocumentCommentInput({
                     commentThreadId: commentThread.id,
                     parentCommentIndex: input.parentMessageIndex,
                     content: input.content,
+                    fileIds: input.fileIds,
                 });
             }}
             messageEditing={messageEditing}

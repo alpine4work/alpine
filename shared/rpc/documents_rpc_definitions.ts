@@ -9,11 +9,13 @@ import {
     DocumentModel,
     DocumentPreviewModel,
 } from "~/shared/documents/document_model.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
@@ -92,6 +94,7 @@ export const updateDocumentContent = defineRpc({
             Schema.object({
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 initialCommentContent: MessageContentSchema,
+                initialCommentFileIds: Schema.array(Schema.id<FileId>()).default([]),
                 createdTime: Schema.date.optional(),
             }),
         ),
@@ -187,6 +190,7 @@ export const createDocumentComment = defineRpc({
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         parentCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
+        fileIds: Schema.array(Schema.id<FileId>()).default([]),
     },
     output: {
         comment: DocumentCommentModel.schema(),
@@ -252,13 +256,19 @@ export const getOptimisticDocumentCommentReferences = defineRpc({
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
-        commentIndex: Schema.integer,
         authorId: Schema.id<AccountId>(),
         contentReferencedIds: ContentReferencedIdsSchema,
+        fileIds: Schema.array(Schema.id<FileId>()).default([]),
     },
     output: {
         author: AccountModel.schema,
         contentReferences: ContentReferencesSchema,
+        files: Schema.array(
+            Schema.object({
+                signedUrlSearch: Schema.string,
+                file: FileModel.schema,
+            }),
+        ),
     },
 });
 

@@ -16,7 +16,7 @@ import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistenc
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -50,7 +50,7 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
@@ -787,10 +787,12 @@ export function sendChatMessage(
         chatId,
         parentMessageIndex,
         content,
+        fileIds,
     }: {
         chatId: ChatId;
         parentMessageIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -800,7 +802,25 @@ export function sendChatMessage(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{chatItem, chatAccountItem}] = await runAllPromises([
-            getChatItemAndAuthorizeAccess(context, chatId),
+            (async () => {
+                const result = await getChatItemAndAuthorizeAccess(context, chatId);
+
+                // Make sure all the provided files exist.
+                //
+                // NOCOMMIT: Test!
+                await runAllPromises(
+                    fileIds.map(fileId =>
+                        getFileFromAttachment(
+                            context,
+                            result.chatItem.spaceId,
+                            fileId,
+                            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
+                        ),
+                    ),
+                );
+
+                return result;
+            })(),
             (async () => {
                 if (typeof parentMessageIndex !== "number") return;
 
@@ -839,6 +859,7 @@ export function sendChatMessage(
                     parentMessageIndex,
                     content,
                     contentUpdatedTime: null,
+                    fileIds,
                 },
             }),
             ChatTable.transactionDirectlyUpdateItemAttribute(
@@ -1582,11 +1603,7 @@ async function createChatMessageModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FileChatAuthorizer.bind({
-                type: "ChatMessage",
-                chatId: item.chatId,
-                messageIndex: item.messageIndex,
-            }),
+            FileChatAuthorizer.bind({type: "ChatMessages", chatId: item.chatId}),
             item.payload,
         ),
     ]);
@@ -2362,9 +2379,8 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                                 context,
                                 chatItem.spaceId,
                                 FileChatAuthorizer.bind({
-                                    type: "ChatMessage",
+                                    type: "ChatMessages",
                                     chatId: item.chatId,
-                                    messageIndex: item.messageIndex,
                                 }),
                                 item.change.content,
                             ),

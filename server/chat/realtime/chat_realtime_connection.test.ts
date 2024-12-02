@@ -67,11 +67,12 @@ testMessagingRealtimeImplementation<ChatId, TestChatRealtimeConnection>(context,
             payload,
         });
     },
-    async createMessage(context, {roomKey: chatId, parentMessageIndex, content}) {
+    async createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
         const {message} = await sendChatMessage(context, {
             chatId,
             parentMessageIndex,
             content,
+            fileIds,
         });
 
         return message;

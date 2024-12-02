@@ -21,7 +21,7 @@ import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistenc
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
-import {FileAuthorizer} from "~/server/files/data/files_table.js";
+import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
@@ -95,6 +95,7 @@ import {
     ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
@@ -2187,6 +2188,7 @@ export async function updateDocumentContent(
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
+            initialCommentFileIds: ReadonlyArray<FileId>;
             /**
              * Optionally allow the caller to specify the time at which we report the
              * thread was created. Used by our document collaboration service to use the
@@ -2344,8 +2346,8 @@ export async function updateDocumentContent(
         // have cached the document.
         await authorizeSpaceAccess(context, internalDocument.spaceId);
 
-        const {newContent, steps, invertedSteps, conflictingSteps} =
-            await getCollaborativelyUpdateContentResult(context, {
+        const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([
+            getCollaborativelyUpdateContentResult(context, {
                 currentVersion: internalDocument.version,
                 currentContent: internalDocument.content,
                 clientVersion,
@@ -2389,7 +2391,24 @@ export async function updateDocumentContent(
                         return [...otherSteps, ...internalDocument.stepsAfterInitialSnapshot];
                     }
                 },
-            });
+            }),
+            runAllPromises(
+                flatMapIterable(createCommentThreads, createCommentThread =>
+                    mapIterable(createCommentThread.initialCommentFileIds, fileId =>
+                        getFileFromAttachment(
+                            context,
+                            internalDocument.spaceId,
+                            fileId,
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComments",
+                                documentId: id,
+                                commentThreadId: createCommentThread.commentThreadId,
+                            }),
+                        ),
+                    ),
+                ),
+            ),
+        ]);
 
         assert(isDocumentContent(newContent));
 
@@ -2728,6 +2747,7 @@ export async function updateDocumentContent(
                             parentMessageIndex: null,
                             content: createCommentThread.initialCommentContent,
                             contentUpdatedTime: null,
+                            fileIds: createCommentThread.initialCommentFileIds,
                         },
                     },
                     {
@@ -3849,11 +3869,13 @@ export async function createDocumentComment(
         commentThreadId,
         parentCommentIndex,
         content,
+        fileIds,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         parentCommentIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -3861,8 +3883,30 @@ export async function createDocumentComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [{spaceId}, commentThreadItem, parentCommentItem] = await runAllPromises([
-            authorizeDocumentAccess(context, documentId),
+        const [spaceId, commentThreadItem, parentCommentItem] = await runAllPromises([
+            (async () => {
+                const {spaceId} = await authorizeDocumentAccess(context, documentId);
+
+                // Make sure all the provided files exist.
+                //
+                // NOCOMMIT: Test!
+                await runAllPromises(
+                    fileIds.map(fileId =>
+                        getFileFromAttachment(
+                            context,
+                            spaceId,
+                            fileId,
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComments",
+                                documentId,
+                                commentThreadId,
+                            }),
+                        ),
+                    ),
+                );
+
+                return spaceId;
+            })(),
             getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
@@ -3907,6 +3951,7 @@ export async function createDocumentComment(
                     parentMessageIndex: parentCommentItem?.commentIndex ?? null,
                     content,
                     contentUpdatedTime: null,
+                    fileIds,
                 },
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
@@ -4129,10 +4174,9 @@ async function createDocumentCommentModelFromItem(
             context,
             spaceId,
             FileDocumentAuthorizer.bind({
-                type: "DocumentComment",
+                type: "DocumentComments",
                 documentId: item.documentId,
                 commentThreadId: item.commentThreadId,
-                commentIndex: item.commentIndex,
             }),
             item.payload,
         ),
@@ -5170,10 +5214,9 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                                 context,
                                 spaceId,
                                 FileDocumentAuthorizer.bind({
-                                    type: "DocumentComment",
+                                    type: "DocumentComments",
                                     documentId: item.documentId,
                                     commentThreadId: item.commentThreadId,
-                                    commentIndex: item.commentIndex,
                                 }),
                                 item.change.content,
                             ),

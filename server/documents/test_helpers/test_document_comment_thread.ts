@@ -1,14 +1,23 @@
 import {AddMarkStep, AddNodeMarkStep} from "prosemirror-transform";
 import {
+    createDocumentComment,
+    deleteDocumentComment,
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
+    updateDocumentCommentContent,
 } from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {encodeDocumentCommentRoomKey} from "~/shared/documents/document_model.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     createSimpleMessageContent,
@@ -20,13 +29,16 @@ import {
 
 const schema = DocumentContentProsemirrorSchema;
 
-export class TestDocumentCommentThread {
+export class TestDocumentCommentThread extends TestCommentRoomBase {
     public readonly context: TestContext;
+    public readonly space: TestSpace;
     public readonly document: TestDocument;
     public readonly id: DocumentCommentThreadId;
 
     private constructor(context: TestContext, document: TestDocument, id: DocumentCommentThreadId) {
+        super();
         this.context = context;
+        this.space = document.space;
         this.document = document;
         this.id = id;
     }
@@ -63,12 +75,61 @@ export class TestDocumentCommentThread {
                             typeof content === "string"
                                 ? createSimpleMessageContent(content)
                                 : content,
+                        initialCommentFileIds: [],
                     },
                 ],
             },
         );
 
         return new TestDocumentCommentThread(session.context, document, id);
+    }
+
+    protected override _getRoomKey() {
+        return encodeDocumentCommentRoomKey(this.document.id, this.id);
+    }
+
+    protected override _createMessage(
+        context: TestSessionActionContext,
+        {
+            parentMessageIndex,
+            content,
+            fileIds,
+        }: {
+            parentMessageIndex: number | null;
+            content: MessageContent;
+            fileIds: ReadonlyArray<FileId>;
+        },
+    ) {
+        return createDocumentComment(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            parentCommentIndex: parentMessageIndex,
+            content,
+            fileIds,
+        });
+    }
+
+    public override _updateMessageContent(
+        context: TestSessionActionContext,
+        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+    ) {
+        return updateDocumentCommentContent(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+            content,
+        });
+    }
+
+    public override _deleteMessage(
+        context: TestSessionActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        return deleteDocumentComment(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+        });
     }
 
     public async get(session: TestSpaceSession) {

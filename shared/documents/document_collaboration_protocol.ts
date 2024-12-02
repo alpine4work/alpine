@@ -8,6 +8,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
+    FileId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
@@ -79,6 +80,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                     Schema.object({
                         commentThreadId: Schema.id<DocumentCommentThreadId>(),
                         initialCommentContent: MessageContentSchema,
+                        initialCommentFileIds: Schema.array(Schema.id<FileId>()).default([]),
                     }),
                 ),
                 /**
@@ -143,6 +145,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 parentCommentIndex: Schema.integer.nullable(),
                 content: MessageContentSchema,
+                fileIds: Schema.array(Schema.id<FileId>()),
             },
             output: {},
         },

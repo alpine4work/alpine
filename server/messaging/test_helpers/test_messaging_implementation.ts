@@ -21,7 +21,7 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContent,
@@ -44,6 +44,7 @@ type CreateMessageFunctionForTest<RoomKey extends string> = (
         roomKey: RoomKey;
         parentMessageIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ) => Promise<{
     index: number;
@@ -595,6 +596,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect(message.index).toEqual(0);
@@ -625,6 +627,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect(message1.index).toEqual(0);
@@ -651,6 +654,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(message2.index).toEqual(1);
@@ -677,6 +681,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             expect(message3.index).toEqual(2);
@@ -707,6 +712,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -734,6 +740,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: getMissingRoomKey(),
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 }),
             ).rejects.toThrow(/not found/);
         });
@@ -746,6 +753,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 }),
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
@@ -758,18 +766,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await createMessage(context.action(session2), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 });
 
                 await createMessage(context.action(session3), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 });
 
                 await expect(
@@ -777,6 +788,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         roomKey: room.key,
                         parentMessageIndex: null,
                         content: content4,
+                        fileIds: [],
                     }),
                 ).rejects.toThrow(PermissionDeniedError);
             });
@@ -797,6 +809,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content,
+                    fileIds: [],
                 }),
             ).rejects.toThrow(InvalidArgumentError);
         });
@@ -808,6 +821,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessageToThrow(
@@ -824,6 +838,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessageToThrow(
@@ -844,6 +859,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await expectGetMessageNotToBeNull(context.action(session1), {
@@ -879,24 +895,28 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message1.index,
                 content: content2,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content3,
+                fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content4,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -980,6 +1000,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: 42,
                     content: content1,
+                    fileIds: [],
                 }),
             ).rejects.toThrow(NotFoundError);
         });
@@ -993,6 +1014,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(1);
@@ -1001,6 +1023,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(2);
@@ -1009,6 +1032,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(3);
@@ -1024,6 +1048,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(4);
@@ -1036,6 +1061,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1110,6 +1136,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1164,6 +1191,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1219,6 +1247,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await expectGetMessage(
@@ -1281,6 +1310,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1335,6 +1365,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1404,6 +1435,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1457,6 +1489,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1511,6 +1544,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await expectGetMessage(
@@ -1565,6 +1599,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1621,6 +1656,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expectGetMessage(
@@ -1678,48 +1714,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -1825,48 +1869,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await expect(
@@ -1918,6 +1970,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect(
@@ -1949,6 +2002,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -1990,6 +2044,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             expect(
@@ -2126,48 +2181,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -2468,48 +2531,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -2654,48 +2725,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -2871,48 +2950,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -3059,48 +3146,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -3211,48 +3306,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -3418,48 +3521,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -3565,48 +3676,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await expect(
@@ -3658,6 +3777,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect(
@@ -3689,6 +3809,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -3730,6 +3851,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             expect(
@@ -3866,48 +3988,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -4208,48 +4338,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -4425,48 +4563,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -4608,48 +4754,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -4796,48 +4950,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -4928,48 +5090,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -5135,48 +5305,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await deleteMessage(context.action(session2), {
@@ -5294,48 +5472,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await deleteMessage(context.action(session2), {
@@ -5456,6 +5642,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 Date.now = () => room.createdTime.getTime() - 1000 * 60;
@@ -5491,6 +5678,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 Date.now = () => room.createdTime.getTime() - 1000 * 60;
@@ -5525,6 +5713,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 Date.now = () => room.createdTime.getTime() - 1000 * 60;
@@ -5597,6 +5786,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await updateMessageContent(context.action(session1), {
@@ -5648,18 +5838,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 });
 
                 const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 });
 
                 await updateMessageContent(context.action(session1), {
@@ -5731,18 +5924,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 });
 
                 const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 });
 
                 await updateMessageContent(context.action(session1), {
@@ -5812,18 +6008,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
+                    fileIds: [],
                 });
 
                 const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
+                    fileIds: [],
                 });
 
                 await deleteMessage(context.action(session1), {
@@ -5870,48 +6069,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content1,
+                fileIds: [],
             });
 
             const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message6.index,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -6161,54 +6368,63 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content1,
+                fileIds: [],
             });
 
             const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message6.index,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content4,
+                fileIds: [],
             });
 
             const message9 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -6543,36 +6759,42 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -6628,36 +6850,42 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -6713,36 +6941,42 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -6796,36 +7030,42 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -6895,18 +7135,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect(
@@ -6957,6 +7200,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const deletedMessage1 = await deleteMessage(context.action(session1), {
@@ -6988,18 +7232,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             expect(
@@ -7232,6 +7479,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             const deletedMessage1 = await deleteMessage(context.action(session1), {
@@ -7373,18 +7621,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expect(
@@ -7404,18 +7655,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await expect(
@@ -7436,18 +7690,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await createMessage(context.action(session2), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 await createMessage(context.action(session3), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
+                    fileIds: [],
                 });
 
                 expect(
@@ -7518,36 +7775,42 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             expect(
@@ -7658,18 +7921,21 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             const updatedMessage3 = await updateMessageContent(context.action(session3), {
@@ -7775,48 +8041,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message1.index,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(
@@ -7904,48 +8178,56 @@ export function testMessagingImplementation<RoomKey extends string>(
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
+                fileIds: [],
             });
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message1.index,
                 content: content3,
+                fileIds: [],
             });
 
             const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content2,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
+                fileIds: [],
             });
 
             await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
+                fileIds: [],
             });
 
             expect(

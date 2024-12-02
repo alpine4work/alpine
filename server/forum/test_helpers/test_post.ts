@@ -1,13 +1,21 @@
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {Node} from "prosemirror-model";
+import {
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     FilePostAuthorizer,
     createOrReplacePostDraft,
     createPost,
+    createPostComment,
+    deletePostComment,
     getPost,
+    updatePostCommentContent,
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -22,10 +30,16 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 let testPostCount = 1;
 
-export class TestPost {
+export type TestPostCreateOptions = {
+    files?: ReadonlyArray<TestFile>;
+    attachFiles?: ReadonlyArray<TestFile>;
+};
+
+export class TestPost extends TestCommentRoomBase {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: PostId;
@@ -42,6 +56,7 @@ export class TestPost {
         createdTime: Date,
         initialChannel: TestChannel,
     ) {
+        super();
         this.context = context;
         this.space = space;
         this.id = id;
@@ -54,16 +69,32 @@ export class TestPost {
     public static async _create(
         session: TestSpaceSession,
         channel: TestChannel,
-        {
-            content = `Test Post ${testPostCount++}`,
-            files = emptyArray,
-            attachFiles: originalAttachFiles = emptyArray,
-        }: {
-            content?: PostContent | string;
-            files?: ReadonlyArray<TestFile>;
-            attachFiles?: ReadonlyArray<TestFile>;
-        } = {},
+        content: PostContent | string,
+        options?: TestPostCreateOptions,
+    ): Promise<TestPost>;
+    public static async _create(
+        session: TestSpaceSession,
+        channel: TestChannel,
+        options?: TestPostCreateOptions,
+    ): Promise<TestPost>;
+    public static async _create(
+        session: TestSpaceSession,
+        channel: TestChannel,
+        contentOrOptions?: PostContent | string | TestPostCreateOptions,
+        options?: TestPostCreateOptions,
     ): Promise<TestPost> {
+        let content: PostContent | string =
+            typeof contentOrOptions === "string" || contentOrOptions instanceof Node
+                ? contentOrOptions
+                : `Test Post ${testPostCount++}`;
+
+        const {files = emptyArray, attachFiles: originalAttachFiles = emptyArray} =
+            options ??
+            (typeof contentOrOptions !== "string" && !(contentOrOptions instanceof Node)
+                ? contentOrOptions
+                : null) ??
+            {};
+
         if (typeof content === "string") {
             content = createSimplePostContent(content);
         }
@@ -142,6 +173,51 @@ export class TestPost {
         });
 
         return new TestPost(session.context, session.space, post.id, post.createdTime, channel);
+    }
+
+    protected override _getRoomKey() {
+        return this.id;
+    }
+
+    protected override _createMessage(
+        context: TestSessionActionContext,
+        {
+            parentMessageIndex,
+            content,
+            fileIds,
+        }: {
+            parentMessageIndex: number | null;
+            content: MessageContent;
+            fileIds: ReadonlyArray<FileId>;
+        },
+    ) {
+        return createPostComment(context, {
+            postId: this.id,
+            parentCommentIndex: parentMessageIndex,
+            content,
+            fileIds,
+        });
+    }
+
+    public override _updateMessageContent(
+        context: TestSessionActionContext,
+        {messageIndex, content}: {messageIndex: number; content: MessageContent},
+    ) {
+        return updatePostCommentContent(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+            content,
+        });
+    }
+
+    public override _deleteMessage(
+        context: TestSessionActionContext,
+        {messageIndex}: {messageIndex: number},
+    ) {
+        return deletePostComment(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+        });
     }
 
     public async get(): Promise<PostModel> {

@@ -1,10 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {
-    deleteChatMessage,
-    getOrCreateChatForAccounts,
-    sendChatMessage,
-} from "~/server/chat/data/chat_table.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     TestSessionActionContext,
@@ -39,7 +35,6 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -49,7 +44,6 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 beforeEach(() => {
@@ -1095,17 +1089,15 @@ test("will reindex if a dependency changes", async () => {
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
 
-    const post1 = await channel.createPost(session, {
-        content: createSimplePostContent(
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.",
-        ),
-    });
+    const post1 = await channel.createPost(
+        session,
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.",
+    );
 
-    const post2 = await channel.createPost(session, {
-        content: createSimplePostContent(
-            "Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.",
-        ),
-    });
+    const post2 = await channel.createPost(
+        session,
+        "Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.",
+    );
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -1265,18 +1257,12 @@ test("deleting a chat message will clear out its indexed content", async () => {
     const session1 = await space.createSession();
     const session2 = await space.createSession();
 
-    const chatId = await getOrCreateChatForAccounts(session1.action(), {
-        spaceId: space.id,
-        otherAccountIds: [session2.account.id],
-    });
+    const chat = await TestChat.get(session1, session2);
 
-    await sendChatMessage(session1.action(), {
-        chatId,
-        parentMessageIndex: null,
-        content: createSimpleMessageContent(
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id.",
-        ),
-    });
+    const message = await chat.sendMessage(
+        session1,
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id.",
+    );
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -1285,11 +1271,11 @@ test("deleting a chat message will clear out its indexed content", async () => {
         await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
-            `ChatMessage:${chatId}-0`,
+            `ChatMessage:${chat.id}-0`,
             {storedFields: ["body"]},
         ),
     ).toEqual({
-        id: `ChatMessage:${chatId}-0`,
+        id: `ChatMessage:${chat.id}-0`,
         routing: space.id,
         version: expect.any(Object),
         fields: {
@@ -1299,10 +1285,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
         },
     });
 
-    await deleteChatMessage(session1.action(), {
-        chatId,
-        messageIndex: 0,
-    });
+    await message.delete(session1);
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();
@@ -1311,11 +1294,11 @@ test("deleting a chat message will clear out its indexed content", async () => {
         await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
-            `ChatMessage:${chatId}-0`,
+            `ChatMessage:${chat.id}-0`,
             {storedFields: ["body"]},
         ),
     ).toEqual({
-        id: `ChatMessage:${chatId}-0`,
+        id: `ChatMessage:${chat.id}-0`,
         routing: space.id,
         version: expect.any(Object),
         fields: {},
@@ -1954,11 +1937,10 @@ test("searches with natural language parsing works", async () => {
         name: "Transit Enjoyers",
     });
 
-    const post = await channel.createPost(session1, {
-        content: createSimplePostContent(
-            "Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Check out this trains document.",
-        ),
-    });
+    const post = await channel.createPost(
+        session1,
+        "Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Check out this trains document.",
+    );
 
     import.meta.jest.runOnlyPendingTimers();
     await ProcessContextModule.waitForTestTasks();

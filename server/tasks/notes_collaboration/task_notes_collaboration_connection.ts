@@ -229,8 +229,12 @@ export class TaskNotesCollaborationConnection {
             };
         },
 
-        createComment: (context, {parentCommentIndex: parentMessageIndex, content}) =>
-            this._messagingConnection.createMessage(context, {parentMessageIndex, content}),
+        createComment: (context, {parentCommentIndex: parentMessageIndex, content, fileIds}) =>
+            this._messagingConnection.createMessage(context, {
+                parentMessageIndex,
+                content,
+                fileIds,
+            }),
 
         updateCommentContent: (context, {commentIndex: messageIndex, content}) =>
             this._messagingConnection.updateMessageContent(context, {messageIndex, content}),
@@ -263,12 +267,13 @@ export class TaskNotesCollaborationConnection {
 
 const createMessage: CreateMessageFunction<TaskId, TaskCommentModel> = async (
     context,
-    {roomKey: taskId, parentMessageIndex: parentCommentIndex, content},
+    {roomKey: taskId, parentMessageIndex: parentCommentIndex, content, fileIds},
 ) => {
     const {comment} = await createTaskComment(context, {
         taskId,
         parentCommentIndex,
         content,
+        fileIds,
     });
 
     return comment;

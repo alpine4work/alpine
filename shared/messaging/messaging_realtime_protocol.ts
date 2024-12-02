@@ -1,5 +1,5 @@
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -42,6 +42,7 @@ export type BackfillMessagesProcedureOutput<Message extends MessageModel> = {
 export type CreateMessageProcedure = (input: {
     parentMessageIndex: number | null;
     content: MessageContent;
+    fileIds: ReadonlyArray<FileId>;
 }) => Promise<{}>;
 
 export type UpdateMessageContentProcedure = (input: {
@@ -125,6 +126,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
             input: {
                 parentMessageIndex: Schema.integer.nullable(),
                 content: MessageContentSchema,
+                fileIds: Schema.array(Schema.id<FileId>()),
             },
             output: {},
         },

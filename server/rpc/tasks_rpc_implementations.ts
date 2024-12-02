@@ -2,6 +2,7 @@ import {
     getContentReferences,
     getContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
+import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {searchTaskCollections} from "~/server/tasks/data/task_index.js";
@@ -168,17 +169,19 @@ export default implementRpcs(definitions, {
                 input,
             );
 
-            const [author, contentReferences] = await runAllPromises([
+            const [author, payload] = await runAllPromises([
                 getAccount(context, spaceId, context.actor.getAccountId()),
-                getContentReferencesForNode(
+                createMessagePayloadModel(
                     context,
                     spaceId,
-                    FileTaskAuthorizer.bind({
-                        type: "TaskComment",
-                        taskId: input.taskId,
-                        commentIndex: index,
-                    }),
-                    input.content,
+                    FileTaskAuthorizer.bind({type: "TaskComments", taskId: input.taskId}),
+                    {
+                        type: "Content",
+                        parentMessageIndex: input.parentCommentIndex,
+                        content: input.content,
+                        contentUpdatedTime: null,
+                        fileIds: input.fileIds,
+                    },
                 ),
             ]);
 
@@ -187,15 +190,7 @@ export default implementRpcs(definitions, {
                 index,
                 author,
                 createdTime,
-                payload: {
-                    type: "Content",
-                    parentMessageIndex: input.parentCommentIndex,
-                    content: {
-                        doc: input.content,
-                        references: contentReferences,
-                    },
-                    contentUpdatedTime: null,
-                },
+                payload,
             });
 
             return {comment};
@@ -212,11 +207,7 @@ export default implementRpcs(definitions, {
             const contentReferences = await getContentReferencesForNode(
                 context,
                 spaceId,
-                FileTaskAuthorizer.bind({
-                    type: "TaskComment",
-                    taskId: input.taskId,
-                    commentIndex: input.commentIndex,
-                }),
+                FileTaskAuthorizer.bind({type: "TaskComments", taskId: input.taskId}),
                 input.content,
             );
 

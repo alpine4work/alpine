@@ -841,7 +841,7 @@ export const FilePostAuthorizer = FileAuthorizer.new(
             case "PostDraft":
                 await authorizePostDraftAccess(context, spaceId, target.accountId, target.draftId);
                 break;
-            case "PostComment":
+            case "PostComments":
                 await authorizePostAccess(context, target.postId, "View");
                 break;
             default:
@@ -2685,10 +2685,12 @@ export async function createPostComment(
         postId,
         parentCommentIndex,
         content,
+        fileIds,
     }: {
         postId: PostId;
         parentCommentIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -2715,7 +2717,24 @@ export async function createPostComment(
                 },
             );
             if (!postItem) throw new NotFoundError("Post not found");
-            await authorizeChannelAccess(context, postItem.channelId);
+
+            await runAllPromises([
+                authorizeChannelAccess(context, postItem.channelId),
+
+                // Make sure all the provided files exist.
+                //
+                // NOCOMMIT: Test!
+                runAllPromises(
+                    fileIds.map(fileId =>
+                        getFileFromAttachment(
+                            context,
+                            postItem.spaceId,
+                            fileId,
+                            FilePostAuthorizer.bind({type: "PostComments", postId}),
+                        ),
+                    ),
+                ),
+            ]);
 
             return postItem;
         })();
@@ -2772,6 +2791,7 @@ export async function createPostComment(
                     parentMessageIndex: parentCommentIndex,
                     content,
                     contentUpdatedTime: null,
+                    fileIds,
                 },
             }),
             // Ok for us to not tell the client about a comment summary update through our
@@ -2988,11 +3008,7 @@ async function createPostCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FilePostAuthorizer.bind({
-                type: "PostComment",
-                postId: item.postId,
-                commentIndex: item.commentIndex,
-            }),
+            FilePostAuthorizer.bind({type: "PostComments", postId: item.postId}),
             item.payload,
         ),
     ]);
@@ -3930,9 +3946,8 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                                 context,
                                 postItem.spaceId,
                                 FilePostAuthorizer.bind({
-                                    type: "PostComment",
+                                    type: "PostComments",
                                     postId: item.postId,
-                                    commentIndex: item.commentIndex,
                                 }),
                                 item.change.content,
                             ),

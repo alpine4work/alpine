@@ -124,6 +124,7 @@ export function ContentEditorMobileCommentInputBottomBar({
         transaction.setMeta(createCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
+            initialCommentFileIds: [],
         });
 
         transaction.scrollIntoView();

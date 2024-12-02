@@ -166,6 +166,7 @@ async function sendChatMessageToAccounts(
         chatId,
         parentMessageIndex,
         content,
+        fileIds: [],
     });
 }
 
@@ -3936,6 +3937,7 @@ testMessagingImplementation<ChatId>(context, {
             chatId,
             parentMessageIndex,
             content,
+            fileIds: [],
         });
 
         return {

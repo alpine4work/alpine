@@ -9,7 +9,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -28,6 +28,7 @@ export type CreateMessageFunction<RoomKey extends string, Message extends Messag
         roomKey: RoomKey;
         parentMessageIndex: number | null;
         content: MessageContent;
+        fileIds: ReadonlyArray<FileId>;
     },
 ) => Promise<Message>;
 
@@ -426,7 +427,15 @@ export class MessagingRealtimeConnection<
 
     public async createMessage(
         context: WorkerSessionActionContext,
-        {parentMessageIndex, content}: {parentMessageIndex: number | null; content: MessageContent},
+        {
+            parentMessageIndex,
+            content,
+            fileIds,
+        }: {
+            parentMessageIndex: number | null;
+            content: MessageContent;
+            fileIds: ReadonlyArray<FileId>;
+        },
     ): Promise<{}> {
         // TODO(calebmer): What if we sent clients an optimistic "message created"
         // event before we confirmed the message was saved in the database? This would
@@ -435,6 +444,7 @@ export class MessagingRealtimeConnection<
             roomKey: this.roomKey,
             parentMessageIndex,
             content,
+            fileIds,
         });
 
         await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(

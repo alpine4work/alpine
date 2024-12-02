@@ -30,34 +30,32 @@ export type FileAttachmentTarget = FileAttachmentTargetByArea[keyof FileAttachme
 // these attachment targets.
 export type FileAttachmentTargetByArea = {
     // TODO(calebmer, #files): Implement attachments
-    Chat: {readonly type: "ChatMessage"; readonly chatId: ChatId; readonly messageIndex: number};
+    Chat: {readonly type: "ChatMessages"; readonly chatId: ChatId};
     // TODO(calebmer, #files): Implement attachments
     Channel: {readonly type: "ChannelDescription"; readonly channelId: ChannelId};
     Document:
         | {readonly type: "Document"; readonly documentId: DocumentId}
         // TODO(calebmer, #files): Implement attachments
         | {
-              readonly type: "DocumentComment";
+              readonly type: "DocumentComments";
               readonly documentId: DocumentId;
               readonly commentThreadId: DocumentCommentThreadId;
-              readonly commentIndex: number;
           };
     Post:
         | {readonly type: "Post"; readonly postId: PostId}
         | {readonly type: "PostDraft"; readonly accountId: AccountId; readonly draftId: PostDraftId}
         // TODO(calebmer, #files): Implement attachments
-        | {readonly type: "PostComment"; readonly postId: PostId; readonly commentIndex: number};
+        | {readonly type: "PostComments"; readonly postId: PostId};
     Task:
         | {readonly type: "TaskNotes"; readonly taskId: TaskId}
         // TODO(calebmer, #files): Implement attachments
-        | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
+        | {readonly type: "TaskComments"; readonly taskId: TaskId};
 };
 
 export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.union({
-    ChatMessage: Schema.object({
-        type: Schema.value("ChatMessage"),
+    ChatMessages: Schema.object({
+        type: Schema.value("ChatMessages"),
         chatId: Schema.id<ChatId>(),
-        messageIndex: Schema.integer,
     }),
     ChannelDescription: Schema.object({
         type: Schema.value("ChannelDescription"),
@@ -67,11 +65,10 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
         type: Schema.value("Document"),
         documentId: Schema.id<DocumentId>(),
     }),
-    DocumentComment: Schema.object({
-        type: Schema.value("DocumentComment"),
+    DocumentComments: Schema.object({
+        type: Schema.value("DocumentComments"),
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
-        commentIndex: Schema.integer,
     }),
     Post: Schema.object({
         type: Schema.value("Post"),
@@ -82,19 +79,17 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
         accountId: Schema.id<AccountId>(),
         draftId: Schema.id<PostDraftId>(),
     }),
-    PostComment: Schema.object({
-        type: Schema.value("PostComment"),
+    PostComments: Schema.object({
+        type: Schema.value("PostComments"),
         postId: Schema.id<PostId>(),
-        commentIndex: Schema.integer,
     }),
     TaskNotes: Schema.object({
         type: Schema.value("TaskNotes"),
         taskId: Schema.id<TaskId>(),
     }),
-    TaskComment: Schema.object({
-        type: Schema.value("TaskComment"),
+    TaskComments: Schema.object({
+        type: Schema.value("TaskComments"),
         taskId: Schema.id<TaskId>(),
-        commentIndex: Schema.integer,
     }),
 });
 
@@ -110,7 +105,7 @@ export function deserializeFileAttachmentTargetString(targetString: string): Fil
 
 function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8Array {
     switch (target.type) {
-        case "ChatMessage": {
+        case "ChatMessages": {
             const bytes = new Uint8Array(1 + idByteLength + 8);
             let byteOffset = 0;
 
@@ -119,9 +114,6 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             decodeIdInto(target.chatId, bytes, byteOffset);
             byteOffset += idByteLength;
-
-            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.messageIndex));
-            byteOffset += 8;
 
             return bytes;
         }
@@ -149,7 +141,7 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             return bytes;
         }
-        case "DocumentComment": {
+        case "DocumentComments": {
             const bytes = new Uint8Array(1 + idByteLength + idByteLength + 8);
             let byteOffset = 0;
 
@@ -161,9 +153,6 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             decodeIdInto(target.commentThreadId, bytes, byteOffset);
             byteOffset += idByteLength;
-
-            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.commentIndex));
-            byteOffset += 8;
 
             return bytes;
         }
@@ -194,7 +183,7 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             return bytes;
         }
-        case "PostComment": {
+        case "PostComments": {
             const bytes = new Uint8Array(1 + idByteLength + 8);
             let byteOffset = 0;
 
@@ -203,9 +192,6 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             decodeIdInto(target.postId, bytes, byteOffset);
             byteOffset += idByteLength;
-
-            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.commentIndex));
-            byteOffset += 8;
 
             return bytes;
         }
@@ -221,7 +207,7 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 
             return bytes;
         }
-        case "TaskComment": {
+        case "TaskComments": {
             const bytes = new Uint8Array(1 + idByteLength + 8);
             let byteOffset = 0;
 
@@ -231,9 +217,6 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
             decodeIdInto(target.taskId, bytes, byteOffset);
             byteOffset += idByteLength;
 
-            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.commentIndex));
-            byteOffset += 8;
-
             return bytes;
         }
         default:
@@ -242,7 +225,6 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
 }
 
 function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachmentTarget {
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let byteOffset = 0;
 
     const firstByte = bytes[0];
@@ -254,10 +236,7 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             const chatId = encodeId<ChatId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            const messageIndex = Number(view.getBigInt64(byteOffset));
-            byteOffset += 8;
-
-            return {type: "ChatMessage", chatId, messageIndex};
+            return {type: "ChatMessages", chatId};
         }
         case 2: {
             const channelId = encodeId<ChannelId>(bytes, byteOffset);
@@ -278,10 +257,7 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             const commentThreadId = encodeId<DocumentCommentThreadId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            const commentIndex = Number(view.getBigInt64(byteOffset));
-            byteOffset += 8;
-
-            return {type: "DocumentComment", documentId, commentThreadId, commentIndex};
+            return {type: "DocumentComments", documentId, commentThreadId};
         }
         case 5: {
             const postId = encodeId<PostId>(bytes, byteOffset);
@@ -302,10 +278,7 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             const postId = encodeId<PostId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            const commentIndex = Number(view.getBigInt64(byteOffset));
-            byteOffset += 8;
-
-            return {type: "PostComment", postId, commentIndex};
+            return {type: "PostComments", postId};
         }
         case 8: {
             const taskId = encodeId<TaskId>(bytes, byteOffset);
@@ -317,10 +290,7 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             const taskId = encodeId<TaskId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            const commentIndex = Number(view.getBigInt64(byteOffset));
-            byteOffset += 8;
-
-            return {type: "TaskComment", taskId, commentIndex};
+            return {type: "TaskComments", taskId};
         }
         default:
             throw new InvalidArgumentError(quote`Invalid first byte: ${firstByte}`);

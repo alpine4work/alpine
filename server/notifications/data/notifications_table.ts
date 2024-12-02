@@ -729,9 +729,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 context,
                                 item.spaceId,
                                 FileChatAuthorizer.bind({
-                                    type: "ChatMessage",
+                                    type: "ChatMessages",
                                     chatId: item.chatId,
-                                    messageIndex: item.latestMessage.index,
                                 }),
                                 item.latestMessage.contentSnippet,
                             ),
@@ -786,9 +785,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       context,
                                       item.spaceId,
                                       FilePostAuthorizer.bind({
-                                          type: "PostComment",
+                                          type: "PostComments",
                                           postId: item.postId,
-                                          commentIndex: item.latestComment.index,
                                       }),
                                       item.latestComment.contentSnippet,
                                   ),
@@ -910,10 +908,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             context,
                             item.spaceId,
                             FileDocumentAuthorizer.bind({
-                                type: "DocumentComment",
+                                type: "DocumentComments",
                                 documentId: item.documentId,
                                 commentThreadId: item.commentThreadId,
-                                commentIndex: item.latestComment.index,
                             }),
                             item.latestComment.contentSnippet,
                         ),
@@ -962,7 +959,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             context,
                             item.spaceId,
                             FileDocumentAuthorizer.bind({
-                                type: "DocumentComment",
+                                type: "DocumentComments",
                                 documentId: item.documentId,
                                 // NOTE(calebmer, 2024-09-20): `commentThreadId` didn't exist on `firstComment`
                                 // before this date. So if we have a document comment threads entry where
@@ -973,7 +970,6 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 commentThreadId:
                                     item.firstComment.commentThreadId ??
                                     assertExists(iterableFirst(item.commentThreadIds)),
-                                commentIndex: 0,
                             }),
                             item.firstComment.contentSnippet,
                         ),
@@ -1017,9 +1013,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 context,
                                 item.spaceId,
                                 FileTaskAuthorizer.bind({
-                                    type: "TaskComment",
+                                    type: "TaskComments",
                                     taskId: item.taskId,
-                                    commentIndex: item.latestComment.index,
                                 }),
                                 item.latestComment.contentSnippet,
                             ),
@@ -2849,11 +2844,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 : null,
             printNotificationEventAlertContentBody(
                 context,
-                FileChatAuthorizer.bind({
-                    type: "ChatMessage",
-                    chatId: event.chatId,
-                    messageIndex: event.messageIndex,
-                }),
+                FileChatAuthorizer.bind({type: "ChatMessages", chatId: event.chatId}),
                 event,
             ),
         ]);
@@ -3032,11 +3023,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             getPostAuthorAndChannelPreview(context, event.postId),
             printNotificationEventAlertContentBody(
                 context,
-                FilePostAuthorizer.bind({
-                    type: "PostComment",
-                    postId: event.postId,
-                    commentIndex: event.commentIndex,
-                }),
+                FilePostAuthorizer.bind({type: "PostComments", postId: event.postId}),
                 event,
             ),
         ]);
@@ -3411,10 +3398,9 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             printNotificationEventAlertContentBody(
                 context,
                 FileDocumentAuthorizer.bind({
-                    type: "DocumentComment",
+                    type: "DocumentComments",
                     documentId: event.documentId,
                     commentThreadId: event.commentThreadId,
-                    commentIndex: event.commentIndex,
                 }),
                 event,
             ),
@@ -3594,11 +3580,7 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
             getTaskOwner(context, event.taskId),
             printNotificationEventAlertContentBody(
                 context,
-                FileTaskAuthorizer.bind({
-                    type: "TaskComment",
-                    taskId: event.taskId,
-                    commentIndex: event.commentIndex,
-                }),
+                FileTaskAuthorizer.bind({type: "TaskComments", taskId: event.taskId}),
                 event,
             ),
         ]);

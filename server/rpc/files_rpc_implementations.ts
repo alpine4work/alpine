@@ -18,19 +18,19 @@ import * as definitions from "~/shared/rpc/files_rpc_definitions.js";
 
 export function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget): FileAuthorizer {
     switch (target.type) {
-        case "ChatMessage":
+        case "ChatMessages":
             return FileChatAuthorizer.bind(target);
         case "ChannelDescription":
             return FileChannelAuthorizer.bind(target);
         case "Document":
-        case "DocumentComment":
+        case "DocumentComments":
             return FileDocumentAuthorizer.bind(target);
         case "Post":
         case "PostDraft":
-        case "PostComment":
+        case "PostComments":
             return FilePostAuthorizer.bind(target);
         case "TaskNotes":
-        case "TaskComment":
+        case "TaskComments":
             return FileTaskAuthorizer.bind(target);
         default:
             throw exhaustive(target);
