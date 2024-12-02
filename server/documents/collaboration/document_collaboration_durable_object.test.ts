@@ -10,6 +10,7 @@ import {
 } from "~/server/documents/collaboration/document_collaboration_content_manager.js";
 import {DocumentCollaborationDurableObject} from "~/server/documents/collaboration/document_collaboration_durable_object.js";
 import {
+    FileDocumentAuthorizer,
     createDocument,
     createDocumentComment,
     getDocument,
@@ -19,6 +20,8 @@ import {
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {attachFileAsUploader} from "~/server/files/data/files_table.js";
+import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
@@ -35,6 +38,8 @@ import {
     DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -554,6 +559,70 @@ test("will respond optimistically with a comment thread even if it has not been 
         }),
     ).rejects.toThrow(NotFoundError);
 
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [],
+                },
+            }),
+        ],
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [],
+                },
+            }),
+        ],
+    });
+
     unpause();
     await waitForPersistance(connection1, 2);
 
@@ -580,6 +649,70 @@ test("will respond optimistically with a comment thread even if it has not been 
             updatedCommentThreads: [],
         },
     ]);
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [],
+                },
+            }),
+        ],
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [],
+                },
+            }),
+        ],
+    });
 });
 
 test("will respond optimistically to backfills with a comment thread even if it has not been persisted yet", async () => {
@@ -729,7 +862,396 @@ test("will respond optimistically to backfills with a comment thread even if it 
     ]);
 });
 
-// NOCOMMIT: Test files in comments
+test("will respond optimistically with a comment thread with files even if it has not been persisted yet", async () => {
+    const document = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.action(session1), {
+        id: document.id,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    const client1Id = generateId<ContentEditorClientId>();
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
+
+    await connection1.procedures.backfill({
+        version: 0,
+    });
+
+    await connection2.procedures.backfill({
+        version: 0,
+    });
+
+    const pausePromise =
+        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+
+    const [{fileId: file1Id}, {fileId: file2Id}] = await runAllPromises([
+        uploadTestFile(context.action(session1), space.id),
+        uploadTestFile(context.action(session1), space.id),
+    ]);
+
+    await runAllPromises([
+        attachFileAsUploader(
+            context.action(session1),
+            space.id,
+            file1Id,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ),
+        attachFileAsUploader(
+            context.action(session1),
+            space.id,
+            file2Id,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ),
+    ]);
+
+    await connection1.procedures.updateContent({
+        version: 1,
+        steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+        clientId: client1Id,
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                initialCommentFileIds: [file1Id, file2Id],
+            },
+        ],
+        updateOurPresenceState: {state: null},
+    });
+
+    const {unpause} = await pausePromise;
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [
+                                await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                            ],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
+        },
+    ]);
+
+    await expect(() =>
+        getDocumentComment(context.action(session1), {
+            documentId: document.id,
+            commentThreadId,
+            commentIndex: 0,
+        }),
+    ).rejects.toThrow(NotFoundError);
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file1Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file2Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                    ],
+                },
+            }),
+        ],
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file1Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file2Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                    ],
+                },
+            }),
+        ],
+    });
+
+    unpause();
+    await waitForPersistance(connection1, 2);
+
+    expect(
+        await getDocumentComment(context.action(session1), {
+            documentId: document.id,
+            commentThreadId,
+            commentIndex: 0,
+        }),
+    ).not.toBeNull();
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+            updatedCommentThreads: [],
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+            updatedCommentThreads: [],
+        },
+    ]);
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file1Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file2Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                    ],
+                },
+            }),
+        ],
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 10,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        otherReferencedComments: [],
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: await getAccount(context.action(session1), space.id, session1.accountId),
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                    files: [
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file1Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                        {
+                            signedUrlSearch: expect.any(String),
+                            file: new FileModel({
+                                id: file2Id,
+                                contentType: "image/png",
+                                contentLength: 100,
+                                isUploading: false,
+                                alternative: null,
+                                preview: expect.any(Object),
+                            }),
+                        },
+                    ],
+                },
+            }),
+        ],
+    });
+});
+
 test("when comment threads are added back to the document they will be loaded", async () => {
     const document = await createDocument(context.action(session1), {
         spaceId: space.id,
