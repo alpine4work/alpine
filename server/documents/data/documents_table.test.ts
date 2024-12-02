@@ -11833,7 +11833,19 @@ describe("Comments", () => {
         getMissingRoomKey() {
             return encodeDocumentCommentRoomKey(generateId(), generateId());
         },
-        async createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content}) {
+        getRoomFileAuthorizer(roomKey) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            return FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId,
+                commentThreadId,
+            });
+        },
+        async createMessage(
+            context,
+            {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
+        ) {
             const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
             const comment = await createDocumentComment(context, {
@@ -11841,7 +11853,7 @@ describe("Comments", () => {
                 commentThreadId,
                 parentCommentIndex,
                 content,
-                fileIds: [],
+                fileIds,
             });
 
             return {

@@ -3888,8 +3888,6 @@ export async function createDocumentComment(
                 const {spaceId} = await authorizeDocumentAccess(context, documentId);
 
                 // Make sure all the provided files exist.
-                //
-                // NOCOMMIT: Test!
                 await runAllPromises(
                     fileIds.map(fileId =>
                         getFileFromAttachment(

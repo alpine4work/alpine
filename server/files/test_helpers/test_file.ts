@@ -1,4 +1,7 @@
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     FileAuthorizer,
     attachFileAsUploader,
@@ -14,7 +17,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -33,6 +36,35 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
         {r: 255, g: 0, b: 0},
     ],
 ]);
+
+export async function uploadTestFile(context: TestSessionActionContext, spaceId: SpaceId) {
+    const {fileId} = await startUploadingFile(context, {
+        spaceId,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    await finishUploadingAndStartProcessingFile(context, {
+        spaceId,
+        fileId,
+    });
+
+    const fileUploader = await getFileUploaderAsUploader(context, spaceId, fileId);
+
+    await fileUploader.finishProcessingImagePreviewSize(context, {
+        width: 1000,
+        height: 1000,
+        scale: 1,
+        hasAlpha: false,
+    });
+
+    await fileUploader.finishProcessingImagePreviewPlaceholder(
+        context,
+        fileImagePreviewPlaceholder,
+    );
+
+    return {fileId};
+}
 
 export class TestFile {
     public readonly context: TestContext;
@@ -53,34 +85,7 @@ export class TestFile {
     }
 
     public static async create(session: TestSpaceSession): Promise<TestFile> {
-        const {fileId} = await startUploadingFile(session.action(), {
-            spaceId: session.space.id,
-            contentType: "image/png",
-            contentLength: 100,
-        });
-
-        await finishUploadingAndStartProcessingFile(session.action(), {
-            spaceId: session.space.id,
-            fileId,
-        });
-
-        const fileUploader = await getFileUploaderAsUploader(
-            session.action(),
-            session.space.id,
-            fileId,
-        );
-
-        await fileUploader.finishProcessingImagePreviewSize(session.action(), {
-            width: 1000,
-            height: 1000,
-            scale: 1,
-            hasAlpha: false,
-        });
-
-        await fileUploader.finishProcessingImagePreviewPlaceholder(
-            session.action(),
-            fileImagePreviewPlaceholder,
-        );
+        const {fileId} = await uploadTestFile(session.action(), session.space.id);
 
         return new TestFile(session.context, session.space, fileId, null);
     }

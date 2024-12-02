@@ -4,6 +4,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
+    FileTaskAuthorizer,
     authorizeTaskAccess,
     backfillTaskComments,
     createTaskComment,
@@ -106,6 +107,9 @@ testMessagingImplementation<TaskId>(processContext, {
     },
     getMissingRoomKey() {
         return generateId();
+    },
+    getRoomFileAuthorizer(taskId) {
+        return FileTaskAuthorizer.bind({type: "TaskComments", taskId});
     },
     async createMessage(
         context,

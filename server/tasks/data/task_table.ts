@@ -4597,8 +4597,6 @@ export async function createTaskComment(
                 const spaceId = item.spaceId;
 
                 // Make sure all the provided files exist.
-                //
-                // NOCOMMIT: Test!
                 await runAllPromises(
                     fileIds.map(fileId =>
                         getFileFromAttachment(

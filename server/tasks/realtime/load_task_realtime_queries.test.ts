@@ -14,6 +14,7 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -977,25 +978,44 @@ test("loads unauthorized collections", async () => {
 
     await server.wait();
 
-    expect(
-        await testLoadTaskRealtimeQueries(session1.action(), {
-            server,
-            spaceId: space.id,
-            queries: [
-                {
-                    filters: [
-                        {
-                            type: "Assignee",
-                            operation: {
-                                type: "OneOf",
-                                accounts: [{type: "CurrentAccount"}],
-                            },
+    const loadResult = await testLoadTaskRealtimeQueries(session1.action(), {
+        server,
+        spaceId: space.id,
+        queries: [
+            {
+                filters: [
+                    {
+                        type: "Assignee",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [{type: "CurrentAccount"}],
                         },
-                    ],
-                },
-            ],
-        }),
-    ).toEqual({
+                    },
+                ],
+            },
+        ],
+    });
+
+    expect({
+        ...loadResult,
+        updateEvent: {
+            ...loadResult.updateEvent,
+            // We've found the order of `backfillCollections` to be non-deterministic
+            // causing this test to flake. So sort collections since order here doesn't
+            // matter.
+            backfillCollections: Array.from(loadResult.updateEvent.backfillCollections).sort(
+                (collection1, collection2) =>
+                    defaultCompareStrings(
+                        collection1.type === "Authorized"
+                            ? collection1.collection.id
+                            : collection1.collectionId,
+                        collection2.type === "Authorized"
+                            ? collection2.collection.id
+                            : collection2.collectionId,
+                    ),
+            ),
+        },
+    }).toEqual({
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
@@ -1012,12 +1032,14 @@ test("loads unauthorized collections", async () => {
                 expectUnauthorizedTask(parentTask3.id),
             ],
             backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectUnauthorizedCollection(collection2.id),
-                expectUnauthorizedCollection(collection3.id),
-                expectUnauthorizedCollection(collection4.id),
-                expectUnauthorizedCollection(collection5.id),
-            ],
+                {id: collection1.id, build: expectAuthorizedCollection},
+                {id: collection2.id, build: expectUnauthorizedCollection},
+                {id: collection3.id, build: expectUnauthorizedCollection},
+                {id: collection4.id, build: expectUnauthorizedCollection},
+                {id: collection5.id, build: expectUnauthorizedCollection},
+            ]
+                .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
+                .map(({id, build}) => build(id)),
             referencedAccounts: [await session1.get()],
         },
     });

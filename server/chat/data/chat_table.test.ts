@@ -1,4 +1,5 @@
 import {
+    FileChatAuthorizer,
     authorizeChatAccess,
     authorizeChatAccessForAccount,
     backfillChatMessages,
@@ -560,7 +561,7 @@ test("can not send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new NotFoundError("Can not find account in space"));
+    ).rejects.toThrow(new NotFoundError("Can't find account in space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionA1), {
@@ -578,7 +579,7 @@ test("can not send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new NotFoundError("Can not find account in space"));
+    ).rejects.toThrow(new NotFoundError("Can't find account in space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
@@ -3932,12 +3933,15 @@ testMessagingImplementation<ChatId>(context, {
     getMissingRoomKey() {
         return generateId();
     },
-    async createMessage(context, {roomKey: chatId, parentMessageIndex, content}) {
+    getRoomFileAuthorizer(chatId) {
+        return FileChatAuthorizer.bind({type: "ChatMessages", chatId});
+    },
+    async createMessage(context, {roomKey: chatId, parentMessageIndex, content, fileIds}) {
         const message = await sendChatMessage(context, {
             chatId,
             parentMessageIndex,
             content,
-            fileIds: [],
+            fileIds,
         });
 
         return {

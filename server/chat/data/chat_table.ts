@@ -806,8 +806,6 @@ export function sendChatMessage(
                 const result = await getChatItemAndAuthorizeAccess(context, chatId);
 
                 // Make sure all the provided files exist.
-                //
-                // NOCOMMIT: Test!
                 await runAllPromises(
                     fileIds.map(fileId =>
                         getFileFromAttachment(
