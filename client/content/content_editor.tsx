@@ -840,6 +840,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     >(null);
     const lastTransactionRef = useRef<Transaction | null>(null);
     const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
+    const selectionUpdateEmitterRef = useRef<EventEmitter | null>(null);
     const tripleClickDragStateRef = useRef<ContentEditorTripleClickDragState | null>(null);
     const draggingFileRef = useRef<{getPos: () => number | null} | null>(null);
 
@@ -1141,7 +1142,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 draggingFileRef,
             }),
-            table: (node, view) => new ContentEditorTableNodeView(node, 100, view),
+            table: (node, view) =>
+                new ContentEditorTableNodeView(node, 100, view, listener => {
+                    selectionUpdateEmitterRef.current ??= new EventEmitter();
+                    return selectionUpdateEmitterRef.current.subscribe(listener);
+                }),
         };
 
         // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -2954,6 +2959,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getContentEditorReferences(newState).references
         ) {
             referencesUpdateEmitterRef.current.emit();
+        }
+
+        // Emit a selection change for any subscribers (typically node views
+        // which depend on content references).
+        if (selectionUpdateEmitterRef.current && oldState.selection !== newState.selection) {
+            selectionUpdateEmitterRef.current.emit();
         }
 
         // Report any added undo/redo stack entries...

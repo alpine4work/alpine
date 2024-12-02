@@ -1998,11 +1998,14 @@ globalStyle(tableClassName, {
     position: "relative",
     minWidth: spacing[160],
     margin: `${standaloneBlockMarginVar} auto`,
-    padding: spacing[5],
-    background: colorSchemeVars["grey-5"],
     width: "fit-content",
     maxWidth: "95%",
     overflowX: "auto",
+});
+
+globalStyle(`${tableClassName}.activeTable`, {
+    background: colorSchemeVars["grey-5"],
+    padding: spacing[5],
 });
 
 globalStyle(`${tableClassName} table`, {
@@ -2026,6 +2029,7 @@ globalStyle(`${tableClassName} td, ${tableClassName} th`, {
     position: "relative",
 });
 
+// Add a background color to the cell that is selected.
 globalStyle(`${tableClassName} .selectedCell:after`, {
     zIndex: 2,
     position: "absolute",
@@ -2038,6 +2042,7 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     pointerEvents: "none",
 });
 
+// Add a color to the column border while resizing.
 globalStyle(`${tableClassName} .column-resize-handle`, {
     position: "absolute",
     right: `-${spacing[0.5]}`,

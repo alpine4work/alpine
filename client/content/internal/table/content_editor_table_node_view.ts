@@ -26,9 +26,11 @@
  * THE SOFTWARE.
  */
 import {Node} from "prosemirror-model";
+import {inSameTable, isInTable} from "prosemirror-tables";
 import {EditorView, NodeView} from "prosemirror-view";
 import {tableClassName} from "~/shared/content/content_styles.js";
 import {type ContentEditorCellAttrs} from "~/shared/content/table/content_editor_cell_attrs.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 
 export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
@@ -36,12 +38,22 @@ export class ContentEditorTableNodeView implements NodeView {
     public colgroup: HTMLTableColElement;
     public contentDOM: HTMLTableSectionElement;
 
-    constructor(public node: Node, public defaultCellMinWidth: number, public view: EditorView) {
+    private unsubscribeFromSelectionUpdate: (() => void) | null = null;
+
+    constructor(
+        public node: Node,
+        public defaultCellMinWidth: number,
+        public view: EditorView,
+        public subscribeToSelectionUpdate?: (listener: () => void) => () => void,
+    ) {
         this.dom = document.createElement("div");
         this.dom.className = tableClassName;
+        this.dom.style.display = "flex";
+        this.dom.style.alignItems = "stretch";
         this.dom.setAttribute("data-scrollbar", "false");
         this.table = this.dom.appendChild(document.createElement("table"));
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));
+
         contentEditorUpdateTableColumnsOnResize(
             node,
             this.colgroup,
@@ -52,7 +64,48 @@ export class ContentEditorTableNodeView implements NodeView {
             undefined,
         );
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
+        this.addActiveTableClass();
+        if (subscribeToSelectionUpdate) {
+            this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
+                requestAnimationFrame(() => this.addActiveTableClass());
+            });
+        }
     }
+
+    addActiveTableClass = () => {
+        console.log("addActiveTableClass");
+        console.log("isInTable", isInTable(this.view.state));
+        console.log(
+            "inSameTable",
+            inSameTable(this.view.state.selection.$from, this.view.state.selection.$to),
+        );
+        // if (isInTable(this.view.state)) {
+        //     const existingIndicator = this.dom.querySelector("[data-table-active-indicator]");
+        //     if (existingIndicator) {
+        //         return;
+        //     }
+        //     const activeIndicator = document.createElement("div");
+        //     activeIndicator.setAttribute("data-table-active-indicator", "");
+        //     Object.assign(activeIndicator.style, {
+        //         width: "30px",
+        //         backgroundColor: "red",
+        //         cursor: "pointer",
+        //         flexShrink: "0",
+        //         marginLeft: "4px",
+        //     });
+
+        //     activeIndicator.addEventListener("click", () => {
+        //         console.log("clicked");
+        //     });
+
+        //     this.dom.appendChild(activeIndicator);
+        // } else {
+        //     const activeIndicator = this.dom.querySelector("[data-table-active-indicator]");
+        //     if (activeIndicator) {
+        //         activeIndicator.remove();
+        //     }
+        // }
+    };
 
     update(node: Node): boolean {
         if (node.type != this.node.type) return false;
@@ -70,10 +123,17 @@ export class ContentEditorTableNodeView implements NodeView {
     }
 
     ignoreMutation(record: MutationRecord): boolean {
-        return (
+        // console.log("ignoreMutation", record);
+        const isTableOrColgroup =
             record.type == "attributes" &&
-            (record.target == this.table || this.colgroup.contains(record.target))
-        );
+            (record.target == this.table || this.colgroup.contains(record.target));
+        // console.log("isTableOrColgroup", isTableOrColgroup);
+        return isTableOrColgroup;
+    }
+
+    destroy() {
+        console.log("destroy");
+        this.unsubscribeFromSelectionUpdate?.();
     }
 }
 

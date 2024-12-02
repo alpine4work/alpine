@@ -17,6 +17,7 @@ import {
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {contentEditorTableColumnResizingPlugin} from "~/client/content/internal/table/content_table_column_resize_plugin.js";
+import {contentTableEditingPlugin} from "~/client/content/internal/table/content_table_editing_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
@@ -82,11 +83,19 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
+        // prosemirror plugin
         tableEditing({
             allowTableNodeSelection: true,
         }),
+
+        // custom plugin
+        // contentTableEditingPlugin({
+        //     allowTableNodeSelection: true,
+        // }),
+        // custom plugin
         contentEditorTableColumnResizingPlugin(),
     ];
+    // contentTableEditingPlugin();
 
     return plugins;
 }

@@ -54,7 +54,7 @@ type ColumnResizingOptions = {
      * uses the {@link ContentEditorTableNodeView} class. You can explicitly set this to `null` to
      * not use a custom node view.
      */
-    View?: (new (node: ProsemirrorNode, cellMinWidth: number, view: EditorView) => NodeView) | null;
+    View?: typeof ContentEditorTableNodeView | null;
 };
 
 type Dragging = {startX: number; startWidth: number};

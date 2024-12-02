@@ -93,4 +93,4 @@ export type contentTableNodes = Record<
     "table" | "tableRow" | "tableCell" | "tableHeader",
     NodeSpec
 >;
-type contentTableRole = "table" | "row" | "cell" | "header_cell";
+export type contentTableRole = "table" | "row" | "cell" | "header_cell";
