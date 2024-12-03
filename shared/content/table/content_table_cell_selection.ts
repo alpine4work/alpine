@@ -319,6 +319,7 @@ ContentTableCellSelection.prototype.visible = false;
 try {
     Selection.jsonID("cell", ContentTableCellSelection);
 } catch (e) {
+    // eslint-disable-next-line no-console
     console.log("Error in Selection.jsonID", e);
 }
 

@@ -13,17 +13,12 @@ import {
 import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
 import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
 
-/**
- * @public
- */
-export const fixTablesKey = new PluginKey<{fixTables: boolean}>("fix-tables");
+const fixTablesKey = new PluginKey<{contentTableFixTables: boolean}>("fix-tables");
 
 /**
  * Helper for iterating through the nodes in a document that changed
  * compared to the given previous document. Useful for avoiding
  * duplicate work on each transaction.
- *
- * @public
  */
 function changedDescendants(
     old: Node,
@@ -56,10 +51,11 @@ function changedDescendants(
  * provided, that is assumed to hold a previous, known-good state,
  * which will be used to avoid re-scanning unchanged parts of the
  * document.
- *
- * @public
  */
-export function fixTables(state: EditorState, oldState?: EditorState): Transaction | undefined {
+export function contentTableFixTables(
+    state: EditorState,
+    oldState?: EditorState,
+): Transaction | undefined {
     let tr: Transaction | undefined;
     const check = (node: Node, pos: number) => {
         if (node.type.spec.tableRole == "table") tr = fixTable(state, node, pos, tr);
@@ -71,7 +67,7 @@ export function fixTables(state: EditorState, oldState?: EditorState): Transacti
 
 // Fix the given table, if necessary. Will append to the transaction
 // it was given, if non-null, or create a new one if necessary.
-export function fixTable(
+function fixTable(
     state: EditorState,
     table: Node,
     tablePos: number,
@@ -145,5 +141,5 @@ export function fixTable(
         }
         pos = end;
     }
-    return tr.setMeta(fixTablesKey, {fixTables: true});
+    return tr.setMeta(fixTablesKey, {contentTableFixTables: true});
 }

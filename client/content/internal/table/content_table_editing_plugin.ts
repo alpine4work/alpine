@@ -1,5 +1,6 @@
 import {EditorState, Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
+import {contentTableFixTables} from "~/client/content/internal/table/content_table_fixtables.js";
 /**
  * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
  * remove features we don't use and customize the user experience. We intend to
@@ -39,7 +40,6 @@ import {
     contentTableHandleTripleClick,
     contentTableKeyDownHandler,
 } from "~/client/content/internal/table/content_table_input.js";
-import {fixTables} from "~/client/content/internal/table/fixtables.js";
 import {
     ContentTableCellSelection,
     contentTableCellNormalizeSelection,
@@ -117,7 +117,7 @@ export function contentTableEditingPlugin({
         appendTransaction(_, oldState, state) {
             return contentTableCellNormalizeSelection(
                 state,
-                fixTables(state, oldState),
+                contentTableFixTables(state, oldState),
                 allowTableNodeSelection,
             );
         },

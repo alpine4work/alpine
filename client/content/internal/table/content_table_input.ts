@@ -6,7 +6,7 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {deleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
+import {contentTableCommandDeleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
     contentTableCopyPasteClipCells,
     contentTableFitSlice,
@@ -38,10 +38,10 @@ export const contentTableKeyDownHandler = keydownHandler({
     "Shift-ArrowUp": shiftArrow("vert", -1),
     "Shift-ArrowDown": shiftArrow("vert", 1),
 
-    Backspace: deleteCellSelection,
-    "Mod-Backspace": deleteCellSelection,
-    Delete: deleteCellSelection,
-    "Mod-Delete": deleteCellSelection,
+    Backspace: contentTableCommandDeleteCellSelection,
+    "Mod-Backspace": contentTableCommandDeleteCellSelection,
+    Delete: contentTableCommandDeleteCellSelection,
+    "Mod-Delete": contentTableCommandDeleteCellSelection,
 });
 
 function maybeSetSelection(

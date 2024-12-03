@@ -34,7 +34,7 @@ type TableRect = ContentTableMapRect & {
  *
 
  */
-export function selectedRect(state: EditorState): TableRect {
+function selectedRect(state: EditorState): TableRect {
     const sel = state.selection;
     const $pos = contentTableSelectionCell(state);
     const table = $pos.node(-1);
@@ -49,14 +49,8 @@ export function selectedRect(state: EditorState): TableRect {
 
 /**
  * Add a column at the given position in a table.
- *
-
  */
-export function addColumn(
-    tr: Transaction,
-    {map, tableStart, table}: TableRect,
-    col: number,
-): Transaction {
+function addColumn(tr: Transaction, {map, tableStart, table}: TableRect, col: number): Transaction {
     let refColumn: number | null = col > 0 ? -1 : 0;
     if (contentTableColumnIsHeader(map, table, col + refColumn)) {
         refColumn = col == 0 || col == map.width ? null : 0;
@@ -92,10 +86,8 @@ export function addColumn(
 
 /**
  * Command to add a column before the column with the selection.
- *
-
  */
-export function addColumnBefore(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function addColumnBefore(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     if (!contentTableIsInTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state);
@@ -106,10 +98,8 @@ export function addColumnBefore(state: EditorState, dispatch?: (tr: Transaction)
 
 /**
  * Command to add a column after the column with the selection.
- *
-
  */
-export function addColumnAfter(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function addColumnAfter(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     if (!contentTableIsInTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state);
@@ -118,10 +108,7 @@ export function addColumnAfter(state: EditorState, dispatch?: (tr: Transaction) 
     return true;
 }
 
-/**
-
- */
-export function removeColumn(tr: Transaction, {map, table, tableStart}: TableRect, col: number) {
+function removeColumn(tr: Transaction, {map, table, tableStart}: TableRect, col: number) {
     const mapStart = tr.mapping.maps.length;
     for (let row = 0; row < map.height; ) {
         const index = row * map.width + col;
@@ -148,10 +135,8 @@ export function removeColumn(tr: Transaction, {map, table, tableStart}: TableRec
 
 /**
  * Command function that removes the selected columns from a table.
- *
-
  */
-export function deleteColumn(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function deleteColumn(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     if (!contentTableIsInTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state);
@@ -172,24 +157,14 @@ export function deleteColumn(state: EditorState, dispatch?: (tr: Transaction) =>
     return true;
 }
 
-/**
-
- */
-export function rowIsHeader(map: ContentTableMap, table: Node, row: number): boolean {
+function rowIsHeader(map: ContentTableMap, table: Node, row: number): boolean {
     const headerCell = contentTableNodeTypes(table.type.schema).header_cell;
     for (let col = 0; col < map.width; col++)
         if (table.nodeAt(map.map[col + row * map.width]!)?.type != headerCell) return false;
     return true;
 }
 
-/**
-
- */
-export function addRow(
-    tr: Transaction,
-    {map, tableStart, table}: TableRect,
-    row: number,
-): Transaction {
+function addRow(tr: Transaction, {map, tableStart, table}: TableRect, row: number): Transaction {
     let rowPos = tableStart;
     for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
     const cells = [];
@@ -220,10 +195,8 @@ export function addRow(
 
 /**
  * Add a table row before the selection.
- *
-
  */
-export function addRowBefore(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function addRowBefore(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     if (!contentTableIsInTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state);
@@ -234,10 +207,8 @@ export function addRowBefore(state: EditorState, dispatch?: (tr: Transaction) =>
 
 /**
  * Add a table row after the selection.
- *
-
  */
-export function addRowAfter(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function addRowAfter(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     if (!contentTableIsInTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state);
@@ -246,10 +217,7 @@ export function addRowAfter(state: EditorState, dispatch?: (tr: Transaction) => 
     return true;
 }
 
-/**
-
- */
-export function removeRow(tr: Transaction, {map, table, tableStart}: TableRect, row: number): void {
+function removeRow(tr: Transaction, {map, table, tableStart}: TableRect, row: number): void {
     let rowPos = 0;
     for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
     const nextRow = rowPos + table.child(row).nodeSize;
@@ -291,10 +259,8 @@ export function removeRow(tr: Transaction, {map, table, tableStart}: TableRect, 
 
 /**
  * Remove the selected rows from a table.
- *
-
  */
-export function deleteRow(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function deleteRow(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     if (!contentTableIsInTable(state)) return false;
     if (dispatch) {
         const rect = selectedRect(state),
@@ -350,10 +316,8 @@ function cellsOverlapRectangle({width, height, map}: ContentTableMap, rect: Cont
 /**
  * Merge the selected cells into a single cell. Only available when
  * the selected cells' outline forms a rectangle.
- *
-
  */
-export function mergeCells(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function mergeCells(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     const sel = state.selection;
     if (!(sel instanceof ContentTableCellSelection) || sel.$anchorCell.pos == sel.$headCell.pos)
         return false;
@@ -408,20 +372,15 @@ export function mergeCells(state: EditorState, dispatch?: (tr: Transaction) => v
 /**
  * Split a selected cell, whose rowpan or colspan is greater than one,
  * into smaller cells. Use the first cell type for the new cells.
- *
-
  */
-export function splitCell(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function splitCell(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     const nodeTypes = contentTableNodeTypes(state.schema);
     return splitCellWithType(({node}) => {
         return nodeTypes[node.type.spec.tableRole as contentTableRole];
     })(state, dispatch);
 }
 
-/**
-
- */
-export interface GetCellTypeOptions {
+interface GetCellTypeOptions {
     node: Node;
     row: number;
     col: number;
@@ -430,10 +389,8 @@ export interface GetCellTypeOptions {
 /**
  * Split a selected cell, whose rowpan or colspan is greater than one,
  * into smaller cells with the cell type (th, td) returned by getType function.
- *
-
  */
-export function splitCellWithType(getCellType: (options: GetCellTypeOptions) => NodeType): Command {
+function splitCellWithType(getCellType: (options: GetCellTypeOptions) => NodeType): Command {
     return (state, dispatch) => {
         const sel = state.selection;
         let cellNode: Node | null | undefined;
@@ -504,10 +461,8 @@ export function splitCellWithType(getCellType: (options: GetCellTypeOptions) => 
  * Returns a command that sets the given attribute to the given value,
  * and is only available when the currently selected cell doesn't
  * already have that attribute set to that value.
- *
-
  */
-export function setCellAttr(name: string, value: unknown): Command {
+function setCellAttr(name: string, value: unknown): Command {
     return function (state, dispatch) {
         if (!contentTableIsInTable(state)) return false;
         const $cell = contentTableSelectionCell(state);
@@ -605,13 +560,13 @@ function isHeaderEnabledByType(
     return true;
 }
 
-export type ToggleHeaderType = "column" | "row" | "cell";
+type ToggleHeaderType = "column" | "row" | "cell";
 
 /**
  * Toggles between row/column header and normal cells (Only applies to first row/column).
  * For deprecated behavior pass `useDeprecatedLogic` in options with true.
  */
-export function toggleHeader(
+function toggleHeader(
     type: ToggleHeaderType,
     options?: {useDeprecatedLogic: boolean} | undefined,
 ): Command {
@@ -683,28 +638,22 @@ export function toggleHeader(
 
 /**
  * Toggles whether the selected row contains header cells.
- *
-
  */
-export const toggleHeaderRow: Command = toggleHeader("row", {
+const toggleHeaderRow: Command = toggleHeader("row", {
     useDeprecatedLogic: true,
 });
 
 /**
  * Toggles whether the selected column contains header cells.
- *
-
  */
-export const toggleHeaderColumn: Command = toggleHeader("column", {
+const toggleHeaderColumn: Command = toggleHeader("column", {
     useDeprecatedLogic: true,
 });
 
 /**
  * Toggles whether the selected cells are header cells.
- *
-
  */
-export const toggleHeaderCell: Command = toggleHeader("cell", {
+const toggleHeaderCell: Command = toggleHeader("cell", {
     useDeprecatedLogic: true,
 });
 
@@ -741,9 +690,8 @@ function findNextCell($cell: ResolvedPos, dir: ContentTableInputDirection): numb
 /**
  * Returns a command for selecting the next (direction=1) or previous
  * (direction=-1) cell in a table.
- *
  */
-export function goToNextCell(direction: ContentTableInputDirection): Command {
+function goToNextCell(direction: ContentTableInputDirection): Command {
     return function (state, dispatch) {
         if (!contentTableIsInTable(state)) return false;
         const cell = findNextCell(contentTableSelectionCell(state), direction);
@@ -762,9 +710,8 @@ export function goToNextCell(direction: ContentTableInputDirection): Command {
 
 /**
  * Deletes the table around the selection, if any.
- *
  */
-export function deleteTable(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
+function deleteTable(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     const $pos = state.selection.$anchor;
     for (let d = $pos.depth; d > 0; d--) {
         const node = $pos.node(d);
@@ -778,12 +725,8 @@ export function deleteTable(state: EditorState, dispatch?: (tr: Transaction) => 
 
 /**
  * Deletes the content of the selected cells, if they are not empty.
- *
  */
-export function deleteCellSelection(
-    state: EditorState,
-    dispatch?: (tr: Transaction) => void,
-): boolean {
+function deleteCellSelection(state: EditorState, dispatch?: (tr: Transaction) => void): boolean {
     const sel = state.selection;
     if (!(sel instanceof ContentTableCellSelection)) return false;
     if (dispatch) {
@@ -801,3 +744,15 @@ export function deleteCellSelection(
     }
     return true;
 }
+
+export {
+    toggleHeader as contentTableCommandToggleHeader,
+    toggleHeaderCell as contentTableCommandToggleHeaderCell,
+    toggleHeaderColumn as contentTableCommandToggleHeaderColumn,
+    toggleHeaderRow as contentTableCommandToggleHeaderRow,
+    setCellAttr as contentTableCommandSetCellAttr,
+    findNextCell as contentTableCommandFindNextCell,
+    goToNextCell as contentTableCommandGoToNextCell,
+    deleteTable as contentTableCommandDeleteTable,
+    deleteCellSelection as contentTableCommandDeleteCellSelection,
+};
