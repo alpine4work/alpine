@@ -27,14 +27,15 @@
  */
 import {Attrs, Node as ProsemirrorNode} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
-import {TableMap, cellAround, pointsAtCell} from "prosemirror-tables";
 import {Decoration, DecorationSet, EditorView, NodeView} from "prosemirror-view";
 import {
     ContentEditorTableNodeView,
     contentEditorUpdateTableColumnsOnResize,
 } from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {cellAround, pointsAtCell} from "~/client/content/internal/table/helpers/utils.js";
 import {type ContentEditorCellAttrs} from "~/shared/content/table/content_editor_cell_attrs.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
+import {TableMap} from "~/shared/content/table/tablemap.js";
 
 const columnResizingPluginKey = new PluginKey<ResizeState>("tableColumnResizing");
 

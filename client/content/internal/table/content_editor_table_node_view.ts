@@ -26,8 +26,8 @@
  * THE SOFTWARE.
  */
 import {Node} from "prosemirror-model";
-import {inSameTable, isInTable} from "prosemirror-tables";
 import {EditorView, NodeView} from "prosemirror-view";
+import {inSameTable, isInTable} from "~/client/content/internal/table/helpers/utils.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
 import {type ContentEditorCellAttrs} from "~/shared/content/table/content_editor_cell_attrs.js";
 import {spacing} from "~/shared/design/core/spacing.js";

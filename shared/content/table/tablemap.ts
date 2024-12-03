@@ -9,7 +9,7 @@
 // compute the start position of the table and offset positions passed
 // to or gotten from this structure by that amount.
 import {Attrs, Node} from "prosemirror-model";
-import {CellAttrs} from "~/client/content/internal/table/helpers/utils.js";
+import {CellAttrs} from "~/shared/content/table/shared_utils.js";
 
 /**
  * @public

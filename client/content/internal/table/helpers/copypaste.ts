@@ -13,9 +13,10 @@
 import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
 
 import {EditorState, Transaction} from "prosemirror-state";
-import {CellSelection, ColWidths, Rect, TableMap, removeColSpan} from "prosemirror-tables";
 import {Transform} from "prosemirror-transform";
-import {CellAttrs} from "~/client/content/internal/table/helpers/utils.js";
+import {CellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+import {ColWidths, Rect, TableMap} from "~/shared/content/table/tablemap.js";
+import {CellAttrs, removeColSpan} from "~/client/content/internal/table/helpers/utils.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 

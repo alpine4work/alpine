@@ -1,3 +1,4 @@
+import {handleKeyDown, handleMouseDown, handlePaste, handleTripleClick} from "./helpers/input.js";
 /**
  * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
  * remove features we don't use and customize the user experience. We intend to
@@ -32,15 +33,26 @@
 // transaction, the shapes of tables are normalized to be rectangular
 // and not contain overlapping cells.
 
-import {Plugin, PluginKey} from "prosemirror-state";
+import {EditorState, Plugin, PluginKey} from "prosemirror-state";
+import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
 import {fixTables} from "~/client/content/internal/table/helpers/fixtables.js";
-import {drawCellSelection, normalizeSelection} from "./content_table_cell_selection.js";
-
-import {handleKeyDown, handleMouseDown, handlePaste, handleTripleClick} from "./helpers/input.js";
+import {
+    CellSelection,
+    normalizeSelection,
+} from "~/shared/content/table/content_table_cell_selection.js";
 
 type TableEditingOptions = {
     allowTableNodeSelection?: boolean;
 };
+
+function drawCellSelection(state: EditorState): DecorationSource | null {
+    if (!(state.selection instanceof CellSelection)) return null;
+    const cells: Array<Decoration> = [];
+    state.selection.forEachCell((node, pos) => {
+        cells.push(Decoration.node(pos, pos + node.nodeSize, {class: "selectedCell"}));
+    });
+    return DecorationSet.create(state.doc, cells);
+}
 
 export const tableEditingKey = new PluginKey<number>("selectingCells");
 

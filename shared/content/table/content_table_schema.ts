@@ -1,4 +1,4 @@
-import "prosemirror-tables";
+import "~/shared/content/table/content_table_cell_selection.js";
 
 import {AttributeSpec, NodeSpec, NodeType, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {

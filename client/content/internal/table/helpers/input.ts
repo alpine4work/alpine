@@ -1,4 +1,4 @@
-import {fitSlice} from "./copypaste.js";
+import {clipCells, fitSlice, insertCells, pastedCells} from "./copypaste.js";
 /* eslint-disable @typescript-eslint/unbound-method */
 // This file defines a number of helpers for wiring up user input to
 // table-related functionality.
@@ -6,22 +6,19 @@ import {fitSlice} from "./copypaste.js";
 import {keydownHandler} from "prosemirror-keymap";
 import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
-import {
-    CellSelection,
-    TableMap,
-    cellAround,
-    __clipCells as clipCells,
-    deleteCellSelection,
-    inSameTable,
-    __insertCells as insertCells,
-    isInTable,
-    nextCell,
-    __pastedCells as pastedCells,
-    selectionCell,
-    tableEditingKey,
-} from "prosemirror-tables";
 
 import {EditorView} from "prosemirror-view";
+import {CellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+import {tableEditingKey} from "~/client/content/internal/table/content_table_editing_plugin.js";
+import {deleteCellSelection} from "~/client/content/internal/table/helpers/commands.js";
+import {TableMap} from "~/shared/content/table/tablemap.js";
+import {
+    cellAround,
+    inSameTable,
+    isInTable,
+    nextCell,
+    selectionCell,
+} from "~/client/content/internal/table/helpers/utils.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 
 type Axis = "horiz" | "vert";

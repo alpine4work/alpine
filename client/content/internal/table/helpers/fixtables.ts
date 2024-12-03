@@ -5,12 +5,12 @@
 
 import {Node} from "prosemirror-model";
 import {EditorState, PluginKey, Transaction} from "prosemirror-state";
+import {TableMap} from "~/shared/content/table/tablemap.js";
+import {CellAttrs, removeColSpan} from "~/client/content/internal/table/helpers/utils.js";
 import {
     contentTableNodeTypes,
     contentTableRole,
 } from "~/shared/content/table/content_table_schema.js";
-import {TableMap} from "./tablemap.js";
-import {CellAttrs, removeColSpan} from "./utils.js";
 
 /**
  * @public

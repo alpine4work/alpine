@@ -2,10 +2,7 @@
 
 import {Fragment, Node, NodeType, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
-
-import {CellSelection} from "~/client/content/internal/table/content_table_cell_selection.js";
 import type {Direction} from "~/client/content/internal/table/helpers/input.js";
-import {Rect, TableMap} from "~/client/content/internal/table/helpers/tablemap.js";
 import {
     CellAttrs,
     addColSpan,
@@ -17,10 +14,13 @@ import {
     removeColSpan,
     selectionCell,
 } from "~/client/content/internal/table/helpers/utils.js";
+
+import {CellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {
     contentTableNodeTypes,
     contentTableRole,
 } from "~/shared/content/table/content_table_schema.js";
+import {Rect, TableMap} from "~/shared/content/table/tablemap.js";
 
 /**
  * @public
