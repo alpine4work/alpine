@@ -56,6 +56,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/apns:apns",
     "//server/chat/data:data",
     "//server/chat/realtime:realtime",
+    "//server/chat/test_helpers:test_helpers",
     "//server/cloudflare:cloudflare",
     "//server/cloudflare/r2:r2",
     "//server/cloudflare/test_helpers:test_helpers",
