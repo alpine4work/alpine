@@ -8,29 +8,27 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
+    assertSpacing,
     parseRemLength,
+    screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export const messageView2AvatarSize = "8";
-export const messageView2RailGap = "3";
+export const messageView2AvatarSize = "6";
+export const messageView2RailGap = "2";
 
 // NOCOMMIT: Rename "message view 2" stuff.
 export const messageView2AccountNameFontSize = "50";
-export const messageView2AccountNameMarginBottom = "0.5";
+export const messageView2AccountNameMarginBottom = "0";
 
-export const messageView2AvatarOffsetY = `${
-    parseRemLengthNumber(
-        addRemLengths(
-            fontSizes[messageView2AccountNameFontSize].lineHeight,
-            spacing[messageView2AccountNameMarginBottom],
-            contentStyles.paragraphFontSize.lineHeight,
-        ),
-    ) /
-        2 -
-    parseRemLengthNumber(spacing[messageView2AvatarSize]) / 2
-}rem`;
+export const messageView2AvatarOffsetYRem =
+    parseRemLength(fontSizes[messageView2AccountNameFontSize].lineHeight) +
+    parseRemLength(messageView2AccountNameMarginBottom) +
+    parseRemLength(contentStyles.paragraphFontSize.lineHeight) / 2 -
+    parseRemLength(messageView2AvatarSize) / 2;
+
+export const messageView2AvatarOffsetY = `${messageView2AvatarOffsetYRem}rem`;
 
 export const messageViewBubbleMinWidth: Spacing = "6"; // NOCOMMIT: Delete
 export const messageViewBubbleBorderRadius = {desktop: "4", mobile: "3.5"} as const; // NOCOMMIT: Delete
@@ -78,9 +76,21 @@ export const messageViewMinHeight = addRemLengths(
 export const messageViewActionsWidth: Spacing = "10";
 export const messageViewActionsWidthWithoutHoveringPrimaryInput: Spacing = "5";
 
+export const messageViewParentFontSize = "75";
+
+export const messageViewParentScale =
+    fontSizesBySpacingScale[messageViewParentFontSize].small.fontSize /
+    fontSizesBySpacingScale[contentStyles.paragraphActualFontSize].small.fontSize;
+
+export const messageViewParentLineHeight = `${
+    contentStyles.paragraphLineHeightRem * messageViewParentScale
+}rem`;
+
+export const messageViewParentAvatarSize = assertSpacing(
+    Math.round(parseInt(messageView2AvatarSize, 10) * messageViewParentScale),
+);
+
 // NOCOMMIT: Delete these?
-export const messageViewReplyPreviewScale =
-    fontSizesBySpacingScale["50"].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
 

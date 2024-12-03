@@ -13,7 +13,6 @@ import {
     useState,
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
@@ -60,9 +59,13 @@ import {
     messageViewMarginY,
     messageViewMaxWidth,
     messageViewMergedMarginY,
+    messageViewParentAvatarSize,
     messageViewReplyPreviewBubbleOpacity,
+    messageViewParentFontSize,
+    messageViewParentLineHeight,
     messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
+    messageViewParentScale,
+    messageView2AvatarOffsetYRem,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
@@ -87,9 +90,11 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
+    assertSpacing,
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -103,6 +108,8 @@ import {
     OptimisticMessageModel,
 } from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {usePress} from "@react-aria/interactions";
 
 // NOCOMMIT: Test
 //
@@ -837,112 +844,48 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 placement="bottom"
                 content={
                     <>
-                        Sent: <PrettyAbsoluteDateTooltipContent date={message.createdTime} />
-                        <br />
-                        Deleted:{" "}
-                        <PrettyAbsoluteDateTooltipContent date={message.payload.deletedTime} />
+                        Deleted{" "}
+                        <PrettyAbsoluteDateTooltipContent
+                            date={message.payload.deletedTime}
+                            withoutWeekday
+                        />
                     </>
                 }
             >
                 <div
                     className={sprinkles({
-                        // We use `inline-flex` so the tooltip is over just the
-                        // "Deleted message" part.
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "1",
-                        color: "grey-50",
-                        fontSize: "75",
+                        display: "inline",
+                        color: "grey-60",
+                        fontSize: "100",
+                        userSelect: "text",
                     })}
                     style={{lineHeight: contentStyles.paragraphFontSize.lineHeight}}
                 >
-                    <Trash size={spacing["4"]} />
-                    {`Deleted ${messageNoun}`}
+                    <Trash
+                        size={spacing["4"]}
+                        style={{
+                            display: "inline",
+                            verticalAlign: "top",
+                            position: "relative",
+                            // Optically align icon with text.
+                            top: "0.1875rem",
+                        }}
+                    />{" "}
+                    Deleted {messageNoun}
                 </div>
             </Tooltip>
         );
-    }, [message.createdTime, message.payload, messageNoun]);
+    }, [message.payload, messageNoun]);
 
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
-
-        // NOCOMMIT:
-        //
-        // // Remove some vertical padding from the parent message to move it closer to a
-        // // big emoji message which doesn't render in a bubble.
-        // if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
-
-        const truncatedContent = getTruncatedMessageContentForReplyPreview({
-            message: parentMessage,
-            messageNoun,
-        });
-
         return (
-            <FocusRing>
-                <div
-                    // This is a simulated link. When the user clicks on it our code navigates us
-                    // to the right message instead of relying on browser URL navigation.
-                    //
-                    // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
-                    role="link"
-                    tabIndex={0}
-                    className={sprinkles({
-                        maxWidth: "full",
-                        marginTop: "1",
-                        // Intentionally using `paragraphMargin` instead of `standaloneBlockMargin`
-                        // since `standaloneBlockMargin` is too much margin for one line responses.
-                        marginBottom: contentStyles.paragraphMargin,
-                        // We don't use a pointer cursor for buttons in our product because buttons
-                        // they clearly appear clickable. We call this a strong affordance. A reply
-                        // preview is clickable and gives some affordance (different color) but it's a
-                        // weak affordance. So we use a pointer to make this element unambiguously
-                        // clickable.
-                        //
-                        // Also, this element is semantically a link which the pointer cursor was
-                        // originally designed for.
-                        //
-                        // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                        cursor: "pointer",
-                    })}
-                    onClick={() => onJumpToMessage(parentMessage)}
-                    onKeyDown={event => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onJumpToMessage(parentMessage);
-                            return;
-                        }
-                    }}
-                >
-                    <blockquote
-                        className={quoteBlockClassName}
-                        style={{marginTop: 0, marginBottom: 0}}
-                    >
-                        <p
-                            className={classNames(
-                                paragraphClassName,
-                                sprinkles({overflow: "hidden", pointerEvents: "none"}),
-                            )}
-                            style={{
-                                marginTop: 0,
-                                marginBottom: 0,
-                                // Truncate after 2 lines of text. Unofficial syntax that works in all browsers
-                                // except IE.
-                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                lineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                textOverflow: "ellipsis",
-                            }}
-                        >
-                            {truncatedContent}
-                        </p>
-                    </blockquote>
-                </div>
-            </FocusRing>
+            <MessageViewParent
+                messageNoun={messageNoun}
+                parentMessage={parentMessage}
+                onJumpToMessage={onJumpToMessage}
+            />
         );
     }, [messageNoun, onJumpToMessage, parentMessage]);
 
@@ -1009,10 +952,24 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 className={sprinkles({
                     width: "full",
                     maxWidth: contentStyles.contentMaxWidth,
+                    marginX: "auto",
                     paddingX,
                     paddingBottom: marginBottom,
                 })}
+                style={{
+                    animation: shouldHighlight ? wiggleAnimation : undefined,
+                }}
+                data-testid={
+                    process.env.NODE_ENV !== "production"
+                        ? `MessageView:${
+                              message.isOptimistic
+                                  ? `optimistic:${message.optimisticId}`
+                                  : `${message.getRoomKey()}:${message.index}`
+                          }`
+                        : undefined
+                }
             >
+                {parentMessageNode}
                 <div
                     className={sprinkles({
                         marginX: "center",
@@ -1021,20 +978,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         display: "flex",
                         gap: messageView2RailGap,
                     })}
-                    style={{
-                        animation: shouldHighlight ? wiggleAnimation : undefined,
-                    }}
-                    data-testid={
-                        process.env.NODE_ENV !== "production"
-                            ? `MessageView:${
-                                  message.isOptimistic
-                                      ? `optimistic:${message.optimisticId}`
-                                      : `${message.getRoomKey()}:${message.index}`
-                              }`
-                            : undefined
-                    }
                 >
-                    {/* NOCOMMIT: {parentMessageNode} */}
                     {useMemo(
                         () => (
                             <div
@@ -1073,30 +1017,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     fontSize: messageView2AccountNameFontSize,
                                     fontStyle: "truncate",
                                     paddingBottom: messageView2AccountNameMarginBottom,
-                                    color: "grey-50",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "1",
+                                    color: "grey-60",
                                 })}
                             >
-                                {parentMessage !== null && <ArrowArcLeft size={spacing["3"]} />}
-                                <span>
-                                    {parentMessage === null ? (
-                                        messageAuthor.name
-                                    ) : (
-                                        <>
-                                            <AccountShortName account={messageAuthor} /> replied to{" "}
-                                            {messageAuthor.id === parentMessage.author.id ? (
-                                                "themself"
-                                            ) : (
-                                                <AccountShortName account={parentMessage.author} />
-                                            )}
-                                        </>
-                                    )}
-                                </span>
+                                {messageAuthor.name}
                             </div>
                         )}
-                        {parentMessageNode}
+                        {/* NOCOMMIT: {parentMessageNode} */}
                         {message.payload.type === "Content" ? (
                             !messageEditingForThisMessage ? (
                                 /* NOCOMMIT: {showTouchReplyIcon && (
@@ -1227,6 +1154,148 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 />
             )}
         </>
+    );
+}
+
+function MessageViewParent<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+    messageNoun,
+    parentMessage,
+    onJumpToMessage,
+}: {
+    messageNoun: string;
+    parentMessage: Message;
+    onJumpToMessage: Memo<(message: Message) => void>;
+}) {
+    // NOCOMMIT:
+    //
+    // // Remove some vertical padding from the parent message to move it closer to a
+    // // big emoji message which doesn't render in a bubble.
+    // if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
+
+    const truncatedContent = getTruncatedMessageContentForReplyPreview({
+        message: parentMessage,
+        messageNoun,
+    });
+
+    // NOCOMMIT: Press style?
+
+    const avatarSizeRem = parseRemLength(messageView2AvatarSize);
+    const parentOffsetRem = parseRemLength(messageView2RailGap) / 2;
+    const parentAvatarSizeRem = parseRemLength(messageViewParentAvatarSize);
+    const parentAvatarOffsetYRem =
+        (parseRemLength(messageViewParentAvatarSize) -
+            parseRemLength(fontSizes[messageViewParentFontSize].lineHeight)) /
+        -2;
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            onJumpToMessage(parentMessage);
+        },
+    });
+
+    return (
+        <FocusRing offset="1" insetX="0.5" insetBottom="0.5">
+            <div
+                {...pressProps}
+                // This is a simulated link. When the user clicks on it our code navigates us
+                // to the right message instead of relying on browser URL navigation.
+                //
+                // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                role="link"
+                tabIndex={0}
+                className={sprinkles({
+                    position: "relative",
+                    display: "flex",
+                    gap: "1.5",
+                    width: "full",
+                    marginTop: "1",
+                    // Intentionally using `paragraphMargin` instead of `standaloneBlockMargin`
+                    // since `standaloneBlockMargin` is too much margin for one line responses.
+                    marginBottom: contentStyles.paragraphMargin,
+                    // We don't use a pointer cursor for buttons in our product because buttons
+                    // they clearly appear clickable. We call this a strong affordance. A reply
+                    // preview is clickable and gives some affordance (different color) but it's a
+                    // weak affordance. So we use a pointer to make this element unambiguously
+                    // clickable.
+                    //
+                    // Also, this element is semantically a link which the pointer cursor was
+                    // originally designed for.
+                    //
+                    // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                    cursor: "pointer",
+                })}
+                style={{
+                    marginLeft: `${avatarSizeRem + parentOffsetRem}rem`,
+                }}
+                // NOCOMMIT:
+                // onKeyDown={event => {
+                //     if (event.key === "Enter" || event.key === " ") {
+                //         event.preventDefault();
+                //         event.stopPropagation();
+                //         onJumpToMessage(parentMessage);
+                //         return;
+                //     }
+                // }}
+            >
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        borderLeft: "grey-5",
+                        borderLeftWidth: "thick",
+                        borderTop: "grey-5",
+                        borderTopWidth: "thick",
+                        borderTopLeftRadius: "2.5",
+                    })}
+                    style={{
+                        top: `calc(${parentAvatarOffsetYRem + parentAvatarSizeRem / 2}rem - 1px)`,
+                        bottom: `calc(-${
+                            contentStyles.paragraphMarginRem + messageView2AvatarOffsetYRem
+                        }rem + 2px)`,
+                        left: `calc(-${avatarSizeRem / 2 + parentOffsetRem}rem - 1px)`,
+                        width: `calc(${avatarSizeRem / 2 + parentOffsetRem}rem - 2px)`,
+                    }}
+                />
+                <div
+                    className={sprinkles({
+                        flexShrink: "0",
+                        position: "relative",
+                        opacity: isPressed ? "60" : "100",
+                    })}
+                    style={{top: `${parentAvatarOffsetYRem}rem`}}
+                >
+                    <AccountAvatar
+                        size={messageViewParentAvatarSize}
+                        account={parentMessage.author}
+                    />
+                </div>
+                <div
+                    className={sprinkles({
+                        flexGrow: "1",
+                        overflow: "hidden",
+                        color: "grey-80",
+                        fontSize: messageViewParentFontSize,
+                        fontStyle: "normal",
+                        opacity: isPressed ? "60" : "100",
+                    })}
+                    style={{
+                        minHeight: messageViewParentLineHeight,
+                        lineHeight: messageViewParentLineHeight,
+                        // Allow contextual alternate glyphs in regular text content.
+                        fontFeatureSettings: '"calt" on',
+                        // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                        // except IE.
+                        // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        lineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                        textOverflow: "ellipsis",
+                    }}
+                >
+                    <AccountShortName account={parentMessage.author} />: {truncatedContent}
+                </div>
+            </div>
+        </FocusRing>
     );
 }
 

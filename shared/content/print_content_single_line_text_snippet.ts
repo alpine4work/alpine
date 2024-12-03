@@ -11,6 +11,8 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 
 /**
  * Match different new-line formats. [Same newline regex that's in
@@ -159,7 +161,11 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             case "codeBlock": {
                 for (const childNode of node.content.content) {
                     for (const grandChildNode of childNode.content.content) {
-                        printInlineNode(grandChildNode);
+                        printInlineNode(
+                            grandChildNode,
+                            // Pretend that children of `codeBlock` have the `code` mark.
+                            [node.type.schema.mark("code")],
+                        );
                     }
                     breakPunctuation = "";
                 }
@@ -176,10 +182,12 @@ export function printContentSingleLineTextSnippetPreservingMarks(
         }
     };
 
-    const printInlineNode = (node: Node) => {
+    const printInlineNode = (node: Node, extraMarks: ReadonlyArray<Mark> = emptyArray) => {
         const typeName = node.type.name as ContentInlineNodeTypeName;
 
-        preservedMarks = node.marks.filter(shouldPreserveMark);
+        preservedMarks = Array.from(
+            filterIterable(concatIterables(node.marks, extraMarks), shouldPreserveMark),
+        );
 
         switch (typeName) {
             case "text": {

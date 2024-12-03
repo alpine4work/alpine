@@ -170,9 +170,11 @@ const blockStyles = {
     clear: "both",
 } as const;
 
+export const paragraphActualFontSize = "100";
+
 export const paragraphFontSize = {
-    ...fontSizes["100"],
-    lineHeight: "1.375rem",
+    ...fontSizes[paragraphActualFontSize],
+    lineHeight: "1.3125rem",
 } as const;
 
 export const paragraphLineHeightRem = parseRemLength(paragraphFontSize.lineHeight);
@@ -335,7 +337,7 @@ globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
 
-const quoteBlockIndentation = spacing["4"];
+const quoteBlockIndentation = "0.825rem";
 const quoteBlockBorderWidth = "0.1875rem";
 
 globalStyle(quoteBlockClassName, {

@@ -63,7 +63,7 @@ import {
     messageViewMaxWidth,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
+    messageViewParentScale,
 } from "~/client/styles/messaging_shared_styles.js";
 import {borderRadius, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -657,7 +657,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
                                 const scaledHeight = `${
                                     Math.round(
-                                        parseRemLength(height) * messageViewReplyPreviewScale * 16,
+                                        parseRemLength(height) * messageViewParentScale * 16,
                                     ) / 16
                                 }rem`;
 
@@ -741,7 +741,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     borderRadius={messageViewBubbleBorderRadius}
                                                     style={{
                                                         opacity: messageViewReplyPreviewOpacity,
-                                                        transform: `scale(${messageViewReplyPreviewScale})`,
+                                                        transform: `scale(${messageViewParentScale})`,
                                                         transformOrigin: "0% 0% 0",
                                                     }}
                                                     onClick={() =>

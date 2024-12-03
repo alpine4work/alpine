@@ -35,7 +35,7 @@ import {
     messageViewBubblePaddingY,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
+    messageViewParentScale,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     contentViewStyles,
@@ -281,7 +281,7 @@ export function MessageViewTouchLightbox<
         if (!messageTextForBigEmojiMessage) height = addRemLengths(height, "1.5");
 
         const scaledHeight = `${
-            Math.round(parseRemLength(height) * messageViewReplyPreviewScale * 16) / 16
+            Math.round(parseRemLength(height) * messageViewParentScale * 16) / 16
         }rem`;
 
         // NOCOMMIT
@@ -321,7 +321,7 @@ export function MessageViewTouchLightbox<
                     })}
                     style={{
                         opacity: messageViewReplyPreviewOpacity,
-                        transform: `scale(${messageViewReplyPreviewScale})`,
+                        transform: `scale(${messageViewParentScale})`,
                         transformOrigin: "0% 0% 0",
                     }}
                 >
