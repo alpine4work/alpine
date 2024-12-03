@@ -9,20 +9,18 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
-import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
-import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -45,19 +43,7 @@ export function ChatView({
     initialScrollToMessageIndex: number | null;
 }) {
     return (
-        <Box
-            position="relative"
-            width="full"
-            height="full"
-            style={{
-                // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
-                // like it.
-                "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${addRemLengths(
-                    withInboxBanner ? inboxBannerHeight : "0",
-                    navigationBarHeight,
-                )})`,
-            }}
-        >
+        <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
             <ChatMessagingView
                 chat={chat}
@@ -86,21 +72,14 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
     return (
         <Box
             data-testid="ChatViewTopBar"
-            zIndex="10"
-            position="absolute"
+            flexShrink="0"
             width="full"
+            paddingTop="safe-area-inset"
             display="flex"
             justifyContent="center"
             alignItems="center"
-            backgroundColor="grey-0-glass"
-            style={{
-                paddingTop: `calc(var(--safe-area-inset-top-base, 0px) + ${
-                    spacing[withInboxBanner ? inboxBannerHeight : "0"]
-                })`,
-            }}
         >
             <Box
-                position="relative"
                 height={navigationBarHeight}
                 width="full"
                 maxWidth={messageViewMaxWidth}
@@ -243,7 +222,6 @@ function ChatMessagingView({
                     ),
                 [chat.id, chat.spaceId],
             )}
-            scrollbarInsetTop={safeAreaOnlyScrollbarInsetTop}
         />
     );
 }
