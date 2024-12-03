@@ -1572,28 +1572,6 @@ export function DocumentContentEditor({
                     editorContainerRef,
                     useScrollbar({insetTop: scrollbarInsetTop}),
                     scrollViewRef,
-                    useLifecycleRef(
-                        useCallback(
-                            editorContainerElement => {
-                                // The title boundary element needs to re-evaluate on initial render. Since the
-                                // initial render will have a title element from a read-only `<ContentView>`
-                                // before we re-render into the ProseMirror `EditorView`.
-                                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                                isInitialAppRender;
-
-                                const titleBoundaryElement = assertExists(
-                                    editorContainerElement.querySelector(`.${titleClassName}`),
-                                );
-                                assert(titleBoundaryElement instanceof HTMLElement);
-
-                                titleBoundaryRef.current = titleBoundaryElement;
-                                return () => {
-                                    titleBoundaryRef.current = null;
-                                };
-                            },
-                            [isInitialAppRender],
-                        ),
-                    ),
                 )}
                 id={editorContainerId}
                 data-testid="DocumentContentEditorMain"
@@ -1612,7 +1590,24 @@ export function DocumentContentEditor({
                 <OverlayScopeContextProvider>
                     <Box className={contentEditorStyles.containerClassName}>
                         <ContentEditor
-                            ref={editorRef}
+                            ref={useMergedRefs(
+                                editorRef,
+                                useLifecycleRef(
+                                    useCallback(editor => {
+                                        const titleBoundaryElement = assertExists(
+                                            editor
+                                                .getContainer()
+                                                .querySelector(`.${titleClassName}`),
+                                        );
+                                        assert(titleBoundaryElement instanceof HTMLElement);
+
+                                        titleBoundaryRef.current = titleBoundaryElement;
+                                        return () => {
+                                            titleBoundaryRef.current = null;
+                                        };
+                                    }, []),
+                                ),
+                            )}
                             state={editorState}
                             onChange={(state, transaction) => {
                                 onChangeEditorState(state);

@@ -619,6 +619,8 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     fileAttachmentTarget,
     editorRef,
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
     useImperativeHandle(
         editorRef,
         () => {
@@ -629,6 +631,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             };
 
             return {
+                getContainer: () => assertExists(containerRef.current),
                 getState: () => state,
                 isFocused: () => false,
                 focus: () => {
@@ -691,6 +694,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
 
     return (
         <div
+            ref={containerRef}
             className={classNames(contentEditorStyles.containerClassName, customContainerClassName)}
         >
             <ContentView
@@ -832,6 +836,7 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                                    Refs                                    *
     \* ========================================================================== */
 
+    const containerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<
         | (EditorView & {
               insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
@@ -850,6 +855,9 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => ({
+            getContainer: () => {
+                return assertExists(containerRef.current);
+            },
             getState: () => {
                 return propsRef.current.state;
             },
@@ -3992,6 +4000,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     return (
         <div
+            ref={containerRef}
             className={classNames(
                 contentEditorStyles.containerClassName,
                 !canPrimaryInputHover
