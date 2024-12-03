@@ -27,10 +27,10 @@
  */
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
-import {inSameTable, isInTable} from "~/client/content/internal/table/helpers/utils.js";
+import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
-import {type ContentEditorCellAttrs} from "~/shared/content/table/content_editor_cell_attrs.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {type ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTableInSameTable} from "~/shared/content/table/helpers/content_table_in_same_table.js";
 
 export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
@@ -73,38 +73,7 @@ export class ContentEditorTableNodeView implements NodeView {
     }
 
     addActiveTableClass = () => {
-        console.log("addActiveTableClass");
-        console.log("isInTable", isInTable(this.view.state));
-        console.log(
-            "inSameTable",
-            inSameTable(this.view.state.selection.$from, this.view.state.selection.$to),
-        );
-        // if (isInTable(this.view.state)) {
-        //     const existingIndicator = this.dom.querySelector("[data-table-active-indicator]");
-        //     if (existingIndicator) {
-        //         return;
-        //     }
-        //     const activeIndicator = document.createElement("div");
-        //     activeIndicator.setAttribute("data-table-active-indicator", "");
-        //     Object.assign(activeIndicator.style, {
-        //         width: "30px",
-        //         backgroundColor: "red",
-        //         cursor: "pointer",
-        //         flexShrink: "0",
-        //         marginLeft: "4px",
-        //     });
-
-        //     activeIndicator.addEventListener("click", () => {
-        //         console.log("clicked");
-        //     });
-
-        //     this.dom.appendChild(activeIndicator);
-        // } else {
-        //     const activeIndicator = this.dom.querySelector("[data-table-active-indicator]");
-        //     if (activeIndicator) {
-        //         activeIndicator.remove();
-        //     }
-        // }
+        console.log("isInTable", contentTableIsInTable(this.view.state));
     };
 
     update(node: Node): boolean {
@@ -123,16 +92,13 @@ export class ContentEditorTableNodeView implements NodeView {
     }
 
     ignoreMutation(record: MutationRecord): boolean {
-        // console.log("ignoreMutation", record);
-        const isTableOrColgroup =
+        return (
             record.type == "attributes" &&
-            (record.target == this.table || this.colgroup.contains(record.target));
-        // console.log("isTableOrColgroup", isTableOrColgroup);
-        return isTableOrColgroup;
+            (record.target == this.table || this.colgroup.contains(record.target))
+        );
     }
 
     destroy() {
-        console.log("destroy");
         this.unsubscribeFromSelectionUpdate?.();
     }
 }
@@ -153,7 +119,7 @@ export function contentEditorUpdateTableColumnsOnResize(
     if (!row) return;
 
     for (let i = 0, col = 0; i < row.childCount; i++) {
-        const {colspan, colwidth} = row.child(i).attrs as ContentEditorCellAttrs;
+        const {colspan, colwidth} = row.child(i).attrs as ContentTableCellAttrs;
         for (let j = 0; j < colspan; j++, col++) {
             const hasWidth = overrideCol == col ? overrideValue : colwidth && colwidth[j];
             const cssWidth = hasWidth ? hasWidth + "px" : "";

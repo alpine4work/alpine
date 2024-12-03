@@ -1,16 +1,17 @@
 // This file defines helpers for normalizing tables, making sure no
 // cells overlap (which can happen, if you have the wrong col- and
 // rowspans) and that each row has the same width. Uses the problems
-// reported by `TableMap`.
+// reported by `ContentTableMap`.
 
 import {Node} from "prosemirror-model";
 import {EditorState, PluginKey, Transaction} from "prosemirror-state";
-import {TableMap} from "~/shared/content/table/tablemap.js";
-import {CellAttrs, removeColSpan} from "~/client/content/internal/table/helpers/utils.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {
     contentTableNodeTypes,
     contentTableRole,
 } from "~/shared/content/table/content_table_schema.js";
+import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
 
 /**
  * @public
@@ -76,7 +77,7 @@ export function fixTable(
     tablePos: number,
     tr: Transaction | undefined,
 ): Transaction | undefined {
-    const map = TableMap.get(table);
+    const map = ContentTableMap.get(table);
     if (!map.problems) return tr;
     if (!tr) tr = state.tr;
 
@@ -89,12 +90,12 @@ export function fixTable(
         if (prob.type == "collision") {
             const cell = table.nodeAt(prob.pos);
             if (!cell) continue;
-            const attrs = cell.attrs as CellAttrs;
+            const attrs = cell.attrs as ContentTableCellAttrs;
             for (let j = 0; j < attrs.rowspan; j++) mustAdd[prob.row + j] += prob.n;
             tr.setNodeMarkup(
                 tr.mapping.map(tablePos + 1 + prob.pos),
                 null,
-                removeColSpan(attrs, attrs.colspan - prob.n, prob.n),
+                contentTableRemoveColSpan(attrs, attrs.colspan - prob.n, prob.n),
             );
         } else if (prob.type == "missing") {
             mustAdd[prob.row] += prob.n;

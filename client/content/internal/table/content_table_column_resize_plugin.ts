@@ -25,17 +25,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Attrs, Node as ProsemirrorNode} from "prosemirror-model";
+import {Attrs} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
-import {Decoration, DecorationSet, EditorView, NodeView} from "prosemirror-view";
+import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     ContentEditorTableNodeView,
     contentEditorUpdateTableColumnsOnResize,
 } from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {cellAround, pointsAtCell} from "~/client/content/internal/table/helpers/utils.js";
-import {type ContentEditorCellAttrs} from "~/shared/content/table/content_editor_cell_attrs.js";
+import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {TableMap} from "~/shared/content/table/tablemap.js";
+import {type ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
 
 const columnResizingPluginKey = new PluginKey<ResizeState>("tableColumnResizing");
 
@@ -126,7 +127,7 @@ class ResizeState {
             return new ResizeState(state.activeHandle, action.setDragging);
         if (state.activeHandle > -1 && tr.docChanged) {
             let handle = tr.mapping.map(state.activeHandle, -1);
-            if (!pointsAtCell(tr.doc.resolve(handle))) {
+            if (!contentTablePointsAtCell(tr.doc.resolve(handle))) {
                 handle = -1;
             }
             return new ResizeState(handle, state.dragging);
@@ -159,7 +160,7 @@ function handleMouseMove(
             if (!lastColumnResizable && cell !== -1) {
                 const $cell = view.state.doc.resolve(cell);
                 const table = $cell.node(-1);
-                const map = TableMap.get(table);
+                const map = ContentTableMap.get(table);
                 const tableStart = $cell.start(-1);
                 const col =
                     map.colCount($cell.pos - tableStart) + $cell.nodeAfter!.attrs.colspan - 1;
@@ -272,10 +273,10 @@ function edgeCell(
     });
     if (!found) return -1;
     const {pos} = found;
-    const $cell = cellAround(view.state.doc.resolve(pos));
+    const $cell = contentTableCellAround(view.state.doc.resolve(pos));
     if (!$cell) return -1;
     if (side == "right") return $cell.pos;
-    const map = TableMap.get($cell.node(-1)),
+    const map = ContentTableMap.get($cell.node(-1)),
         start = $cell.start(-1);
     const index = map.map.indexOf($cell.pos - start);
     return index % map.width == 0 ? -1 : start + map.map[index - 1]!;
@@ -293,7 +294,7 @@ function updateHandle(view: EditorView, value: number): void {
 function updateColumnWidth(view: EditorView, cell: number, width: number): void {
     const $cell = view.state.doc.resolve(cell);
     const table = $cell.node(-1),
-        map = TableMap.get(table),
+        map = ContentTableMap.get(table),
         start = $cell.start(-1);
     const col = map.colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
     const tr = view.state.tr;
@@ -302,7 +303,7 @@ function updateColumnWidth(view: EditorView, cell: number, width: number): void 
         // Rowspanning cell that has already been handled
         if (row && map.map[mapIndex] == map.map[mapIndex - map.width]) continue;
         const pos = map.map[mapIndex]!;
-        const attrs = table.nodeAt(pos)!.attrs as ContentEditorCellAttrs;
+        const attrs = table.nodeAt(pos)!.attrs as ContentTableCellAttrs;
         const index = attrs.colspan == 1 ? 0 : col - map.colCount(pos);
         if (attrs.colwidth && attrs.colwidth[index] == width) continue;
         const colwidth = attrs.colwidth ? attrs.colwidth.slice() : zeroes(attrs.colspan);
@@ -322,7 +323,7 @@ function displayColumnWidth(
     const table = $cell.node(-1),
         start = $cell.start(-1);
     const col =
-        TableMap.get(table).colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
+        ContentTableMap.get(table).colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
     let dom: Node | null = view.domAtPos($cell.start(-1)).node;
     while (dom && dom.nodeName != "TABLE") {
         dom = dom.parentNode;
@@ -350,7 +351,7 @@ function handleDecorations(state: EditorState, cell: number): DecorationSet {
     if (!table) {
         return DecorationSet.empty;
     }
-    const map = TableMap.get(table);
+    const map = ContentTableMap.get(table);
     const start = $cell.start(-1);
     const col = map.colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
     for (let row = 0; row < map.height; row++) {

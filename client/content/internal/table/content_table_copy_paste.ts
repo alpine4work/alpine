@@ -14,26 +14,26 @@ import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
 
 import {EditorState, Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
-import {CellSelection} from "~/shared/content/table/content_table_cell_selection.js";
-import {ColWidths, Rect, TableMap} from "~/shared/content/table/tablemap.js";
-import {CellAttrs, removeColSpan} from "~/client/content/internal/table/helpers/utils.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+import {
+    ContentTableMap,
+    ContentTableMapColWidths,
+    ContentTableMapRect,
+} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
+import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-/**
- * @internal
- */
-export type Area = {width: number; height: number; rows: Array<Fragment>};
+type Area = {width: number; height: number; rows: Array<Fragment>};
 
 // Utilities to help with copying and pasting table cells
 
 /**
  * Get a rectangular area of cells from a slice, or null if the outer
  * nodes of the slice aren't table cells or rows.
- *
- * @internal
  */
-export function pastedCells(slice: Slice): Area | null {
+export function contentTablePastedCells(slice: Slice): Area | null {
     if (!slice.size) return null;
     let {content, openStart, openEnd} = slice;
     while (
@@ -54,7 +54,7 @@ export function pastedCells(slice: Slice): Area | null {
             const left = i ? 0 : Math.max(0, openStart - 1);
             const right = i < content.childCount - 1 ? 0 : Math.max(0, openEnd - 1);
             if (left || right)
-                cells = fitSlice(
+                cells = contentTableFitSlice(
                     contentTableNodeTypes(schema).row,
                     new Slice(cells, left, right),
                 ).content;
@@ -63,7 +63,7 @@ export function pastedCells(slice: Slice): Area | null {
     } else if (role == "cell" || role == "header_cell") {
         rows.push(
             openStart || openEnd
-                ? fitSlice(
+                ? contentTableFitSlice(
                       contentTableNodeTypes(schema).row,
                       new Slice(content, openStart, openEnd),
                   ).content
@@ -78,7 +78,7 @@ export function pastedCells(slice: Slice): Area | null {
 // Compute the width and height of a set of cells, and make sure each
 // row has the same number of cells.
 function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
-    const widths: ColWidths = [];
+    const widths: ContentTableMapColWidths = [];
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i]!;
         for (let j = row.childCount - 1; j >= 0; j--) {
@@ -87,7 +87,7 @@ function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
         }
     }
     let width = 0;
-    for (let r = 0; r < widths.length; r++) width = Math.max(width, widths[r]!);
+    for (let r = 0; r < widths.length; r++) width = Math.max(width, widths[r] || 0);
     for (let r = 0; r < widths.length; r++) {
         if (r >= rows.length) rows.push(Fragment.empty);
         if (widths[r]! < width) {
@@ -102,7 +102,7 @@ function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
     return {height: rows.length, width, rows};
 }
 
-export function fitSlice(nodeType: NodeType, slice: Slice): Node {
+export function contentTableFitSlice(nodeType: NodeType, slice: Slice): Node {
     const node = nodeType.createAndFill()!;
     const tr = new Transform(node).replace(0, node.content.size, slice);
     return tr.doc;
@@ -115,7 +115,11 @@ export function fitSlice(nodeType: NodeType, slice: Slice): Node {
  *
  * @internal
  */
-export function clipCells({width, height, rows}: Area, newWidth: number, newHeight: number): Area {
+export function contentTableCopyPasteClipCells(
+    {width, height, rows}: Area,
+    newWidth: number,
+    newHeight: number,
+): Area {
     if (width != newWidth) {
         const added: Array<number> = [];
         const newRows: Array<Fragment> = [];
@@ -126,8 +130,8 @@ export function clipCells({width, height, rows}: Area, newWidth: number, newHeig
                 let cell = frag.child(i % frag.childCount);
                 if (col + cell.attrs.colspan > newWidth)
                     cell = cell.type.createChecked(
-                        removeColSpan(
-                            cell.attrs as CellAttrs,
+                        contentTableRemoveColSpan(
+                            cell.attrs as ContentTableCellAttrs,
                             cell.attrs.colspan,
                             col + cell.attrs.colspan - newWidth,
                         ),
@@ -174,7 +178,7 @@ export function clipCells({width, height, rows}: Area, newWidth: number, newHeig
 // true if something was changed.
 function growTable(
     tr: Transaction,
-    map: TableMap,
+    map: ContentTableMap,
     table: Node,
     start: number,
     width: number,
@@ -225,7 +229,7 @@ function growTable(
 // something changed.
 function isolateHorizontal(
     tr: Transaction,
-    map: TableMap,
+    map: ContentTableMap,
     table: Node,
     start: number,
     left: number,
@@ -264,7 +268,7 @@ function isolateHorizontal(
 // true if something changed.
 function isolateVertical(
     tr: Transaction,
-    map: TableMap,
+    map: ContentTableMap,
     table: Node,
     start: number,
     top: number,
@@ -285,8 +289,8 @@ function isolateVertical(
             tr.setNodeMarkup(
                 updatePos,
                 null,
-                removeColSpan(
-                    cell.attrs as CellAttrs,
+                contentTableRemoveColSpan(
+                    cell.attrs as ContentTableCellAttrs,
                     left - cellLeft,
                     cell.attrs.colspan - (left - cellLeft),
                 ),
@@ -294,7 +298,11 @@ function isolateVertical(
             tr.insert(
                 updatePos + cell.nodeSize,
                 cell.type.createAndFill(
-                    removeColSpan(cell.attrs as CellAttrs, 0, left - cellLeft),
+                    contentTableRemoveColSpan(
+                        cell.attrs as ContentTableCellAttrs,
+                        0,
+                        left - cellLeft,
+                    ),
                 )!,
             );
             row += cell.attrs.rowspan - 1;
@@ -309,16 +317,16 @@ function isolateVertical(
  *
  * @internal
  */
-export function insertCells(
+export function contentTableInsertCells(
     state: EditorState,
     dispatch: (tr: Transaction) => void,
     tableStart: number,
-    rect: Rect,
+    rect: ContentTableMapRect,
     cells: Area,
 ): void {
     let table = tableStart ? state.doc.nodeAt(tableStart - 1) : state.doc;
     assert(table, "No table found");
-    let map = TableMap.get(table);
+    let map = ContentTableMap.get(table);
     const {top, left} = rect;
     const right = left + cells.width,
         bottom = top + cells.height;
@@ -328,7 +336,7 @@ export function insertCells(
     function recomp(): void {
         table = tableStart ? tr.doc.nodeAt(tableStart - 1) : tr.doc;
         assert(table, "No table found");
-        map = TableMap.get(table);
+        map = ContentTableMap.get(table);
         mapFrom = tr.mapping.maps.length;
     }
 
@@ -353,7 +361,7 @@ export function insertCells(
     }
     recomp();
     tr.setSelection(
-        new CellSelection(
+        new ContentTableCellSelection(
             tr.doc.resolve(tableStart + map.positionAt(top, left, table)),
             tr.doc.resolve(tableStart + map.positionAt(bottom - 1, right - 1, table)),
         ),

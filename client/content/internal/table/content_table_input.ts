@@ -1,4 +1,3 @@
-import {clipCells, fitSlice, insertCells, pastedCells} from "./copypaste.js";
 /* eslint-disable @typescript-eslint/unbound-method */
 // This file defines a number of helpers for wiring up user input to
 // table-related functionality.
@@ -6,26 +5,29 @@ import {clipCells, fitSlice, insertCells, pastedCells} from "./copypaste.js";
 import {keydownHandler} from "prosemirror-keymap";
 import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
-
 import {EditorView} from "prosemirror-view";
-import {CellSelection} from "~/shared/content/table/content_table_cell_selection.js";
-import {tableEditingKey} from "~/client/content/internal/table/content_table_editing_plugin.js";
-import {deleteCellSelection} from "~/client/content/internal/table/helpers/commands.js";
-import {TableMap} from "~/shared/content/table/tablemap.js";
+import {deleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
-    cellAround,
-    inSameTable,
-    isInTable,
-    nextCell,
-    selectionCell,
-} from "~/client/content/internal/table/helpers/utils.js";
+    contentTableCopyPasteClipCells,
+    contentTableFitSlice,
+    contentTableInsertCells,
+    contentTablePastedCells,
+} from "~/client/content/internal/table/content_table_copy_paste.js";
+import {tableEditingKey} from "~/client/content/internal/table/content_table_editing_plugin.js";
+import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
+import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
+import {contentTableNextCell} from "~/client/content/internal/table/helpers/content_table_next_cell.js";
+import {contentTableSelectionCell} from "~/client/content/internal/table/helpers/content_table_selection_cell.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
+import {contentTableInSameTable} from "~/shared/content/table/helpers/content_table_in_same_table.js";
 
 type Axis = "horiz" | "vert";
 
-export type Direction = -1 | 1;
+export type ContentTableInputDirection = -1 | 1;
 
-export const handleKeyDown = keydownHandler({
+export const contentTableKeyDownHandler = keydownHandler({
     ArrowLeft: arrow("horiz", -1),
     ArrowRight: arrow("horiz", 1),
     ArrowUp: arrow("vert", -1),
@@ -52,14 +54,11 @@ function maybeSetSelection(
     return true;
 }
 
-/**
- * @internal
- */
-export function arrow(axis: Axis, dir: Direction): Command {
+function arrow(axis: Axis, dir: ContentTableInputDirection): Command {
     return (state, dispatch, view) => {
         if (!view) return false;
         const sel = state.selection;
-        if (sel instanceof CellSelection) {
+        if (sel instanceof ContentTableCellSelection) {
             return maybeSetSelection(state, dispatch, Selection.near(sel.$headCell, dir));
         }
         if (axis != "horiz" && !sel.empty) return false;
@@ -73,7 +72,7 @@ export function arrow(axis: Axis, dir: Direction): Command {
             );
         } else {
             const $cell = state.doc.resolve(end);
-            const $next = nextCell($cell, axis, dir);
+            const $next = contentTableNextCell($cell, axis, dir);
             let newSel;
             if ($next) newSel = Selection.near($next, 1);
             else if (dir < 0) newSel = Selection.near(state.doc.resolve($cell.before(-1)), -1);
@@ -83,66 +82,77 @@ export function arrow(axis: Axis, dir: Direction): Command {
     };
 }
 
-function shiftArrow(axis: Axis, dir: Direction): Command {
+function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
     return (state, dispatch, view) => {
         if (!view) return false;
         const sel = state.selection;
-        let cellSel: CellSelection;
-        if (sel instanceof CellSelection) {
+        let cellSel: ContentTableCellSelection;
+        if (sel instanceof ContentTableCellSelection) {
             cellSel = sel;
         } else {
             const end = atEndOfCell(view, axis, dir);
             if (end == null) return false;
-            cellSel = new CellSelection(state.doc.resolve(end));
+            cellSel = new ContentTableCellSelection(state.doc.resolve(end));
         }
 
-        const $head = nextCell(cellSel.$headCell, axis, dir);
+        const $head = contentTableNextCell(cellSel.$headCell, axis, dir);
         if (!$head) return false;
-        return maybeSetSelection(state, dispatch, new CellSelection(cellSel.$anchorCell, $head));
+        return maybeSetSelection(
+            state,
+            dispatch,
+            new ContentTableCellSelection(cellSel.$anchorCell, $head),
+        );
     };
 }
 
-export function handleTripleClick(view: EditorView, pos: number): boolean {
+export function contentTableHandleTripleClick(view: EditorView, pos: number): boolean {
     const doc = view.state.doc,
-        $cell = cellAround(doc.resolve(pos));
+        $cell = contentTableCellAround(doc.resolve(pos));
     if (!$cell) return false;
-    view.dispatch(view.state.tr.setSelection(new CellSelection($cell)));
+    view.dispatch(view.state.tr.setSelection(new ContentTableCellSelection($cell)));
     return true;
 }
 
-/**
- * @public
- */
-export function handlePaste(view: EditorView, _: ClipboardEvent, slice: Slice): boolean {
-    if (!isInTable(view.state)) return false;
-    let cells = pastedCells(slice);
+export function contentTableHandlePaste(
+    view: EditorView,
+    _: ClipboardEvent,
+    slice: Slice,
+): boolean {
+    if (!contentTableIsInTable(view.state)) return false;
+    let cells = contentTablePastedCells(slice);
     const sel = view.state.selection;
-    if (sel instanceof CellSelection) {
+    if (sel instanceof ContentTableCellSelection) {
         if (!cells)
             cells = {
                 width: 1,
                 height: 1,
                 rows: [
-                    Fragment.from(fitSlice(contentTableNodeTypes(view.state.schema).cell, slice)),
+                    Fragment.from(
+                        contentTableFitSlice(contentTableNodeTypes(view.state.schema).cell, slice),
+                    ),
                 ],
             };
         const table = sel.$anchorCell.node(-1);
         const start = sel.$anchorCell.start(-1);
-        const rect = TableMap.get(table).rectBetween(
+        const rect = ContentTableMap.get(table).rectBetween(
             sel.$anchorCell.pos - start,
             sel.$headCell.pos - start,
         );
-        cells = clipCells(cells, rect.right - rect.left, rect.bottom - rect.top);
-        insertCells(view.state, view.dispatch, start, rect, cells);
+        cells = contentTableCopyPasteClipCells(
+            cells,
+            rect.right - rect.left,
+            rect.bottom - rect.top,
+        );
+        contentTableInsertCells(view.state, view.dispatch, start, rect, cells);
         return true;
     } else if (cells) {
-        const $cell = selectionCell(view.state);
+        const $cell = contentTableSelectionCell(view.state);
         const start = $cell.start(-1);
-        insertCells(
+        contentTableInsertCells(
             view.state,
             view.dispatch,
             start,
-            TableMap.get($cell.node(-1)).findCell($cell.pos - start),
+            ContentTableMap.get($cell.node(-1)).findCell($cell.pos - start),
             cells,
         );
         return true;
@@ -151,19 +161,19 @@ export function handlePaste(view: EditorView, _: ClipboardEvent, slice: Slice): 
     }
 }
 
-export function handleMouseDown(view: EditorView, startEvent: MouseEvent): void {
+export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseEvent): void {
     if (startEvent.ctrlKey || startEvent.metaKey) return;
 
     const startDOMCell = domInCell(view, startEvent.target as Node);
     let $anchor;
-    if (startEvent.shiftKey && view.state.selection instanceof CellSelection) {
+    if (startEvent.shiftKey && view.state.selection instanceof ContentTableCellSelection) {
         // Adding to an existing cell selection
         setCellSelection(view.state.selection.$anchorCell, startEvent);
         startEvent.preventDefault();
     } else if (
         startEvent.shiftKey &&
         startDOMCell &&
-        ($anchor = cellAround(view.state.selection.$anchor)) != null &&
+        ($anchor = contentTableCellAround(view.state.selection.$anchor)) != null &&
         cellUnderMouse(view, startEvent)?.pos != $anchor.pos
     ) {
         // Adding to a selection that starts in another cell (causing a
@@ -180,11 +190,11 @@ export function handleMouseDown(view: EditorView, startEvent: MouseEvent): void 
     function setCellSelection($anchor: ResolvedPos, event: MouseEvent): void {
         let $head = cellUnderMouse(view, event);
         const starting = tableEditingKey.getState(view.state) == null;
-        if (!$head || !inSameTable($anchor, $head)) {
+        if (!$head || !contentTableInSameTable($anchor, $head)) {
             if (starting) $head = $anchor;
             else return;
         }
-        const selection = new CellSelection($anchor, $head);
+        const selection = new ContentTableCellSelection($anchor, $head);
         if (starting || !view.state.selection.eq(selection)) {
             const tr = view.state.tr.setSelection(selection);
             if (starting) tr.setMeta(tableEditingKey, $anchor.pos);
@@ -255,5 +265,5 @@ function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null
         top: event.clientY,
     });
     if (!mousePos) return null;
-    return mousePos ? cellAround(view.state.doc.resolve(mousePos.pos)) : null;
+    return mousePos ? contentTableCellAround(view.state.doc.resolve(mousePos.pos)) : null;
 }

@@ -1,4 +1,5 @@
-import {handleKeyDown, handleMouseDown, handlePaste, handleTripleClick} from "./helpers/input.js";
+import {EditorState, Plugin, PluginKey} from "prosemirror-state";
+import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
 /**
  * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
  * remove features we don't use and customize the user experience. We intend to
@@ -32,13 +33,16 @@ import {handleKeyDown, handleMouseDown, handlePaste, handleTripleClick} from "./
 // with such selections. It also makes sure that, after each
 // transaction, the shapes of tables are normalized to be rectangular
 // and not contain overlapping cells.
-
-import {EditorState, Plugin, PluginKey} from "prosemirror-state";
-import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
-import {fixTables} from "~/client/content/internal/table/helpers/fixtables.js";
 import {
-    CellSelection,
-    normalizeSelection,
+    contentTableHandleMouseDown,
+    contentTableHandlePaste,
+    contentTableHandleTripleClick,
+    contentTableKeyDownHandler,
+} from "~/client/content/internal/table/content_table_input.js";
+import {fixTables} from "~/client/content/internal/table/fixtables.js";
+import {
+    ContentTableCellSelection,
+    contentTableCellNormalizeSelection,
 } from "~/shared/content/table/content_table_cell_selection.js";
 
 type TableEditingOptions = {
@@ -46,7 +50,7 @@ type TableEditingOptions = {
 };
 
 function drawCellSelection(state: EditorState): DecorationSource | null {
-    if (!(state.selection instanceof CellSelection)) return null;
+    if (!(state.selection instanceof ContentTableCellSelection)) return null;
     const cells: Array<Decoration> = [];
     state.selection.forEachCell((node, pos) => {
         cells.push(Decoration.node(pos, pos + node.nodeSize, {class: "selectedCell"}));
@@ -96,22 +100,26 @@ export function contentTableEditingPlugin({
             decorations: drawCellSelection,
 
             handleDOMEvents: {
-                mousedown: handleMouseDown,
+                mousedown: contentTableHandleMouseDown,
             },
 
             createSelectionBetween(view) {
                 return tableEditingKey.getState(view.state) != null ? view.state.selection : null;
             },
 
-            handleTripleClick,
+            handleTripleClick: contentTableHandleTripleClick,
 
-            handleKeyDown,
+            handleKeyDown: contentTableKeyDownHandler,
 
-            handlePaste,
+            handlePaste: contentTableHandlePaste,
         },
 
         appendTransaction(_, oldState, state) {
-            return normalizeSelection(state, fixTables(state, oldState), allowTableNodeSelection);
+            return contentTableCellNormalizeSelection(
+                state,
+                fixTables(state, oldState),
+                allowTableNodeSelection,
+            );
         },
     });
 }

@@ -9,21 +9,15 @@
 // compute the start position of the table and offset positions passed
 // to or gotten from this structure by that amount.
 import {Attrs, Node} from "prosemirror-model";
-import {CellAttrs} from "~/shared/content/table/shared_utils.js";
+import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
 
-/**
- * @public
- */
-export type ColWidths = Array<number>;
+export type ContentTableMapColWidths = Array<number>;
 
-/**
- * @public
- */
-export type Problem =
+type ContentTableMapProblem =
     | {
           type: "colwidth mismatch";
           pos: number;
-          colwidth: ColWidths;
+          colwidth: ContentTableMapColWidths;
       }
     | {
           type: "collision";
@@ -42,26 +36,26 @@ export type Problem =
           n: number;
       };
 
-let readFromCache: (key: Node) => TableMap | undefined;
-let addToCache: (key: Node, value: TableMap) => TableMap;
+let readFromCache: (key: Node) => ContentTableMap | undefined;
+let addToCache: (key: Node, value: ContentTableMap) => ContentTableMap;
 
 // Prefer using a weak map to cache table maps. Fall back on a
 // fixed-size cache if that's not supported.
 if (typeof WeakMap != "undefined") {
     // eslint-disable-next-line
-    let cache = new WeakMap<Node, TableMap>();
+    let cache = new WeakMap<Node, ContentTableMap>();
     readFromCache = key => cache.get(key);
     addToCache = (key, value) => {
         cache.set(key, value);
         return value;
     };
 } else {
-    const cache: Array<Node | TableMap> = [];
+    const cache: Array<Node | ContentTableMap> = [];
     const cacheSize = 10;
     let cachePos = 0;
     readFromCache = key => {
         for (let i = 0; i < cache.length; i += 2)
-            if (cache[i] == key) return cache[i + 1] as TableMap;
+            if (cache[i] == key) return cache[i + 1] as ContentTableMap;
     };
     addToCache = (key, value) => {
         if (cachePos == cacheSize) cachePos = 0;
@@ -73,7 +67,7 @@ if (typeof WeakMap != "undefined") {
 /**
  * @public
  */
-export interface Rect {
+export interface ContentTableMapRect {
     left: number;
     top: number;
     right: number;
@@ -85,10 +79,8 @@ export interface Rect {
  * recomputing them all the time, they are cached per table node. To
  * be able to do that, positions saved in the map are relative to the
  * start of the table, rather than the start of the document.
- *
- * @public
  */
-export class TableMap {
+export class ContentTableMap {
     constructor(
         /**
          * The number of columns
@@ -107,11 +99,11 @@ export class TableMap {
          * An optional array of problems (cell overlap or non-rectangular
          * shape) for the table, used by the table normalizer.
          */
-        public problems: Array<Problem> | null,
+        public problems: Array<ContentTableMapProblem> | null,
     ) {}
 
     // Find the dimensions of the cell at the given position.
-    findCell(pos: number): Rect {
+    findCell(pos: number): ContentTableMapRect {
         for (let i = 0; i < this.map.length; i++) {
             const curPos = this.map[i];
             if (curPos != pos) continue;
@@ -157,7 +149,7 @@ export class TableMap {
     }
 
     // Get the rectangle spanning the two given cells.
-    rectBetween(a: number, b: number): Rect {
+    rectBetween(a: number, b: number): ContentTableMapRect {
         const {left: leftA, right: rightA, top: topA, bottom: bottomA} = this.findCell(a);
         const {left: leftB, right: rightB, top: topB, bottom: bottomB} = this.findCell(b);
         return {
@@ -170,7 +162,7 @@ export class TableMap {
 
     // Return the position of all cells that have the top left corner in
     // the given rectangle.
-    cellsInRect(rect: Rect): Array<number> {
+    cellsInRect(rect: ContentTableMapRect): Array<number> {
         const result: Array<number> = [];
         const seen: Record<number, boolean> = {};
         for (let row = rect.top; row < rect.bottom; row++) {
@@ -210,21 +202,21 @@ export class TableMap {
     }
 
     // Find the table map for the given table node.
-    static get(table: Node): TableMap {
+    static get(table: Node): ContentTableMap {
         return readFromCache(table) || addToCache(table, computeMap(table));
     }
 }
 
 // Compute a table map.
-function computeMap(table: Node): TableMap {
+function computeMap(table: Node): ContentTableMap {
     if (table.type.spec.tableRole != "table")
         throw new RangeError("Not a table node: " + table.type.name);
     const width = findWidth(table),
         height = table.childCount;
     const map = [];
     let mapPos = 0;
-    let problems: Array<Problem> | null = null;
-    const colWidths: ColWidths = [];
+    let problems: Array<ContentTableMapProblem> | null = null;
+    const colWidths: ContentTableMapColWidths = [];
     for (let i = 0, e = width * height; i < e; i++) map[i] = 0;
 
     for (let row = 0, pos = 0; row < height; row++) {
@@ -277,7 +269,7 @@ function computeMap(table: Node): TableMap {
         pos++;
     }
 
-    const tableMap = new TableMap(width, height, map, problems);
+    const tableMap = new ContentTableMap(width, height, map, problems);
     let badWidths = false;
 
     // For columns that have defined widths, but whose widths disagree
@@ -315,7 +307,11 @@ function findWidth(table: Node): number {
     return width;
 }
 
-function findBadColWidths(map: TableMap, colWidths: ColWidths, table: Node): void {
+function findBadColWidths(
+    map: ContentTableMap,
+    colWidths: ContentTableMapColWidths,
+    table: Node,
+): void {
     if (!map.problems) map.problems = [];
     const seen: Record<number, boolean> = {};
     for (let i = 0; i < map.map.length; i++) {
@@ -328,7 +324,7 @@ function findBadColWidths(map: TableMap, colWidths: ColWidths, table: Node): voi
         }
 
         let updated = null;
-        const attrs = node.attrs as CellAttrs;
+        const attrs = node.attrs as ContentTableCellAttrs;
         for (let j = 0; j < attrs.colspan; j++) {
             const col = (i + j) % map.width;
             const colWidth = colWidths[col * 2];
@@ -344,9 +340,9 @@ function findBadColWidths(map: TableMap, colWidths: ColWidths, table: Node): voi
     }
 }
 
-function freshColWidth(attrs: Attrs): ColWidths {
+function freshColWidth(attrs: Attrs): ContentTableMapColWidths {
     if (attrs.colwidth) return attrs.colwidth.slice();
-    const result: ColWidths = [];
+    const result: ContentTableMapColWidths = [];
     for (let i = 0; i < attrs.colspan; i++) result.push(0);
     return result;
 }
