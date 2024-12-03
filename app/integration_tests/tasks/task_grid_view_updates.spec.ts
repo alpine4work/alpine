@@ -831,7 +831,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await page
         .getByTestId(`TaskRowView:${task.id}`)
         .getByTestId("TaskRowCollectionsCell")
-        .click({position: {x: 0, y: 0}});
+        .click({position: {x: 2, y: 2}});
 
     const overlayLocator = page.getByTestId("TaskRowCollectionsCellOverlay");
 
@@ -861,7 +861,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await page
         .getByTestId(`TaskRowView:${task.id}`)
         .getByTestId("TaskRowCollectionsCell")
-        .click({position: {x: 0, y: 0}});
+        .click({position: {x: 2, y: 2}});
 
     await overlayLocator.getByLabel("Collections").focus();
 
@@ -890,7 +890,7 @@ test("can update collections", async ({page, context: browserContext}) => {
     await page
         .getByTestId(`TaskRowView:${task.id}`)
         .getByTestId("TaskRowCollectionsCell")
-        .click({position: {x: 0, y: 0}});
+        .click({position: {x: 2, y: 2}});
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeVisible();
