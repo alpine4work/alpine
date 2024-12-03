@@ -852,6 +852,9 @@ importers:
       prosemirror-state:
         specifier: 1.4.2
         version: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
+      prosemirror-tables:
+        specifier: ^1.6.1
+        version: 1.6.1
       prosemirror-transform:
         specifier: ^1.10.2
         version: 1.10.2
@@ -7298,6 +7301,9 @@ packages:
 
   prosemirror-state@1.4.2:
     resolution: {integrity: sha512-puuzLD2mz/oTdfgd8msFbe0A42j5eNudKAAPDB0+QJRw8cO1ygjLmhLrg9RvDpf87Dkd6D4t93qdef00KKNacQ==}
+
+  prosemirror-tables@1.6.1:
+    resolution: {integrity: sha512-p8WRJNA96jaNQjhJolmbxTzd6M4huRE5xQ8OxjvMhQUP0Nzpo4zz6TztEiwk6aoqGBhz9lxRWR1yRZLlpQN98w==}
 
   prosemirror-transform@1.10.2:
     resolution: {integrity: sha512-2iUq0wv2iRoJO/zj5mv8uDUriOHWzXRnOTVgCzSXnktS/2iQRa3UUQwVlkBlYZFtygw6Nh1+X4mGqoYBINn5KQ==}
@@ -17720,6 +17726,14 @@ snapshots:
   prosemirror-state@1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4):
     dependencies:
       prosemirror-model: 1.23.0
+      prosemirror-transform: 1.10.2
+      prosemirror-view: 1.27.2(patch_hash=gywwwqo4ruq265nv5n4tqx7rba)
+
+  prosemirror-tables@1.6.1:
+    dependencies:
+      prosemirror-keymap: 1.2.0
+      prosemirror-model: 1.23.0
+      prosemirror-state: 1.4.2(patch_hash=gbcsriuefth5zgkkmzyvvdiut4)
       prosemirror-transform: 1.10.2
       prosemirror-view: 1.27.2(patch_hash=gywwwqo4ruq265nv5n4tqx7rba)
 

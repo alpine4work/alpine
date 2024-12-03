@@ -10,6 +10,27 @@ import {
 } from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+// EXAMPLE USAGE 1: In the code block in content editor
+//
+// When you are writing code and if you click on copy or language picker buttons,
+// after the action is taken, you will be focused on the code block again at the
+// same position you were before you clicked the button.
+
+/**
+ * Add unfocusable button behavior to an element.
+ *
+ * This is useful for creating a button-like element that doesn't take focus or
+ * trigger hover styles when interacting with it.
+ *
+ * You can use this to add a button-like element to a code block that doesn't
+ * take focus away from the code block when interacting with it.
+ *
+ * For example,
+ *
+ * @param element - The element to add unfocusable button behavior to.
+ * @param options - Options for the unfocusable button behavior.
+ * @returns A function to remove the unfocusable button behavior.
+ */
 export function addUnfocusableButtonBehaviorToElement(
     element: HTMLElement,
     {

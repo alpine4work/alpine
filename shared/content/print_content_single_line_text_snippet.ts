@@ -166,6 +166,10 @@ export function printContentSingleLineTextSnippetWithHighlighting(
             case "fileFloat": {
                 break;
             }
+            case "table": {
+                // TODO(rohitt-gupta, #tables): Implement single line printing for tables.
+                break;
+            }
             default:
                 throw exhaustive(typeName);
         }

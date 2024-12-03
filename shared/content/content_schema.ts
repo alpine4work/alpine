@@ -34,6 +34,12 @@ import {
     strikeClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
+import {
+    contentTableCellProsemirrorNodeSpec,
+    contentTableHeaderProsemirrorNodeSpec,
+    contentTableProsemirrorNodeSpec,
+    contentTableRowProsemirrorNodeSpec,
+} from "~/shared/content/table/content_table_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
@@ -144,7 +150,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * Of course you need a way to write plain text.
          */
         paragraph: {
-            group: "block",
+            group: "block tableBlock",
             content: "inline*",
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
             // there's only a small number of nodes (e.g. `divider`) we actually want to
@@ -161,7 +167,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * a quote of a quote.
          */
         quoteBlock: {
-            group: "block",
+            group: "block tableBlock",
             content: "(paragraph | simpleListItem)+",
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
             // there's only a small number of nodes (e.g. `divider`) we actually want to
@@ -229,7 +235,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // which preserves new lines. However, we don't want to keep
         // new lines, only keep spaces.
         codeBlock: {
-            group: "block",
+            group: "block tableBlock",
             content: "codeBlockLine+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
@@ -333,7 +339,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * List some things in no particular order with proper indentation.
          */
         unorderedListItem: {
-            group: "block listItem simpleListItem",
+            group: "block listItem simpleListItem tableBlock",
             content: "paragraph+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
@@ -366,7 +372,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * List some things with a counter with proper indentation.
          */
         orderedListItem: {
-            group: "block listItem simpleListItem",
+            group: "block listItem simpleListItem tableBlock",
             content: "paragraph+",
             defining: true,
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
@@ -458,6 +464,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 },
             ],
         },
+        table: contentTableProsemirrorNodeSpec,
+        tableRow: contentTableRowProsemirrorNodeSpec,
+        tableCell: contentTableCellProsemirrorNodeSpec,
+        tableHeader: contentTableHeaderProsemirrorNodeSpec,
     },
     marks: {
         // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means
