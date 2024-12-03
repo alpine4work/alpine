@@ -152,7 +152,7 @@ patchedDependencies:
     hash: 7rnpluq2niz2blm7td6ykmxneu
     path: admin/patches/vite@5.4.2.patch
   wrangler@3.87.0:
-    hash: p7fy5lqg62zrlh4nfipjubdgf4
+    hash: w5c3frccbwi6lo35rptv6z6dta
     path: admin/patches/wrangler@3.87.0.patch
   y-prosemirror@1.2.1:
     hash: dx73wctt5wxtfozsy7f4vcgquq
@@ -371,7 +371,7 @@ importers:
         version: 3.21.0(react@18.2.0)
       '@remix-run/dev':
         specifier: 2.9.2
-        version: 2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10))
+        version: 2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=w5c3frccbwi6lo35rptv6z6dta)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10))
       '@remix-run/eslint-config':
         specifier: 2.9.2
         version: 2.9.2(eslint@8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i))(jest@29.4.0(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)))(react@18.2.0)(typescript@5.1.3)
@@ -938,7 +938,7 @@ importers:
         version: 4.0.0
       wrangler:
         specifier: ^3.87.0
-        version: 3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
+        version: 3.87.0(patch_hash=w5c3frccbwi6lo35rptv6z6dta)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       ws:
         specifier: ^8.10.0
         version: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
@@ -11954,7 +11954,7 @@ snapshots:
       '@react-types/shared': 3.21.0(react@18.2.0)
       react: 18.2.0
 
-  '@remix-run/dev@2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10))':
+  '@remix-run/dev@2.9.2(patch_hash=c7iy7ylc7j2wcbdtepeh4zfrcu)(@remix-run/react@2.9.2(patch_hash=ybhsrlcu3yuxop4zeggezxirtq)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(typescript@5.1.3))(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(bufferutil@4.0.7)(react-dom@18.2.0(patch_hash=2vwzp7nbbzbgfr2az567j725ly)(react@18.2.0))(react@18.2.0)(terser@5.31.6)(typescript@5.1.3)(utf-8-validate@5.0.10)(vite@5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6))(wrangler@3.87.0(patch_hash=w5c3frccbwi6lo35rptv6z6dta)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10))':
     dependencies:
       '@babel/core': 7.25.2
       '@babel/generator': 7.25.0
@@ -12015,7 +12015,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.1.3
       vite: 5.4.2(patch_hash=7rnpluq2niz2blm7td6ykmxneu)(@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy))(terser@5.31.6)
-      wrangler: 3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
+      wrangler: 3.87.0(patch_hash=w5c3frccbwi6lo35rptv6z6dta)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -19062,7 +19062,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20241106.1
       '@cloudflare/workerd-windows-64': 1.20241106.1
 
-  wrangler@3.87.0(patch_hash=p7fy5lqg62zrlh4nfipjubdgf4)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10):
+  wrangler@3.87.0(patch_hash=w5c3frccbwi6lo35rptv6z6dta)(@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq))(bufferutil@4.0.7)(utf-8-validate@5.0.10):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.3.4
       '@cloudflare/workers-shared': 0.7.1
