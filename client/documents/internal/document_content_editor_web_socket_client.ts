@@ -12,6 +12,7 @@ import {
     WebSocketClientProcedures,
     WebSocketClientState,
 } from "~/client/web_socket/web_socket_client.js";
+import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -27,7 +28,6 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
@@ -425,7 +425,7 @@ export class DocumentContentEditorWebSocketClient {
                             state: state.extra.ourPresenceState
                                 ? {
                                       version: state.extra.ourPresenceState.version,
-                                      selection: ProsemirrorSelectionWrapper.new(
+                                      selection: ContentSelectionWrapper.new(
                                           state.extra.ourPresenceState.selection,
                                       ),
                                   }
@@ -484,7 +484,7 @@ export class DocumentContentEditorWebSocketClient {
                         state: state.extra.ourPresenceState
                             ? {
                                   version: state.extra.ourPresenceState.version,
-                                  selection: ProsemirrorSelectionWrapper.new(
+                                  selection: ContentSelectionWrapper.new(
                                       state.extra.ourPresenceState.selection,
                                   ),
                               }

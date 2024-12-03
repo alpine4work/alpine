@@ -20,11 +20,11 @@ import {contentTableInSameTable} from "~/shared/content/table/helpers/content_ta
 import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
 import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
 
-interface CellSelectionJSON {
-    type: string;
-    anchor: number;
-    head: number;
-}
+export type ContentTableCellSelectionJson = {
+    readonly type: "cell";
+    readonly anchor: number;
+    readonly head: number;
+};
 
 export class ContentTableCellSelection extends Selection {
     // A resolved position pointing _in front of_ the anchor cell (the one
@@ -290,7 +290,7 @@ export class ContentTableCellSelection extends Selection {
         return new ContentTableCellSelection($anchorCell, $headCell);
     }
 
-    public toJSON(): CellSelectionJSON {
+    public toJSON(): ContentTableCellSelectionJson {
         return {
             type: "cell",
             anchor: this.$anchorCell.pos,
@@ -298,7 +298,18 @@ export class ContentTableCellSelection extends Selection {
         };
     }
 
-    public static override fromJSON(doc: Node, json: CellSelectionJSON): ContentTableCellSelection {
+    // NOTE(calebmer): We don't register the cell selection class with
+    // `Selection.jsonID()`. Because our hot reloading implementation makes global
+    // registry patterns like the one used by `Selection.jsonID()` difficult (if
+    // not impossible) to work with. Since if we hot reload this file then
+    // `Selection.jsonID()` will be called twice for the type `"cell"` which throws
+    // an error. Instead if you're serializing a selection from JSON you should be
+    // using `ContentSelectionSchema` which has built-in knowledge of cell
+    // selections.
+    public static override fromJSON(
+        doc: Node,
+        json: ContentTableCellSelectionJson,
+    ): ContentTableCellSelection {
         return new ContentTableCellSelection(doc.resolve(json.anchor), doc.resolve(json.head));
     }
 
@@ -316,12 +327,6 @@ export class ContentTableCellSelection extends Selection {
 }
 
 ContentTableCellSelection.prototype.visible = false;
-try {
-    Selection.jsonID("cell", ContentTableCellSelection);
-} catch (e) {
-    // eslint-disable-next-line no-console
-    console.log("Error in Selection.jsonID", e);
-}
 
 /**
  * @public

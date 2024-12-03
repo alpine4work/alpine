@@ -1,6 +1,11 @@
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
+import {
+    ContentTableCellSelection,
+    ContentTableCellSelectionJson,
+} from "~/shared/content/table/content_table_cell_selection.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
@@ -11,18 +16,18 @@ import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/share
  * you to always provided the `Node` associated with the `Selection` when
  * trying to access the selection.
  */
-export const ProsemirrorSelectionSchema = Schema.unknown.transform<ProsemirrorSelectionWrapper>({
+export const ContentSelectionSchema = Schema.unknown.transform<ContentSelectionWrapper>({
     serialize: selection => selection.toJSON(),
     deserialize: selection => {
         try {
-            return ProsemirrorSelectionWrapper.fromJSON(selection);
+            return ContentSelectionWrapper.fromJSON(selection);
         } catch (error) {
             throw SchemaDeserializationError.from(error);
         }
     },
 });
 
-type ProsemirrorSelectionWrapperData =
+type ContentSelectionWrapperData =
     | {
           isJson: true;
           selection: SchemaSerializedValue;
@@ -39,15 +44,15 @@ type ProsemirrorSelectionWrapperData =
  *
  * If the `Selection` is deserialized, passing in a `Node` does nothing.
  */
-export class ProsemirrorSelectionWrapper {
-    private constructor(private _data: ProsemirrorSelectionWrapperData) {}
+export class ContentSelectionWrapper {
+    private constructor(private _data: ContentSelectionWrapperData) {}
 
-    public static new(selection: Selection): ProsemirrorSelectionWrapper {
-        return new ProsemirrorSelectionWrapper({isJson: false, selection});
+    public static new(selection: Selection): ContentSelectionWrapper {
+        return new ContentSelectionWrapper({isJson: false, selection});
     }
 
-    public static fromJSON(selection: SchemaSerializedValue): ProsemirrorSelectionWrapper {
-        return new ProsemirrorSelectionWrapper({
+    public static fromJSON(selection: SchemaSerializedValue): ContentSelectionWrapper {
+        return new ContentSelectionWrapper({
             isJson: true,
             selection,
         });
@@ -58,7 +63,21 @@ export class ProsemirrorSelectionWrapper {
             try {
                 this._data = {
                     isJson: false,
-                    selection: Selection.fromJSON(doc, this._data.selection),
+                    selection:
+                        // NOTE(calebmer): We don't register the cell selection class with
+                        // `Selection.jsonID()`. Because our hot reloading implementation makes global
+                        // registry patterns like the one used by `Selection.jsonID()` difficult (if
+                        // not impossible) to work with. Since if we hot reload this file then
+                        // `Selection.jsonID()` will be called twice for the type `"cell"` which throws
+                        // an error. Instead if you're serializing a selection from JSON you should be
+                        // using `ContentSelectionSchema` which has built-in knowledge of cell
+                        // selections.
+                        isObject(this._data.selection) && this._data.selection.type === "cell"
+                            ? ContentTableCellSelection.fromJSON(
+                                  doc,
+                                  this._data.selection as ContentTableCellSelectionJson,
+                              )
+                            : Selection.fromJSON(doc, this._data.selection),
                 };
             } catch (error) {
                 // Classify deserialization error as a `FailedPreconditionError` since the
