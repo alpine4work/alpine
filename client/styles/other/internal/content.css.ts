@@ -121,7 +121,7 @@ const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
 export {defaultParagraphMarginSpacing as defaultParagraphMargin};
 export const defaultParagraphMarginRem = parseRemLength(defaultParagraphMargin);
 
-const blockMaxWidthVar = createVar("block-max-width");
+export const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
 export const standaloneBlockMarginVar = createVar("standalone-block-margin");
 export const listItemOffsetVar = createVar("list-item-offset");

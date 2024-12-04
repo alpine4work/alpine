@@ -1,0 +1,41 @@
+import {globalStyle, style} from "@vanilla-extract/css";
+import {
+    blockMaxWidthVar,
+    docClassName,
+    fileImagePreviewContentClassName,
+} from "~/client/styles/other/internal/content.css.js";
+import {linkClassName, titleClassName} from "~/shared/content/content_styles.js";
+
+export const slideClassName = style({
+    pointerEvents: "none",
+    vars: {
+        [blockMaxWidthVar]: "none",
+    },
+});
+
+globalStyle(
+    [
+        `${slideClassName} ${docClassName}`,
+        `${slideClassName} ${fileImagePreviewContentClassName}`,
+    ].join(", "),
+    {
+        // Even though we set `pointer-events: none` we still want to set
+        // `user-select: none` so that keyboard shortcuts like cmd-a don't select all
+        // the text on the slide.
+        userSelect: "none",
+    },
+);
+
+// Allow clicking links. Anything we allow to be clickable within the
+// presentation view we should also make sure is ignored from the "click to
+// advance slide" logic in `<DocumentPresentationView>` (look for the
+// `ignorePressFromElement()` function).
+globalStyle(`${slideClassName} ${linkClassName}`, {
+    pointerEvents: "auto",
+});
+
+// Increase specificity by listing `slideClassName` 3 times so we can beat
+// other styles that add `paddingTop` to `titleClassName`.
+globalStyle(`${slideClassName}${slideClassName}${slideClassName} ${titleClassName}`, {
+    paddingTop: 0,
+});
