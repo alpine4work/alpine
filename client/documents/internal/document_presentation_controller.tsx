@@ -75,7 +75,12 @@ function DocumentPresentationController(
 
     return (
         <Box position="fixed" top="0" width="0" height="0" overflow="hidden">
-            <Box ref={fullscreenRef} overflow="hidden" style={{width: "100vw", height: "100vh"}}>
+            <Box
+                ref={fullscreenRef}
+                overflow="hidden"
+                backgroundColor="grey-0"
+                style={{width: "100vw", height: "100vh"}}
+            >
                 <GlobalKeyDownEventModal>
                     <DocumentPresentationView
                         initialContent={editorState.getContent()}
