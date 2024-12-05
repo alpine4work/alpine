@@ -1,4 +1,4 @@
-import {Node, Fragment} from "prosemirror-model";
+import {Fragment, Node} from "prosemirror-model";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 
 /**
