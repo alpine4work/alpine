@@ -12,13 +12,13 @@ import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema
  *
  * This function is useful for validating the structure of a table.
  */
-export function contentTableColumnIsHeader(
-    map: ContentTableMap,
-    table: Node,
-    col: number,
-): boolean {
-    const headerCell = contentTableNodeTypes(table.type.schema).header_cell;
-    for (let row = 0; row < map.height; row++)
-        if (table.nodeAt(map.map[col + row * map.width]!)!.type != headerCell) return false;
-    return true;
-}
+// export function contentTableColumnIsHeader(
+//     map: ContentTableMap,
+//     table: Node,
+//     col: number,
+// ): boolean {
+//     const headerCell = contentTableNodeTypes(table.type.schema).header_cell;
+//     for (let row = 0; row < map.height; row++)
+//         if (table.nodeAt(map.map[col + row * map.width]!)!.type != headerCell) return false;
+//     return true;
+// }

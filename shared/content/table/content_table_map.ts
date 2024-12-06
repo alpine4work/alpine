@@ -1,3 +1,30 @@
+/**
+ * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
+ * remove features we don't use and customize the user experience. We intend to
+ * modify this file a lot so each modification may not be documented.
+ *
+ * The MIT License
+ *
+ * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 // Because working with row and column-spanning cells is not quite
 // trivial, this code builds up a descriptive structure for a given
 // table node. The structures are cached with the (persistent) table
@@ -9,7 +36,7 @@
 // compute the start position of the table and offset positions passed
 // to or gotten from this structure by that amount.
 import {Attrs, Node} from "prosemirror-model";
-import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTableCellDefaultAttrs} from "~/shared/content/table/helpers/content_table_default_attrs.js";
 
 export type ContentTableMapColWidths = Array<number>;
 
@@ -226,7 +253,11 @@ function computeMap(table: Node): ContentTableMap {
             while (mapPos < map.length && map[mapPos] != 0) mapPos++;
             if (i == rowNode.childCount) break;
             const cellNode = rowNode.child(i);
-            const {colspan, rowspan, colwidth} = cellNode.attrs;
+            let {colspan, rowspan, colwidth} = cellNode.attrs;
+
+            if (!colspan) colspan = contentTableCellDefaultAttrs.colspan;
+            if (!rowspan) rowspan = contentTableCellDefaultAttrs.rowspan;
+            if (!colwidth) colwidth = contentTableCellDefaultAttrs.colwidth;
             for (let h = 0; h < rowspan; h++) {
                 if (h + row >= height) {
                     (problems || (problems = [])).push({
@@ -293,20 +324,28 @@ function findWidth(table: Node): number {
                 const prevRow = table.child(j);
                 for (let i = 0; i < prevRow.childCount; i++) {
                     const cell = prevRow.child(i);
-                    if (j + cell.attrs.rowspan > row) rowWidth += cell.attrs.colspan;
+                    const attrs =
+                        cell.attrs && cell.attrs.colspan
+                            ? cell.attrs
+                            : contentTableCellDefaultAttrs;
+                    if (j + attrs.rowspan > row) rowWidth += attrs.colspan;
                 }
             }
         for (let i = 0; i < rowNode.childCount; i++) {
             const cell = rowNode.child(i);
-            rowWidth += cell.attrs.colspan;
-            if (cell.attrs.rowspan > 1) hasRowSpan = true;
+            const attrs =
+                cell.attrs && cell.attrs.colspan ? cell.attrs : contentTableCellDefaultAttrs;
+            rowWidth += attrs.colspan;
+            if (attrs.rowspan > 1) hasRowSpan = true;
         }
         if (width == -1) width = rowWidth;
         else if (width != rowWidth) width = Math.max(width, rowWidth);
     }
     return width;
 }
-
+/**
+ * Find the cells that have colwidths that don't match the computed colwidths.
+ */
 function findBadColWidths(
     map: ContentTableMap,
     colWidths: ContentTableMapColWidths,
@@ -324,7 +363,7 @@ function findBadColWidths(
         }
 
         let updated = null;
-        const attrs = node.attrs as ContentTableCellAttrs;
+        const attrs = node.attrs ?? contentTableCellDefaultAttrs;
         for (let j = 0; j < attrs.colspan; j++) {
             const col = (i + j) % map.width;
             const colWidth = colWidths[col * 2];

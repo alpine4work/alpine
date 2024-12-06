@@ -116,6 +116,8 @@ export class ContentTableCellSelection extends Selection {
 
                 if (extraLeft > 0 || extraRight > 0) {
                     let attrs = cell.attrs as ContentTableCellAttrs;
+                    console.log("attrs", attrs);
+
                     if (extraLeft > 0) {
                         attrs = contentTableRemoveColSpan(attrs, 0, extraLeft);
                     }

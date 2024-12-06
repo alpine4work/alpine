@@ -6,7 +6,7 @@ import type {ContentTableInputDirection} from "~/client/content/internal/table/c
 import {contentTableAddColSpan} from "~/client/content/internal/table/helpers/content_table_add_col_span.js";
 import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
 import {contentTableCellWrapping} from "~/client/content/internal/table/helpers/content_table_cell_wrapping.js";
-import {contentTableColumnIsHeader} from "~/client/content/internal/table/helpers/content_table_column_is_header.js";
+// import {contentTableColumnIsHeader} from "~/client/content/internal/table/helpers/content_table_column_is_header.js";
 import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
 import {contentTableMoveCellForward} from "~/client/content/internal/table/helpers/content_table_move_cell_forward.js";
 import {contentTableSelectionCell} from "~/client/content/internal/table/helpers/content_table_selection_cell.js";
@@ -51,10 +51,10 @@ function selectedRect(state: EditorState): TableRect {
  * Add a column at the given position in a table.
  */
 function addColumn(tr: Transaction, {map, tableStart, table}: TableRect, col: number): Transaction {
-    let refColumn: number | null = col > 0 ? -1 : 0;
-    if (contentTableColumnIsHeader(map, table, col + refColumn)) {
-        refColumn = col == 0 || col == map.width ? null : 0;
-    }
+    const refColumn: number | null = col > 0 ? -1 : 0;
+    // if (contentTableColumnIsHeader(map, table, col + refColumn)) {
+    //     refColumn = col == 0 || col == map.width ? null : 0;
+    // }
 
     for (let row = 0; row < map.height; row++) {
         const index = row * map.width + col;
@@ -158,10 +158,11 @@ function deleteColumn(state: EditorState, dispatch?: (tr: Transaction) => void):
 }
 
 function rowIsHeader(map: ContentTableMap, table: Node, row: number): boolean {
-    const headerCell = contentTableNodeTypes(table.type.schema).header_cell;
-    for (let col = 0; col < map.width; col++)
-        if (table.nodeAt(map.map[col + row * map.width]!)?.type != headerCell) return false;
-    return true;
+    // const headerCell = contentTableNodeTypes(table.type.schema).headerCell;
+    // for (let col = 0; col < map.width; col++)
+    //     if (table.nodeAt(map.map[col + row * map.width]!)?.type != headerCell) return false;
+    // return true;
+    return false;
 }
 
 function addRow(tr: Transaction, {map, tableStart, table}: TableRect, row: number): Transaction {
@@ -488,54 +489,54 @@ function setCellAttr(name: string, value: unknown): Command {
     };
 }
 
-function deprecated_toggleHeader(type: ToggleHeaderType): Command {
-    return function (state, dispatch) {
-        if (!contentTableIsInTable(state)) return false;
-        if (dispatch) {
-            const types = contentTableNodeTypes(state.schema);
-            const rect = selectedRect(state),
-                tr = state.tr;
-            const cells = rect.map.cellsInRect(
-                type == "column"
-                    ? {
-                          left: rect.left,
-                          top: 0,
-                          right: rect.right,
-                          bottom: rect.map.height,
-                      }
-                    : type == "row"
-                    ? {
-                          left: 0,
-                          top: rect.top,
-                          right: rect.map.width,
-                          bottom: rect.bottom,
-                      }
-                    : rect,
-            );
-            const nodes = cells.map(pos => rect.table.nodeAt(pos)!);
-            for (
-                let i = 0;
-                i < cells.length;
-                i++ // Remove headers, if any
-            )
-                if (nodes[i]?.type == types.header_cell)
-                    tr.setNodeMarkup(rect.tableStart + cells[i]!, types.cell, nodes[i]!.attrs);
-            if (tr.steps.length == 0)
-                for (
-                    let i = 0;
-                    i < cells.length;
-                    i++ // No headers removed, add instead
-                )
-                    tr.setNodeMarkup(
-                        rect.tableStart + cells[i]!,
-                        types.header_cell,
-                        nodes[i]!.attrs,
-                    );
-            dispatch(tr);
-        }
-        return true;
-    };
-}
+// function deprecated_toggleHeader(type: ToggleHeaderType): Command {
+//     return function (state, dispatch) {
+//         if (!contentTableIsInTable(state)) return false;
+//         if (dispatch) {
+//             const types = contentTableNodeTypes(state.schema);
+//             const rect = selectedRect(state),
+//                 tr = state.tr;
+//             const cells = rect.map.cellsInRect(
+//                 type == "column"
+//                     ? {
+//                           left: rect.left,
+//                           top: 0,
+//                           right: rect.right,
+//                           bottom: rect.map.height,
+//                       }
+//                     : type == "row"
+//                     ? {
+//                           left: 0,
+//                           top: rect.top,
+//                           right: rect.map.width,
+//                           bottom: rect.bottom,
+//                       }
+//                     : rect,
+//             );
+//             const nodes = cells.map(pos => rect.table.nodeAt(pos)!);
+//             for (
+//                 let i = 0;
+//                 i < cells.length;
+//                 i++ // Remove headers, if any
+//             )
+//                 if (nodes[i]?.type == types.header_cell)
+//                     tr.setNodeMarkup(rect.tableStart + cells[i]!, types.cell, nodes[i]!.attrs);
+//             if (tr.steps.length == 0)
+//                 for (
+//                     let i = 0;
+//                     i < cells.length;
+//                     i++ // No headers removed, add instead
+//                 )
+//                     tr.setNodeMarkup(
+//                         rect.tableStart + cells[i]!,
+//                         types.header_cell,
+//                         nodes[i]!.attrs,
+//                     );
+//             dispatch(tr);
+//         }
+//         return true;
+//     };
+// }
 
 function isHeaderEnabledByType(
     type: "row" | "column",
@@ -566,96 +567,96 @@ type ToggleHeaderType = "column" | "row" | "cell";
  * Toggles between row/column header and normal cells (Only applies to first row/column).
  * For deprecated behavior pass `useDeprecatedLogic` in options with true.
  */
-function toggleHeader(
-    type: ToggleHeaderType,
-    options?: {useDeprecatedLogic: boolean} | undefined,
-): Command {
-    options = options || {useDeprecatedLogic: false};
+// function toggleHeader(
+//     type: ToggleHeaderType,
+//     options?: {useDeprecatedLogic: boolean} | undefined,
+// ): Command {
+//     options = options || {useDeprecatedLogic: false};
 
-    if (options.useDeprecatedLogic) return deprecated_toggleHeader(type);
+//     if (options.useDeprecatedLogic) return deprecated_toggleHeader(type);
 
-    return function (state, dispatch) {
-        if (!contentTableIsInTable(state)) return false;
-        if (dispatch) {
-            const types = contentTableNodeTypes(state.schema);
-            const rect = selectedRect(state),
-                tr = state.tr;
+//     return function (state, dispatch) {
+//         if (!contentTableIsInTable(state)) return false;
+//         if (dispatch) {
+//             const types = contentTableNodeTypes(state.schema);
+//             const rect = selectedRect(state),
+//                 tr = state.tr;
 
-            const isHeaderRowEnabled = isHeaderEnabledByType("row", rect, types);
-            const isHeaderColumnEnabled = isHeaderEnabledByType("column", rect, types);
+//             const isHeaderRowEnabled = isHeaderEnabledByType("row", rect, types);
+//             const isHeaderColumnEnabled = isHeaderEnabledByType("column", rect, types);
 
-            const isHeaderEnabled =
-                type === "column"
-                    ? isHeaderRowEnabled
-                    : type === "row"
-                    ? isHeaderColumnEnabled
-                    : false;
+//             const isHeaderEnabled =
+//                 type === "column"
+//                     ? isHeaderRowEnabled
+//                     : type === "row"
+//                     ? isHeaderColumnEnabled
+//                     : false;
 
-            const selectionStartsAt = isHeaderEnabled ? 1 : 0;
+//             const selectionStartsAt = isHeaderEnabled ? 1 : 0;
 
-            const cellsRect =
-                type == "column"
-                    ? {
-                          left: 0,
-                          top: selectionStartsAt,
-                          right: 1,
-                          bottom: rect.map.height,
-                      }
-                    : type == "row"
-                    ? {
-                          left: selectionStartsAt,
-                          top: 0,
-                          right: rect.map.width,
-                          bottom: 1,
-                      }
-                    : rect;
+//             const cellsRect =
+//                 type == "column"
+//                     ? {
+//                           left: 0,
+//                           top: selectionStartsAt,
+//                           right: 1,
+//                           bottom: rect.map.height,
+//                       }
+//                     : type == "row"
+//                     ? {
+//                           left: selectionStartsAt,
+//                           top: 0,
+//                           right: rect.map.width,
+//                           bottom: 1,
+//                       }
+//                     : rect;
 
-            const newType =
-                type == "column"
-                    ? isHeaderColumnEnabled
-                        ? types.cell
-                        : types.header_cell
-                    : type == "row"
-                    ? isHeaderRowEnabled
-                        ? types.cell
-                        : types.header_cell
-                    : types.cell;
+//             const newType =
+//                 type == "column"
+//                     ? isHeaderColumnEnabled
+//                         ? types.cell
+//                         : types.header_cell
+//                     : type == "row"
+//                     ? isHeaderRowEnabled
+//                         ? types.cell
+//                         : types.header_cell
+//                     : types.cell;
 
-            rect.map.cellsInRect(cellsRect).forEach(relativeCellPos => {
-                const cellPos = relativeCellPos + rect.tableStart;
-                const cell = tr.doc.nodeAt(cellPos);
+//             rect.map.cellsInRect(cellsRect).forEach(relativeCellPos => {
+//                 const cellPos = relativeCellPos + rect.tableStart;
+//                 const cell = tr.doc.nodeAt(cellPos);
 
-                if (cell) {
-                    tr.setNodeMarkup(cellPos, newType, cell.attrs);
-                }
-            });
+//                 if (cell) {
+//                     tr.setNodeMarkup(cellPos, newType, cell.attrs);
+//                 }
+//             });
 
-            dispatch(tr);
-        }
-        return true;
-    };
-}
+//             dispatch(tr);
+//         }
+//         return true;
+//     };
+// }
 
-/**
- * Toggles whether the selected row contains header cells.
- */
-const toggleHeaderRow: Command = toggleHeader("row", {
-    useDeprecatedLogic: true,
-});
+// /**
+//  * Toggles whether the selected row contains header cells.
+//  */
+// const toggleHeaderRow: Command = toggleHeader("row", {
+//     useDeprecatedLogic: true,
+// });
 
-/**
- * Toggles whether the selected column contains header cells.
- */
-const toggleHeaderColumn: Command = toggleHeader("column", {
-    useDeprecatedLogic: true,
-});
+// /**
+//  * Toggles whether the selected column contains header cells.
+//  */
+// const toggleHeaderColumn: Command = toggleHeader("column", {
+//     useDeprecatedLogic: true,
+// });
 
 /**
  * Toggles whether the selected cells are header cells.
  */
-const toggleHeaderCell: Command = toggleHeader("cell", {
-    useDeprecatedLogic: true,
-});
+// const toggleHeaderCell: Command = toggleHeader("cell", {
+//     useDeprecatedLogic: true,
+// });
 
 function findNextCell($cell: ResolvedPos, dir: ContentTableInputDirection): number | null {
     if (dir < 0) {
@@ -746,10 +747,10 @@ function deleteCellSelection(state: EditorState, dispatch?: (tr: Transaction) =>
 }
 
 export {
-    toggleHeader as contentTableCommandToggleHeader,
-    toggleHeaderCell as contentTableCommandToggleHeaderCell,
-    toggleHeaderColumn as contentTableCommandToggleHeaderColumn,
-    toggleHeaderRow as contentTableCommandToggleHeaderRow,
+    // toggleHeader as contentTableCommandToggleHeader,
+    // toggleHeaderCell as contentTableCommandToggleHeaderCell,
+    // toggleHeaderColumn as contentTableCommandToggleHeaderColumn,
+    // toggleHeaderRow as contentTableCommandToggleHeaderRow,
     setCellAttr as contentTableCommandSetCellAttr,
     findNextCell as contentTableCommandFindNextCell,
     goToNextCell as contentTableCommandGoToNextCell,

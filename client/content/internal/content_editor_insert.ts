@@ -191,11 +191,11 @@ export function insertContentFiles(
 
 export function insertContentTable(view: EditorView) {
     const {schema} = view.state;
-    const cell = schema.node("tableCell", {}, [schema.node("paragraph")]);
-    const headerCell = schema.node("tableHeader", {}, [schema.node("paragraph")]);
+    const headerCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
     const headerRow = schema.node("tableRow", {}, [headerCell, headerCell]);
-    const bodyRow = schema.node("tableRow", {}, [cell, cell]);
-    const table = schema.node("table", {}, [headerRow, bodyRow, bodyRow]);
+    const bodyCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
+    const bodyRow = schema.node("tableRow", {}, [bodyCell, bodyCell]);
+    const table = schema.node("table", {}, [bodyRow, bodyRow]);
 
     insertNode(view, table);
 }

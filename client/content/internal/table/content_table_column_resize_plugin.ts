@@ -35,7 +35,7 @@ import {
 import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {type ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTableCellDefaultAttrs} from "~/shared/content/table/helpers/content_table_default_attrs.js";
 import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
 
 const columnResizingPluginKey = new PluginKey<ResizeState>("tableColumnResizing");
@@ -61,6 +61,13 @@ type ColumnResizingOptions = {
 
 type Dragging = {startX: number; startWidth: number};
 
+// The contentTableColumnResizingPlugin sets up event handlers for mouse events
+// related to column resizing. When the user clicks and drags on a column border,
+// the handleMouseDown function is called, which initiates the column resizing
+// process. As the user drags the mouse, the move function is called repeatedly,
+// updating the column width based on the mouse position. When the user releases
+// the mouse button, the finish function is called, which commits the column
+// width changes.
 export function contentEditorTableColumnResizingPlugin({
     handleWidth = 5,
     cellMinWidth = 25,
@@ -92,12 +99,15 @@ export function contentEditorTableColumnResizingPlugin({
             },
 
             handleDOMEvents: {
+                // Handles mouse movement to update the active column handle
                 mousemove: (view, event) => {
                     handleMouseMove(view, event, handleWidth, lastColumnResizable);
                 },
+                // Handles mouse leave event to reset the active handle
                 mouseleave: view => {
                     handleMouseLeave(view);
                 },
+                // Initiates the column resizing process on mouse down
                 mousedown: (view, event) => {
                     handleMouseDown(view, event, cellMinWidth, defaultCellMinWidth);
                 },
@@ -119,6 +129,7 @@ export function contentEditorTableColumnResizingPlugin({
 class ResizeState {
     constructor(public activeHandle: number, public dragging: Dragging | false) {}
 
+    // Applies the transaction to update the resizing state
     apply(tr: Transaction): ResizeState {
         const state = this;
         const action = tr.getMeta(columnResizingPluginKey);
@@ -136,6 +147,7 @@ class ResizeState {
     }
 }
 
+// Handles mouse movement to update the active column handle
 function handleMouseMove(
     view: EditorView,
     event: MouseEvent,
@@ -162,8 +174,11 @@ function handleMouseMove(
                 const table = $cell.node(-1);
                 const map = ContentTableMap.get(table);
                 const tableStart = $cell.start(-1);
-                const col =
-                    map.colCount($cell.pos - tableStart) + $cell.nodeAfter!.attrs.colspan - 1;
+                const attrs =
+                    $cell.nodeAfter!.attrs && $cell.nodeAfter!.attrs.colspan
+                        ? $cell.nodeAfter!.attrs
+                        : contentTableCellDefaultAttrs;
+                const col = map.colCount($cell.pos - tableStart) + attrs.colspan - 1;
 
                 if (col == map.width - 1) {
                     return;
@@ -175,12 +190,14 @@ function handleMouseMove(
     }
 }
 
+// Handles mouse leave event to reset the active handle
 function handleMouseLeave(view: EditorView): void {
     const pluginState = columnResizingPluginKey.getState(view.state);
     if (pluginState && pluginState.activeHandle > -1 && !pluginState.dragging)
         updateHandle(view, -1);
 }
 
+// Initiates the column resizing process on mouse down
 function handleMouseDown(
     view: EditorView,
     event: MouseEvent,
@@ -193,18 +210,25 @@ function handleMouseDown(
     if (!pluginState || pluginState.activeHandle == -1 || pluginState.dragging) return false;
 
     const cell = view.state.doc.nodeAt(pluginState.activeHandle)!;
-    const width = currentColWidth(view, pluginState.activeHandle, cell.attrs);
+    const attrs = cell.attrs && cell.attrs.colspan ? cell.attrs : contentTableCellDefaultAttrs;
+    const width = currentColWidth(view, pluginState.activeHandle, attrs);
     view.dispatch(
         view.state.tr.setMeta(columnResizingPluginKey, {
             setDragging: {startX: event.clientX, startWidth: width},
         }),
     );
 
+    // Finalizes the resizing process when the mouse is released
     function finish(event: MouseEvent) {
+        console.log("finish", event);
         win.removeEventListener("mouseup", finish);
         win.removeEventListener("mousemove", move);
         const pluginState = columnResizingPluginKey.getState(view.state);
         if (pluginState?.dragging) {
+            console.log("updateColumnWidth", {
+                cell: pluginState.activeHandle,
+                width: draggedWidth(pluginState.dragging, event, cellMinWidth),
+            });
             updateColumnWidth(
                 view,
                 pluginState.activeHandle,
@@ -214,7 +238,9 @@ function handleMouseDown(
         }
     }
 
+    // Updates the column width as the mouse is moved
     function move(event: MouseEvent): void {
+        console.log("move", event);
         if (!event.which) return finish(event);
         const pluginState = columnResizingPluginKey.getState(view.state);
         if (!pluginState) return;
@@ -232,6 +258,7 @@ function handleMouseDown(
     return true;
 }
 
+// Calculates the current width of the specified column
 function currentColWidth(view: EditorView, cellPos: number, {colspan, colwidth}: Attrs): number {
     const width = colwidth && colwidth[colwidth.length - 1];
     if (width) return width;
@@ -248,6 +275,7 @@ function currentColWidth(view: EditorView, cellPos: number, {colspan, colwidth}:
     return domWidth / parts;
 }
 
+// Finds the table cell element around the given target
 function domCellAround(target: HTMLElement | null): HTMLElement | null {
     while (target && target.nodeName != "TD" && target.nodeName != "TH")
         target =
@@ -257,6 +285,7 @@ function domCellAround(target: HTMLElement | null): HTMLElement | null {
     return target;
 }
 
+// Determines the cell at the edge of the column being resized
 function edgeCell(
     view: EditorView,
     event: MouseEvent,
@@ -282,28 +311,39 @@ function edgeCell(
     return index % map.width == 0 ? -1 : start + map.map[index - 1]!;
 }
 
+// Calculates the width of the column being dragged
 function draggedWidth(dragging: Dragging, event: MouseEvent, resizeMinWidth: number): number {
     const offset = event.clientX - dragging.startX;
     return Math.max(resizeMinWidth, dragging.startWidth + offset);
 }
 
+// Updates the active handle for resizing
 function updateHandle(view: EditorView, value: number): void {
     view.dispatch(view.state.tr.setMeta(columnResizingPluginKey, {setHandle: value}));
 }
 
+// Updates the width of the specified column in the document
 function updateColumnWidth(view: EditorView, cell: number, width: number): void {
+    console.log("updateColumnWidth", {cell, width});
     const $cell = view.state.doc.resolve(cell);
     const table = $cell.node(-1),
         map = ContentTableMap.get(table),
         start = $cell.start(-1);
-    const col = map.colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
+    const attrs =
+        $cell.nodeAfter!.attrs && $cell.nodeAfter!.attrs.colspan
+            ? $cell.nodeAfter!.attrs
+            : contentTableCellDefaultAttrs;
+    const col = map.colCount($cell.pos - start) + attrs.colspan - 1;
     const tr = view.state.tr;
     for (let row = 0; row < map.height; row++) {
         const mapIndex = row * map.width + col;
         // Rowspanning cell that has already been handled
         if (row && map.map[mapIndex] == map.map[mapIndex - map.width]) continue;
         const pos = map.map[mapIndex]!;
-        const attrs = table.nodeAt(pos)!.attrs as ContentTableCellAttrs;
+        const attrs =
+            table.nodeAt(pos)!.attrs && table.nodeAt(pos)!.attrs.colspan
+                ? table.nodeAt(pos)!.attrs
+                : contentTableCellDefaultAttrs;
         const index = attrs.colspan == 1 ? 0 : col - map.colCount(pos);
         if (attrs.colwidth && attrs.colwidth[index] == width) continue;
         const colwidth = attrs.colwidth ? attrs.colwidth.slice() : zeroes(attrs.colspan);
@@ -313,6 +353,7 @@ function updateColumnWidth(view: EditorView, cell: number, width: number): void 
     if (tr.docChanged) view.dispatch(tr);
 }
 
+// Displays the width of the column being resized
 function displayColumnWidth(
     view: EditorView,
     cell: number,
@@ -322,28 +363,42 @@ function displayColumnWidth(
     const $cell = view.state.doc.resolve(cell);
     const table = $cell.node(-1),
         start = $cell.start(-1);
-    const col =
-        ContentTableMap.get(table).colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
+
+    const attrs =
+        $cell.nodeAfter!.attrs && $cell.nodeAfter!.attrs.colspan
+            ? $cell.nodeAfter!.attrs
+            : contentTableCellDefaultAttrs;
+
+    const col = ContentTableMap.get(table).colCount($cell.pos - start) + attrs.colspan - 1;
     let dom: Node | null = view.domAtPos($cell.start(-1)).node;
     while (dom && dom.nodeName != "TABLE") {
         dom = dom.parentNode;
     }
     if (!dom) return;
+    console.log("displayColumnWidth", {
+        table,
+        firstChild: dom.firstChild as HTMLTableColElement,
+        dom: dom as HTMLTableElement,
+        defaultCellMinWidth,
+        col,
+        width,
+    });
     contentEditorUpdateTableColumnsOnResize(
         table,
         dom.firstChild as HTMLTableColElement,
         dom as HTMLTableElement,
         defaultCellMinWidth,
-        view,
         col,
         width,
     );
 }
 
+// Creates an array of zeros for column widths
 function zeroes(n: number): Array<0> {
     return Array(n).fill(0);
 }
 
+// Handles the decorations for the column resize handle
 function handleDecorations(state: EditorState, cell: number): DecorationSet {
     const decorations = [];
     const $cell = state.doc.resolve(cell);
@@ -351,9 +406,14 @@ function handleDecorations(state: EditorState, cell: number): DecorationSet {
     if (!table) {
         return DecorationSet.empty;
     }
+
     const map = ContentTableMap.get(table);
+    const attrs =
+        $cell.nodeAfter!.attrs && $cell.nodeAfter!.attrs.colspan
+            ? $cell.nodeAfter!.attrs
+            : contentTableCellDefaultAttrs;
     const start = $cell.start(-1);
-    const col = map.colCount($cell.pos - start) + $cell.nodeAfter!.attrs.colspan - 1;
+    const col = map.colCount($cell.pos - start) + attrs.colspan - 1;
     for (let row = 0; row < map.height; row++) {
         const index = col + row * map.width;
         // For positions that have either a different cell or the end

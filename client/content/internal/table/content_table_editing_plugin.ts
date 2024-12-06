@@ -1,6 +1,3 @@
-import {EditorState, Plugin, PluginKey} from "prosemirror-state";
-import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
-import {contentTableFixTables} from "~/client/content/internal/table/content_table_fixtables.js";
 /**
  * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
  * remove features we don't use and customize the user experience. We intend to
@@ -34,6 +31,9 @@ import {contentTableFixTables} from "~/client/content/internal/table/content_tab
 // with such selections. It also makes sure that, after each
 // transaction, the shapes of tables are normalized to be rectangular
 // and not contain overlapping cells.
+import {EditorState, Plugin, PluginKey} from "prosemirror-state";
+import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
+import {contentTableFixTables} from "~/client/content/internal/table/content_table_fixtables.js";
 import {
     contentTableHandleMouseDown,
     contentTableHandlePaste,

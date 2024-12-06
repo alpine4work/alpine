@@ -36,7 +36,6 @@ import {
 } from "~/shared/content/content_styles.js";
 import {
     contentTableCellProsemirrorNodeSpec,
-    contentTableHeaderProsemirrorNodeSpec,
     contentTableProsemirrorNodeSpec,
     contentTableRowProsemirrorNodeSpec,
 } from "~/shared/content/table/content_table_schema.js";
@@ -467,7 +466,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         table: contentTableProsemirrorNodeSpec,
         tableRow: contentTableRowProsemirrorNodeSpec,
         tableCell: contentTableCellProsemirrorNodeSpec,
-        tableHeader: contentTableHeaderProsemirrorNodeSpec,
     },
     marks: {
         // NOTE(calebmer, 2022-08-13): All of our marks are `inclusive` which means

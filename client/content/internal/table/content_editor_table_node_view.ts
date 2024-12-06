@@ -27,10 +27,9 @@
  */
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
-import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
-import {type ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
-import {contentTableInSameTable} from "~/shared/content/table/helpers/content_table_in_same_table.js";
+import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
+import {contentTableCellDefaultAttrs} from "~/shared/content/table/helpers/content_table_default_attrs.js";
 
 export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
@@ -59,23 +58,19 @@ export class ContentEditorTableNodeView implements NodeView {
             this.colgroup,
             this.table,
             defaultCellMinWidth,
-            view,
-            undefined,
-            undefined,
         );
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
         this.addActiveTableClass();
-        if (subscribeToSelectionUpdate) {
-            this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
-                requestAnimationFrame(() => this.addActiveTableClass());
-            });
-        }
+        // if (subscribeToSelectionUpdate) {
+        //     this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
+        //         requestAnimationFrame(() => this.addActiveTableClass());
+        //     });
+        // }
     }
 
     addActiveTableClass = () => {
-        console.log("isInTable", contentTableIsInTable(this.view.state));
+        console.log("addActiveTableClass");
     };
-
     update(node: Node): boolean {
         if (node.type != this.node.type) return false;
         this.node = node;
@@ -84,9 +79,6 @@ export class ContentEditorTableNodeView implements NodeView {
             this.colgroup,
             this.table,
             this.defaultCellMinWidth,
-            this.view,
-            undefined,
-            undefined,
         );
         return true;
     }
@@ -108,7 +100,6 @@ export function contentEditorUpdateTableColumnsOnResize(
     colgroup: HTMLTableColElement,
     table: HTMLTableElement,
     defaultCellMinWidth: number,
-    view: EditorView,
     overrideCol?: number,
     overrideValue?: number,
 ): void {
@@ -119,9 +110,19 @@ export function contentEditorUpdateTableColumnsOnResize(
     if (!row) return;
 
     for (let i = 0, col = 0; i < row.childCount; i++) {
-        const {colspan, colwidth} = row.child(i).attrs as ContentTableCellAttrs;
+        const attrs =
+            row.child(i).attrs && row.child(i).attrs?.colwidth
+                ? row.child(i).attrs
+                : contentTableCellDefaultAttrs;
+
+        console.log("row.child(i).attrs", row.child(i).attrs);
+        // const attrs = row.child(i).attrs as ContentTableCellAttrs;
+        const colspan = attrs.colspan;
+        // console.log("attrs", attrs);
+
         for (let j = 0; j < colspan; j++, col++) {
-            const hasWidth = overrideCol == col ? overrideValue : colwidth && colwidth[j];
+            const hasWidth =
+                overrideCol == col ? overrideValue : attrs.colwidth && attrs.colwidth[j];
             const cssWidth = hasWidth ? hasWidth + "px" : "";
             totalWidth += hasWidth || defaultCellMinWidth;
             if (!hasWidth) fixedWidth = false;

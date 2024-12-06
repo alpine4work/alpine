@@ -31,6 +31,7 @@ import {
 } from "~/client/styles/other/internal/helpers/raw_color.js";
 import {navigationBarHeight} from "~/client/styles/other/internal/navigation_bar.css.js";
 import {
+    activeTableClassName,
     boldClassName,
     checkListItemCheckedClassName,
     codeBlockClassName,
@@ -59,7 +60,6 @@ import {
     strikeClassName,
     tableCellClassName,
     tableClassName,
-    tableHeaderClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -1983,12 +1983,6 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
 });
-
-globalStyle(tableHeaderClassName, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: spacing[20],
-    background: colorSchemeVars["grey-10"],
-});
 globalStyle(tableCellClassName, {
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
     minWidth: spacing[20],
@@ -2040,6 +2034,8 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     bottom: 0,
     background: colorSchemeVars["theme-selection"],
     pointerEvents: "none",
+    border: `2px solid ${colorSchemeVars["theme-60"]}`,
+    borderCollapse: "collapse",
 });
 
 // Add a color to the column border while resizing.
@@ -2052,5 +2048,17 @@ globalStyle(`${tableClassName} .column-resize-handle`, {
     backgroundColor: colorSchemeVars["theme-60"],
     pointerEvents: "auto",
     cursor: "col-resize",
-    zIndex: 3,
+    // zIndex: 3,
+});
+
+globalStyle(`${tableClassName} th`, {
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    minWidth: spacing[20],
+    background: colorSchemeVars["grey-10"],
+    // fontWeight: "bold", this is not working :(
+});
+
+globalStyle(`${tableClassName}.${activeTableClassName}`, {
+    background: colorSchemeVars["grey-5"],
+    padding: spacing[5],
 });
