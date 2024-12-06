@@ -1,7 +1,9 @@
 import {globalStyle, style} from "@vanilla-extract/css";
+import {fontSizes} from "~/client/styles/core/styles_core.js";
 import {
     docClassName,
     fileImagePreviewContentClassName,
+    titleFontSize,
 } from "~/client/styles/other/internal/content.css.js";
 import {linkClassName, titleClassName} from "~/shared/content/content_styles.js";
 
@@ -33,5 +35,6 @@ globalStyle(`${slideClassName} ${linkClassName}`, {
 // Increase specificity by listing `slideClassName` 3 times so we can beat
 // other styles that add `paddingTop` to `titleClassName`.
 globalStyle(`${slideClassName}${slideClassName}${slideClassName} ${titleClassName}`, {
-    paddingTop: 0,
+    minHeight: fontSizes[titleFontSize.wide].lineHeight,
+    paddingTop: "initial",
 });

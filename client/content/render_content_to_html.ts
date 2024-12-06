@@ -427,22 +427,26 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                 // Add custom renderers which add the `data-placeholder` attribute when our
                 // content is empty.
-                title:
-                    placeholder && isTitleEmpty
-                        ? node => {
-                              const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                                  node.type.spec.toDOM!(node),
-                              );
-                              assert(html instanceof HtmlElementGenerator);
+                //
+                // The `title` node always renders a placeholder even if the `placeholder` prop
+                // isn't set. This behavior is used by document presentation mode. Which
+                // doesn't set a `placeholder` prop but does render "Untitled" when there's no
+                // title.
+                title: isTitleEmpty
+                    ? node => {
+                          const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                              node.type.spec.toDOM!(node),
+                          );
+                          assert(html instanceof HtmlElementGenerator);
 
-                              html.setAttribute("data-placeholder", documentFallbackTitle);
-                              // For accessibility, if the title is empty add the fallback title as an
-                              // `aria-label`. axe complains when we have an empty `<h1>`.
-                              html.setAttribute("aria-label", documentFallbackTitle);
+                          html.setAttribute("data-placeholder", documentFallbackTitle);
+                          // For accessibility, if the title is empty add the fallback title as an
+                          // `aria-label`. axe complains when we have an empty `<h1>`.
+                          html.setAttribute("aria-label", documentFallbackTitle);
 
-                              return {html, contentHtml};
-                          }
-                        : undefined,
+                          return {html, contentHtml};
+                      }
+                    : undefined,
                 paragraph:
                     placeholder && isBodyEmpty
                         ? node => {
