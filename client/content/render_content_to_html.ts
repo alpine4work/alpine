@@ -2,7 +2,7 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {FileClientStore, FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileClientStore} from "~/client/content/file_client_store.js";
 import {
     layoutContentFile,
     layoutContentFileParent,
@@ -28,7 +28,6 @@ import {
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
@@ -323,29 +322,17 @@ export function renderContentFragmentToHtmlGeneratorStore(
 
                     assert(html instanceof HtmlElementGenerator);
 
-                    const fileById = new Map(
-                        filterMapIterable(
-                            node.content.content,
-                            (childNode): [FileId, FileClientStoreData] | undefined => {
-                                if (childNode.type.name !== "file") return;
-
-                                const fileId: FileId = childNode.attrs.fileId;
-
-                                const fileReference = fileId
-                                    ? content.references.fileById.get(fileId)
-                                    : undefined;
-                                if (!fileReference) return;
-
-                                return [fileId, get(fileStore.getFileStore(fileReference))];
-                            },
-                        ),
-                    );
-
-                    const layouts = layoutContentFileParent(fileById, node, {
+                    const layouts = layoutContentFileParent(node, {
                         screenWidth,
                         platform,
                         spacingScale,
                         withoutBlockMaxWidth,
+                        getFile: fileId => {
+                            const fileReference = content.references.fileById.get(fileId);
+                            if (!fileReference) return null;
+
+                            return get(fileStore.getFileStore(fileReference));
+                        },
                     });
 
                     html.setAttribute(
@@ -373,29 +360,17 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     const childNode = node.content.content[0]!;
                     assert(childNode.type.name === "file");
 
-                    const fileById = new Map(
-                        filterMapIterable(
-                            node.content.content,
-                            (childNode): [FileId, FileClientStoreData] | undefined => {
-                                if (childNode.type.name !== "file") return;
-
-                                const fileId: FileId = childNode.attrs.fileId;
-
-                                const fileReference = fileId
-                                    ? content.references.fileById.get(fileId)
-                                    : undefined;
-                                if (!fileReference) return;
-
-                                return [fileId, get(fileStore.getFileStore(fileReference))];
-                            },
-                        ),
-                    );
-
-                    const layouts = layoutContentFileParent(fileById, node, {
+                    const layouts = layoutContentFileParent(node, {
                         screenWidth,
                         platform,
                         spacingScale,
                         withoutBlockMaxWidth,
+                        getFile: fileId => {
+                            const fileReference = content.references.fileById.get(fileId);
+                            if (!fileReference) return null;
+
+                            return get(fileStore.getFileStore(fileReference));
+                        },
                     });
 
                     html.setAttribute(
@@ -420,11 +395,19 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         ? get(fileStore.getFileStore(fileReference))
                         : undefined;
 
-                    const layout = layoutContentFile(file, content.doc, pos, node, {
+                    const layout = layoutContentFile(content.doc, pos, node, {
                         screenWidth,
                         platform,
                         spacingScale,
                         withoutBlockMaxWidth,
+                        getFile: otherFileId => {
+                            if (otherFileId === fileId) return file ?? null;
+
+                            const otherFileReference = content.references.fileById.get(otherFileId);
+                            if (!otherFileReference) return null;
+
+                            return get(fileStore.getFileStore(otherFileReference));
+                        },
                     });
 
                     const html = renderContentFilePreview({

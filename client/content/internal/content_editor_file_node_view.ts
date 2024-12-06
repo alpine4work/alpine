@@ -32,6 +32,7 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
 let updatedContentEditorFileParentEventEmitterByElement: WeakMap<Element, EventEmitter> | undefined;
@@ -93,27 +94,43 @@ export function createContentEditorFileNodeViewConstructor({
             if (lastFileReference !== fileReference) {
                 lastFileReference = fileReference;
 
-                const fileStore = fileReference
-                    ? getFileClientStore(spaceId).getFileStore(fileReference)
-                    : undefinedStore;
-
                 cleanup?.();
                 cleanup = null;
 
                 let cleanupBehavior: (() => void) | null = null;
 
-                const updateFromStore = () => {
-                    cleanupBehavior?.();
-                    cleanupBehavior = null;
+                const fileAndLayoutStore = computeStore(get => {
+                    const file = get(
+                        fileReference
+                            ? getFileClientStore(spaceId).getFileStore(fileReference)
+                            : undefinedStore,
+                    );
 
-                    const file = fileStore.getSnapshot();
-
-                    const layout = layoutContentFile(file, view.state.doc, getPos(), node, {
+                    const layout = layoutContentFile(view.state.doc, getPos(), node, {
                         screenWidth,
                         platform,
                         spacingScale,
                         withoutBlockMaxWidth: false,
+                        getFile: otherFileId => {
+                            if (otherFileId === fileId) return file ?? null;
+
+                            const otherFileReference = references.fileById.get(otherFileId);
+                            if (!otherFileReference) return null;
+
+                            return get(
+                                getFileClientStore(getSpaceId()).getFileStore(otherFileReference),
+                            );
+                        },
                     });
+
+                    return {file, layout};
+                });
+
+                const updateFromStore = () => {
+                    cleanupBehavior?.();
+                    cleanupBehavior = null;
+
+                    const {file, layout} = fileAndLayoutStore.getSnapshot();
 
                     const html = renderContentFilePreview({
                         spaceId,
@@ -184,7 +201,7 @@ export function createContentEditorFileNodeViewConstructor({
                     });
                 };
 
-                const unsubscribeFromStore = fileStore.subscribe(updateFromStore);
+                const unsubscribeFromStore = fileAndLayoutStore.subscribe(updateFromStore);
                 updateFromStore();
 
                 cleanup = () => {
