@@ -54,8 +54,10 @@ export function renderContentToHtmlStore(
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
+        screenScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
@@ -63,9 +65,10 @@ export function renderContentToHtmlStore(
 ): Store<string> {
     return renderContentFragmentToHtmlGeneratorStore(content, options).map(
         fragmentHtmlGenerator => {
-            return `<div class="${
-                contentStyles.docClassName
-            }">${fragmentHtmlGenerator.generateHtml()}</div>`;
+            return `<div class="${classNames(
+                contentStyles.docClassName,
+                options.withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
+            )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
         },
     );
 }
@@ -90,8 +93,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         fileStore,
         currentAccount,
         screenWidth,
+        screenScale,
         platform,
         spacingScale,
+        withoutBlockMaxWidth,
         isInitialAppRender,
         withPosAttribute,
         isInert,
@@ -104,8 +109,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
+        screenScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         isInert?: boolean;
@@ -338,6 +345,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
                     });
 
                     html.setAttribute(
@@ -387,6 +395,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
                     });
 
                     html.setAttribute(
@@ -415,6 +424,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
                     });
 
                     const html = renderContentFilePreview({
@@ -423,6 +433,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         file,
                         layout,
                         screenWidth,
+                        screenScale,
                         platform,
                         spacingScale,
                         isInitialAppRender,

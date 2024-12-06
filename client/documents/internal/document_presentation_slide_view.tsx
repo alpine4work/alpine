@@ -5,9 +5,10 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {DocumentPresentationSlide} from "~/client/documents/internal/document_presentation_slide.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles, documentPresentationStyles, fontSizes} from "~/client/styles/styles.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -40,6 +41,7 @@ export function DocumentPresentationSlideView({
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     size: {width: number; height: number};
 }) {
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const lineHeight = convertRemLengthToPx(fontSizes["100"].lineHeight, spacingScale);
 
@@ -155,6 +157,8 @@ export function DocumentPresentationSlideView({
                             }}
                         >
                             <ContentView
+                                // Let content flow the entire width of the fullscreen slide.
+                                withoutBlockMaxWidth={true}
                                 content={headingContent}
                                 fileAttachmentTarget={fileAttachmentTarget}
                             />
@@ -177,8 +181,20 @@ export function DocumentPresentationSlideView({
                         }}
                     >
                         <ContentView
+                            // Let content flow the entire width of the fullscreen slide.
+                            withoutBlockMaxWidth={true}
                             content={bodyContent}
                             fileAttachmentTarget={fileAttachmentTarget}
+                            fileLayoutScreenWidth={
+                                (size.width - margin * 2) / bodyScale +
+                                // Add screen padding since `computeContentFileRowLayout()` subtracts screen
+                                // padding from the screen width variable. We add a custom amount of padding
+                                // (`margin`) that's unrelated to `screenPaddingXRem`.
+                                screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2
+                            }
+                            // This makes sure we use larger `<img>` srcs on slides so the full resolution
+                            // image can be displayed.
+                            fileLayoutScreenScale={bodyScale}
                         />
                     </Box>
                 </Box>

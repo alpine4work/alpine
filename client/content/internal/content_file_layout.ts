@@ -19,6 +19,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
         screenWidth: number,
         platform: Platform,
         spacingScale: SpacingScale,
+        withoutBlockMaxWidth: boolean,
         ...files: Array<FileModelData | null>
     ) => {
         switch (node.type.name) {
@@ -27,6 +28,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                     screenWidth,
                     platform,
                     spacingScale,
+                    withoutBlockMaxWidth,
                 });
             }
             case "fileFloat": {
@@ -37,6 +39,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth,
                     }),
                 ];
             }
@@ -63,10 +66,12 @@ export function layoutContentFileParent(
         screenWidth,
         platform,
         spacingScale,
+        withoutBlockMaxWidth,
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
     },
 ): ReadonlyArray<ContentFileLayout> {
     const files = node.content.content.map(childNode => {
@@ -88,7 +93,14 @@ export function layoutContentFileParent(
         return fileById.get(fileId) ?? null;
     });
 
-    return actuallyLayoutContentFileParent(node, screenWidth, platform, spacingScale, ...files);
+    return actuallyLayoutContentFileParent(
+        node,
+        screenWidth,
+        platform,
+        spacingScale,
+        withoutBlockMaxWidth,
+        ...files,
+    );
 }
 
 /**
@@ -107,7 +119,12 @@ export function layoutContentFile(
     doc: Node,
     pos: number,
     node: Node,
-    options: {screenWidth: number; platform: Platform; spacingScale: SpacingScale},
+    options: {
+        screenWidth: number;
+        platform: Platform;
+        spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
+    },
 ): ContentFileLayout {
     const $pos = doc.resolve(pos);
     assert($pos.nodeAfter && $pos.nodeAfter.eq(node));

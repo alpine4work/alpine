@@ -112,6 +112,7 @@ export function createContentEditorFileNodeViewConstructor({
                         screenWidth,
                         platform,
                         spacingScale,
+                        withoutBlockMaxWidth: false,
                     });
 
                     const html = renderContentFilePreview({
@@ -120,6 +121,7 @@ export function createContentEditorFileNodeViewConstructor({
                         file,
                         layout,
                         screenWidth,
+                        screenScale: 1,
                         platform,
                         spacingScale,
                         isInitialAppRender: false,

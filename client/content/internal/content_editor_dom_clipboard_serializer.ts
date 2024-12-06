@@ -189,6 +189,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 screenWidth: getClientInfo().screenWidth,
                 platform: "desktop",
                 spacingScale: "small",
+                withoutBlockMaxWidth: false,
             });
 
             const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.small;

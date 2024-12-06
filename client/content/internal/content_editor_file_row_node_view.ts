@@ -83,6 +83,7 @@ export function createContentEditorFileRowNodeViewConstructor({
                     screenWidth: getLayoutScreenWidth(),
                     platform,
                     spacingScale,
+                    withoutBlockMaxWidth: false,
                 });
 
                 if (lastLayouts !== layouts) {

@@ -121,7 +121,7 @@ const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
 export {defaultParagraphMarginSpacing as defaultParagraphMargin};
 export const defaultParagraphMarginRem = parseRemLength(defaultParagraphMargin);
 
-export const blockMaxWidthVar = createVar("block-max-width");
+const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
 export const standaloneBlockMarginVar = createVar("standalone-block-margin");
 export const listItemOffsetVar = createVar("list-item-offset");
@@ -192,6 +192,12 @@ export const extraCompactDocClassName = style({
                 [paragraphMarginVar]: spacing["1"],
             },
         },
+    },
+});
+
+export const withoutBlockMaxWidthDocClassName = style({
+    vars: {
+        [blockMaxWidthVar]: "none",
     },
 });
 

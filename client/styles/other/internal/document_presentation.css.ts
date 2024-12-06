@@ -1,6 +1,5 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {
-    blockMaxWidthVar,
     docClassName,
     fileImagePreviewContentClassName,
 } from "~/client/styles/other/internal/content.css.js";
@@ -8,9 +7,6 @@ import {linkClassName, titleClassName} from "~/shared/content/content_styles.js"
 
 export const slideClassName = style({
     pointerEvents: "none",
-    vars: {
-        [blockMaxWidthVar]: "none",
-    },
 });
 
 globalStyle(

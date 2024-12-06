@@ -100,6 +100,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                     screenWidth: getLayoutScreenWidth(),
                     platform,
                     spacingScale,
+                    withoutBlockMaxWidth: false,
                 });
 
                 if (lastLayouts !== layouts) {
