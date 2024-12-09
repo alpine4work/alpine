@@ -645,7 +645,7 @@ function PostContentViewEditor({
                         // We are assuming here that if `depthToLastParagraphChild` is null that's
                         // because the last element is a block with standalone margin. We may need to
                         // modify this logic depending on what the actual last element is.
-                        marginTop: contentStyles.standaloneBlockMarginVar,
+                        marginTop: spacing[contentStyles.standaloneBlockMargin],
                     }}
                 >
                     <Tooltip

@@ -1912,7 +1912,7 @@ globalStyle(tableCellClassName, {
 globalStyle(tableClassName, {
     position: "relative",
     minWidth: spacing[160],
-    margin: `${standaloneBlockMarginVar} auto`,
+    margin: `${standaloneBlockMargin} auto`,
     padding: spacing[5],
     background: colorSchemeVars["grey-5"],
     width: "fit-content",
