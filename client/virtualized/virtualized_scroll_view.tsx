@@ -917,9 +917,9 @@ function VirtualizedScrollView(
                             // IMPORTANT: Be careful about using props in this function because we will
                             // capture a version of props when the component is rendered.
                             const handleResize = (entry: ResizeObserverEntry) => {
-                                // We must use `entry.contentRect` so we get the sub-pixel height.
+                                // We must use `entry.borderBoxSize` so we get the sub-pixel height.
                                 // `offsetHeight` is rounded (at least on iOS Safari).
-                                const {height} = entry.contentRect;
+                                const height = entry.borderBoxSize[0]?.blockSize ?? 0;
 
                                 // If the element was removed from the DOM its height will be zero. Don't
                                 // record that height.
