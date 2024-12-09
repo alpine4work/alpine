@@ -1,7 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
@@ -17,9 +16,8 @@ import {
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {nullStore} from "~/shared/store/const_store.js";
-import {Store} from "~/shared/store/store.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 
 export function createContentEditorFileFloatNodeViewConstructor({
     getSpaceId,
@@ -69,38 +67,25 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 }
             }
 
-            const fileStores = node.content.content.map(childNode => {
-                if (childNode.type.name !== "file") return nullStore;
-
-                const fileId: FileId = childNode.attrs.fileId;
-
-                const fileReference = fileId ? references.fileById.get(fileId) : undefined;
-                if (!fileReference) return nullStore;
-
-                return getFileClientStore(getSpaceId()).getFileStore(fileReference);
-            });
-
-            const filesStore = Store.mapMany(fileStores, files => {
-                const fileById = new Map<FileId, FileClientStoreData>();
-
-                for (const file of files) {
-                    if (file) {
-                        fileById.set(file.id, file);
-                    }
-                }
-
-                return fileById;
-            });
-
             cleanup?.();
             cleanup = null;
 
-            const updateFromStore = () => {
-                const layouts = layoutContentFileParent(filesStore.getSnapshot(), node, {
+            const layoutsStore = computeStore(get =>
+                layoutContentFileParent(node, {
                     screenWidth: getLayoutScreenWidth(),
                     platform,
                     spacingScale,
-                });
+                    withoutBlockMaxWidth: false,
+                    getFile: fileId => {
+                        const fileReference = references.fileById.get(fileId);
+                        if (!fileReference) return null;
+                        return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
+                    },
+                }),
+            );
+
+            const updateFromStore = () => {
+                const layouts = layoutsStore.getSnapshot();
 
                 if (lastLayouts !== layouts) {
                     lastLayouts = layouts;
@@ -110,7 +95,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 }
             };
 
-            const unsubscribeFromStore = filesStore.subscribe(updateFromStore);
+            const unsubscribeFromStore = layoutsStore.subscribe(updateFromStore);
             updateFromStore();
 
             cleanup = () => {

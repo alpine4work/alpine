@@ -1,5 +1,5 @@
 diff --git a/wrangler-dist/cli.js b/wrangler-dist/cli.js
-index 5e00a67677531a301100d20b763197448a75e088..5a9d78c2f10475a596cf9d10ded4e8c9f955015b 100644
+index 5e00a67677531a301100d20b763197448a75e088..3793ebb4f14f86f98a10b90d082c0d3db046d3f7 100644
 --- a/wrangler-dist/cli.js
 +++ b/wrangler-dist/cli.js
 @@ -151665,6 +151665,16 @@ async function forEachFile(baseDir, fn2) {
@@ -9,7 +9,7 @@ index 5e00a67677531a301100d20b763197448a75e088..5a9d78c2f10475a596cf9d10ded4e8c9
 +      // NOTE(calebmer): Bazel creates a lot of symlinks. Make sure this
 +      // function supports traversing symlinks.
 +      else if (entry.isSymbolicLink()) {
-+        const stats = await import_promises10.default.stat(pathname);
++        const stats = await import_promises11.stat(pathname);
 +        if (stats.isDirectory()) {
 +          searchPaths.push(pathname);
 +        } else if (stats.isFile()) {

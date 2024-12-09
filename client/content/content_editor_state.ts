@@ -2,6 +2,7 @@ import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
+import {tableEditing} from "prosemirror-tables";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
@@ -15,6 +16,7 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_keymap_plugin.js";
+import {contentEditorTableColumnResizingPlugin} from "~/client/content/internal/table/content_table_column_resize_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
@@ -62,7 +64,7 @@ function buildPlugins<Content extends ContentWithReferences>({
     ) => Content["references"];
     disableUndoKeyboardShortcuts: boolean;
 }) {
-    return [
+    const plugins = [
         history({
             // If we're disabling undo/redo keyboard shortcuts it means our rendering
             // component is managing undo/redo stacks. In that case our history plugin
@@ -80,7 +82,13 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
+        tableEditing({
+            allowTableNodeSelection: true,
+        }),
+        contentEditorTableColumnResizingPlugin(),
     ];
+
+    return plugins;
 }
 
 /**

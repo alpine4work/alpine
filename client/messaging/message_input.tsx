@@ -14,7 +14,7 @@ import {
 import {flushSync} from "react-dom";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
+import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";

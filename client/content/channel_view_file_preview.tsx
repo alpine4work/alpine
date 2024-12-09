@@ -87,6 +87,7 @@ export function ChannelViewFilePreview({
                     (fontSizesBySpacingScale["75"].small.fontSize /
                         fontSizesBySpacingScale["25"].small.fontSize) +
                 screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
+            screenScale: 1,
             platform,
             spacingScale,
             isInitialAppRender,

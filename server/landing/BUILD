@@ -12,6 +12,7 @@ wrangler_bin.wrangler_binary(
     ],
     chdir = package_name(),
     data = [
+        ".env",
         "wrangler.toml",
         ":landing_build_images",
         ":landing_build_pages",
@@ -30,6 +31,7 @@ wrangler_bin.wrangler_binary(
     ],
     chdir = package_name(),
     data = [
+        ".env",
         "wrangler.toml",
         ":landing_build_images",
         ":landing_build_pages",

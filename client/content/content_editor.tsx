@@ -6,6 +6,7 @@ import {
     ListChecks,
     ListNumbers,
     Minus,
+    Table,
     TextHOne,
     TextHThree,
     TextHTwo,
@@ -72,6 +73,7 @@ import {
     insertContentHeading,
     insertContentOrderedListItem,
     insertContentQuoteBlock,
+    insertContentTable,
     insertContentUnorderedListItem,
 } from "~/client/content/internal/content_editor_insert.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
@@ -95,6 +97,7 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
+import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
@@ -1106,7 +1109,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 onCodeBlockCopyButtonPress: targetElement => {
                     codeBlockCopyButtonTooltipRef.current?.skipTooltipHoverDelayAndAnimation();
-
                     setCodeBlockCopyButtonTooltipState(state =>
                         state?.targetElement === targetElement && !state?.wasPressed
                             ? {...state, wasPressed: true}
@@ -1147,6 +1149,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 draggingFileRef,
             }),
+            table: (node, view) => new ContentEditorTableNodeView(node, 100, view),
         };
 
         // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -3923,6 +3926,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             },
         );
+        process.env.NODE_ENV !== "production" &&
+            insertOtherMenuActions.push({
+                label: "Table",
+                iconSize: "4",
+                icon: <Table />,
+                onPress: () => {
+                    insertContentTable(assertExists(viewRef.current));
+                },
+            });
 
         return [
             [
@@ -4094,7 +4106,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                         if (document.activeElement instanceof HTMLElement) {
                             document.activeElement.blur();
                         }
-
                         setCodeBlockLanguagePickerState({
                             ...codeBlockLanguagePickerState,
                             isVisible: false,

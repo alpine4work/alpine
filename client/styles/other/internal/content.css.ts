@@ -57,6 +57,9 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    tableCellClassName,
+    tableClassName,
+    tableHeaderClassName,
     titleClassName,
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
@@ -189,6 +192,12 @@ export const extraCompactDocClassName = style({
                 [paragraphMarginVar]: spacing["1"],
             },
         },
+    },
+});
+
+export const withoutBlockMaxWidthDocClassName = style({
+    vars: {
+        [blockMaxWidthVar]: "none",
     },
 });
 
@@ -1979,4 +1988,70 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     position: "absolute",
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
+});
+
+globalStyle(tableHeaderClassName, {
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    minWidth: spacing[20],
+    background: colorSchemeVars["grey-10"],
+});
+globalStyle(tableCellClassName, {
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    minWidth: spacing[20],
+});
+
+globalStyle(tableClassName, {
+    position: "relative",
+    minWidth: spacing[160],
+    margin: `${standaloneBlockMarginVar} auto`,
+    padding: spacing[5],
+    background: colorSchemeVars["grey-5"],
+    width: "fit-content",
+    maxWidth: "95%",
+    overflowX: "auto",
+});
+
+globalStyle(`${tableClassName} table`, {
+    minWidth: blockMaxWidthVar,
+    width: spacing[160],
+    maxWidth: spacing[256],
+    textAlign: "left",
+    borderCollapse: "collapse",
+    tableLayout: "fixed",
+});
+
+globalStyle(".resize-cursor", {
+    cursor: "col-resize",
+});
+
+globalStyle(`${tableClassName} td, ${tableClassName} th`, {
+    border: `1px solid ${colorSchemeVars["grey-20"]}`,
+    padding: `${spacing[0.5]} ${spacing[1]}`,
+    verticalAlign: "top",
+    boxSizing: "border-box",
+    position: "relative",
+});
+
+globalStyle(`${tableClassName} .selectedCell:after`, {
+    zIndex: 2,
+    position: "absolute",
+    content: '""',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    background: colorSchemeVars["theme-selection"],
+    pointerEvents: "none",
+});
+
+globalStyle(`${tableClassName} .column-resize-handle`, {
+    position: "absolute",
+    right: `-${spacing[0.5]}`,
+    top: 0,
+    bottom: `-${spacing[0.5]}`,
+    width: spacing[1],
+    backgroundColor: colorSchemeVars["theme-60"],
+    pointerEvents: "auto",
+    cursor: "col-resize",
+    zIndex: 3,
 });
