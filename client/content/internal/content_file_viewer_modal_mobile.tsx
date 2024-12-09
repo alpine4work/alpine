@@ -41,7 +41,6 @@ import {getFileContentTypeName} from "~/shared/content/code/get_file_content_typ
 import {spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {isFileModelDataLoading} from "~/shared/files/file_model.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -59,13 +58,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  */
 export function ContentFileViewerModalMobile({
     file,
-    attachmentTarget,
     ownedByElement,
     loaderDataPromise,
     onClose,
 }: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
     ownedByElement: Element | null;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -300,7 +297,6 @@ export function ContentFileViewerModalMobile({
                                 windowSafeAreaInsetBottom !== null && (
                                     <ContentFileViewerMobile
                                         file={file}
-                                        attachmentTarget={attachmentTarget}
                                         loaderDataPromise={loaderDataPromise}
                                         navigationBarSize={navigationBarSize}
                                         viewerSize={viewerSize}
@@ -318,7 +314,6 @@ export function ContentFileViewerModalMobile({
 
 function ContentFileViewerMobile(props: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};

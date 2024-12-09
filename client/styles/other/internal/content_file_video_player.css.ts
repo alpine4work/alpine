@@ -142,6 +142,16 @@ globalStyle(
     },
 );
 
+export const smallPlayIndicatorClassName = style({
+    width: spacing["10"],
+    height: spacing["10"],
+});
+
+globalStyle(`${playIndicatorClassName}${smallPlayIndicatorClassName} > svg`, {
+    width: spacing["5"],
+    height: spacing["5"],
+});
+
 export const durationPreviewClassName = style({
     pointerEvents: "none",
     // Render above `videoClassName` and under `fileClassName`'s `::before` press

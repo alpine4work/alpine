@@ -29,7 +29,7 @@ export function ContentFileVideoViewerDesktop({
     viewerSize,
 }: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
 }) {

@@ -60,6 +60,7 @@ export const messageViewReplyPreviewBubbleOpacity = 0.7;
 export const getMessageBubbleMarginLeft = (marginX: Spacing) => addRemLengths(marginX, "7", "2");
 
 export const messageInputPaddingY: Spacing = "3";
+export const messageInputGap: Spacing = "2";
 export const messageInputAccountAvatarSize: Spacing = "7";
 export const messageInputAccountAvatarPaddingY = mapObjectValues(
     messageViewBubbleMinHeight,

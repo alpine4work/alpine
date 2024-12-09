@@ -797,7 +797,6 @@ export class DocumentCollaborationConnection {
             {
                 spaceId: this._contentManager.spaceId,
                 documentId: this._contentManager.id,
-                commentThreadId,
                 authorId: optimisticCommentThread.initialComment.authorId,
                 contentReferencedIds: getContentReferencedIdsForNode(
                     optimisticCommentThread.initialComment.content,

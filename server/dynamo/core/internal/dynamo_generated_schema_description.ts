@@ -4397,9 +4397,6 @@ export const dynamoGeneratedSchemaDescription: {
                             "sortKeyAttributeByKey": {
                                 "documentId": {
                                     "type": "Id"
-                                },
-                                "commentThreadId": {
-                                    "type": "Id"
                                 }
                             },
                             "attributesSchema": {

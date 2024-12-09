@@ -49,7 +49,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         schema: Schema,
         getSpaceId: () => SpaceId,
         getContentReferences: () => ContentReferences,
-        getFileAttachmentTarget: () => FileAttachmentTarget,
+        getFileAttachmentTarget: () => FileAttachmentTarget | "Uploader",
     ): ContentEditorDomClipboardSerializer {
         return new ContentEditorDomClipboardSerializer(
             this.nodesFromSchema(schema),
@@ -62,14 +62,14 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
     private readonly _getSpaceId: () => SpaceId;
     private readonly _getContentReferences: () => ContentReferences;
-    private readonly _getFileAttachmentTarget: () => FileAttachmentTarget;
+    private readonly _getFileAttachmentTarget: () => FileAttachmentTarget | "Uploader";
 
     protected constructor(
         nodes: {[node: string]: (node: Node) => DOMOutputSpec},
         marks: {[mark: string]: (mark: Mark, inline: boolean) => DOMOutputSpec},
         getSpaceId: () => SpaceId,
         getContentReferences: () => ContentReferences,
-        getFileAttachmentTarget: () => FileAttachmentTarget,
+        getFileAttachmentTarget: () => FileAttachmentTarget | "Uploader",
     ) {
         super(nodes, marks);
         this._getSpaceId = getSpaceId;
@@ -256,10 +256,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
-                fileDom.setAttribute(
-                    "data-cy-attached",
-                    serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
-                );
+                // NOCOMMIT: Test this code path
+                const fileAttachmentTarget = this._getFileAttachmentTarget();
+                if (fileAttachmentTarget === "Uploader") {
+                    fileDom.setAttribute("data-cy-attached", "uploader");
+                } else {
+                    fileDom.setAttribute(
+                        "data-cy-attached",
+                        serializeFileAttachmentTargetString(fileAttachmentTarget),
+                    );
+                }
 
                 return fileDom;
             }
@@ -291,10 +297,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
-                fileDom.setAttribute(
-                    "data-cy-attached",
-                    serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
-                );
+                // NOCOMMIT: Test this code path
+                const fileAttachmentTarget = this._getFileAttachmentTarget();
+                if (fileAttachmentTarget === "Uploader") {
+                    fileDom.setAttribute("data-cy-attached", "uploader");
+                } else {
+                    fileDom.setAttribute(
+                        "data-cy-attached",
+                        serializeFileAttachmentTargetString(fileAttachmentTarget),
+                    );
+                }
 
                 return fileDom;
             }
@@ -323,10 +335,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
-                fileDom.setAttribute(
-                    "data-cy-attached",
-                    serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
-                );
+                // NOCOMMIT: Test this code path
+                const fileAttachmentTarget = this._getFileAttachmentTarget();
+                if (fileAttachmentTarget === "Uploader") {
+                    fileDom.setAttribute("data-cy-attached", "uploader");
+                } else {
+                    fileDom.setAttribute(
+                        "data-cy-attached",
+                        serializeFileAttachmentTargetString(fileAttachmentTarget),
+                    );
+                }
 
                 return fileDom;
             }
@@ -353,10 +371,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                         ).toString(),
                     );
 
-                    fileDom.setAttribute(
-                        "data-cy-attached",
-                        serializeFileAttachmentTargetString(this._getFileAttachmentTarget()),
-                    );
+                    // NOCOMMIT: Test this code path
+                    const fileAttachmentTarget = this._getFileAttachmentTarget();
+                    if (fileAttachmentTarget === "Uploader") {
+                        fileDom.setAttribute("data-cy-attached", "uploader");
+                    } else {
+                        fileDom.setAttribute(
+                            "data-cy-attached",
+                            serializeFileAttachmentTargetString(fileAttachmentTarget),
+                        );
+                    }
                 }
 
                 return fileDom;

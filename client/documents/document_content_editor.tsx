@@ -1647,6 +1647,10 @@ export function DocumentContentEditor({
                             className={documentContentStyles.documentContentClassName}
                             phantomSelections={phantomSelections}
                             fileAttachmentTarget={fileAttachmentTarget}
+                            commentFileAttachmentTarget={useMemo(
+                                () => ({type: "DocumentComments", documentId}),
+                                [documentId],
+                            )}
                             onEnsureFileAttachmentTarget={ensureCreateDocument}
                             openCommentThread={openCommentThread}
                             onCommentThreadPressedChange={(commentThreadId, isHovered) => {

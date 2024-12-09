@@ -1,4 +1,4 @@
-import {Memo, Ref, RefObject, useCallback, useRef} from "react";
+import {Memo, Ref, RefObject, useCallback, useMemo, useRef} from "react";
 import {flushSync} from "react-dom";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -192,6 +192,10 @@ export function DocumentCommentInput({
                     fileIds: input.fileIds,
                 });
             }}
+            fileAttachmentTarget={useMemo(
+                () => ({type: "DocumentComments", documentId: commentThread.documentId}),
+                [commentThread.documentId],
+            )}
             messageEditing={messageEditing}
             replyingToMessage={replyingToComment}
             onClearReplyingToMessage={onClearReplyingToComment}

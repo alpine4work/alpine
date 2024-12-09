@@ -32,7 +32,6 @@ import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {
     getFileContentTypeNoun,
@@ -48,7 +47,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 
 export function ContentFileImageViewerMobile({
     file,
-    attachmentTarget,
     loaderDataPromise,
     navigationBarSize,
     viewerSize,
@@ -57,7 +55,6 @@ export function ContentFileImageViewerMobile({
     extraChildrenForVideo,
 }: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
@@ -159,7 +156,6 @@ export function ContentFileImageViewerMobile({
         <ContentFileImageMobileViewerInner
             file={file}
             filePreviewPlaceholder={file.preview.placeholder}
-            attachmentTarget={attachmentTarget}
             loaderDataPromise={loaderDataPromise}
             navigationBarSize={navigationBarSize}
             viewerSize={viewerSize}
@@ -269,7 +265,6 @@ function ContentFileImageMobileViewerInner({
 }: {
     file: FileClientStoreData;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
-    attachmentTarget: FileAttachmentTarget;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};

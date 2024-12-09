@@ -1,5 +1,5 @@
 import {ArrowLeft} from "phosphor-react";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -42,6 +42,13 @@ export function ChatView({
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
 }) {
+    useEffect(() => {
+        console.log("mount <ChatView>");
+        return () => {
+            console.log("unmount <ChatView>");
+        };
+    }, []);
+
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
@@ -186,6 +193,13 @@ function ChatMessagingView({
             messaging.jumpToMessageIndex(initialScrollToMessageIndex);
     }, [initialScrollToMessageIndex]);
 
+    useEffect(() => {
+        console.log("mount <ChatMessagingView>");
+        return () => {
+            console.log("unmount <ChatMessagingView>");
+        };
+    }, []);
+
     return (
         <MessagingView
             ref={messagingRef}
@@ -198,6 +212,10 @@ function ChatMessagingView({
             }}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
+            fileAttachmentTarget={useMemo(
+                () => ({type: "ChatMessages", chatId: chat.id}),
+                [chat.id],
+            )}
             getMessagesFromStart={useCallback(
                 input => getChatMessagesFromStart(context, {...input, chatId: chat.id}),
                 [chat.id, context],

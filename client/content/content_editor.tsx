@@ -93,16 +93,15 @@ import {
     getContentEditorFileDropTargets,
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
 import {
+    ExternalFileElementInfo,
+    iterateExternalFileElements,
+} from "~/client/content/internal/iterate_external_file_elements.js";
+import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
 import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {
-    UploadFileFromContentEditorInput,
-    uploadFileFromContentEditor,
-    uploadFileFromContentEditorProgressCompositeStoreWeights,
-} from "~/client/content/internal/upload_file_from_content_editor.js";
+import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {selectFiles} from "~/client/content/select_files.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
@@ -158,11 +157,8 @@ import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_sc
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {
-    FileAttachmentTarget,
-    deserializeFileAttachmentTargetString,
-} from "~/shared/files/file_attachment_target.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     getFileAudioContentTypes,
     getFileImageContentTypes,
@@ -187,7 +183,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -195,8 +190,8 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {Id, generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Id, generateId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -253,6 +248,7 @@ const historyPluginKey = new Lazy((): PluginKey => {
 });
 
 export type ContentEditorRef<Content extends ContentWithReferences> = {
+    getContainer(): HTMLDivElement;
     getState(): ContentEditorState<Content>;
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
@@ -447,6 +443,13 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * `fileAttachmentTarget`.
      */
     fileAttachmentTarget?: Memo<FileAttachmentTarget>;
+
+    /**
+     * If the content editor supports comments then you must pass in
+     * `FileAttachmentTarget` for its comments. This prop is used in a similar way
+     * to the `fileAttachmentTarget` prop but just for comments.
+     */
+    commentFileAttachmentTarget?: Memo<FileAttachmentTarget>;
 
     /**
      * Sometimes, we'll pass in an optimistic `fileAttachmentTarget` that hasn't
@@ -748,6 +751,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         onBlur,
         phantomSelections,
         fileAttachmentTarget,
+        commentFileAttachmentTarget,
     } = props;
 
     /* ========================================================================== *\
@@ -1278,21 +1282,7 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                                 Copy/paste                                 *
         \* ========================================================================== */
 
-        let temporaryPastedFileInfoById:
-            | Map<
-                  FileId,
-                  | {
-                        type: "UploadFile";
-                        input: UploadFileFromContentEditorInput;
-                    }
-                  | {
-                        type: "AttachFile";
-                        spaceId: SpaceId;
-                        fileId: FileId;
-                        target: FileAttachmentTarget;
-                    }
-              >
-            | undefined;
+        let temporaryPastedFileInfoById: Map<FileId, ExternalFileElementInfo> | undefined;
 
         viewProps.clipboardSerializer =
             ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
@@ -1368,8 +1358,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         viewProps.transformPastedDOM = element => {
-            let currentUrl: URL | undefined;
-
             // File copy/pasting is tricky. In the content itself a file is represented as
             // a node with only a `FileId`. Data about the file is available on the side
             // in `ContentReferences` and often needs to be loaded from the server.
@@ -1406,134 +1394,59 @@ function ContentEditor<Content extends ContentWithReferences>(
             // `handleDrop` also uses paste logic for parsing dropped content. So we need
             // to use `temporaryPastedFileInfoById` in `handleDrop` as well!
             if (schema.nodes.file) {
-                for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
-                    const urlString =
-                        fileElement instanceof HTMLImageElement
-                            ? fileElement.src || null
-                            : fileElement instanceof HTMLVideoElement ||
-                              fileElement instanceof HTMLAudioElement
-                            ? fileElement.src ||
-                              findMapIterable(fileElement.childNodes, fileChildElement =>
-                                  fileChildElement instanceof HTMLSourceElement
-                                      ? fileChildElement.src
-                                      : undefined,
-                              ) ||
-                              null
-                            : fileElement instanceof HTMLObjectElement
-                            ? fileElement.data || null
-                            : null;
-
-                    if (urlString === null) {
+                for (const {element: fileElement, info: fileInfo} of iterateExternalFileElements(
+                    element,
+                    assertExists(spaceContextRef.current).space.id,
+                )) {
+                    if (fileInfo === null) {
                         const temporaryFileElement = fileElement.ownerDocument.createElement("div");
                         temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
                         fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
                         continue;
                     }
 
-                    currentUrl ??= new URL(window.location.href);
-
-                    let url: URL;
-                    try {
-                        url = new URL(urlString, currentUrl);
-                    } catch {
-                        // Ignore any URL parsing errors.
-                        continue;
-                    }
-
-                    // Ignore non-HTTP protocols for now. It's probably reasonable to support
-                    // `data://` URLs at some point.
-                    if (url.protocol !== "http:" && url.protocol !== "https:") {
-                        continue;
-                    }
-
-                    // If:
-                    //
-                    // 1. The file is hosted on the same domain we're currently on; AND
-                    // 2. The file matches the route `/files/:spaceId/:fileId`; AND
-                    // 3. The file is in the same space that we're in right now; AND
-                    // 4. The file element has a valid `data-cy-attached` attribute
-                    //
-                    // Then the file already exists for this space. Instead of uploading a new file
-                    // to our backend instead we can create a new attachment for the file that
-                    // already exists.
-                    if (currentUrl.host === url.host) {
-                        const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
-                        if (
-                            pathnameMatch &&
-                            isId<SpaceId>(pathnameMatch[1]!) &&
-                            isId<FileId>(pathnameMatch[2]!) &&
-                            pathnameMatch[1] === spaceContextRef.current?.space.id
-                        ) {
-                            const spaceId = pathnameMatch[1];
-                            const fileId = pathnameMatch[2];
-
-                            const targetString = fileElement.getAttribute("data-cy-attached");
-                            let target: FileAttachmentTarget | undefined;
-
-                            try {
-                                if (targetString) {
-                                    target = deserializeFileAttachmentTargetString(targetString);
-                                }
-                            } catch (error) {
-                                // This error is almost imperceivable to the user since we'll try
-                                // downloading/uploading the file as a fallback. But it might be a sign that
-                                // there's a bug somewhere in `data-cy-attached` generation so let's log it.
-                                contextRef.current?.tracer
-                                    .getRoot()
-                                    .logUncaughtException(
-                                        'Couldn\'t parse "data-cy-attached" attribute',
-                                        error,
-                                    );
-                            }
-
-                            if (target) {
-                                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                                // use this map synchronously after `transformPastedDOM`.
-                                if (temporaryPastedFileInfoById === undefined) {
-                                    temporaryPastedFileInfoById = new Map();
-                                    scheduleMicrotask(() => {
-                                        temporaryPastedFileInfoById = undefined;
-                                    });
-                                }
-
-                                temporaryPastedFileInfoById.set(fileId, {
-                                    type: "AttachFile",
-                                    spaceId,
-                                    fileId,
-                                    target,
+                    switch (fileInfo.type) {
+                        case "AttachFile": {
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                            // use this map synchronously after `transformPastedDOM`.
+                            if (temporaryPastedFileInfoById === undefined) {
+                                temporaryPastedFileInfoById = new Map();
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfoById = undefined;
                                 });
-
-                                const temporaryFileElement =
-                                    fileElement.ownerDocument.createElement("div");
-                                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                                fileElement.parentNode?.replaceChild(
-                                    temporaryFileElement,
-                                    fileElement,
-                                );
-                                continue;
                             }
+
+                            temporaryPastedFileInfoById.set(fileInfo.fileId, fileInfo);
+
+                            const temporaryFileElement =
+                                fileElement.ownerDocument.createElement("div");
+                            temporaryFileElement.setAttribute("data-cy-tmp-file", fileInfo.fileId);
+                            fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                            break;
                         }
+                        case "UploadFile": {
+                            const fileId = generateFileIdWithSynchronizedClock();
+
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                            // use this map synchronously after `transformPastedDOM`.
+                            if (temporaryPastedFileInfoById === undefined) {
+                                temporaryPastedFileInfoById = new Map();
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfoById = undefined;
+                                });
+                            }
+
+                            temporaryPastedFileInfoById.set(fileId, fileInfo);
+
+                            const temporaryFileElement =
+                                fileElement.ownerDocument.createElement("div");
+                            temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                            fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                            break;
+                        }
+                        default:
+                            throw exhaustive(fileInfo);
                     }
-
-                    const fileId = generateFileIdWithSynchronizedClock();
-
-                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                    // use this map synchronously after `transformPastedDOM`.
-                    if (temporaryPastedFileInfoById === undefined) {
-                        temporaryPastedFileInfoById = new Map();
-                        scheduleMicrotask(() => {
-                            temporaryPastedFileInfoById = undefined;
-                        });
-                    }
-
-                    temporaryPastedFileInfoById.set(fileId, {
-                        type: "UploadFile",
-                        input: {type: "Url", url},
-                    });
-
-                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                    temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
                 }
             }
         };
@@ -1747,29 +1660,32 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 file: FileModel;
                             }>();
 
-                            const [progressCompositeStore, progressStores] =
-                                createProgressCompositeStore(
-                                    uploadFileFromContentEditorProgressCompositeStoreWeights,
-                                );
+                            const actualPromise = uploadFile(context, {
+                                spaceId,
+                                // Use the `FileId` generated by the client and used in the pasted `Slice`
+                                // instead of generating a new `FileId` on the server.
+                                fileId,
+                                attachmentTarget: toTarget,
+                                input: temporaryPastedFileInfo.input,
+                                onAttach: fileReferencePromiseResolver.resolve,
+                            });
 
-                            const promise = (async () => {
-                                try {
-                                    await uploadFileFromContentEditor(context, {
-                                        spaceId,
-                                        // Use the `FileId` generated by the client and used in the pasted `Slice`
-                                        // instead of generating a new `FileId` on the server.
-                                        fileId,
-                                        attachmentTarget: toTarget,
-                                        input: temporaryPastedFileInfo.input,
-                                        progressStores,
-                                        onAttach: fileReferencePromiseResolver.resolve,
-                                    });
-                                } catch (error) {
+                            const promise = actualPromise.then(
+                                () => {
+                                    if (!fileReferencePromiseResolver.isSettled()) {
+                                        fileReferencePromiseResolver.reject(
+                                            new InternalError(
+                                                "`onAttach()` was never called by `uploadFile()`",
+                                            ),
+                                        );
+                                    }
+                                },
+                                error => {
                                     hasUploadFileError = true;
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
-                                }
-                            })();
+                                },
+                            );
 
                             promiseWaiter.waitUntil(promise);
 
@@ -1779,7 +1695,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // an aggregated summary.
                             addGlobalLoadingIndicatorRef.current(promise, {
                                 type: "Uploading",
-                                progressStore: progressCompositeStore,
+                                progressStore: actualPromise.progressStore,
                             });
 
                             return fileReferencePromiseResolver.promise;
@@ -3619,6 +3535,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         "When the ProseMirror schema supports files then the prop `fileAttachmentTarget` is required",
     );
 
+    assert(
+        !schema.marks.comment || commentFileAttachmentTarget,
+        "When the ProseMirror schema supports comments then the prop `commentFileAttachmentTarget` is required",
+    );
+
     const floaterState = state.getFloaterState();
 
     /* ========================================================================== *\
@@ -4086,6 +4007,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     state={unwrappedState}
                     viewRef={viewRef}
                     onClose={() => setIsMobileCommentInputOpen(false)}
+                    fileAttachmentTarget={commentFileAttachmentTarget!}
                 />
             )}
             {codeBlockLanguagePickerState && (

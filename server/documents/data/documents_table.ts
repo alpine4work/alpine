@@ -2399,11 +2399,7 @@ export async function updateDocumentContent(
                             context,
                             internalDocument.spaceId,
                             fileId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId: id,
-                                commentThreadId: createCommentThread.commentThreadId,
-                            }),
+                            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: id}),
                         ),
                     ),
                 ),
@@ -3894,11 +3890,7 @@ export async function createDocumentComment(
                             context,
                             spaceId,
                             fileId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId,
-                                commentThreadId,
-                            }),
+                            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId}),
                         ),
                     ),
                 );
@@ -4171,11 +4163,7 @@ async function createDocumentCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FileDocumentAuthorizer.bind({
-                type: "DocumentComments",
-                documentId: item.documentId,
-                commentThreadId: item.commentThreadId,
-            }),
+            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: item.documentId}),
             item.payload,
         ),
     ]);
@@ -5214,7 +5202,6 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                                 FileDocumentAuthorizer.bind({
                                     type: "DocumentComments",
                                     documentId: item.documentId,
-                                    commentThreadId: item.commentThreadId,
                                 }),
                                 item.change.content,
                             ),

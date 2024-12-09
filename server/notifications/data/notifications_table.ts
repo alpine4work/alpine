@@ -910,7 +910,6 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             FileDocumentAuthorizer.bind({
                                 type: "DocumentComments",
                                 documentId: item.documentId,
-                                commentThreadId: item.commentThreadId,
                             }),
                             item.latestComment.contentSnippet,
                         ),
@@ -961,15 +960,6 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             FileDocumentAuthorizer.bind({
                                 type: "DocumentComments",
                                 documentId: item.documentId,
-                                // NOTE(calebmer, 2024-09-20): `commentThreadId` didn't exist on `firstComment`
-                                // before this date. So if we have a document comment threads entry where
-                                // `commentThreadId` is null then use the first comment thread in
-                                // `item.commentThreadIds` and hope it's right. Getting this wrong shouldn't
-                                // matter since comment threads created before this date also won't have
-                                // attached files since files weren't implemented yet.
-                                commentThreadId:
-                                    item.firstComment.commentThreadId ??
-                                    assertExists(iterableFirst(item.commentThreadIds)),
                             }),
                             item.firstComment.contentSnippet,
                         ),
@@ -3400,7 +3390,6 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 FileDocumentAuthorizer.bind({
                     type: "DocumentComments",
                     documentId: event.documentId,
-                    commentThreadId: event.commentThreadId,
                 }),
                 event,
             ),

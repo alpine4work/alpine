@@ -11834,13 +11834,9 @@ describe("Comments", () => {
             return encodeDocumentCommentRoomKey(generateId(), generateId());
         },
         getRoomFileAuthorizer(roomKey) {
-            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+            const [documentId] = decodeDocumentCommentRoomKey(roomKey);
 
-            return FileDocumentAuthorizer.bind({
-                type: "DocumentComments",
-                documentId,
-                commentThreadId,
-            });
+            return FileDocumentAuthorizer.bind({type: "DocumentComments", documentId});
         },
         async createMessage(
             context,

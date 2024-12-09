@@ -54,7 +54,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DocumentCommentThreadId,
     DocumentId,
     FileId,
     PostDraftId,
@@ -244,7 +243,6 @@ const FilesTable = DynamoTableSchema.new({
                     name: "DocumentCommentsAttachmentTarget",
                     sortKeyAttributes: {
                         documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
-                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -362,7 +360,6 @@ function getFileAttachmentTargetItemKey(
                 spaceId,
                 fileId,
                 documentId: target.documentId,
-                commentThreadId: target.commentThreadId,
             };
         }
         case "Post": {

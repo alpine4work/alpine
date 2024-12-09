@@ -945,6 +945,8 @@ globalStyle(`${narrowRouteLayoutDocClassName} ${dividerClassName}`, {
     marginBottom: spacing[heading1TopMargin.narrow],
 });
 
+const fileMinSizeSpacing = "20";
+export {fileMinSizeSpacing as fileMinSize};
 const fileMinSize = spacing["20"];
 export const fileMinSizeRem = parseRemLength(fileMinSize);
 
@@ -1087,7 +1089,7 @@ export const fileImageViewerClassName = style({
     },
 });
 
-export const fileChannelViewPreviewClassName = style({});
+export const fileStandalonePreviewClassName = style({});
 
 export const fileBlankImageForSelectionClassName = style({
     position: "absolute",
@@ -1100,7 +1102,7 @@ export const fileBlankImageForSelectionClassName = style({
     // player UI.
     zIndex: "70",
     selectors: {
-        [`${fileClassName}${fileChannelViewPreviewClassName} &`]: {
+        [`${fileClassName}${fileStandalonePreviewClassName} &`]: {
             display: "none",
             userSelect: "none",
         },
@@ -1167,7 +1169,7 @@ export const fileImagePreviewContentClassName = style({
             `${fileClassName}:has(${contentFileVideoPlayerStyles.containerClassName}) &`,
             // Turn off selection in channel view asides. The user shouldn't be able to
             // select anything there.
-            `${fileClassName}${fileChannelViewPreviewClassName} &`,
+            `${fileClassName}${fileStandalonePreviewClassName} &`,
         ].join(", ")]: {
             userSelect: "none",
         },
@@ -1308,7 +1310,7 @@ globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
 // We always want to render the border for files rendered in
 // `<ChannelViewAside>`.
 globalStyle(
-    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${fileChannelViewPreviewClassName})::before`,
+    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${fileStandalonePreviewClassName})::before`,
     {boxShadow: "none"},
 );
 
@@ -1321,7 +1323,7 @@ globalStyle(
 // We always want to render the border for files rendered in
 // `<ChannelViewAside>`.
 globalStyle(
-    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${fileChannelViewPreviewClassName})::before`,
+    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${fileStandalonePreviewClassName})::before`,
     {boxShadow: "none"},
 );
 

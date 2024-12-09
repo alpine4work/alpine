@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {useMemo, useRef} from "react";
+import {Memo, useMemo, useRef} from "react";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
@@ -17,41 +17,27 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
-import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
-import {PostId} from "~/shared/id/types/id_types.js";
 
-// Create a temporary schema we can use for constructing a `file` node we
-// can copy.
-const prosemirrorSchema = new Lazy(
-    () =>
-        new ProsemirrorSchema({
-            nodes: {
-                ...contentBaseProsemirrorSchemaSpec.nodes,
-                ...createContentFileProsemirrorNodeSpecs(),
-            },
-            marks: contentBaseProsemirrorSchemaSpec.marks,
-        }),
-);
-
-export function ChannelViewFilePreview({
-    postId,
+export function ContentFilePreview({
+    size,
     signedUrlSearch,
     file: fileFromProps,
-    size,
+    attachmentTarget,
+    onOpenViewer,
 }: {
-    postId: PostId;
+    size: number;
     signedUrlSearch: string;
     file: FileModel;
-    size: number;
+    attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+    onOpenViewer?: Memo<() => {preventDefault: boolean} | void>;
 }) {
     const context = useAppContext();
     const reporter = useReporter();
@@ -75,7 +61,7 @@ export function ChannelViewFilePreview({
     const htmlGenerator = useMemo(() => {
         const html = renderContentFilePreview({
             spaceId: space.id,
-            node: prosemirrorSchema.get().node("file", {fileId: file.id}),
+            node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
             file,
             layout: {width: size, widthFr: 1, height: size},
             // `screenWidth` is used to scale down code file previews. Code previews at
@@ -98,7 +84,7 @@ export function ChannelViewFilePreview({
 
         html.setAttribute(
             "class",
-            classNames(html.getAttribute("class"), contentStyles.fileChannelViewPreviewClassName),
+            classNames(html.getAttribute("class"), contentStyles.fileStandalonePreviewClassName),
         );
 
         return html;
@@ -144,17 +130,13 @@ export function ChannelViewFilePreview({
             assertExists(containerElement.firstElementChild) as HTMLElement,
             {
                 spaceId: space.id,
-                node: prosemirrorSchema.get().node("file", {fileId: file.id}),
+                node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
                 file,
-                attachmentTarget: {type: "Post", postId},
+                attachmentTarget,
                 isInitialAppRender,
                 rootNavigate,
                 getReporter: () => reporter,
-                onOpenViewer: () => {
-                    navigate(`/s/${space.id}/posts/${postId}?scroll=file-${file.id}`);
-
-                    return {preventDefault: true};
-                },
+                onOpenViewer,
             },
         );
 
@@ -162,11 +144,12 @@ export function ChannelViewFilePreview({
             cleanup();
         };
     }, [
+        attachmentTarget,
         context,
         file,
         isInitialAppRender,
         navigate,
-        postId,
+        onOpenViewer,
         reporter,
         rootNavigate,
         signedUrlSearch,

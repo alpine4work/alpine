@@ -191,7 +191,6 @@ export default implementRpcs(definitions, {
                     FileDocumentAuthorizer.bind({
                         type: "DocumentComments",
                         documentId: input.documentId,
-                        commentThreadId: input.commentThreadId,
                     }),
                     {
                         type: "Content",
@@ -229,7 +228,6 @@ export default implementRpcs(definitions, {
                             FileDocumentAuthorizer.bind({
                                 type: "DocumentComments",
                                 documentId: input.documentId,
-                                commentThreadId: input.commentThreadId,
                             }),
                             input.content,
                         ),
@@ -258,12 +256,11 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: async (
             context,
-            {spaceId, documentId, commentThreadId, authorId, contentReferencedIds, fileIds},
+            {spaceId, documentId, authorId, contentReferencedIds, fileIds},
         ) => {
             const fileAuthorizer = FileDocumentAuthorizer.bind({
                 type: "DocumentComments",
                 documentId,
-                commentThreadId,
             });
 
             const [author, contentReferences, files] = await runAllPromises([

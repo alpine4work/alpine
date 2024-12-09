@@ -60,6 +60,7 @@ import {
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
     messageInputAccountAvatarSize,
+    messageInputGap,
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
@@ -818,7 +819,7 @@ function MessageInputShimmer({
                 marginX="center"
                 paddingX={paddingX}
                 paddingTop={platform === "mobile" ? "2" : "0"}
-                gap="2"
+                gap={messageInputGap}
             >
                 {platform !== "mobile" && (
                     <Box

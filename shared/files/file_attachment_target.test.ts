@@ -25,7 +25,6 @@ const fileAttachmentTargetByType: {
     DocumentComments: {
         type: "DocumentComments",
         documentId: generateId(),
-        commentThreadId: generateId(),
     },
     Post: {
         type: "Post",

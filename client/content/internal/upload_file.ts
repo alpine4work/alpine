@@ -2,6 +2,7 @@ import {getFileClientStore} from "~/client/content/file_client_store_context.js"
 import {
     ProgressValueStore,
     ProgressValueStoreWithCancel,
+    createProgressCompositeStore,
 } from "~/client/content/internal/progress_store.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -53,6 +54,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {ReadonlyTuple} from "~/shared/helpers/types/tuple.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Store} from "~/shared/store/store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 declare global {
@@ -61,7 +63,7 @@ declare global {
     }
 }
 
-export type UploadFileFromContentEditorInput =
+export type UploadFileInput =
     | {
           readonly type: "File";
           readonly file: File;
@@ -71,26 +73,31 @@ export type UploadFileFromContentEditorInput =
           readonly url: URL;
       };
 
-export const uploadFileFromContentEditorProgressCompositeStoreWeights = [1, 2, 1] as const;
+const uploadFileProgressCompositeStoreWeights = [1, 2, 1] as const;
 
-export function uploadFileFromContentEditor(
+export function uploadFile(
     context: AppContext,
     options: {
         spaceId: SpaceId;
         fileId?: FileId;
-        attachmentTarget: FileAttachmentTarget;
-        input: UploadFileFromContentEditorInput;
-        progressStores: ReadonlyTuple<ProgressValueStoreWithCancel, 3>;
+        attachmentTarget: FileAttachmentTarget | null;
+        input: UploadFileInput;
         onAttach: (options: {signedUrlSearch: string; file: FileModel}) => void;
     },
-) {
-    return context.tracer.withSpan("Content editor upload file", (context, span) => {
+): Promise<void> & {readonly progressStore: Store<number>} {
+    const [progressCompositeStore, progressStores] = createProgressCompositeStore(
+        uploadFileProgressCompositeStoreWeights,
+    );
+
+    const promise = context.tracer.withSpan("Upload file", (context, span) => {
         span.addData({common: {type: `${options.input.type}Input`}});
-        return actuallyUploadFileFromContentEditor(context, options);
+        return actuallyUploadFile(context, {...options, progressStores});
     });
+
+    return Object.assign(promise, {progressStore: progressCompositeStore});
 }
 
-async function actuallyUploadFileFromContentEditor(
+async function actuallyUploadFile(
     context: AppContext,
     {
         spaceId,
@@ -102,8 +109,8 @@ async function actuallyUploadFileFromContentEditor(
     }: {
         spaceId: SpaceId;
         fileId?: FileId;
-        attachmentTarget: FileAttachmentTarget;
-        input: UploadFileFromContentEditorInput;
+        attachmentTarget: FileAttachmentTarget | null;
+        input: UploadFileInput;
         progressStores: ReadonlyTuple<ProgressValueStoreWithCancel, 3>;
         onAttach: (options: {signedUrlSearch: string; file: FileModel}) => void;
     },
@@ -371,7 +378,7 @@ async function actuallyUploadFileFromContentEditor(
         const stopMaintainingFile = getFileClientStore(spaceId).startMaintainingFile(
             () => context,
             fileReference,
-            attachmentTarget,
+            attachmentTarget ?? "Uploader",
         );
 
         try {
@@ -598,7 +605,7 @@ async function uploadFileWithMultipartUploadIfNeeded(
         fileId: FileId | null;
         contentType: FileContentType;
         contentLength: number;
-        attachTarget: FileAttachmentTarget;
+        attachTarget: FileAttachmentTarget | null;
         body: File | Uint8Array | ReadableStream<Uint8Array>;
         uploadProgressStore: ProgressValueStore;
     },
@@ -675,7 +682,8 @@ async function uploadFileWithMultipartUploadIfNeeded(
         //    from a previous version). However, if we give view-only users the ability
         //    to look at a document's version history then view-only users still need
         //    to see files that have been removed from the document.
-        uploadUrlSearchParams.set("target", serializeFileAttachmentTargetString(attachTarget));
+        if (attachTarget)
+            uploadUrlSearchParams.set("target", serializeFileAttachmentTargetString(attachTarget));
 
         const uploadUrlSearchParamsString =
             uploadUrlSearchParams.size > 0 ? `?${uploadUrlSearchParams.toString()}` : "";

@@ -1,9 +1,13 @@
+// NOCOMMIT
+import "~/client/helpers/events/register_scroll_event_debugger.js";
+
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
     Key,
+    Memo,
     ReactElement,
     Ref,
     RefAttributes,
@@ -20,12 +24,19 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentFilePreview} from "~/client/content/content_file_preview_component.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {
+    ExternalFileElementInfo,
+    iterateExternalFileElements,
+} from "~/client/content/internal/iterate_external_file_elements.js";
+import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -43,17 +54,20 @@ import {
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {parseHtml} from "~/client/helpers/parse_html.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getMessageBubbleMarginLeft,
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
+    messageInputGap,
     messageInputMinHeight,
     messageInputPaddingY,
     messageViewBubbleBorderRadius,
@@ -65,24 +79,46 @@ import {
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
 } from "~/client/styles/messaging_shared_styles.js";
-import {borderRadius, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    backgroundColorVar,
+    borderRadius,
+    contentStyles,
+    contentViewStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {fileClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {
+    attachFileFromAttachment,
+    getFileFromAttachment,
+} from "~/shared/rpc/files_rpc_definitions.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -91,6 +127,14 @@ export type MessageInputRef = {
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
+    drop(dataTransfer: DataTransfer): void;
+};
+
+export type MessageInputFile = {
+    readonly key: Id;
+    readonly attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+    readonly signedUrlSearch: string;
+    readonly file: FileModel;
 };
 
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
@@ -99,8 +143,12 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     sendButtonVerb?: string;
     placeholder?: string;
     state: ContentEditorState<MessageContentWithReferences>;
+    files: ReadonlyArray<MessageInputFile>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
+    onAddFile: (file: MessageInputFile) => void;
+    onRemoveFile: (fileKey: Id) => void;
     onSend: () => void;
+    fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     isBottomBar?: boolean;
     isReplacingOtherBottomBar?: boolean;
     isSendBottomArrowRight?: boolean;
@@ -134,6 +182,9 @@ const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
 ) => ReactElement;
 export {MessageInputBaseForwardRef as MessageInputBase};
 
+// TODO(calebmer, #files): Paste files into message input
+// TODO(calebmer, #files): Button for adding files to message input
+
 /**
  * Presentational `<MessageInput>` component without any state associated with
  * the actual `<MessageInput>` component.
@@ -148,7 +199,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         messageNoun = "message",
         messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
         state,
+        files,
         onChange,
+        onAddFile,
+        onRemoveFile,
         onSend: onSendProp,
         isBottomBar = false,
         isReplacingOtherBottomBar = false,
@@ -156,6 +210,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         isSendButtonDisabled: isSendButtonDisabledProp,
         isSendButtonPending,
         isNativeMobileRefocusHackDisabled,
+        fileAttachmentTarget,
         messageEditingForThisInput = null,
         replyingToMessage: replyingToMessageProp,
         onClearReplyingToMessage,
@@ -177,12 +232,22 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     }: MessageInputBaseProps<RoomKey, Message>,
     ref: Ref<MessageInputRef>,
 ) {
+    const context = useAppContext();
     const platform = usePlatform();
     const clientInfo = useClientInfo();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+    const isMounted = useIsMounted();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
+
+    useEffect(() => {
+        console.log("mount <MessageInputBase>");
+        return () => {
+            console.log("unmount <MessageInputBase>");
+        };
+    }, []);
 
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLDivElement>(null);
@@ -198,10 +263,122 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         [editorRef],
     );
 
-    const clear = useEvent(() => {
-        onClearReplyingToMessage?.();
-        messageEditingForThisInput?.dispatch({type: "CancelEditing"});
-        onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+    const events = useEvents({
+        clear: () => {
+            onClearReplyingToMessage?.();
+            messageEditingForThisInput?.dispatch({type: "CancelEditing"});
+            onChange(ContentEditorState.create(emptyMessageContentWithReferences));
+        },
+        pasteOrDrop: (spanName: string, dataTransfer: DataTransfer) => {
+            // NOCOMMIT: Show error to user?
+            runPromiseWithoutAwaiting(
+                context.tracer.withSpan(spanName, async context => {
+                    const newFileInfos: Array<ExternalFileElementInfo> = [];
+
+                    for (const {info} of iterateExternalFileElements(
+                        parseHtml(dataTransfer.getData("text/html")),
+                        space.id,
+                    )) {
+                        if (info) newFileInfos.push(info);
+                    }
+
+                    for (const item of dataTransfer.items) {
+                        // NOCOMMIT: Make sure if we copy an image we only paste from the `image/html`
+                        // not the `image/png`.
+                        if (item.kind !== "file") continue;
+
+                        newFileInfos.push({
+                            type: "UploadFile",
+                            input: {type: "File", file: assertExists(item.getAsFile())},
+                        });
+                    }
+
+                    await runAllPromises(
+                        newFileInfos.map((fileInfo): Promise<void> => {
+                            const toTarget = fileAttachmentTarget;
+
+                            switch (fileInfo.type) {
+                                case "AttachFile": {
+                                    const fromTarget = fileInfo.target;
+
+                                    let promise;
+
+                                    // If we're trying to attach the file to the same attachment target it's from
+                                    // then we don't need to perform another attach mutation. Instead, all we need
+                                    // to do is load the file (since it's not in our references).
+                                    //
+                                    // NOCOMMIT: Integration test for this path specifically (`toTarget` is null in
+                                    // a new chat)
+                                    if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
+                                        promise = getFileFromAttachment(context, {
+                                            spaceId: fileInfo.spaceId,
+                                            fileId: fileInfo.fileId,
+                                            target: fromTarget,
+                                        });
+                                    }
+                                    // Otherwise, let's attach the file to its new attachment target.
+                                    else {
+                                        promise = attachFileFromAttachment(context, {
+                                            spaceId: fileInfo.spaceId,
+                                            fileId: fileInfo.fileId,
+                                            fromTarget,
+                                            toTarget,
+                                        });
+                                    }
+
+                                    addGlobalLoadingIndicator(promise, {type: "Uploading"});
+
+                                    return promise.then(({signedUrlSearch, file}) => {
+                                        // Noop if our input was unmounted (e.g. after the message is sent we remount
+                                        // this component).
+                                        if (!isMounted()) return;
+
+                                        onAddFile({
+                                            key: generateId(),
+                                            attachmentTarget: toTarget ?? "Uploader",
+                                            signedUrlSearch,
+                                            file,
+                                        });
+                                    });
+                                }
+                                case "UploadFile": {
+                                    const promise = uploadFile(context, {
+                                        spaceId: space.id,
+                                        attachmentTarget: toTarget,
+                                        input: fileInfo.input,
+                                        onAttach: ({signedUrlSearch, file}) => {
+                                            // Noop if our input was unmounted (e.g. after the message is sent we remount
+                                            // this component).
+                                            if (!isMounted()) return;
+
+                                            onAddFile({
+                                                key: generateId(),
+                                                attachmentTarget: toTarget ?? "Uploader",
+                                                signedUrlSearch,
+                                                file,
+                                            });
+                                        },
+                                    });
+
+                                    // While a file is uploading show an "Uploading" loading indicator with the
+                                    // progress percentage. If multiple files are uploading at once then the
+                                    // global loading indicator implementation is responsible for putting together
+                                    // an aggregated summary.
+                                    addGlobalLoadingIndicator(promise, {
+                                        type: "Uploading",
+                                        progressStore: promise.progressStore,
+                                    });
+
+                                    return promise;
+                                }
+                                default:
+                                    throw exhaustive(fileInfo);
+                            }
+                        }),
+                    );
+                }),
+            );
+        },
     });
 
     useImperativeHandle(
@@ -211,10 +388,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             focus: options => assertExists(editorRef.current).focus(options),
             blur: () => assertExists(editorRef.current).blur(),
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
-            clear,
+            clear: events.clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
+            drop: dataTransfer => events.pasteOrDrop("Message input drop", dataTransfer),
         }),
-        [clear],
+        [events],
     );
 
     const isEditingMessage = !!messageEditingForThisInput;
@@ -271,7 +449,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     }, [focusKey, onBeforeFocusFromReplyOrEditingChange]);
 
     const isSendButtonDisabled =
-        isSendButtonDisabledProp || (!isEditingMessage && isContentEmpty(state.getDoc()));
+        isSendButtonDisabledProp ||
+        (!isEditingMessage && isContentEmpty(state.getDoc()) && files.length === 0);
 
     const typingIndicatorStateRef = useRef<
         {shouldBeShowing: true; timeout: Timeout} | {shouldBeShowing: false}
@@ -497,6 +676,19 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     const avatarPaddingY = messageInputAccountAvatarPaddingY[platform];
 
+    const editorMarginLeft =
+        platform === "mobile"
+            ? spacing[typeof paddingX === "string" ? paddingX : paddingX.mobile]
+            : getMessageBubbleMarginLeft(
+                  typeof paddingX === "string" ? paddingX : paddingX.desktop,
+              );
+
+    const editorMarginRight = addRemLengths(
+        messageInputGap,
+        messageInputAccountAvatarSize,
+        spacing[typeof paddingX === "string" ? paddingX : paddingX[platform]],
+    );
+
     return (
         <Box
             ref={inputContainerRef}
@@ -581,7 +773,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         event.currentTarget.contains(event.target) &&
                         // Exclude tapping in the message input itself. Tapping there should do
                         // something.
-                        !editor.contains(event.target)
+                        !editor.contains(event.target) &&
+                        // Exclude clicking on files since that should open the file viewer which will
+                        // close the keyboard.
+                        !event.target.closest(`.${fileClassName}`)
                     ) {
                         event.preventDefault();
                     }
@@ -603,15 +798,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 paddingTop={messageInputPaddingY}
                                 color="grey-80"
                                 style={{
-                                    paddingLeft:
-                                        platform === "mobile"
-                                            ? spacing["3"]
-                                            : getMessageBubbleMarginLeft(
-                                                  typeof paddingX === "string"
-                                                      ? paddingX
-                                                      : paddingX.desktop,
-                                              ),
-                                    paddingRight: addRemLengths("2", "7", "5"),
+                                    paddingLeft: editorMarginLeft,
+                                    paddingRight: editorMarginRight,
                                 }}
                             >
                                 <Box
@@ -663,15 +851,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         paddingTop={messageInputPaddingY}
                                         paddingBottom="1"
                                         style={{
-                                            paddingLeft:
-                                                platform === "mobile"
-                                                    ? spacing["3"]
-                                                    : getMessageBubbleMarginLeft(
-                                                          typeof paddingX === "string"
-                                                              ? paddingX
-                                                              : paddingX.desktop,
-                                                      ),
-                                            paddingRight: addRemLengths("2", "7", "5"),
+                                            paddingLeft: editorMarginLeft,
+                                            paddingRight: editorMarginRight,
                                         }}
                                     >
                                         <Box
@@ -791,7 +972,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             display="flex"
                             paddingX={paddingX}
                             paddingY={messageInputPaddingY}
-                            gap="2"
+                            gap={messageInputGap}
                         >
                             {platform !== "mobile" && (
                                 <Box display="flex" alignItems="flex-end">
@@ -946,6 +1127,69 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             </Box>
                         </Box>
+                        {files.length > 0 && (
+                            <Box paddingX={screenPaddingX}>
+                                <Box position="relative" zIndex="0" width="full" marginTop="-2">
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        top="0"
+                                        bottom="0"
+                                        left="0"
+                                        width="3"
+                                        style={{
+                                            background: `linear-gradient(to right, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                    <Box
+                                        position="absolute"
+                                        zIndex="10"
+                                        top="0"
+                                        bottom="0"
+                                        right="0"
+                                        width="3"
+                                        style={{
+                                            background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                    <Box
+                                        data-scrollbar="false"
+                                        position="relative"
+                                        zIndex="0"
+                                        width="full"
+                                        overflowX="auto"
+                                    >
+                                        <Box
+                                            display="flex"
+                                            gap="2"
+                                            paddingTop="2"
+                                            paddingBottom={messageInputPaddingY}
+                                            style={{
+                                                width: "fit-content",
+                                                paddingLeft: subtractRemLengths(
+                                                    editorMarginLeft,
+                                                    screenPaddingX[platform],
+                                                ),
+                                                paddingRight: subtractRemLengths(
+                                                    editorMarginRight,
+                                                    screenPaddingX[platform],
+                                                ),
+                                            }}
+                                        >
+                                            {files.map(file => (
+                                                <MessageInputFilePreview
+                                                    key={file.key}
+                                                    signedUrlSearch={file.signedUrlSearch}
+                                                    file={file.file}
+                                                    attachmentTarget={file.attachmentTarget}
+                                                    onRemove={() => onRemoveFile(file.key)}
+                                                />
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        )}
                     </Box>
                     {platform === "mobile" && isBottomBar && (
                         <MessageInputMobileKeyboardToolbar
@@ -1057,6 +1301,46 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     )}
                 </MobileFullScreenModal>
             )}
+        </Box>
+    );
+}
+
+function MessageInputFilePreview({
+    signedUrlSearch,
+    file,
+    attachmentTarget,
+    onRemove,
+}: {
+    signedUrlSearch: string;
+    file: FileModel;
+    attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+    onRemove: () => void;
+}) {
+    const spacingScale = useSpacingScale();
+
+    return (
+        <Box
+            position="relative"
+            zIndex="0"
+            width={contentStyles.fileMinSize}
+            height={contentStyles.fileMinSize}
+        >
+            <Box position="absolute" zIndex="20" top="-1" right="-1">
+                <IconButton
+                    size="xs"
+                    variant="quiet-elevation-10"
+                    description="Remove"
+                    onPress={onRemove}
+                >
+                    <X />
+                </IconButton>
+            </Box>
+            <ContentFilePreview
+                size={convertRemLengthToPx(contentStyles.fileMinSize, spacingScale)}
+                signedUrlSearch={signedUrlSearch}
+                file={file}
+                attachmentTarget={attachmentTarget}
+            />
         </Box>
     );
 }

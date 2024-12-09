@@ -1,4 +1,13 @@
-import {Memo, Ref, RefObject, useCallback, useEffect, useImperativeHandle, useRef} from "react";
+import {
+    Memo,
+    Ref,
+    RefObject,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+} from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -233,6 +242,10 @@ export function PostCommentInput({
                     fileIds: input.fileIds,
                 });
             }}
+            fileAttachmentTarget={useMemo(
+                () => ({type: "PostComments", postId: post.id}),
+                [post.id],
+            )}
             messageEditing={postCommentEditing}
             replyingToMessage={replyingToPostComment}
             onClearReplyingToMessage={onClearReplyingToPostComment}

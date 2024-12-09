@@ -19,7 +19,9 @@ import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_m
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
+    getFileSignedUrlAsUploader,
     getFileSignedUrlFromAttachment,
+    getFileWithoutSignedUrlAsUploader,
     getFileWithoutSignedUrlFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
@@ -80,7 +82,7 @@ export type FileClientStoreData = FileModelData & {
 type FileClientStoreState = {
     referenceCount: number;
     getContexts: Array<() => AppContext>;
-    attachmentTargets: Array<FileAttachmentTarget>;
+    attachmentTargets: Array<FileAttachmentTarget | "Uploader">;
     unsubscribeFromStore: (() => void) | null;
     expirationTimeout: Timeout | null;
     refreshTimeout: Timeout | null;
@@ -273,7 +275,7 @@ export class FileClientStore {
         initialFileDataOrReference:
             | FileClientStoreData
             | {signedUrlSearch: string; file: FileModel},
-        attachmentTarget: FileAttachmentTarget,
+        attachmentTarget: FileAttachmentTarget | "Uploader",
     ): () => void {
         if (import.meta.jest && isStartMaintainingFileDisabledForTest) return noop;
 
@@ -331,7 +333,9 @@ export class FileClientStore {
             assert(getContextIndex !== -1);
             fileState.getContexts.splice(getContextIndex, 1);
 
-            const attachmentTargetIndex = fileState.attachmentTargets.indexOf(attachmentTarget);
+            const attachmentTargetIndex = fileState.attachmentTargets.indexOf(
+                attachmentTarget ?? "Uploader",
+            );
             assert(attachmentTargetIndex !== -1);
             fileState.attachmentTargets.splice(attachmentTargetIndex, 1);
 
@@ -417,11 +421,17 @@ export class FileClientStore {
                     const getContext = assertExists(fileState.getContexts[0]);
                     const attachmentTarget = assertExists(fileState.attachmentTargets[0]);
 
-                    getFileSignedUrlFromAttachment(getContext(), {
-                        spaceId: this._spaceId,
-                        fileId,
-                        target: attachmentTarget,
-                    }).then(
+                    (attachmentTarget === "Uploader"
+                        ? getFileSignedUrlAsUploader(getContext(), {
+                              spaceId: this._spaceId,
+                              fileId,
+                          })
+                        : getFileSignedUrlFromAttachment(getContext(), {
+                              spaceId: this._spaceId,
+                              fileId,
+                              target: attachmentTarget,
+                          })
+                    ).then(
                         output => {
                             fileStore.set(file => {
                                 const expirationTime =
@@ -498,11 +508,17 @@ export class FileClientStore {
                     const getContext = assertExists(fileState.getContexts[0]);
                     const attachmentTarget = assertExists(fileState.attachmentTargets[0]);
 
-                    getFileWithoutSignedUrlFromAttachment(getContext(), {
-                        spaceId: this._spaceId,
-                        fileId,
-                        target: attachmentTarget,
-                    }).then(
+                    (attachmentTarget === "Uploader"
+                        ? getFileWithoutSignedUrlAsUploader(getContext(), {
+                              spaceId: this._spaceId,
+                              fileId,
+                          })
+                        : getFileWithoutSignedUrlFromAttachment(getContext(), {
+                              spaceId: this._spaceId,
+                              fileId,
+                              target: attachmentTarget,
+                          })
+                    ).then(
                         output => {
                             fileStore.set(file =>
                                 mergeFileClientStoreData(file, {

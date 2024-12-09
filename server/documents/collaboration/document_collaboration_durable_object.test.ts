@@ -902,21 +902,13 @@ test("will respond optimistically with a comment thread with files even if it ha
             context.action(session1),
             space.id,
             file1Id,
-            FileDocumentAuthorizer.bind({
-                type: "DocumentComments",
-                documentId: document.id,
-                commentThreadId,
-            }),
+            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: document.id}),
         ),
         attachFileAsUploader(
             context.action(session1),
             space.id,
             file2Id,
-            FileDocumentAuthorizer.bind({
-                type: "DocumentComments",
-                documentId: document.id,
-                commentThreadId,
-            }),
+            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId: document.id}),
         ),
     ]);
 

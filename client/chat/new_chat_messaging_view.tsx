@@ -63,6 +63,11 @@ function NewChatMessagingView(
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}
+            // `fileAttachmentTarget` is null since we want to attach files when the
+            // message is sent. Not when the message is added to the message input. Since
+            // the user could add a file to the message input, then add a new account to
+            // message.
+            fileAttachmentTarget={null}
             getMessagesFromStart={useEvent(input => {
                 if (!selectedChat) {
                     throw new InternalError("Can not load messages when we don't know the chat");

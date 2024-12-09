@@ -7,7 +7,6 @@ import {
     AccountId,
     ChannelId,
     ChatId,
-    DocumentCommentThreadId,
     DocumentId,
     PostDraftId,
     PostId,
@@ -29,26 +28,17 @@ export type FileAttachmentTarget = FileAttachmentTargetByArea[keyof FileAttachme
 // TODO(calebmer, #files): Integration test for uploading and viewing all of
 // these attachment targets.
 export type FileAttachmentTargetByArea = {
-    // TODO(calebmer, #files): Implement attachments
     Chat: {readonly type: "ChatMessages"; readonly chatId: ChatId};
-    // TODO(calebmer, #files): Implement attachments
     Channel: {readonly type: "ChannelDescription"; readonly channelId: ChannelId};
     Document:
         | {readonly type: "Document"; readonly documentId: DocumentId}
-        // TODO(calebmer, #files): Implement attachments
-        | {
-              readonly type: "DocumentComments";
-              readonly documentId: DocumentId;
-              readonly commentThreadId: DocumentCommentThreadId;
-          };
+        | {readonly type: "DocumentComments"; readonly documentId: DocumentId};
     Post:
         | {readonly type: "Post"; readonly postId: PostId}
         | {readonly type: "PostDraft"; readonly accountId: AccountId; readonly draftId: PostDraftId}
-        // TODO(calebmer, #files): Implement attachments
         | {readonly type: "PostComments"; readonly postId: PostId};
     Task:
         | {readonly type: "TaskNotes"; readonly taskId: TaskId}
-        // TODO(calebmer, #files): Implement attachments
         | {readonly type: "TaskComments"; readonly taskId: TaskId};
 };
 
@@ -68,7 +58,6 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
     DocumentComments: Schema.object({
         type: Schema.value("DocumentComments"),
         documentId: Schema.id<DocumentId>(),
-        commentThreadId: Schema.id<DocumentCommentThreadId>(),
     }),
     Post: Schema.object({
         type: Schema.value("Post"),
@@ -149,9 +138,6 @@ function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8
             byteOffset += 1;
 
             decodeIdInto(target.documentId, bytes, byteOffset);
-            byteOffset += idByteLength;
-
-            decodeIdInto(target.commentThreadId, bytes, byteOffset);
             byteOffset += idByteLength;
 
             return bytes;
@@ -254,10 +240,7 @@ function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachment
             const documentId = encodeId<DocumentId>(bytes, byteOffset);
             byteOffset += idByteLength;
 
-            const commentThreadId = encodeId<DocumentCommentThreadId>(bytes, byteOffset);
-            byteOffset += idByteLength;
-
-            return {type: "DocumentComments", documentId, commentThreadId};
+            return {type: "DocumentComments", documentId};
         }
         case 5: {
             const postId = encodeId<PostId>(bytes, byteOffset);

@@ -4,6 +4,7 @@ import prettyBytes from "pretty-bytes";
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
     addContentFileAudioPlayerBehavior,
@@ -316,13 +317,34 @@ function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, platfo
     imageHtmlForSelection.setAttribute("class", contentStyles.fileBlankImageForSelectionClassName);
 }
 
+function actuallyRenderContentFileProcessingPreview({
+    file,
+    layout,
+}: {
+    file: FileModelData;
+    layout: {width: number; height: number};
+}): HtmlElementGenerator {
+    const schema = ContentBaseProsemirrorSchemaWithFiles.get();
+    const {html} = renderProsemirrorDomOutputSpec(
+        schema.nodes.file.spec.toDOM!(schema.nodes.file.create()),
+    );
+
+    assert(html instanceof HtmlElementGenerator);
+
+    renderContentFileProcessingPreview(html, {file, layout});
+
+    return html;
+}
+
+export {actuallyRenderContentFileProcessingPreview as renderContentFileProcessingPreview};
+
 function renderContentFileProcessingPreview(
     html: HtmlElementGenerator,
     {
         file,
         layout,
     }: {
-        file: FileClientStoreData;
+        file: FileModelData;
         layout: {width: number; height: number};
     },
 ) {
@@ -371,9 +393,10 @@ function renderContentFileProcessingPreview(
             alignItems: "center",
             gap: "1.5",
             fontSize: layout.width < 150 ? "25" : "50",
+            textAlign: "center",
             // Push the loading spinner into the center with some
             // padding top.
-            paddingTop: "4",
+            paddingTop: layout.width < 150 ? "2" : "4",
         }),
     );
 
@@ -387,9 +410,13 @@ function renderContentFileProcessingPreview(
             }),
         ),
     );
-    processingHtml.appendChild(
-        new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
-    );
+    if (file.isUploading) {
+        processingHtml.appendChild(new HtmlTextGenerator("Uploading"));
+    } else {
+        processingHtml.appendChild(
+            new HtmlTextGenerator(`Processing ${getFileContentTypeNoun(file.contentType)}`),
+        );
+    }
 }
 
 function renderContentFileProcessorErrorPreview(
@@ -1235,7 +1262,7 @@ function renderFileProcessingPreviewPlaceholder(
     const pixelGridWidth = pixelGrid[0]!.length;
     const pixelGridHeight = pixelGrid.length;
 
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" class="${className}" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}">`;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" class="${className}" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}" preserveAspectRatio="xMidYMid slice">`;
 
     const blurStdDeviation = 1 / 2;
     const translateX = -blurStdDeviation * 2;
@@ -1290,7 +1317,7 @@ export function addContentFilePreviewBehavior(
         spaceId: SpaceId;
         node: Node;
         file: FileClientStoreData | undefined;
-        attachmentTarget: FileAttachmentTarget;
+        attachmentTarget: FileAttachmentTarget | "Uploader";
         isInert?: boolean;
         isInitialAppRender: boolean;
         isEditorInitialAppRender?: boolean;
@@ -1442,6 +1469,8 @@ export function addContentFilePreviewBehavior(
     };
 
     const openViewer = () => {
+        console.log("openViewer", file);
+
         if (onOpenViewer) {
             const result = onOpenViewer();
             if (result?.preventDefault) return;
@@ -1462,7 +1491,11 @@ export function addContentFilePreviewBehavior(
                 "file",
                 // Space separator was chosen since it's encoded as a `+` which looks nice in
                 // the URL.
-                `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
+                //
+                // NOCOMMIT: Test this code path. Does the modal actually work?
+                attachmentTarget === "Uploader"
+                    ? file.id
+                    : `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
             );
 
             return [
@@ -1794,7 +1827,7 @@ export async function handleCopyContentFile(
     }: {
         spaceId: SpaceId;
         file: FileClientStoreData | null;
-        attachmentTarget: FileAttachmentTarget;
+        attachmentTarget: FileAttachmentTarget | "Uploader";
     },
 ) {
     // Create a temporary schema we can use for constructing a `file` node we

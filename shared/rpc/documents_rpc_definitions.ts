@@ -255,7 +255,6 @@ export const getOptimisticDocumentCommentReferences = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
-        commentThreadId: Schema.id<DocumentCommentThreadId>(),
         authorId: Schema.id<AccountId>(),
         contentReferencedIds: ContentReferencedIdsSchema,
         fileIds: Schema.array(Schema.id<FileId>()).default([]),

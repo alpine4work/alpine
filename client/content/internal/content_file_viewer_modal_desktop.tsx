@@ -71,7 +71,7 @@ export function ContentFileViewerModalDesktop({
     onClose,
 }: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     ownedByElement: Element | null;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -320,7 +320,7 @@ export function ContentFileViewerModalDesktop({
 
 function ContentFileDesktopViewer(props: {
     file: FileClientStoreData;
-    attachmentTarget: FileAttachmentTarget;
+    attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
     zoomScale: number;
