@@ -133,11 +133,10 @@ function TaskGridViewColumnHeader(
                 <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
                     <Box
                         position="absolute"
-                        bottom="0"
                         left="0"
                         right={screenPaddingX}
                         backgroundColor="grey-5"
-                        style={{height: 1}}
+                        style={{bottom: -1, height: 1}}
                     />
                 </Box>
                 <OverlayScopeContextProvider
@@ -334,7 +333,7 @@ export const TaskGridViewDecorativeGhostTaskMemo = memo(
                         //
                         // 1. Doesn't add 2px to layout
                         // 2. Adjacent borders share the same space so we don't get 2px dividers
-                        boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 />
                 {withPaddingBottom && (

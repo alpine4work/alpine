@@ -1296,7 +1296,7 @@ function TaskRowView(
                 //
                 // 1. Doesn't add 2px to layout
                 // 2. Adjacent borders share the same space so we don't get 2px dividers
-                boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
         />
     );
