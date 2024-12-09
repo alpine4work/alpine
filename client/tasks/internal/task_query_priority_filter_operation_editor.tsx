@@ -3,7 +3,7 @@ import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
@@ -18,7 +18,7 @@ export function TaskQueryPriorityFilterOperationEditor({
     filter: TaskQueryPriorityFilter;
     onFilterChange: (filter: TaskQueryPriorityFilter) => void;
 }) {
-    const routeLayout = useRouteLayout();
+    const platform = usePlatform();
 
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
@@ -221,14 +221,14 @@ export function TaskQueryPriorityFilterOperationEditor({
                                 zIndex: "0",
                                 flexShrink: "1",
                                 height: "full",
-                                overflow: routeLayout === "narrow" ? "hidden" : undefined,
+                                overflow: platform === "mobile" ? "hidden" : undefined,
                             })}
                             style={{
                                 paddingTop: 1,
                                 paddingBottom: 1,
                             }}
                         >
-                            {routeLayout === "narrow" && (
+                            {platform === "mobile" && (
                                 <span
                                     className={sprinkles({
                                         position: "absolute",
