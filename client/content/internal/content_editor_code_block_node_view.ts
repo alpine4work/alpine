@@ -8,6 +8,18 @@ import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_b
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
+// This is the function that creates the node view for the code block in the
+// content editor. Here we can control the DOM structure of the code block.
+//
+// For example, here we have added a toolbar with a language picker and copy
+// button.
+//
+// It is like a hook that allows us to render the code block in the content
+// editor in a way that we want.
+//
+// This functional will be called every time the code block is rendered in the
+// content editor.
+//
 // IMPORTANT: Any change you make to this function also likely must be made to
 // the `codeBlock` node renderer in `renderContentInHtml()`.
 export function createContentEditorCodeBlockNodeViewConstructor({
@@ -31,6 +43,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
         const language = contentCodeBlockLanguageById[languageId];
 
+        // This DOM structure is defined in content_schema.ts. See codeBlock's
+        // toDOM function.
         const {dom: element, contentDOM: contentElement} = DOMSerializer.renderSpec(
             document,
             node.type.spec.toDOM!(node),
@@ -43,6 +57,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
 
         const destroyCallbacks: Array<() => void> = [];
 
+        // here we're creating the toolbar that contains the language picker and copy button
+        // it's inserted right before the `contentDOM` element or `CODE` element
         const toolbarElement = document.createElement("div");
         element.insertBefore(toolbarElement, contentElement);
         toolbarElement.contentEditable = "false";
@@ -58,6 +74,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             contentStyles.codeBlockToolbarOverflowGradientClassName;
 
         {
+            // language picker combobox button:
             const languagePickerElement = document.createElement("div");
             toolbarFlexElement.appendChild(languagePickerElement);
             languagePickerElement.className = contentStyles.codeBlockLanguagePickerClassName;
@@ -94,6 +111,9 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         }
 
         {
+            // copy button:
+            // we just add it to the toolbar and then we'll add unfocusable button
+            // behavior to it.
             const copyButtonElement = document.createElement("div");
             toolbarFlexElement.appendChild(copyButtonElement);
             copyButtonElement.className = contentStyles.codeBlockCopyButtonClassName;

@@ -28,6 +28,7 @@ import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {
     mobileFullScreenModalAnimationDurationLongMs,
     mobileFullScreenModalAnimationDurationMs,
@@ -53,6 +54,10 @@ import {
     DocumentContentEditorSideDecorations,
 } from "~/client/documents/internal/document_content_editor_side_decorations.js";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+import {
+    DocumentPresentationController,
+    DocumentPresentationControllerRef,
+} from "~/client/documents/internal/document_presentation_controller.js";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections.js";
 import {
     SubscribeToCommentThreadEventsFunction,
@@ -70,6 +75,7 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {LecturnIcon} from "~/client/icons/lecturn_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -121,12 +127,14 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
@@ -137,6 +145,7 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -225,6 +234,7 @@ export function DocumentContentEditor({
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
+    const presentationControllerRef = useRef<DocumentPresentationControllerRef>(null);
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
@@ -1518,12 +1528,33 @@ export function DocumentContentEditor({
                     onPress: () => assertExists(editorRef.current).redo(),
                 },
             ],
+            ...(platform !== "mobile" &&
+            (process.env.NODE_ENV !== "production" || spaceId === alpineCompanyKnownSpaceId)
+                ? [
+                      [
+                          cast<MenuAction>({
+                              label: "Present",
+                              icon: <LecturnIcon />,
+                              iconPlacement: "end",
+                              pressErrorTitle: "Couldn’t present document",
+                              onPress: async () => {
+                                  await assertExists(presentationControllerRef.current).present();
+                              },
+                          }),
+                      ],
+                  ]
+                : []),
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
     });
+
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "Document", documentId}),
+        [documentId],
+    );
 
     return (
         <Box
@@ -1619,10 +1650,7 @@ export function DocumentContentEditor({
                             withoutMobileKeyboardToolbar={sidebarState.isOpen}
                             className={documentContentStyles.documentContentClassName}
                             phantomSelections={phantomSelections}
-                            fileAttachmentTarget={useMemo(
-                                () => ({type: "Document", documentId}),
-                                [documentId],
-                            )}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             onEnsureFileAttachmentTarget={ensureCreateDocument}
                             openCommentThread={openCommentThread}
                             onCommentThreadPressedChange={(commentThreadId, isHovered) => {
@@ -1931,6 +1959,13 @@ export function DocumentContentEditor({
                         />
                     ),
                 [activeCommentThreadId, editorContainerId],
+            )}
+            {platform !== "mobile" && (
+                <DocumentPresentationController
+                    ref={presentationControllerRef}
+                    editorState={editorState}
+                    fileAttachmentTarget={fileAttachmentTarget}
+                />
             )}
         </Box>
     );

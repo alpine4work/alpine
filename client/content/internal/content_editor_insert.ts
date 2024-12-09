@@ -34,6 +34,16 @@ function getInsertPosOrSelection(selection: Selection): number | Selection {
         : selection;
 }
 
+/**
+ * Insert a node into the editor.
+ * Core insertion logic that handles:
+ * - Inserting at specific positions
+ * - Replacing selected content
+ * - Handling empty vs non-empty selections
+ * - Scrolling to show inserted content
+ *
+ * @param commandIfNotEmpty is an optional command to run if the editor selection isn't empty
+ */
 function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
     const {state} = view;
 
@@ -177,4 +187,15 @@ export function insertContentFiles(
             : getInsertPosOrSelection(view.state.selection);
 
     view.insertFiles(insertPosOrSelection, files);
+}
+
+export function insertContentTable(view: EditorView) {
+    const {schema} = view.state;
+    const cell = schema.node("tableCell", {}, [schema.node("paragraph")]);
+    const headerCell = schema.node("tableHeader", {}, [schema.node("paragraph")]);
+    const headerRow = schema.node("tableRow", {}, [headerCell, headerCell]);
+    const bodyRow = schema.node("tableRow", {}, [cell, cell]);
+    const table = schema.node("table", {}, [headerRow, bodyRow, bodyRow]);
+
+    insertNode(view, table);
 }

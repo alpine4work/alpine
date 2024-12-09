@@ -244,6 +244,7 @@ export function InboxView({
                     width={inboxEntryWidth}
                     overflow="hidden"
                     backgroundColor="grey-0"
+                    borderLeft="grey-10"
                     borderRight="grey-10"
                 >
                     <InboxViewTopBar filter={filter} />

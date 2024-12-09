@@ -132,6 +132,7 @@ export function renderContentFilePreview({
     file,
     layout,
     screenWidth,
+    screenScale,
     platform,
     spacingScale,
     isInitialAppRender,
@@ -142,6 +143,7 @@ export function renderContentFilePreview({
     file: FileClientStoreData | undefined;
     layout: ContentFileLayout;
     screenWidth: number;
+    screenScale: number;
     platform: Platform;
     spacingScale: SpacingScale;
     isInitialAppRender: boolean;
@@ -233,6 +235,7 @@ export function renderContentFilePreview({
                     file,
                     filePreview: file.preview,
                     layout,
+                    screenScale,
                     platform,
                     isInitialAppRender,
                     withoutInteractivity,
@@ -533,6 +536,7 @@ function renderContentFileImagePreview(
         file,
         filePreview,
         layout,
+        screenScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -541,6 +545,7 @@ function renderContentFileImagePreview(
         file: FileClientStoreData;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
+        screenScale: number;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
@@ -575,6 +580,7 @@ function renderContentFileImagePreview(
         filePreviewSize: filePreview.size,
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
+        screenScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -591,6 +597,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize,
         filePreviewPlaceholder,
         layout,
+        screenScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -602,6 +609,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize: FileImagePreviewSize;
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
+        screenScale: number;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
@@ -665,9 +673,9 @@ function renderContentFileImagePreviewInner(
             image2xSource = imageSourceBase;
             image3xSource = imageSourceBase;
         } else {
-            const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
-            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
-            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
+            const image1xWidth = getFilePreviewImageResizeWidth(layout.width * screenScale);
+            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2 * screenScale);
+            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3 * screenScale);
 
             const aspectRatio = filePreviewSize.width / filePreviewSize.height;
             const isOutsideAspectRatioRange =

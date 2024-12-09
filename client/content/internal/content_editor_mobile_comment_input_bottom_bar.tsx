@@ -8,7 +8,7 @@ import {
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
-import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
+import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";

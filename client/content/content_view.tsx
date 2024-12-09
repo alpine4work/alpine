@@ -204,12 +204,25 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     onSeeLessContent?: (targetElement: HTMLDivElement) => void;
 
     /**
+     * Disable the block maximum width. Letting content flow all the way to the
+     * edges of the container. Used in document presentation mode for rendering
+     * slides. Defaults to false.
+     */
+    withoutBlockMaxWidth?: boolean;
+
+    /**
      * Override the screen width provided to `layoutContentFileRow()`. By default
      * we use the smaller of `clientInfo.screenWidth` and the max content width but
      * if you're intentionally rendering a narrow `<ContentView>` then you should
      * set this value for better layout results. Measured in pixels.
      */
     fileLayoutScreenWidth?: number;
+
+    /**
+     * Override the screen scale provided to `renderContentFilePreview()`. By
+     * default this is 1.
+     */
+    fileLayoutScreenScale?: number;
 };
 
 /**
@@ -232,7 +245,9 @@ export function ContentView<Content extends ContentWithReferences>({
     withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
+    withoutBlockMaxWidth = false,
     fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
+    fileLayoutScreenScale = 1,
 }: ContentViewProps<Content>) {
     assert(
         !content.doc.type.schema.nodes.file || fileAttachmentTarget,
@@ -441,8 +456,10 @@ export function ContentView<Content extends ContentWithReferences>({
                     fileStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
+                    screenScale: fileLayoutScreenScale,
                     platform,
                     spacingScale,
+                    withoutBlockMaxWidth,
                     isInitialAppRender,
                     isInert,
                     withPosAttribute: true,
@@ -473,8 +490,10 @@ export function ContentView<Content extends ContentWithReferences>({
                 fileStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
+                screenScale: fileLayoutScreenScale,
                 platform,
                 spacingScale,
+                withoutBlockMaxWidth,
                 isInitialAppRender,
                 isInert,
                 withPosAttribute: true,
@@ -508,6 +527,8 @@ export function ContentView<Content extends ContentWithReferences>({
         accountStore,
         fileStore,
         spaceContext?.currentAccount,
+        fileLayoutScreenScale,
+        withoutBlockMaxWidth,
         isInitialAppRender,
         isInert,
         placeholder,
@@ -1297,6 +1318,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     routeLayout === "narrow"
                         ? contentStyles.narrowRouteLayoutDocClassName
                         : undefined,
+                    withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,

@@ -80,9 +80,10 @@ export class AwsFileProcessorService extends Construct {
     ) {
         super(parentConstruct, "FileProcessorService");
 
-        // First 750 hours per month of this instance type are free. That effectively
-        // translates to 1 free capacity of this instance type across our AWS account.
-        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.SMALL);
+        // File processing needs a lot of memory so we need larger instance sizes than
+        // other services. We've found image resizing particularly quickly runs out of
+        // memory when resizing large images.
+        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MEDIUM);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
@@ -178,7 +179,7 @@ export class AwsFileProcessorService extends Construct {
             // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
             // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
             // stuck in the "Provisioning" status forever.
-            memoryLimitMiB: 1934,
+            memoryLimitMiB: 3930,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -353,9 +354,14 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
 
     switch (instanceTypeString) {
         case "t4g.micro":
-            return 2;
         case "t4g.small":
+        case "t4g.medium":
+        case "t4g.large":
             return 2;
+        case "t4g.xlarge":
+            return 4;
+        case "t4g.2xlarge":
+            return 8;
         default: {
             throw new InternalError(
                 quote`Unknown vCPU count for instance type ${instanceTypeString}, please update \`getInstanceTypeVCpuCount()\` to handle this instance type`,

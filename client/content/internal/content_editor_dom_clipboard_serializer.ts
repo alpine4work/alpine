@@ -1,7 +1,6 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
@@ -20,7 +19,6 @@ import {
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -167,28 +165,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const fileStore = getFileClientStore(this._getSpaceId());
             const contentReferences = this._getContentReferences();
 
-            const fileById = new Map(
-                filterMapIterable(
-                    node.content.content,
-                    (childNode): [FileId, FileClientStoreData] | undefined => {
-                        if (childNode.type.name !== "file") return;
-
-                        const fileId: FileId = childNode.attrs.fileId;
-
-                        const fileReference = fileId
-                            ? contentReferences.fileById.get(fileId)
-                            : undefined;
-                        if (!fileReference) return;
-
-                        return [fileId, fileStore.getFileStore(fileReference).getSnapshot()];
-                    },
-                ),
-            );
-
-            const layouts = layoutContentFileParent(fileById, node, {
+            const layouts = layoutContentFileParent(node, {
                 screenWidth: getClientInfo().screenWidth,
                 platform: "desktop",
                 spacingScale: "small",
+                withoutBlockMaxWidth: false,
+                getFile: fileId => {
+                    const fileReference = contentReferences.fileById.get(fileId);
+                    if (!fileReference) return null;
+                    return fileStore.getFileStore(fileReference).getSnapshot();
+                },
             });
 
             const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.small;

@@ -73,10 +73,12 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         screenWidth,
         platform,
         spacingScale,
+        withoutBlockMaxWidth,
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
     },
 ): {[Key in keyof Files]: ContentFileLayout} {
     assert(files.length >= 1);
@@ -211,7 +213,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
     }
 
     const fileRowWidth = Math.min(
-        contentStyles.blockMaxWidthRem[platform] * remPx,
+        !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
         screenWidth - screenPaddingXRem[platform] * remPx * 2,
     );
 
@@ -344,10 +346,12 @@ export function computeContentFileFloatLayout(
         screenWidth,
         platform,
         spacingScale,
+        withoutBlockMaxWidth,
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        withoutBlockMaxWidth: boolean;
     },
 ): ContentFileLayout {
     const remPx = remPxBySpacingScale[spacingScale];
@@ -355,7 +359,7 @@ export function computeContentFileFloatLayout(
 
     const fileFloatMaxWidth = Math.round(
         Math.min(
-            contentStyles.blockMaxWidthRem[platform] * remPx,
+            !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
             screenWidth - screenPaddingXRem[platform] * remPx * 2,
         ) * contentStyles.fileFloatMaxWidthPercent,
     );

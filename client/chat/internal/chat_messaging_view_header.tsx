@@ -1,7 +1,6 @@
 import {Ref, useRef} from "react";
 import {
     getElementSafeAreaInsetBottomPx,
-    getElementSafeAreaInsetTopPx,
     getElementWindowSafeAreaInsetBottomPx,
 } from "~/client/design/safe_area_inset.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -60,7 +59,7 @@ export function ChatMessagingViewHeader({
             (NativeMobileBridge?.tabBar.height ?? 0);
 
         const height = Math.max(
-            minHeight + getElementSafeAreaInsetTopPx(element),
+            minHeight,
             viewHeight - (originalContentHeight - keyboardSafeAreaBottom - originalHeight),
         );
 
@@ -91,16 +90,13 @@ export function ChatMessagingViewHeader({
                 // server-rendering a chat with few messages where messages jump down. A flash
                 // we choose to accept since correct implementations are annoying.
                 ...(shouldRenderWithRelativePositioning
-                    ? {
-                          position: "relative",
-                          height: `calc(${chatMessagingViewHeaderMinHeight} + var(--safe-area-inset-top, 0px))`,
-                      }
+                    ? {position: "relative", height: chatMessagingViewHeaderMinHeight}
                     : {
                           position: "absolute",
                           top: offset,
                           left: 0,
                           right: 0,
-                          height: `calc(${chatMessagingViewHeaderMinHeight} + var(--safe-area-inset-top, 0px))`,
+                          height: chatMessagingViewHeaderMinHeight,
                       }),
             }}
         />
