@@ -1183,9 +1183,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -1201,9 +1201,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -1220,9 +1220,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };

@@ -160,7 +160,7 @@ export const docClassName = style({
 
 export const narrowRouteLayoutDocClassName = style({});
 
-export const selectionChangeDraggingClassName = style({});
+export const isDraggingSelectionDocClassName = style({});
 
 export const withoutBlockMaxWidthDocClassName = style({
     vars: {
@@ -1123,7 +1123,7 @@ export const fileImagePreviewPlaceholderClassName = style({
 // precedence than our CSS selector in `content_editor.css.ts` that changes the
 // cursor to `default` while the shift or alt key is pressed.
 globalStyle(
-    `${selectionChangeDraggingClassName}${selectionChangeDraggingClassName} ${fileClassName}`,
+    `${isDraggingSelectionDocClassName}${isDraggingSelectionDocClassName} ${fileClassName}`,
     {
         cursor: "inherit",
     },

@@ -153,7 +153,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
@@ -3213,9 +3213,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3231,9 +3231,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3250,9 +3250,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
