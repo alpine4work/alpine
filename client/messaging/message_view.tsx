@@ -76,7 +76,7 @@ import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notificatio
 // NOCOMMIT: Test
 //
 // - Message editing
-// - Message timestamps
+// - Mobile
 
 /**
  * The buffered height we use for virtualized message views.
@@ -493,7 +493,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (!parentMessage) return null;
 
         return (
-            <MessageViewParent
+            <MessageViewParentMessage
                 messageNoun={messageNoun}
                 parentMessage={parentMessage}
                 onJumpToMessage={onJumpToMessage}
@@ -664,6 +664,18 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
                     return newActionSections;
                 }}
+                extraOverlayBottom={
+                    <MessageViewMenuCreatedTime
+                        createdTime={message.createdTime}
+                        // Only show the updated time if the user can't hover over the "(edited)" text
+                        // to see it.
+                        contentUpdatedTime={
+                            !canPrimaryInputHover && message.payload.type === "Content"
+                                ? message.payload.contentUpdatedTime
+                                : null
+                        }
+                    />
+                }
             >
                 <div
                     ref={containerRef}
@@ -909,7 +921,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     );
 }
 
-function MessageViewParent<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+function MessageViewParentMessage<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun,
     parentMessage,
     onJumpToMessage,
@@ -1037,6 +1049,65 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 </div>
             </div>
         </FocusRing>
+    );
+}
+
+function MessageViewMenuCreatedTime({
+    createdTime,
+    contentUpdatedTime,
+}: {
+    createdTime: Date;
+    contentUpdatedTime: Date | null;
+}) {
+    const {timeZone, locale} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
+
+    const formattedCreatedTime = useMemo(
+        () =>
+            formatMessageViewTimestampDividerDate(createdTime, {
+                currentTime,
+                locale,
+                timeZone,
+            }),
+        [createdTime, currentTime, locale, timeZone],
+    );
+
+    const formattedContentUpdatedTime = useMemo(
+        () =>
+            contentUpdatedTime
+                ? formatMessageViewTimestampDividerDate(contentUpdatedTime, {
+                      currentTime,
+                      locale,
+                      timeZone,
+                  })
+                : null,
+        [contentUpdatedTime, currentTime, locale, timeZone],
+    );
+
+    return (
+        <>
+            <div className={sprinkles({padding: "1"})}>
+                <div className={sprinkles({width: "full", borderBottom: "grey-5"})} />
+            </div>
+            <div
+                className={sprinkles({
+                    paddingX: "2",
+                    paddingY: {desktop: "1", mobile: "1.5"},
+                    fontSize: "50",
+                    color: "grey-50",
+                })}
+            >
+                <div>
+                    {formattedContentUpdatedTime && <>Sent: </>}
+                    {formattedCreatedTime}
+                </div>
+                {formattedContentUpdatedTime && (
+                    <div className={sprinkles({paddingTop: "1"})}>
+                        Edited: {formattedContentUpdatedTime}
+                    </div>
+                )}
+            </div>
+        </>
     );
 }
 

@@ -38,8 +38,16 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
-const contextMenuActionsSymbol = Symbol("ContextMenu.actions");
-const contextMenuMergeReadonlyCopyActionSymbol = Symbol("ContextMenu.mergeReadonlyCopyAction");
+const contextMenuEventExtensionSymbol = Symbol("contextMenuEventExtension");
+
+type ContextMenuEventExtension = {
+    actions?: Array<ReadonlyArray<MenuAction>>;
+    mergeReadonlyCopyAction?: (
+        actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+        action: MenuStandardAction,
+    ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+    extraOverlayBottom?: ReactNode;
+};
 
 /**
  * Add context menu actions to the `contextmenu` `MouseEvent`. Generally prefer
@@ -61,28 +69,30 @@ const contextMenuMergeReadonlyCopyActionSymbol = Symbol("ContextMenu.mergeReadon
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function addContextMenuActions(
-    event: MouseEvent & {
-        [contextMenuActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
-    },
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
     actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
 ) {
-    const eventActions = (event[contextMenuActionsSymbol] ??= []);
-    eventActions.push(...actions);
+    const extension = (event[contextMenuEventExtensionSymbol] ??= {});
+    (extension.actions ??= []).push(...actions);
 }
 
-function addContextMenuMergeReadonlyCopyAction(
-    event: MouseEvent & {
-        [contextMenuMergeReadonlyCopyActionSymbol]?: (
-            actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
-            action: MenuStandardAction,
-        ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
-    },
+function setContextMenuMergeReadonlyCopyAction(
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
     mergeReadonlyCopyActionSymbol: (
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
         action: MenuStandardAction,
     ) => ReadonlyArray<ReadonlyArray<MenuAction>>,
 ) {
-    event[contextMenuMergeReadonlyCopyActionSymbol] = mergeReadonlyCopyActionSymbol;
+    const extension = (event[contextMenuEventExtensionSymbol] ??= {});
+    extension.mergeReadonlyCopyAction = mergeReadonlyCopyActionSymbol;
+}
+
+function setContextMenuExtraOverlayBottom(
+    event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
+    extraOverlayBottom: ReactNode,
+) {
+    const extension = (event[contextMenuEventExtensionSymbol] ??= {});
+    extension.extraOverlayBottom = extraOverlayBottom;
 }
 
 /**
@@ -113,18 +123,27 @@ export function useContextMenuActionsRef(
                   actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
                   action: MenuStandardAction,
               ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+              extraOverlayBottom?: ReactNode;
           },
 ): RefCallback<HTMLElement> {
     const handleContextMenu = useEvent((event: MouseEvent) => {
-        const {actions, mergeReadonlyCopyAction} =
+        const {actions, mergeReadonlyCopyAction, extraOverlayBottom} =
             isReadonlyArray(actionsOrOptions) || typeof actionsOrOptions === "function"
-                ? {actions: actionsOrOptions, mergeReadonlyCopyAction: undefined}
+                ? {
+                      actions: actionsOrOptions,
+                      mergeReadonlyCopyAction: undefined,
+                      extraOverlayBottom: undefined,
+                  }
                 : actionsOrOptions;
 
         addContextMenuActions(event, typeof actions === "function" ? actions(event) : actions);
 
         if (mergeReadonlyCopyAction !== undefined) {
-            addContextMenuMergeReadonlyCopyAction(event, mergeReadonlyCopyAction);
+            setContextMenuMergeReadonlyCopyAction(event, mergeReadonlyCopyAction);
+        }
+
+        if (extraOverlayBottom !== undefined) {
+            setContextMenuExtraOverlayBottom(event, extraOverlayBottom);
         }
     });
 
@@ -181,6 +200,7 @@ export function useContextMenuActionsRef(
 export function ContextMenuActions({
     actions,
     mergeReadonlyCopyAction,
+    extraOverlayBottom,
     children,
 }: {
     actions: MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>;
@@ -188,12 +208,15 @@ export function ContextMenuActions({
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
         action: MenuStandardAction,
     ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+    extraOverlayBottom?: ReactNode;
     children: ReactElement;
 }) {
     return useElementWithRef(
         children,
         useContextMenuActionsRef(
-            mergeReadonlyCopyAction !== undefined ? {actions, mergeReadonlyCopyAction} : actions,
+            mergeReadonlyCopyAction !== undefined || extraOverlayBottom !== undefined
+                ? {actions, mergeReadonlyCopyAction, extraOverlayBottom}
+                : actions,
         ),
     );
 }
@@ -223,6 +246,7 @@ type ContextMenuInstanceState = {
     readonly x: number;
     readonly y: number;
     readonly actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+    readonly extraOverlayBottom: ReactNode;
     readonly focusedMenuItemIndex: number | null;
     readonly targetElement: Element;
 };
@@ -257,13 +281,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
     // right-click menu system where it makes sense.
     useEffect(() => {
         const handleContextMenu = (
-            event: MouseEvent & {
-                [contextMenuActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
-                [contextMenuMergeReadonlyCopyActionSymbol]?: (
-                    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
-                    action: MenuStandardAction,
-                ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
-            },
+            event: MouseEvent & {[contextMenuEventExtensionSymbol]?: ContextMenuEventExtension},
         ) => {
             // The Chrome mobile device debugger (and so probably also Chrome on Android)
             // fires the `contextmenu` event after a long press. This breaks any long press
@@ -282,8 +300,9 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
             event.preventDefault();
 
-            let actions: Array<ReadonlyArray<MenuAction>> = event[contextMenuActionsSymbol] ?? [];
-            const mergeReadonlyCopyAction = event[contextMenuMergeReadonlyCopyActionSymbol];
+            const extension = event[contextMenuEventExtensionSymbol] ?? {};
+            let actions: Array<ReadonlyArray<MenuAction>> = extension.actions ?? [];
+            const {mergeReadonlyCopyAction, extraOverlayBottom} = extension;
 
             // Emulate default browser behavior of selecting word the user right clicked.
             selectWordIfSelectionEmpty(event.target);
@@ -431,6 +450,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             x: event.clientX,
                             y: event.clientY,
                             actions,
+                            extraOverlayBottom,
                             focusedMenuItemIndex: null,
                             targetElement,
                         },
@@ -486,6 +506,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         overlay={
                             <ContextMenu
                                 actions={instance.actions}
+                                extraBottom={instance.extraOverlayBottom}
                                 focusedMenuItemIndex={instance.focusedMenuItemIndex}
                                 onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
                                     setContextMenuState(contextMenuState => {
@@ -555,12 +576,14 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 const ContextMenu = forwardRef(function ContextMenu(
     {
         actions: nestedActions,
+        extraBottom,
         focusedMenuItemIndex,
         onFocusedMenuItemIndexChange,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+        extraBottom: ReactNode;
         focusedMenuItemIndex: number | null;
         onFocusedMenuItemIndexChange: (focusedMenuItemIndex: number | null) => void;
         onCloseWithAnimation: () => void;
@@ -881,6 +904,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                         throw exhaustive(action);
                 }
             })}
+            {extraBottom}
         </div>
     );
 });

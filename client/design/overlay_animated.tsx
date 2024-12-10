@@ -1,5 +1,5 @@
 import {AnimationControls, animate} from "motion";
-import {Ref, forwardRef, useEffect, useRef, useState} from "react";
+import {Ref, forwardRef, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
@@ -103,10 +103,6 @@ function OverlayAnimated(
     }
 
     if (state !== actualState) setState(state);
-
-    useEffect(() => {
-        console.log("<OverlayAnimated>", {isVisible, state});
-    }, [isVisible, state]);
 
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayRef = useRef<HTMLElement>(null);
