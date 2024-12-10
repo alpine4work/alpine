@@ -2,7 +2,7 @@
 // `client/messaging` by packages that don't want to take a dependency on
 // `client/messaging`. For example `client/content`.
 
-import {contentStyles, fontSizes} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -19,15 +19,18 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 export const messageView2AvatarSize = "6";
 export const messageView2RailGap = "2";
 
+// Ideally, `messageView2AccountNameHeight` is a whole pixel value on all
+// spacing scales so that `<MessageView>` heights will be measured in full
+// pixels.
+//
 // NOCOMMIT: Rename "message view 2" stuff.
 export const messageView2AccountNameFontSize = "50";
-export const messageView2AccountNameMarginBottom = "0";
+export const messageView2AccountNameHeight = "4";
 
 export const messageView2AvatarOffsetYPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
-        convertRemLengthToPx(fontSizes[messageView2AccountNameFontSize].lineHeight, spacingScale) +
-        convertRemLengthToPx(messageView2AccountNameMarginBottom, spacingScale) +
+        convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
         contentStyles.paragraphLineHeightPx[spacingScale] / 2 -
         convertRemLengthToPx(messageView2AvatarSize, spacingScale) / 2,
 );
@@ -90,8 +93,7 @@ export const messageViewEditorOutlineMarginLeft = addRemLengths(
 
 export const messageViewNotMergedEditorOutlineMarginTop = addRemLengths(
     messageViewOutlineMarginY,
-    fontSizes[messageView2AccountNameFontSize].lineHeight,
-    messageView2AccountNameMarginBottom,
+    messageView2AccountNameHeight,
 );
 
 export const messageViewNotMergedEditorOutlineMarginBottomPx = createObjectFromKeys(
@@ -99,11 +101,7 @@ export const messageViewNotMergedEditorOutlineMarginBottomPx = createObjectFromK
     spacingScale =>
         messageViewNotMergedOutlineMinHeightPx[spacingScale] -
         (convertRemLengthToPx(messageViewOutlineMarginY, spacingScale) +
-            convertRemLengthToPx(
-                fontSizes[messageView2AccountNameFontSize].lineHeight,
-                spacingScale,
-            ) +
-            convertRemLengthToPx(messageView2AccountNameMarginBottom, spacingScale) +
+            convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
             contentStyles.paragraphLineHeightPx[spacingScale]),
 );
 

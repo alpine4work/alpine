@@ -32,7 +32,7 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
     messageView2AccountNameFontSize,
-    messageView2AccountNameMarginBottom,
+    messageView2AccountNameHeight,
     messageView2AvatarOffsetYPx,
     messageView2AvatarSize,
     messageView2RailGap,
@@ -523,7 +523,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             <div
                 className={sprinkles({
                     paddingTop: !isFirstMessage ? "12" : undefined,
-                    paddingBottom: "5",
+                    paddingBottom: "4",
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",
@@ -536,6 +536,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     // things out.
                     paddingRight: centeringMarginRight,
                 })}
+                style={{
+                    // Use a spacing value that evaluates to a whole pixel number on all spacing
+                    // scales. This way `<MessageView>` heights can be measured in whole pixels.
+                    lineHeight: spacing["4"],
+                }}
             >
                 {formattedDate}
             </div>
@@ -786,9 +791,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     className={sprinkles({
                                         fontSize: messageView2AccountNameFontSize,
                                         fontStyle: "truncate",
-                                        paddingBottom: messageView2AccountNameMarginBottom,
                                         color: "grey-60",
                                     })}
+                                    style={{
+                                        lineHeight: spacing[messageView2AccountNameHeight],
+                                    }}
                                 >
                                     {messageAuthor.name}
                                 </div>
