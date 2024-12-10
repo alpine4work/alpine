@@ -55,6 +55,12 @@ export type MenuAction = MenuStandardAction | MenuCustomAction | MenuChildrenAct
 
 export type MenuStandardAction = {
     /**
+     * Unique key for the action. Optional, by default we'll use the action index
+     * as the key.
+     */
+    readonly key?: Key;
+
+    /**
      * What label do we present to the user for this action?
      *
      * Every action must have a unique label because we also use this string,

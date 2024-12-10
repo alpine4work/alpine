@@ -1,13 +1,14 @@
 import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {timeline} from "motion";
-import {ArrowArcLeft, SpinnerGap, Trash} from "phosphor-react";
+import {ArrowArcLeft, ArrowArcRight, SpinnerGap, Trash} from "phosphor-react";
 import {
     Fragment,
     Memo,
     MutableRefObject,
-    ReactNode,
+    useCallback,
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -68,11 +69,13 @@ import {
     messageView2AvatarOffsetYRem,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
+    backgroundColorVar,
     colorSchemeVars,
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
     fontSizes,
+    messagingStyles,
     spinAnimationClassName,
     sprinkles,
     wiggleAnimation,
@@ -110,6 +113,12 @@ import {
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {usePress} from "@react-aria/interactions";
+import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {MenuAction} from "~/client/design/menu.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {assignInlineVars} from "@vanilla-extract/dynamic";
 
 // NOCOMMIT: Test
 //
@@ -204,6 +213,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
+    const openContextMenuActions = useContextMenuActions();
 
     const messageAuthor = useAccountModel(message.author);
 
@@ -212,11 +222,31 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const messageRef = useRef<HTMLDivElement>(null);
     const touchReplyIconRef = useRef<HTMLDivElement>(null);
 
-    const shouldMergeWithPreviousMessage: boolean =
-        !!previousMessage && shouldMergeMessages(previousMessage, message);
+    const {
+        shouldMergeWithPreviousMessage,
+        shouldMergeWithNextMessage,
+        shouldShowTimestampBeforeMessage,
+    } = useMemo(() => {
+        const shouldMergeWithPreviousMessage: boolean =
+            previousMessage !== null && shouldMergeMessages(previousMessage, message);
 
-    const shouldMergeWithNextMessage: boolean =
-        !!nextMessage && shouldMergeMessages(message, nextMessage);
+        const shouldMergeWithNextMessage: boolean =
+            nextMessage !== null && shouldMergeMessages(message, nextMessage);
+
+        const shouldShowTimestampBeforeMessage: boolean = isFirstMessage
+            ? !roomDisplayedCreatedTime ||
+              differenceInMinutes(message.createdTime, roomDisplayedCreatedTime) >
+                  minMessageViewTimestampDividerElapsedMinutes
+            : previousMessage !== null &&
+              differenceInMinutes(message.createdTime, previousMessage.createdTime) >
+                  minMessageViewTimestampDividerElapsedMinutes;
+
+        return {
+            shouldMergeWithPreviousMessage,
+            shouldMergeWithNextMessage,
+            shouldShowTimestampBeforeMessage,
+        };
+    }, [isFirstMessage, message, nextMessage, previousMessage, roomDisplayedCreatedTime]);
 
     let marginBottom: Spacing;
 
@@ -249,44 +279,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
               )
             : null;
 
-    // Manually implement hovering state by attaching event listeners (instead of
-    // using `useHover()` from `react-aria`). React doesn't deliver a
-    // `pointerleave` event when the pointer goes into a portalled element.
-    //
-    // NOCOMMIT: Or is focus within?
-    const [isHovered, setIsHovered] = useState(false);
-    if (platform === "mobile" && isHovered) setIsHovered(false);
-
-    // NOTE(calebmer): This can't be `onPointerEnter` or `onPointerLeave` props.
-    // I've found that React doesn't call `onPointerLeave` when the
-    // `<MessageViewActions>` menu closes.
-    useEffect(() => {
-        if (platform === "mobile") return;
-
-        const containerElement = assertExists(containerRef.current);
-
-        const handlePointerEnter = (event: PointerEvent) => {
-            // Ignore iOS touch pointer enter/leave events.
-            if (event.pointerType !== "mouse") return;
-
-            setIsHovered(true);
-        };
-
-        const handlePointerLeave = (event: PointerEvent) => {
-            // Ignore iOS touch pointer enter/leave events.
-            if (event.pointerType !== "mouse") return;
-
-            setIsHovered(false);
-        };
-
-        containerElement.addEventListener("pointerenter", handlePointerEnter);
-        containerElement.addEventListener("pointerleave", handlePointerLeave);
-        return () => {
-            containerElement.removeEventListener("pointerenter", handlePointerEnter);
-            containerElement.removeEventListener("pointerleave", handlePointerLeave);
-        };
-    }, []);
-
     const messageEditingForThisMessage =
         // If we're on a mobile device (with keyboard toolbars) then instead of editing
         // a message inline, we edit it within the sticky `<MessageInput>`.
@@ -299,17 +291,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             : null;
 
     const isEditingThisMessage = !!messageEditingForThisMessage;
-
-    const onReplyToMessage = useEvent(() => {
-        // If we're currently editing a message on mobile then cancel editing when
-        // trying to reply to a message. Otherwise `<MessageInput>` will override the
-        // reply state with editing state.
-        if (platform === "mobile" && messageEditing.state.isEditing) {
-            messageEditing.dispatch({type: "CancelEditing"});
-        }
-
-        onReplyToMessageProp();
-    });
 
     const messageEditorRef = useRef<MessageViewEditorRef>(null);
     const returnFocusAfterMessageEditingRef = useRef<(() => void) | null>(null);
@@ -352,6 +333,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
     }, [messageEditing.state, messageEditingForThisMessage]);
 
+    // NOCOMMIT
     const [shouldShowOptimisticLoadingIndicator, setShouldShowOptimisticLoadingShimmer] =
         useState(false);
 
@@ -438,326 +420,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
         return null;
     }, [message.payload]);
-
-    const hasParentMessage = !!parentMessage;
-
-    const [showTouchReplyIcon, setShowTouchReplyIcon] = useState(false);
-
-    useEffect(() => {
-        // NOCOMMIT: Re-enable effect
-        if (true) return;
-
-        if (message.payload.type !== "Content") return;
-
-        // Reattach event listeners if the message payload changes. The `messageRef`
-        // element may switch between deleted, emoji, and regular messages.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        message.payload;
-
-        // If the message is being edited then `messageElement` and other refs won't be
-        // mounted.
-        if (isEditingThisMessage) return;
-
-        const messageElement = assertExists(messageRef.current);
-        const containerElement = assertExists(containerRef.current);
-        const accountNameElement = hasParentMessage ? assertExists(accountNameRef.current) : null;
-        const parentMessageElement = hasParentMessage
-            ? assertExists(parentMessageRef.current)
-            : null;
-
-        let touchState: {
-            gesture: "Reply" | "Other" | null;
-            hasReplyGestureActivated: boolean;
-            isReplyGestureDisabled: boolean;
-            initialClientX: number;
-            initialClientY: number;
-            longTouchTimeout: Timeout | null;
-            finishGesture: (() => Promise<void>) | null;
-        } | null = null;
-
-        const handleTouchStart = (event: TouchEvent) => {
-            touchState?.longTouchTimeout?.clear();
-            void touchState?.finishGesture?.();
-            touchState = null;
-
-            // If the user can hover, let them hover over the message to see message
-            // actions. Instead of opening a lightbox on touch which conflicts with text
-            // selection.
-            if (canPrimaryInputHover) {
-                setShowTouchReplyIcon(false);
-                return;
-            }
-
-            if (event.touches.length > 1) {
-                setShowTouchReplyIcon(false);
-                return;
-            }
-
-            let isReplyGestureDisabled = false;
-
-            if (event.target instanceof HTMLElement) {
-                let element: HTMLElement | null = event.target;
-                while (element && messageElement.contains(element)) {
-                    // If the user is touching a link, then a long press won't open the lightbox.
-                    // Instead it will open the link.
-                    if (element.classList.contains(linkClassName)) {
-                        return;
-                    }
-
-                    const {overflowX} = getComputedStyle(element);
-
-                    // If the user is touching a horizontally scrollable element (e.g. a code
-                    // block) then disable the reply gesture if it's been scrolled since swiping
-                    // horizontally should scroll. Not reply.
-                    if (
-                        (overflowX === "scroll" ||
-                            (overflowX === "auto" && element.scrollWidth > element.clientWidth)) &&
-                        element.scrollLeft > 0
-                    ) {
-                        isReplyGestureDisabled = true;
-                    }
-
-                    element = element.parentElement;
-                }
-            }
-
-            // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
-            // last 0.5 seconds][1] before firing.
-            //
-            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
-            const longTouchTimeout = createTimeout(() => {
-                if (touchState?.longTouchTimeout === longTouchTimeout)
-                    touchState.longTouchTimeout = null;
-
-                // Unfocus whatever the focused element is to close the keyboard.
-                if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur();
-                }
-
-                const initialMessageTop = (
-                    hasParentMessage ? containerElement : messageElement
-                ).getBoundingClientRect().top;
-
-                NativeMobileBridge?.haptic.playMediumImpact();
-
-                setTouchLightboxState({
-                    initialMessageTop,
-                    getMessageTop: () => {
-                        // Safeguard against the message being removed from the DOM.
-                        if (!document.body.contains(messageElement)) return initialMessageTop;
-
-                        return (
-                            hasParentMessage ? containerElement : messageElement
-                        ).getBoundingClientRect().top;
-                    },
-                });
-            }, 500);
-
-            // Support the case where we have 0 touches since this happens in integration
-            // tests. Shouldn't happen in a production browser.
-            const touch = event.touches[0] ?? {clientX: 0, clientY: 0};
-
-            touchState = {
-                gesture: null,
-                hasReplyGestureActivated: false,
-                isReplyGestureDisabled,
-                initialClientX: touch.clientX,
-                initialClientY: touch.clientY,
-                longTouchTimeout,
-                finishGesture: null,
-            };
-            setShowTouchReplyIcon(true);
-        };
-
-        const handleTouchEnd = () => {
-            touchState?.longTouchTimeout?.clear();
-            const gestureFinishedPromise = touchState?.finishGesture?.();
-            const hasReplyGestureActivated = touchState?.hasReplyGestureActivated ?? false;
-            touchState = null;
-
-            if (!gestureFinishedPromise) {
-                setShowTouchReplyIcon(false);
-            } else {
-                void gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
-            }
-
-            if (hasReplyGestureActivated) {
-                onReplyToMessage();
-            }
-        };
-
-        const handleTouchMove = (event: TouchEvent) => {
-            touchState?.longTouchTimeout?.clear();
-            if (touchState) touchState.longTouchTimeout = null;
-
-            if (!touchState || event.touches.length !== 1) return;
-            const touch = event.touches[0]!;
-
-            if (touchState.gesture === null) {
-                const clientXDifferenceMagnitude = Math.abs(
-                    touch.clientX - touchState.initialClientX,
-                );
-                const clientYDifferenceMagnitude = Math.abs(
-                    touch.clientY - touchState.initialClientY,
-                );
-
-                if (clientXDifferenceMagnitude > clientYDifferenceMagnitude) {
-                    if (touch.clientX < touchState.initialClientX) {
-                        touchState.gesture = "Other";
-                    } else if (touchState.isReplyGestureDisabled) {
-                        touchState.gesture = "Other";
-                    } else {
-                        touchState.gesture = "Reply";
-
-                        touchState.finishGesture = () => {
-                            const elements = [messageElement];
-                            if (accountNameElement) elements.push(accountNameElement);
-                            if (parentMessageElement) elements.push(parentMessageElement);
-
-                            const touchReplyIconElement = touchReplyIconRef.current;
-
-                            const animation = timeline(
-                                [
-                                    [
-                                        elements,
-                                        {x: 0},
-                                        {
-                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                                            // default `motion` turns it off.
-                                            // https://motion.dev/guides/performance#webkits-exceptions
-                                            allowWebkitAcceleration: true,
-                                        },
-                                    ],
-                                    [
-                                        touchReplyIconElement ?? [],
-                                        {x: 0, opacity: 0},
-                                        {
-                                            at: 0,
-                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                            // Make sure we use hardware acceleration for this animation in WebKit. By
-                                            // default `motion` turns it off.
-                                            // https://motion.dev/guides/performance#webkits-exceptions
-                                            allowWebkitAcceleration: true,
-                                        },
-                                    ],
-                                ],
-                                {
-                                    duration: 0.5,
-                                },
-                            );
-
-                            return animation.finished;
-                        };
-                    }
-                } else if (clientXDifferenceMagnitude < clientYDifferenceMagnitude) {
-                    touchState.gesture = "Other";
-                }
-            }
-
-            if (touchState.gesture === "Reply") {
-                event.preventDefault();
-
-                const translateX = Math.max(
-                    0,
-                    (touch.clientX - touchState.initialClientX - 10) *
-                        // We slow the drag animation down to make it feel like the user is dragging
-                        // something heavy. But also this ends up smoothing out the animation! We only
-                        // get `touchmove` events every whole pixel. But on devices like iPhone every
-                        // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
-                        // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
-                        // across multiple hardware pixels per move.
-                        (1 / 3),
-                );
-
-                const elements = [messageElement];
-                if (accountNameElement) elements.push(accountNameElement);
-                if (parentMessageElement) elements.push(parentMessageElement);
-
-                const touchReplyIconElement = touchReplyIconRef.current;
-
-                const remPx = getRemPxWithoutListening();
-
-                const maxTouchReplyIconElementTranslateX =
-                    messageViewTouchReplyIconStartOffsetRem * remPx;
-
-                const touchReplyIconElementTranslateX = Math.min(
-                    Math.max(
-                        0,
-                        translateX -
-                            // Start translating the touch reply icon once the message bubble has moved out
-                            // of the way.
-                            (messageViewTouchReplyIconSizeRem -
-                                messageViewTouchReplyIconStartOffsetRem) *
-                                remPx,
-                    ) *
-                        // The touch reply icon should move slower than the message bubble.
-                        (1 / 2),
-                    // The touch reply icon finishes its animation once its left edge is where the
-                    // message bubble left edge started.
-                    maxTouchReplyIconElementTranslateX,
-                );
-
-                if (touchReplyIconElementTranslateX === maxTouchReplyIconElementTranslateX) {
-                    if (!touchState.hasReplyGestureActivated) {
-                        NativeMobileBridge?.haptic.playHeavyImpact();
-                    }
-
-                    touchState.hasReplyGestureActivated = true;
-                } else {
-                    touchState.hasReplyGestureActivated = false;
-                }
-
-                timeline(
-                    [
-                        [elements, {x: translateX}],
-                        [
-                            touchReplyIconElement ?? [],
-                            {
-                                x: touchReplyIconElementTranslateX,
-                                opacity:
-                                    touchReplyIconElementTranslateX /
-                                    maxTouchReplyIconElementTranslateX,
-                            },
-                            {at: 0},
-                        ],
-                    ],
-                    {duration: 0},
-                );
-            }
-        };
-
-        const handleTouchCancel = () => {
-            touchState?.longTouchTimeout?.clear();
-            const gestureFinishedPromise = touchState?.finishGesture?.();
-            touchState = null;
-
-            if (!gestureFinishedPromise) {
-                setShowTouchReplyIcon(false);
-            } else {
-                void gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
-            }
-        };
-
-        messageElement.addEventListener("touchstart", handleTouchStart);
-        messageElement.addEventListener("touchend", handleTouchEnd);
-        messageElement.addEventListener("touchmove", handleTouchMove, {passive: false});
-        messageElement.addEventListener("touchcancel", handleTouchCancel);
-
-        return () => {
-            messageElement.removeEventListener("touchstart", handleTouchStart);
-            messageElement.removeEventListener("touchend", handleTouchEnd);
-            messageElement.removeEventListener("touchmove", handleTouchMove);
-            messageElement.removeEventListener("touchcancel", handleTouchCancel);
-        };
-    }, [
-        canPrimaryInputHover,
-        hasParentMessage,
-        isEditingThisMessage,
-        message.payload,
-        onReplyToMessage,
-    ]);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
@@ -890,13 +552,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [messageNoun, onJumpToMessage, parentMessage]);
 
     const timestampDividerNode = useMemo(() => {
-        const shouldShowTimestampBeforeMessage = isFirstMessage
-            ? !roomDisplayedCreatedTime ||
-              differenceInMinutes(message.createdTime, roomDisplayedCreatedTime) >
-                  minMessageViewTimestampDividerElapsedMinutes
-            : previousMessage &&
-              differenceInMinutes(message.createdTime, previousMessage.createdTime) >
-                  minMessageViewTimestampDividerElapsedMinutes;
         if (!shouldShowTimestampBeforeMessage) return null;
 
         const formattedDate = formatMessageViewTimestampDividerDate(message.createdTime, {
@@ -908,8 +563,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? messageViewMarginY : undefined,
-                    paddingBottom: messageViewMarginY,
+                    paddingTop: !isFirstMessage ? "12" : undefined,
+                    paddingBottom: "5",
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",
@@ -932,10 +587,99 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         isFirstMessage,
         locale,
         message.createdTime,
-        previousMessage,
-        roomDisplayedCreatedTime,
+        shouldShowTimestampBeforeMessage,
         timeZone,
     ]);
+
+    const id = useId();
+    const isContextMenuOpenForThisMessage = useMemo(
+        () =>
+            openContextMenuActions?.some(subActions =>
+                subActions.some(action => !action.withCustomLayout && action.key === id),
+            ),
+        [openContextMenuActions, id],
+    );
+
+    // Some edge cases to test:
+    //
+    // - Select multiple messages (should only show "Copy")
+    // - Select text in one message then right click the parent message of another
+    //   (should show right click actions for the attached message)
+    const getContextMenuActions = useEvent((event: MouseEvent) => {
+        const containerElement = assertExists(containerRef.current);
+        const selection = window.getSelection();
+
+        // If the `contextmenu` event target is outside of the selection then empty out
+        // the selection. The user is right-clicking this message, not the selection.
+        // This mirrors the behavior of `<ContextMenuContextProvider>` which calls
+        // `selection?.empty()` as well if `event.target` is outside the selection.
+        if (event.target instanceof Node && selection?.containsNode(event.target, true)) {
+            // If the selection spans multiple messages then we don't want to add context
+            // menu actions for a single message. Instead we should only show "Copy".
+            if (
+                !containerElement.contains(selection.anchorNode) ||
+                !containerElement.contains(selection.focusNode)
+            ) {
+                return [];
+            }
+        } else {
+            selection?.empty();
+        }
+
+        const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+        if (message.payload.type === "Content") {
+            contextMenuActions.push([
+                {
+                    label: "Reply",
+                    icon: <ArrowArcRight />,
+                    iconPlacement: "end",
+                    onPress: () => {
+                        // If we're currently editing a message on mobile then cancel editing when
+                        // trying to reply to a message. Otherwise `<MessageInput>` will override the
+                        // reply state with editing state.
+                        if (platform === "mobile" && messageEditing.state.isEditing) {
+                            messageEditing.dispatch({type: "CancelEditing"});
+                        }
+
+                        onReplyToMessageProp();
+                    },
+                },
+            ]);
+        }
+
+        contextMenuActions.push([
+            {
+                key: id,
+                label: "Copy link",
+                isDisabled: message.isOptimistic,
+                pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+                onPress: async () => {
+                    if (message.isOptimistic) return;
+                    await writeTextToClipboard(getMessageUrl(message.index).toString());
+                },
+            },
+        ]);
+
+        if (message.payload.type === "Content") {
+            contextMenuActions.push([
+                {
+                    label: "Edit",
+                    onPress: () => {
+                        // NOCOMMIT
+                    },
+                },
+                {
+                    label: "Delete",
+                    onPress: () => {
+                        setShowDeleteConfirmationDialog(true);
+                    },
+                },
+            ]);
+        }
+
+        return contextMenuActions;
+    });
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
@@ -947,86 +691,115 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     return (
         <>
             {timestampDividerNode}
-            <div
-                ref={containerRef}
-                className={sprinkles({
-                    width: "full",
-                    maxWidth: contentStyles.contentMaxWidth,
-                    marginX: "auto",
-                    paddingX,
-                    paddingBottom: marginBottom,
-                })}
-                style={{
-                    animation: shouldHighlight ? wiggleAnimation : undefined,
-                }}
-                data-testid={
-                    process.env.NODE_ENV !== "production"
-                        ? `MessageView:${
-                              message.isOptimistic
-                                  ? `optimistic:${message.optimisticId}`
-                                  : `${message.getRoomKey()}:${message.index}`
-                          }`
-                        : undefined
-                }
-            >
-                {parentMessageNode}
-                <div
-                    className={sprinkles({
-                        marginX: "center",
-                        position: "relative",
-                        zIndex: "0",
-                        display: "flex",
-                        gap: messageView2RailGap,
-                    })}
-                >
-                    {useMemo(
-                        () => (
-                            <div
-                                className={sprinkles({
-                                    flexShrink: "0",
-                                    width: messageView2AvatarSize,
-                                })}
-                            >
-                                {!shouldMergeWithPreviousMessage && (
-                                    <div
-                                        className={sprinkles({position: "relative"})}
-                                        style={{top: messageView2AvatarOffsetY}}
-                                    >
-                                        <AccountAvatar
-                                            account={messageAuthor}
-                                            size={messageView2AvatarSize}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+            <ContextMenuActions
+                actions={getContextMenuActions}
+                // Merge the text copy action into the "Copy link" section.
+                mergeReadonlyCopyAction={(actionSections, copyTextAction) => {
+                    const copyLinkActionSectionIndex = actionSections.findIndex(actionSection =>
+                        actionSection.some(
+                            action => !action.withCustomLayout && action.label === "Copy link",
                         ),
-                        [messageAuthor, shouldMergeWithPreviousMessage],
-                    )}
+                    );
+
+                    if (copyLinkActionSectionIndex === -1) {
+                        return [[copyTextAction], ...actionSections];
+                    }
+
+                    const newActionSections = [...actionSections];
+
+                    newActionSections[copyLinkActionSectionIndex] = [
+                        {...copyTextAction, label: "Copy text"},
+                        ...newActionSections[copyLinkActionSectionIndex]!,
+                    ];
+
+                    return newActionSections;
+                }}
+            >
+                <div
+                    ref={containerRef}
+                    className={sprinkles({
+                        width: "full",
+                        maxWidth: contentStyles.contentMaxWidth,
+                        marginX: "auto",
+                        paddingX,
+                        paddingBottom: marginBottom,
+                    })}
+                    style={{
+                        animation: shouldHighlight ? wiggleAnimation : undefined,
+                    }}
+                    data-testid={
+                        process.env.NODE_ENV !== "production"
+                            ? `MessageView:${
+                                  message.isOptimistic
+                                      ? `optimistic:${message.optimisticId}`
+                                      : `${message.getRoomKey()}:${message.index}`
+                              }`
+                            : undefined
+                    }
+                >
+                    {parentMessageNode}
                     <div
-                        className={sprinkles({flexGrow: "1"})}
-                        style={{
-                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                            // have `min-width: auto` which extends with content.
-                            // https://stackoverflow.com/a/66689926/1568890
-                            minWidth: 0,
-                        }}
+                        className={sprinkles({
+                            marginX: "center",
+                            position: "relative",
+                            zIndex: "0",
+                            display: "flex",
+                            gap: messageView2RailGap,
+                        })}
                     >
-                        {!shouldMergeWithPreviousMessage && (
-                            <div
-                                className={sprinkles({
-                                    fontSize: messageView2AccountNameFontSize,
-                                    fontStyle: "truncate",
-                                    paddingBottom: messageView2AccountNameMarginBottom,
-                                    color: "grey-60",
-                                })}
-                            >
-                                {messageAuthor.name}
-                            </div>
+                        {useMemo(
+                            () => (
+                                <div
+                                    className={sprinkles({
+                                        flexShrink: "0",
+                                        width: messageView2AvatarSize,
+                                    })}
+                                >
+                                    {!shouldMergeWithPreviousMessage && (
+                                        <div
+                                            className={sprinkles({position: "relative"})}
+                                            style={{top: messageView2AvatarOffsetY}}
+                                        >
+                                            <AccountAvatar
+                                                account={messageAuthor}
+                                                size={messageView2AvatarSize}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ),
+                            [messageAuthor, shouldMergeWithPreviousMessage],
                         )}
-                        {/* NOCOMMIT: {parentMessageNode} */}
-                        {message.payload.type === "Content" ? (
-                            !messageEditingForThisMessage ? (
-                                /* NOCOMMIT: {showTouchReplyIcon && (
+                        <div
+                            className={sprinkles({flexGrow: "1"})}
+                            style={{
+                                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                // have `min-width: auto` which extends with content.
+                                // https://stackoverflow.com/a/66689926/1568890
+                                minWidth: 0,
+                                ...(isContextMenuOpenForThisMessage
+                                    ? assignInlineVars({
+                                          [backgroundColorVar]: colorSchemeVars["grey-5"],
+                                      })
+                                    : null),
+                            }}
+                        >
+                            {!shouldMergeWithPreviousMessage && (
+                                <div
+                                    className={sprinkles({
+                                        fontSize: messageView2AccountNameFontSize,
+                                        fontStyle: "truncate",
+                                        paddingBottom: messageView2AccountNameMarginBottom,
+                                        color: "grey-60",
+                                    })}
+                                >
+                                    {messageAuthor.name}
+                                </div>
+                            )}
+                            {/* NOCOMMIT: {parentMessageNode} */}
+                            {message.payload.type === "Content" ? (
+                                !messageEditingForThisMessage ? (
+                                    /* NOCOMMIT: {showTouchReplyIcon && (
                                     <div
                                         ref={touchReplyIconRef}
                                         className={sprinkles({
@@ -1051,9 +824,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         <ArrowArcLeft size={spacing["3"]} />
                                     </div>
                                 )} */
-                                contentPayloadNode
-                            ) : (
-                                /* NOCOMMIT: <div
+                                    contentPayloadNode
+                                ) : (
+                                    /* NOCOMMIT: <div
                                     className={sprinkles({
                                         alignSelf: "center",
                                         paddingLeft: "3",
@@ -1115,19 +888,21 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         )}
                                     </div>
                                 </div> */
-                                <MessageViewEditor
-                                    ref={messageEditorRef}
-                                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
-                                    shouldMergeWithNextMessage={shouldMergeWithNextMessage}
-                                    messageEditing={messageEditing}
-                                />
-                            )
-                        ) : (
-                            deletedPayloadNode
-                        )}
-                    </div>
-                    {platform !== "mobile" &&
+                                    <MessageViewEditor
+                                        ref={messageEditorRef}
+                                        messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                                        shouldMergeWithPreviousMessage={
+                                            shouldMergeWithPreviousMessage
+                                        }
+                                        shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                                        messageEditing={messageEditing}
+                                    />
+                                )
+                            ) : (
+                                deletedPayloadNode
+                            )}
+                        </div>
+                        {/* NOCOMMIT: {platform !== "mobile" &&
                         !message.isOptimistic &&
                         message.payload.type === "Content" &&
                         !disableExpensiveFeaturesDuringScroll && (
@@ -1143,9 +918,37 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 }
                                 getMessageUrl={getMessageUrl}
                             />
+                        )} */}
+                        {isContextMenuOpenForThisMessage && (
+                            <div
+                                className={sprinkles({
+                                    position: "absolute",
+                                    top: "-0.5",
+                                    height: "full",
+                                    left: "-1",
+                                    right: "-1",
+                                    zIndex: "-10",
+                                    backgroundColor: "grey-5",
+                                    borderRadius: "1",
+                                })}
+                                style={{
+                                    height: `calc(100% + ${spacing["1"]})`,
+                                    // If this is one line of text then the background should extend below
+                                    // the avatar.
+                                    minHeight: !shouldMergeWithPreviousMessage
+                                        ? addRemLengths(
+                                              fontSizes[messageView2AccountNameFontSize].lineHeight,
+                                              messageView2AccountNameMarginBottom,
+                                              contentStyles.paragraphFontSize.lineHeight,
+                                              "2",
+                                          )
+                                        : undefined,
+                                }}
+                            />
                         )}
+                    </div>
                 </div>
-            </div>
+            </ContextMenuActions>
             {showDeleteConfirmationDialog && (
                 <MessageDeleteConfirmationDialog
                     messageNoun={messageNoun}
@@ -1177,8 +980,6 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
         messageNoun,
     });
 
-    // NOCOMMIT: Press style?
-
     const avatarSizeRem = parseRemLength(messageView2AvatarSize);
     const parentOffsetRem = parseRemLength(messageView2RailGap) / 2;
     const parentAvatarSizeRem = parseRemLength(messageViewParentAvatarSize);
@@ -1205,6 +1006,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 tabIndex={0}
                 className={sprinkles({
                     position: "relative",
+                    zIndex: "10",
                     display: "flex",
                     gap: "1.5",
                     width: "full",
@@ -1227,25 +1029,21 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 style={{
                     marginLeft: `${avatarSizeRem + parentOffsetRem}rem`,
                 }}
-                // NOCOMMIT:
-                // onKeyDown={event => {
-                //     if (event.key === "Enter" || event.key === " ") {
-                //         event.preventDefault();
-                //         event.stopPropagation();
-                //         onJumpToMessage(parentMessage);
-                //         return;
-                //     }
-                // }}
             >
                 <div
-                    className={sprinkles({
-                        position: "absolute",
-                        borderLeft: "grey-5",
-                        borderLeftWidth: "thick",
-                        borderTop: "grey-5",
-                        borderTopWidth: "thick",
-                        borderTopLeftRadius: "2.5",
-                    })}
+                    className={classNames(
+                        // We render the border left/top color as a white with some opacity (which when
+                        // blended results in `grey-5`) so that when we render the context menu (right
+                        // click) `grey-5` background the border is rendered on top of the background
+                        // color.
+                        messagingStyles.parentMessageConnectorClassName,
+                        sprinkles({
+                            position: "absolute",
+                            borderLeftWidth: "thick",
+                            borderTopWidth: "thick",
+                            borderTopLeftRadius: "2.5",
+                        }),
+                    )}
                     style={{
                         top: `calc(${parentAvatarOffsetYRem + parentAvatarSizeRem / 2}rem - 1px)`,
                         bottom: `calc(-${
@@ -1314,4 +1112,5 @@ const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: boolean} = 
     quoteBlock: true,
     codeBlock: true,
     fileRow: true,
+    table: true,
 });

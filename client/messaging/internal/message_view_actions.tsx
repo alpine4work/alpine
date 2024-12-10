@@ -28,6 +28,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MessageContentPayloadModel, MessageModel} from "~/shared/messaging/message_model.js";
 
+// NOCOMMIT: Delete this?
 export function MessageViewActions<RoomKey extends string>({
     messageNoun,
     message,
@@ -155,6 +156,7 @@ export function MessageViewActions<RoomKey extends string>({
                             setIsMoreMenuOpen(nextIsMoreMenuOpen);
                         }
                     }}
+                    // NOCOMMIT: Bring this to right click menu
                     extraOverlayBottom={
                         <MessageViewMenuCreatedTime
                             createdTime={message.createdTime}

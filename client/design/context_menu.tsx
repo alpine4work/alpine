@@ -20,7 +20,7 @@ import {createPortal, flushSync} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {Menu, MenuAction, MenuItem} from "~/client/design/menu.js";
+import {Menu, MenuAction, MenuItem, MenuStandardAction} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {setElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
@@ -31,12 +31,15 @@ import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 
-const contextMenuEventActionsSymbol = Symbol("actions");
+const contextMenuActionsSymbol = Symbol("ContextMenu.actions");
+const contextMenuMergeReadonlyCopyActionSymbol = Symbol("ContextMenu.mergeReadonlyCopyAction");
 
 /**
  * Add context menu actions to the `contextmenu` `MouseEvent`. Generally prefer
@@ -59,12 +62,27 @@ const contextMenuEventActionsSymbol = Symbol("actions");
 // eslint-disable-next-line react-refresh/only-export-components
 export function addContextMenuActions(
     event: MouseEvent & {
-        [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
+        [contextMenuActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
     },
     actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
 ) {
-    const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
+    const eventActions = (event[contextMenuActionsSymbol] ??= []);
     eventActions.push(...actions);
+}
+
+function addContextMenuMergeReadonlyCopyAction(
+    event: MouseEvent & {
+        [contextMenuMergeReadonlyCopyActionSymbol]?: (
+            actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+            action: MenuStandardAction,
+        ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+    },
+    mergeReadonlyCopyActionSymbol: (
+        actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+        action: MenuStandardAction,
+    ) => ReadonlyArray<ReadonlyArray<MenuAction>>,
+) {
+    event[contextMenuMergeReadonlyCopyActionSymbol] = mergeReadonlyCopyActionSymbol;
 }
 
 /**
@@ -87,10 +105,27 @@ export function addContextMenuActions(
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useContextMenuActionsRef(
-    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+    actionsOrOptions:
+        | MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>
+        | {
+              actions: MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>;
+              mergeReadonlyCopyAction?: (
+                  actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+                  action: MenuStandardAction,
+              ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
+          },
 ): RefCallback<HTMLElement> {
     const handleContextMenu = useEvent((event: MouseEvent) => {
-        addContextMenuActions(event, actions);
+        const {actions, mergeReadonlyCopyAction} =
+            isReadonlyArray(actionsOrOptions) || typeof actionsOrOptions === "function"
+                ? {actions: actionsOrOptions, mergeReadonlyCopyAction: undefined}
+                : actionsOrOptions;
+
+        addContextMenuActions(event, typeof actions === "function" ? actions(event) : actions);
+
+        if (mergeReadonlyCopyAction !== undefined) {
+            addContextMenuMergeReadonlyCopyAction(event, mergeReadonlyCopyAction);
+        }
     });
 
     const lifecycleRef = useCallback(
@@ -145,22 +180,43 @@ export function useContextMenuActionsRef(
  */
 export function ContextMenuActions({
     actions,
+    mergeReadonlyCopyAction,
     children,
 }: {
-    actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+    actions: MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>;
+    mergeReadonlyCopyAction?: (
+        actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+        action: MenuStandardAction,
+    ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
     children: ReactElement;
 }) {
-    return useElementWithRef(children, useContextMenuActionsRef(actions));
+    return useElementWithRef(
+        children,
+        useContextMenuActionsRef(
+            mergeReadonlyCopyAction !== undefined ? {actions, mergeReadonlyCopyAction} : actions,
+        ),
+    );
 }
 
-const IsContextMenuOpenContext = createContext<boolean>(false);
+const ContextMenuActionsContext = createContext<ReadonlyArray<ReadonlyArray<MenuAction>> | null>(
+    null,
+);
 
 /**
  * Returns true if the context menu is open.
  */
 // eslint-disable-next-line react-refresh/only-export-components
-export function useIsContextMenuOpen() {
-    return useContext(IsContextMenuOpenContext);
+export function useIsContextMenuOpen(): boolean {
+    return useContext(ContextMenuActionsContext) !== null;
+}
+
+/**
+ * Returns the actions targeted by the context menu. Null if the context
+ * menu isn't open.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useContextMenuActions(): ReadonlyArray<ReadonlyArray<MenuAction>> | null {
+    return useContext(ContextMenuActionsContext);
 }
 
 type ContextMenuInstanceState = {
@@ -168,7 +224,7 @@ type ContextMenuInstanceState = {
     readonly y: number;
     readonly actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     readonly focusedMenuItemIndex: number | null;
-    readonly targetElement: Element | null;
+    readonly targetElement: Element;
 };
 
 type ContextMenuState =
@@ -202,7 +258,11 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
     useEffect(() => {
         const handleContextMenu = (
             event: MouseEvent & {
-                [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
+                [contextMenuActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
+                [contextMenuMergeReadonlyCopyActionSymbol]?: (
+                    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+                    action: MenuStandardAction,
+                ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
             },
         ) => {
             // The Chrome mobile device debugger (and so probably also Chrome on Android)
@@ -222,8 +282,8 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
             event.preventDefault();
 
-            const actions: Array<ReadonlyArray<MenuAction>> =
-                event[contextMenuEventActionsSymbol] ?? [];
+            let actions: Array<ReadonlyArray<MenuAction>> = event[contextMenuActionsSymbol] ?? [];
+            const mergeReadonlyCopyAction = event[contextMenuMergeReadonlyCopyActionSymbol];
 
             // Emulate default browser behavior of selecting word the user right clicked.
             selectWordIfSelectionEmpty(event.target);
@@ -233,6 +293,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             let target:
                 | {type: "Input"; element: HTMLInputElement}
                 | {type: "Selection"; selection: Selection}
+                | {type: "Node"; node: Node}
                 | null = null;
 
             if (event.target instanceof HTMLInputElement) {
@@ -242,12 +303,30 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 selection?.containsNode(event.target, true)
             ) {
                 target = {type: "Selection", selection};
+            } else {
+                selection?.empty();
+                if (event.target instanceof Node) target = {type: "Node", node: event.target};
             }
 
             if (target) {
                 let isDisabled: boolean;
                 let isEditable: boolean;
                 let isEmpty: boolean;
+
+                const isDisabledForNode = (node: Node | null) => {
+                    if (node === null) return true;
+                    if (!(node instanceof Text)) return true;
+
+                    const element = node.parentElement;
+                    if (!element) return true;
+
+                    const userSelect =
+                        getComputedStyle(element).userSelect ||
+                        // In Safari `user-select` is behind a vendor prefix.
+                        getComputedStyle(element).webkitUserSelect;
+
+                    return userSelect === "none";
+                };
 
                 switch (target.type) {
                     case "Input": {
@@ -261,21 +340,6 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         break;
                     }
                     case "Selection": {
-                        const isDisabledForNode = (node: Node | null) => {
-                            if (node === null) return true;
-                            if (!(node instanceof Text)) return true;
-
-                            const element = node.parentElement;
-                            if (!element) return true;
-
-                            const userSelect =
-                                getComputedStyle(element).userSelect ||
-                                // In Safari `user-select` is behind a vendor prefix.
-                                getComputedStyle(element).webkitUserSelect;
-
-                            return userSelect === "none";
-                        };
-
                         isDisabled =
                             isDisabledForNode(target.selection.anchorNode) &&
                             isDisabledForNode(target.selection.focusNode);
@@ -290,6 +354,17 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             target.selection.anchorOffset === target.selection.focusOffset;
                         break;
                     }
+                    case "Node": {
+                        isDisabled = isDisabledForNode(target.node);
+
+                        isEditable =
+                            document.activeElement instanceof HTMLElement &&
+                            document.activeElement.isContentEditable &&
+                            document.activeElement.contains(target.node);
+
+                        isEmpty = true;
+                        break;
+                    }
                     default:
                         throw exhaustive(target);
                 }
@@ -297,15 +372,19 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 if (!isDisabled) {
                     if (!isEditable) {
                         if (!isEmpty) {
-                            actions.unshift([
-                                {
-                                    label: "Copy",
-                                    keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
-                                    onPress: () => {
-                                        document.execCommand("copy");
-                                    },
+                            const action: MenuStandardAction = {
+                                label: "Copy",
+                                keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                                onPress: () => {
+                                    document.execCommand("copy");
                                 },
-                            ]);
+                            };
+
+                            if (mergeReadonlyCopyAction !== undefined) {
+                                actions = mergeReadonlyCopyAction(actions, action).slice();
+                            } else {
+                                actions.unshift([action]);
+                            }
                         }
                     } else {
                         actions.unshift([
@@ -340,7 +419,9 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 }
             }
 
-            if (actions.length > 0) {
+            if (actions.length > 0 && event.target instanceof Element) {
+                const targetElement = event.target;
+
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
                 flushSync(() => {
@@ -351,7 +432,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             y: event.clientY,
                             actions,
                             focusedMenuItemIndex: null,
-                            targetElement: event.target instanceof Element ? event.target : null,
+                            targetElement,
                         },
                     });
                 });
@@ -464,9 +545,9 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                     onClose={() => setShouldShowPasteWarningDialog(false)}
                 />
             )}
-            <IsContextMenuOpenContext.Provider value={!!instance}>
+            <ContextMenuActionsContext.Provider value={instance?.actions ?? null}>
                 {children}
-            </IsContextMenuOpenContext.Provider>
+            </ContextMenuActionsContext.Provider>
         </>
     );
 }
@@ -840,6 +921,10 @@ function selectWordIfSelectionEmpty(mouseEventTarget: MouseEvent["target"]) {
 
     // No DOM selection. Maybe our selection is in an `<input>`?
     if (!selection?.anchorNode) return;
+
+    // If the selection doesn't intersect our event target don't expand it.
+    if (!(mouseEventTarget instanceof Node)) return;
+    if (selection && !selection.containsNode(mouseEventTarget, true)) return;
 
     // Selection is not a text node.
     if (!(selection.anchorNode instanceof Text)) return;

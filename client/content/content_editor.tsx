@@ -3861,6 +3861,17 @@ function ContentEditor<Content extends ContentWithReferences>(
         const insertOtherMenuActions: Array<MenuAction> = [];
         insertMenuActions.push(insertOtherMenuActions);
 
+        if (process.env.NODE_ENV !== "production") {
+            insertOtherMenuActions.push({
+                label: "Table",
+                iconSize: "4",
+                icon: <Table />,
+                onPress: () => {
+                    insertContentTable(assertExists(viewRef.current));
+                },
+            });
+        }
+
         if (schema.nodes.divider) {
             insertOtherMenuActions.push({
                 label: "Divider",
@@ -3890,15 +3901,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             },
         );
-        process.env.NODE_ENV !== "production" &&
-            insertOtherMenuActions.push({
-                label: "Table",
-                iconSize: "4",
-                icon: <Table />,
-                onPress: () => {
-                    insertContentTable(assertExists(viewRef.current));
-                },
-            });
 
         return [
             [
