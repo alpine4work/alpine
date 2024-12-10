@@ -84,6 +84,7 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {trimContentEnd} from "~/client/content/trim_content.js";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -274,8 +275,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         });
     }, [focusKey, onBeforeFocusFromReplyOrEditingChange]);
 
-    const isSendButtonDisabled =
-        isSendButtonDisabledProp || (!isEditingMessage && isContentEmpty(state.getDoc()));
+    const isSendButtonDisabled = useMemo(
+        () =>
+            isSendButtonDisabledProp ||
+            (!isEditingMessage && isContentEmpty(trimContentEnd(state.getDoc()))),
+        [isEditingMessage, isSendButtonDisabledProp, state],
+    );
 
     const typingIndicatorStateRef = useRef<
         {shouldBeShowing: true; timeout: Timeout} | {shouldBeShowing: false}

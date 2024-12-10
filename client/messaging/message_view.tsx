@@ -1,35 +1,24 @@
+import {usePress} from "@react-aria/interactions";
+import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
-import {timeline} from "motion";
-import {ArrowArcLeft, ArrowArcRight, SpinnerGap, Trash} from "phosphor-react";
-import {
-    Fragment,
-    Memo,
-    MutableRefObject,
-    useCallback,
-    useEffect,
-    useId,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {ArrowArcRight, Trash} from "phosphor-react";
+import {Fragment, Memo, MutableRefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
-import {ErrorIcon} from "~/client/design/error_icon.js";
+import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
-import {
-    PrettyAbsoluteDate,
-    PrettyAbsoluteDateTooltipContent,
-} from "~/client/design/pretty_absolute_date.js";
+import {MenuAction} from "~/client/design/menu.js";
+import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
-import {MessageViewActions} from "~/client/messaging/internal/message_view_actions.js";
 import {
     MessageViewEditor,
     MessageViewEditorRef,
@@ -37,36 +26,20 @@ import {
 import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
-    getMessageBubbleMarginLeft,
     messageView2AccountNameFontSize,
     messageView2AccountNameMarginBottom,
     messageView2AvatarOffsetY,
+    messageView2AvatarOffsetYRem,
     messageView2AvatarSize,
     messageView2RailGap,
-    messageViewActionsWidth,
-    messageViewActionsWidthWithoutHoveringPrimaryInput,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMergedBorderRadius,
-    messageViewBubbleMinWidth,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
     messageViewMarginY,
-    messageViewMaxWidth,
-    messageViewMergedMarginY,
     messageViewParentAvatarSize,
-    messageViewReplyPreviewBubbleOpacity,
     messageViewParentFontSize,
     messageViewParentLineHeight,
-    messageViewReplyPreviewOpacity,
-    messageViewParentScale,
-    messageView2AvatarOffsetYRem,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -76,57 +49,34 @@ import {
     emojiFontFamily,
     fontSizes,
     messagingStyles,
-    spinAnimationClassName,
     sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
-import {
-    linkClassName,
-    paragraphClassName,
-    quoteBlockClassName,
-} from "~/shared/content/content_styles.js";
-import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,
     Spacing,
     addRemLengths,
-    assertSpacing,
     parseRemLength,
     screenPaddingX,
     spacing,
-    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageModel,
     MessageModelBase,
     OptimisticMessageModel,
 } from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
-import {usePress} from "@react-aria/interactions";
-import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {MenuAction} from "~/client/design/menu.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {assignInlineVars} from "@vanilla-extract/dynamic";
 
 // NOCOMMIT: Test
 //
-// - Emoji messages
 // - Message editing
-// - Deleted messages
 // - Message timestamps
-// - Message replies
 
 /**
  * The buffered height we use for virtualized message views.
@@ -796,7 +746,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     {messageAuthor.name}
                                 </div>
                             )}
-                            {/* NOCOMMIT: {parentMessageNode} */}
                             {message.payload.type === "Content" ? (
                                 !messageEditingForThisMessage ? (
                                     /* NOCOMMIT: {showTouchReplyIcon && (
@@ -969,12 +918,6 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     parentMessage: Message;
     onJumpToMessage: Memo<(message: Message) => void>;
 }) {
-    // NOCOMMIT:
-    //
-    // // Remove some vertical padding from the parent message to move it closer to a
-    // // big emoji message which doesn't render in a bubble.
-    // if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
-
     const truncatedContent = getTruncatedMessageContentForReplyPreview({
         message: parentMessage,
         messageNoun,
@@ -1007,9 +950,10 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 className={sprinkles({
                     position: "relative",
                     zIndex: "10",
-                    display: "flex",
+                    // `inline-flex` instead of `flex` so that the clickable area doesn't extend
+                    // full width when we have a short message.
+                    display: "inline-flex",
                     gap: "1.5",
-                    width: "full",
                     marginTop: "1",
                     // Intentionally using `paragraphMargin` instead of `standaloneBlockMargin`
                     // since `standaloneBlockMargin` is too much margin for one line responses.
@@ -1068,7 +1012,6 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 </div>
                 <div
                     className={sprinkles({
-                        flexGrow: "1",
                         overflow: "hidden",
                         color: "grey-80",
                         fontSize: messageViewParentFontSize,
