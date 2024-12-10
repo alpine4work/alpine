@@ -97,6 +97,10 @@ export function renderMessageListItem<
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         message={item.message}
                         isFirstMessage={item.messageIndex === 0}
+                        isLastMessage={
+                            item.messageIndex ===
+                            messages.getMessageCountIncludingOptimisticMessages() - 1
+                        }
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}

@@ -4,12 +4,14 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function InlineEditorToolbar({
+    placement = "bottom",
     isSaving,
     withModEnterSaveKeyboardShortcut,
     saveErrorTitle,
     onSave,
     onCancel,
 }: {
+    placement?: "top" | "bottom";
     isSaving: boolean;
     withModEnterSaveKeyboardShortcut?: boolean;
     saveErrorTitle?: string;
@@ -21,7 +23,8 @@ export function InlineEditorToolbar({
     return (
         <Box
             position="absolute"
-            bottom="-1.5"
+            bottom={placement === "bottom" ? "-1.5" : undefined}
+            top={placement === "bottom" ? undefined : "-1.5"}
             right="0"
             zIndex="10"
             display="flex"
@@ -30,7 +33,7 @@ export function InlineEditorToolbar({
             backgroundColor="grey-0"
             borderRadius="1.5"
             boxShadow="elevation-20"
-            style={{transform: "translateY(100%)"}}
+            style={{transform: placement === "bottom" ? "translateY(100%)" : "translateY(-100%)"}}
         >
             <Button
                 variant="quiet"

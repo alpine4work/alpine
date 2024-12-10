@@ -939,6 +939,11 @@ function PostListView(
                                             message={item.postComment}
                                             previousMessage={previousComment}
                                             isFirstMessage={item.postCommentIndex === 0}
+                                            isLastMessage={
+                                                item.postCommentIndex ===
+                                                item.postComments.getMessageCountIncludingOptimisticMessages() -
+                                                    1
+                                            }
                                             nextMessage={nextComment}
                                             messages={item.postComments}
                                             messageEditing={messageEditing}

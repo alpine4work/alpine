@@ -132,6 +132,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
     isFirstMessage,
+    isLastMessage,
     previousMessage,
     nextMessage,
     messages,
@@ -150,6 +151,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
     isFirstMessage: boolean;
+    isLastMessage: boolean;
     previousMessage: MessageModelBase | null;
     nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
@@ -882,6 +884,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     <MessageViewEditor
                                         ref={messageEditorRef}
                                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                                        isLastMessage={isLastMessage}
                                         shouldMergeWithPreviousMessage={
                                             shouldMergeWithPreviousMessage
                                         }

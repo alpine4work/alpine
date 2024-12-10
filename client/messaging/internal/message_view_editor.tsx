@@ -31,11 +31,13 @@ export {MessageViewEditorForwardRef as MessageViewEditor};
 function MessageViewEditor<RoomKey extends string>(
     {
         messageStartOfSentenceNoun,
+        isLastMessage,
         shouldMergeWithPreviousMessage,
         messageEditing,
     }: {
         ref?: Ref<MessageViewEditorRef>;
         messageStartOfSentenceNoun: string;
+        isLastMessage: boolean;
         shouldMergeWithPreviousMessage: boolean;
         messageEditing: MessageEditing<RoomKey>;
     },
@@ -91,6 +93,7 @@ function MessageViewEditor<RoomKey extends string>(
                     }}
                 />
                 <InlineEditorToolbar
+                    placement={isLastMessage ? "top" : "bottom"}
                     isSaving={messageEditing.state.isSaving}
                     onSave={() => messageEditing.dispatch({type: "SaveEditedContent"})}
                     onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
