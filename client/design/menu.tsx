@@ -1554,6 +1554,9 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         const hoverTriangleContainerElement = assertExists(hoverTriangleContainerRef.current);
 
         const elementRect = element.getBoundingClientRect();
+        const overlayElementRect = overlayElement.getBoundingClientRect();
+
+        const overlayOffsetY = elementRect.top - overlayElementRect.top;
 
         const xmlns = "http://www.w3.org/2000/svg";
 
@@ -1590,10 +1593,16 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     "points",
                     [
                         `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
-                            hoverTriangleState.initialY - elementRect.top + hoverTriangleSlopPx
+                            hoverTriangleState.initialY -
+                            elementRect.top +
+                            hoverTriangleSlopPx +
+                            overlayOffsetY
                         }`,
                         `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
-                            hoverTriangleState.initialY - elementRect.top - hoverTriangleSlopPx
+                            hoverTriangleState.initialY -
+                            elementRect.top -
+                            hoverTriangleSlopPx +
+                            overlayOffsetY
                         }`,
                         `${element.clientWidth} 0`,
                         `${element.clientWidth} ${overlayElement.clientHeight}`,
@@ -1606,10 +1615,16 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     "points",
                     [
                         `${hoverTriangleState.initialX - elementRect.left + hoverTriangleSlopPx} ${
-                            hoverTriangleState.initialY - elementRect.top + hoverTriangleSlopPx
+                            hoverTriangleState.initialY -
+                            elementRect.top +
+                            hoverTriangleSlopPx +
+                            overlayOffsetY
                         }`,
                         `${hoverTriangleState.initialX - elementRect.left + hoverTriangleSlopPx} ${
-                            hoverTriangleState.initialY - elementRect.top - hoverTriangleSlopPx
+                            hoverTriangleState.initialY -
+                            elementRect.top -
+                            hoverTriangleSlopPx +
+                            overlayOffsetY
                         }`,
                         "0 0",
                         `0 ${overlayElement.clientHeight}`,
