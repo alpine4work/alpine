@@ -58,7 +58,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 
@@ -274,7 +274,7 @@ export function MessageViewTouchLightbox<
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        let height = addRemLengths("1.5", contentViewStyles.truncatedHeight);
+        let height = addRemLengths("1.5", "1.3125rem");
 
         // Remove some vertical padding from the parent message to move it closer to a
         // big emoji message which doesn't render in a bubble.

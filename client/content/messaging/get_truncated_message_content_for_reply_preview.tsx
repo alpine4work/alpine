@@ -64,7 +64,7 @@ export function getTruncatedMessageContentForReplyPreview({
             });
         }
         case "Deleted": {
-            return <em className={italicClassName}>Deleted {messageNoun}</em>;
+            return <>Deleted {messageNoun}</>;
         }
         default:
             throw exhaustive(message.payload);

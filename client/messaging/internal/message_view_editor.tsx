@@ -7,9 +7,10 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
     messageViewEditorOutlineMarginLeft,
-    messageViewNotMergedEditorOutlineMarginBottom,
+    messageViewNotMergedEditorOutlineMarginBottomPx,
     messageViewNotMergedEditorOutlineMarginTop,
     messageViewOutlineBorderRadius,
     messageViewOutlineMarginX,
@@ -46,6 +47,8 @@ function MessageViewEditor<RoomKey extends string>(
     assert(messageEditing.state.isEditing);
     const {state} = messageEditing;
 
+    const spacingScale = useSpacingScale();
+
     return (
         <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
             <Box
@@ -68,7 +71,7 @@ function MessageViewEditor<RoomKey extends string>(
                         ? `-${messageViewNotMergedEditorOutlineMarginTop}`
                         : undefined,
                     marginBottom: !shouldMergeWithPreviousMessage
-                        ? `-${messageViewNotMergedEditorOutlineMarginBottom}`
+                        ? -messageViewNotMergedEditorOutlineMarginBottomPx[spacingScale]
                         : undefined,
                     // Use box shadow to draw the border so it doesn't add 1px to layout like
                     // `border` CSS would.
@@ -122,6 +125,8 @@ function MessageContentEditor({
     onCancel: () => void;
     onSave: () => void;
 }) {
+    const spacingScale = useSpacingScale();
+
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const hasInitiallyMountedRef = useRef(false);
@@ -175,7 +180,7 @@ function MessageContentEditor({
                     ? messageViewNotMergedEditorOutlineMarginTop
                     : undefined,
                 paddingBottom: !shouldMergeWithPreviousMessage
-                    ? messageViewNotMergedEditorOutlineMarginBottom
+                    ? messageViewNotMergedEditorOutlineMarginBottomPx[spacingScale]
                     : undefined,
             }}
             onEscape={event => {

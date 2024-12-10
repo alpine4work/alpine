@@ -9,12 +9,11 @@ import {
     Spacing,
     addRemLengths,
     assertSpacing,
+    convertRemLengthToPx,
     parseRemLength,
-    screenPaddingX,
-    spacing,
-    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const messageView2AvatarSize = "6";
@@ -24,13 +23,14 @@ export const messageView2RailGap = "2";
 export const messageView2AccountNameFontSize = "50";
 export const messageView2AccountNameMarginBottom = "0";
 
-export const messageView2AvatarOffsetYRem =
-    parseRemLength(fontSizes[messageView2AccountNameFontSize].lineHeight) +
-    parseRemLength(messageView2AccountNameMarginBottom) +
-    parseRemLength(contentStyles.paragraphFontSize.lineHeight) / 2 -
-    parseRemLength(messageView2AvatarSize) / 2;
-
-export const messageView2AvatarOffsetY: RemLength = `${messageView2AvatarOffsetYRem}rem`;
+export const messageView2AvatarOffsetYPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(fontSizes[messageView2AccountNameFontSize].lineHeight, spacingScale) +
+        convertRemLengthToPx(messageView2AccountNameMarginBottom, spacingScale) +
+        contentStyles.paragraphLineHeightPx[spacingScale] / 2 -
+        convertRemLengthToPx(messageView2AvatarSize, spacingScale) / 2,
+);
 
 export const messageViewBubbleMinWidth: Spacing = "6"; // NOCOMMIT: Delete
 export const messageViewBubbleBorderRadius = {desktop: "4", mobile: "3.5"} as const; // NOCOMMIT: Delete
@@ -52,12 +52,12 @@ export const messageViewBubblePaddingY: {desktop: Spacing; mobile: Spacing} = {
 export const messageViewBubbleMinHeight: {desktop: RemLength; mobile: RemLength} = {
     desktop: addRemLengths(
         messageViewBubblePaddingY.desktop,
-        contentStyles.paragraphFontSize.lineHeight,
+        "1.3125rem",
         messageViewBubblePaddingY.desktop,
     ),
     mobile: addRemLengths(
         messageViewBubblePaddingY.mobile,
-        contentStyles.paragraphFontSize.lineHeight,
+        "1.3125rem",
         messageViewBubblePaddingY.mobile,
     ),
 };
@@ -73,11 +73,13 @@ export const messageViewOutlineBorderRadius = "1";
 export const messageViewOutlineMarginX: Spacing = "1";
 export const messageViewOutlineMarginY: Spacing = "1";
 
-export const messageViewNotMergedOutlineMinHeight = addRemLengths(
-    messageViewOutlineMarginY,
-    messageView2AvatarOffsetY,
-    messageView2AvatarSize,
-    messageViewOutlineMarginY,
+export const messageViewNotMergedOutlineMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(messageViewOutlineMarginY, spacingScale) +
+        messageView2AvatarOffsetYPx[spacingScale] +
+        convertRemLengthToPx(messageView2AvatarSize, spacingScale) +
+        convertRemLengthToPx(messageViewOutlineMarginY, spacingScale),
 );
 
 export const messageViewEditorOutlineMarginLeft = addRemLengths(
@@ -92,19 +94,24 @@ export const messageViewNotMergedEditorOutlineMarginTop = addRemLengths(
     messageView2AccountNameMarginBottom,
 );
 
-export const messageViewNotMergedEditorOutlineMarginBottom = subtractRemLengths(
-    messageViewNotMergedOutlineMinHeight,
-    addRemLengths(
-        messageViewOutlineMarginY,
-        fontSizes[messageView2AccountNameFontSize].lineHeight,
-        messageView2AccountNameMarginBottom,
-        contentStyles.paragraphFontSize.lineHeight,
-    ),
+export const messageViewNotMergedEditorOutlineMarginBottomPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        messageViewNotMergedOutlineMinHeightPx[spacingScale] -
+        (convertRemLengthToPx(messageViewOutlineMarginY, spacingScale) +
+            convertRemLengthToPx(
+                fontSizes[messageView2AccountNameFontSize].lineHeight,
+                spacingScale,
+            ) +
+            convertRemLengthToPx(messageView2AccountNameMarginBottom, spacingScale) +
+            contentStyles.paragraphLineHeightPx[spacingScale]),
 );
 
-export const messageViewMinHeight = addRemLengths(
-    contentStyles.paragraphFontSize.lineHeight,
-    contentStyles.paragraphMargin,
+export const messageViewMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        contentStyles.paragraphLineHeightPx[spacingScale] +
+        convertRemLengthToPx(contentStyles.paragraphMargin, spacingScale),
 );
 
 // NOCOMMIT: Delete these?
@@ -117,9 +124,8 @@ export const messageViewParentScale =
     fontSizesBySpacingScale[messageViewParentFontSize].small.fontSize /
     fontSizesBySpacingScale[contentStyles.paragraphActualFontSize].small.fontSize;
 
-export const messageViewParentLineHeight = `${
-    contentStyles.paragraphLineHeightRem * messageViewParentScale
-}rem`;
+// NOCOMMIT: Delete this
+export const messageViewParentLineHeight = `${1.3125 * messageViewParentScale}rem`;
 
 export const messageViewParentAvatarSize = assertSpacing(
     Math.round(parseInt(messageView2AvatarSize, 10) * messageViewParentScale),

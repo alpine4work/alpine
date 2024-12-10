@@ -83,7 +83,7 @@ export function DocumentPresentationSlideView({
     );
 
     const headingMarginBottom = headingContent
-        ? contentStyles.defaultParagraphMarginRem * remPxBySpacingScale[spacingScale] * headingScale
+        ? contentStyles.paragraphMarginRem * remPxBySpacingScale[spacingScale] * headingScale
         : 0;
 
     const [bodyScaleIterationFromState, setBodyScaleIteration] = useStateWithDependencies(

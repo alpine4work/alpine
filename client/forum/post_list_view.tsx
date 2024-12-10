@@ -50,21 +50,24 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {
+    getSpacingScaleWithoutListening,
+    useSpacingScale,
+} from "~/client/remix/spacing_scale_context.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
     channelViewHeaderMinHeight,
     postCommentSectionGuidelineOffset,
-    postContentViewMinHeightWithClosedCommentSection,
-    postContentViewMinHeightWithOpenCommentSection,
+    postContentViewMinHeightWithClosedCommentSectionPx,
+    postContentViewMinHeightWithOpenCommentSectionPx,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
     postViewFlex,
-    postViewMinHeight,
+    postViewMinHeightPx,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
-    messageViewMinHeight,
+    messageViewMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
@@ -79,12 +82,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -268,6 +266,7 @@ function PostListView(
 ) {
     const context = useAppContext();
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -472,10 +471,9 @@ function PostListView(
                                 20,
                                 Math.ceil(
                                     (view.getHeight() * 2) /
-                                        convertRemLengthToPx(
-                                            postContentViewMinHeightWithClosedCommentSection,
-                                            spacingScale,
-                                        ),
+                                        postContentViewMinHeightWithClosedCommentSectionPx[
+                                            spacingScale
+                                        ],
                                 ),
                             );
 
@@ -760,10 +758,10 @@ function PostListView(
                     return {
                         key: `PostContent:${item.post.id}`,
                         minHeight: isPostView
-                            ? postViewMinHeight
+                            ? postViewMinHeightPx[spacingScale]
                             : item.postCommentsState !== "Closed" && !isPostView
-                            ? postContentViewMinHeightWithOpenCommentSection
-                            : postContentViewMinHeightWithClosedCommentSection,
+                            ? postContentViewMinHeightWithOpenCommentSectionPx[spacingScale]
+                            : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
                         node: (
                             <div
                                 className={sprinkles({
@@ -918,7 +916,7 @@ function PostListView(
                                 : item.type === "OptimisticPostComment"
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
-                        minHeight: messageViewMinHeight,
+                        minHeight: messageViewMinHeightPx[spacingScale],
                         zIndex:
                             messageEditing.state.isEditing &&
                             messageEditing.state.messageRoomKey === item.post.id &&
@@ -1437,6 +1435,7 @@ function PostListView(
             hasNavigationBar,
             hasAside,
             isPostView,
+            spacingScale,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
@@ -1445,10 +1444,10 @@ function PostListView(
             idBase,
             onTogglePostComments,
             loadInitialPostComments,
-            platform,
             messageEditing,
             highlightPostComment,
             handleJumpToPostComment,
+            platform,
             replyingToPostCommentIndexByPostId,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
@@ -1524,7 +1523,9 @@ function PostListView(
                         spacing[navigationBarHeight] ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
-                    bufferedItemHeight={postContentViewMinHeightWithClosedCommentSection}
+                    bufferedItemHeight={
+                        postContentViewMinHeightWithClosedCommentSectionPx[spacingScale]
+                    }
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.

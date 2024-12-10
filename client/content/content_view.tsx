@@ -147,6 +147,7 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * Should the content be truncated to a single line with an ellipsis when
      * text overflows?
      */
+    // NOCOMMIT: Delete this feature?
     isTruncated?: boolean;
 
     /**

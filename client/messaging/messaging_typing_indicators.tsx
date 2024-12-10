@@ -27,6 +27,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
 
+// NOCOMMIT: Redesign these
 export function MessagingTypingIndicators({
     typingStateByConnectionId,
     paddingX = screenPaddingX,

@@ -401,10 +401,10 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * `<div>`.
      */
     style?: {
-        paddingTop?: RemLength;
-        paddingBottom?: RemLength;
-        paddingLeft?: RemLength;
-        paddingRight?: RemLength;
+        paddingTop?: RemLength | number;
+        paddingBottom?: RemLength | number;
+        paddingLeft?: RemLength | number;
+        paddingRight?: RemLength | number;
     };
 
     /**
@@ -3029,16 +3029,32 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewElement.classList.add(...classList);
 
         if (style?.paddingTop !== undefined) {
-            viewElement.style.paddingTop = style.paddingTop;
+            if (typeof style.paddingTop === "number") {
+                viewElement.style.paddingTop = `${style.paddingTop}px`;
+            } else {
+                viewElement.style.paddingTop = style.paddingTop;
+            }
         }
         if (style?.paddingBottom !== undefined) {
-            viewElement.style.paddingBottom = style.paddingBottom;
+            if (typeof style.paddingBottom === "number") {
+                viewElement.style.paddingBottom = `${style.paddingBottom}px`;
+            } else {
+                viewElement.style.paddingBottom = style.paddingBottom;
+            }
         }
         if (style?.paddingLeft !== undefined) {
-            viewElement.style.paddingLeft = style.paddingLeft;
+            if (typeof style.paddingLeft === "number") {
+                viewElement.style.paddingLeft = `${style.paddingLeft}px`;
+            } else {
+                viewElement.style.paddingLeft = style.paddingLeft;
+            }
         }
         if (style?.paddingRight !== undefined) {
-            viewElement.style.paddingRight = style.paddingRight;
+            if (typeof style.paddingRight === "number") {
+                viewElement.style.paddingRight = `${style.paddingRight}px`;
+            } else {
+                viewElement.style.paddingRight = style.paddingRight;
+            }
         }
 
         return () => {

@@ -15,6 +15,7 @@ import {
     inputPlaceholderStyles,
     largeSpacingScaleSelector,
     lightColorSchemeSelector,
+    mediumSpacingScaleSelector,
     mobilePlatformSelector,
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
@@ -66,13 +67,21 @@ import {
 import {colors} from "~/shared/design/core/colors.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
+    Spacing,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {
+    SpacingScale,
+    allSpacingScales,
+    remPxBySpacingScale,
+} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
@@ -181,12 +190,36 @@ const blockStyles = {
 
 export const paragraphActualFontSize = "100";
 
+export const paragraphLineHeightPx: Record<SpacingScale, number> = {
+    small: 21, // 14 * 1.5
+    medium: 24, // 16 * 1.5
+    large: 25, // floor(17 * 1.5)
+};
+
+export const paragraphLineHeightVar = createVar("paragraph-line-height");
+
+globalStyle(":root", {
+    vars: {
+        [paragraphLineHeightVar]: `${paragraphLineHeightPx.small}px`,
+    },
+});
+
+globalStyle(mediumSpacingScaleSelector, {
+    vars: {
+        [paragraphLineHeightVar]: `${paragraphLineHeightPx.medium}px`,
+    },
+});
+
+globalStyle(largeSpacingScaleSelector, {
+    vars: {
+        [paragraphLineHeightVar]: `${paragraphLineHeightPx.large}px`,
+    },
+});
+
 export const paragraphFontSize = {
     ...fontSizes[paragraphActualFontSize],
-    lineHeight: "1.3125rem",
+    lineHeight: paragraphLineHeightVar,
 } as const;
-
-export const paragraphLineHeightRem = parseRemLength(paragraphFontSize.lineHeight);
 
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
@@ -194,7 +227,7 @@ globalStyle(paragraphClassName, {
     ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: paragraphFontSize.lineHeight,
+    minHeight: paragraphLineHeightVar,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
@@ -396,10 +429,13 @@ globalStyle(listItemClassName, {
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
 });
 
-export const unorderedListItemBulletTop = `${
-    parseRemLength(subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize)) /
-    2
-}rem`;
+export const unorderedListItemBulletTop = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        (paragraphLineHeightPx[spacingScale] -
+            convertRemLengthToPx(unorderedListItemBulletSize, spacingScale)) /
+        2,
+);
 
 export const unorderedListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
     parseRemLength(listItemIndentation) / 2 - parseRemLength(unorderedListItemBulletSize) / 2
@@ -413,8 +449,16 @@ globalStyle(`${unorderedListItemClassName}::before`, {
     pointerEvents: "none",
     width: unorderedListItemBulletSize,
     height: unorderedListItemBulletSize,
-    top: unorderedListItemBulletTop,
+    top: unorderedListItemBulletTop.small,
     left: unorderedListItemBulletLeft,
+});
+
+globalStyle(`${mediumSpacingScaleSelector} ${unorderedListItemClassName}::before`, {
+    top: unorderedListItemBulletTop.medium,
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${unorderedListItemClassName}::before`, {
+    top: unorderedListItemBulletTop.large,
 });
 
 globalStyle(`${orderedListItemClassName}::before`, {
@@ -429,8 +473,7 @@ globalStyle(`${orderedListItemClassName}::before`, {
     fontVariantNumeric: "tabular-nums",
 });
 
-const checkListItemCheckboxDesktopSize = "4";
-const checkListItemCheckboxMobileSize = "5";
+const checkListItemCheckboxSize: Record<Platform, Spacing> = {desktop: "4", mobile: "5"};
 
 globalStyle(checkListItemCheckedClassName, {
     color: colorSchemeVars["grey-60"],
@@ -439,36 +482,45 @@ globalStyle(checkListItemCheckedClassName, {
 
 export const checkListItemContentClassName = style({});
 
-// The checkbox is a little small. Add some extra hit area to make it easier
-// to click.
-export const checkListItemCheckboxContainerClassName = style({
-    position: "absolute",
+const getCheckListItemCheckboxContainerPosition = (
+    platform: Platform,
+    spacingScale: SpacingScale,
+) => ({
     top: `${
-        (parseRemLength(paragraphFontSize.lineHeight) -
-            parseRemLength(checkListItemCheckboxDesktopSize)) /
+        (paragraphLineHeightPx[spacingScale] -
+            convertRemLengthToPx(checkListItemCheckboxSize[platform], spacingScale)) /
         2
     }rem`,
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLength(listItemIndentation) / 2 -
-        (parseRemLength(checkListItemCheckboxDesktopSize) + parseRemLength("1") * 2) / 2
+        (parseRemLength(checkListItemCheckboxSize[platform]) + parseRemLength("1") * 2) / 2
     }rem)`,
+});
+
+// The checkbox is a little small. Add some extra hit area to make it easier
+// to click.
+export const checkListItemCheckboxContainerClassName = style({
+    position: "absolute",
+    ...getCheckListItemCheckboxContainerPosition("desktop", "small"),
     borderRadius: "100%",
     paddingLeft: spacing["1"],
     paddingRight: spacing["1"],
     cursor: "default",
     userSelect: "none",
     selectors: {
-        [`${mobilePlatformSelector} &`]: {
-            top: `${
-                (parseRemLength(paragraphFontSize.lineHeight) -
-                    parseRemLength(checkListItemCheckboxMobileSize)) /
-                2
-            }rem`,
-            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
-                parseRemLength(listItemIndentation) / 2 -
-                (parseRemLength(checkListItemCheckboxMobileSize) + parseRemLength("1") * 2) / 2
-            }rem)`,
-        },
+        [`${desktopPlatformSelector}${mediumSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("desktop", "medium"),
+        [`${desktopPlatformSelector}${largeSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("desktop", "large"),
+
+        [`${mobilePlatformSelector} &`]: getCheckListItemCheckboxContainerPosition(
+            "mobile",
+            "small",
+        ),
+        [`${mobilePlatformSelector}${mediumSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("mobile", "medium"),
+        [`${mobilePlatformSelector}${largeSpacingScaleSelector} &`]:
+            getCheckListItemCheckboxContainerPosition("mobile", "large"),
     },
 });
 
@@ -478,8 +530,8 @@ export const checkListItemCheckboxClassName = style({
     position: "relative",
     overflow: "hidden",
     borderRadius: "100%",
-    width: spacing[checkListItemCheckboxDesktopSize],
-    height: spacing[checkListItemCheckboxDesktopSize],
+    width: spacing[checkListItemCheckboxSize.desktop],
+    height: spacing[checkListItemCheckboxSize.desktop],
     backgroundColor: "transparent",
     color: "transparent",
     borderWidth: 1,
@@ -496,8 +548,8 @@ export const checkListItemCheckboxClassName = style({
             borderWidth: 0,
         },
         [`${mobilePlatformSelector} &`]: {
-            width: spacing[checkListItemCheckboxMobileSize],
-            height: spacing[checkListItemCheckboxMobileSize],
+            width: spacing[checkListItemCheckboxSize.mobile],
+            height: spacing[checkListItemCheckboxSize.mobile],
         },
     },
 });
@@ -527,12 +579,14 @@ export const checkListItemCheckboxIconClassName = style({
     left: "50%",
     width: spacing["2.5"],
     height: spacing["2.5"],
-    transform: `translate(-50%, -50%) scale(${parseInt(checkListItemCheckboxDesktopSize, 10) / 4})`,
+    transform: `translate(-50%, -50%) scale(${
+        parseInt(checkListItemCheckboxSize.desktop, 10) / 4
+    })`,
     pointerEvents: "none",
     selectors: {
         [`${mobilePlatformSelector} &`]: {
             transform: `translate(-50%, -50%) scale(${
-                parseInt(checkListItemCheckboxMobileSize, 10) / 4
+                parseInt(checkListItemCheckboxSize.mobile, 10) / 4
             })`,
         },
     },
@@ -572,10 +626,13 @@ globalStyle(codeBlockWrapperClassName, {
 // with `position: absolute; top: 0`. We can't position the toolbar with a
 // negative `top` since then it would be clipped because `overflowY` is hidden
 // (since `overflowX` is scrollable).
-const codeBlockPaddingY = `${Math.max(
-    0,
-    (parseRemLength(codeBlockToolbarHeight) - parseRemLength(paragraphFontSize.lineHeight)) / 2,
-)}rem`;
+const getCodeBlockPaddingY = (spacingScale: SpacingScale) =>
+    Math.max(
+        0,
+        (convertRemLengthToPx(codeBlockToolbarHeight, spacingScale) -
+            paragraphLineHeightPx[spacingScale]) /
+            2,
+    );
 
 globalStyle(codeBlockClassName, {
     display: "block",
@@ -587,8 +644,18 @@ globalStyle(codeBlockClassName, {
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
-    paddingTop: codeBlockPaddingY,
-    paddingBottom: codeBlockPaddingY,
+    paddingTop: getCodeBlockPaddingY("small"),
+    paddingBottom: getCodeBlockPaddingY("small"),
+});
+
+globalStyle(`${mediumSpacingScaleSelector} ${codeBlockClassName}`, {
+    paddingTop: getCodeBlockPaddingY("medium"),
+    paddingBottom: getCodeBlockPaddingY("medium"),
+});
+
+globalStyle(`${largeSpacingScaleSelector} ${codeBlockClassName}`, {
+    paddingTop: getCodeBlockPaddingY("large"),
+    paddingBottom: getCodeBlockPaddingY("large"),
 });
 
 // The reason use a triple selector is to beat the CSS set by ProseMirror since
@@ -900,13 +967,27 @@ export const fileFloatRightMarginXRem = parseRemLength(fileFloatRightMarginX);
 const fileFloatMarginY = spacing["1"];
 export const fileFloatMarginYRem = parseRemLength(fileFloatMarginY);
 
-export const fileFloatMinHeightParagraphLineCount = Math.ceil(
-    fileMinSizeRem / paragraphLineHeightRem,
+export const fileFloatMinHeightParagraphLineCount = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        Math.ceil(
+            (fileMinSizeRem * remPxBySpacingScale[spacingScale]) /
+                paragraphLineHeightPx[spacingScale],
+        ),
 );
-export const fileFloatMinHeightRem = fileFloatMinHeightParagraphLineCount * paragraphLineHeightRem;
+
+export const fileFloatMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        fileFloatMinHeightParagraphLineCount[spacingScale] * paragraphLineHeightPx[spacingScale],
+);
 
 export const fileFloatMaxHeightParagraphLineCount = 16;
-export const fileFloatMaxHeightRem = fileFloatMaxHeightParagraphLineCount * paragraphLineHeightRem;
+
+export const fileFloatMaxHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale => fileFloatMaxHeightParagraphLineCount * paragraphLineHeightPx[spacingScale],
+);
 
 globalStyle(fileFloatClassName, {
     clear: "both",

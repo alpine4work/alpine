@@ -30,6 +30,7 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -386,6 +387,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     ref: Ref<MessagingViewRef>,
 ) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const inputRef = useRef<MessageInputRef>(null);
@@ -614,7 +616,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 }
                 default: {
                     return renderMessageListItem({
-                        platform,
+                        spacingScale,
                         messageNoun,
                         messageStartOfSentenceNoun,
                         messages: state.messages,
@@ -654,9 +656,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageNoun,
             messageStartOfSentenceNoun,
             paddingX,
-            platform,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
+            spacingScale,
             state,
         ],
     );

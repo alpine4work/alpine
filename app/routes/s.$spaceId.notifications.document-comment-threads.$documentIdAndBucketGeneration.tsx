@@ -26,7 +26,7 @@ import {
     documentCommentThreadCountAgainstLimit,
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
-import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     getInboxDocumentNewCommentThreadsEntryCommentThreads,
@@ -34,7 +34,7 @@ import {
 } from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {
     DocumentCommentModel,
@@ -238,11 +238,12 @@ function DocumentNewCommentThreadsRouteInner() {
 
         const spacingScale = getSpacingScaleWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
-        const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, spacingScale);
 
         const loadCommentCount =
-            Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
-            Math.floor(documentCommentThreadCountAgainstLimit[getPlatformWithoutListening()]);
+            Math.max(
+                20,
+                Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx[spacingScale]),
+            ) - Math.floor(documentCommentThreadCountAgainstLimit[getPlatformWithoutListening()]);
 
         if (
             initialCommentThreadResult.comments.length <

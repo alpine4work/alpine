@@ -1437,6 +1437,7 @@ function SearchRouteShimmer() {
 
 function TaskDetailRouteShimmer() {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const platformRouteLayout = getPlatformRouteLayout(platform, routeLayout);
 
@@ -1501,7 +1502,11 @@ function TaskDetailRouteShimmer() {
                     <Box height={taskDetailViewSectionGap} />
                     <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
                     <Box height={taskDetailNotesFieldLabelPaddingBottom} />
-                    <Box style={{height: tasksStyles.detailNotesContentEditorMinHeight}} />
+                    <Box
+                        style={{
+                            height: tasksStyles.detailNotesContentEditorMinHeight[spacingScale],
+                        }}
+                    />
                     <Box height={taskDetailViewSectionGap} />
                     <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
                     <Box

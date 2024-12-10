@@ -17,7 +17,7 @@ import {Tooltip} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {
     MessageViewEditor,
@@ -28,16 +28,16 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
     messageView2AccountNameFontSize,
     messageView2AccountNameMarginBottom,
-    messageView2AvatarOffsetY,
-    messageView2AvatarOffsetYRem,
+    messageView2AvatarOffsetYPx,
     messageView2AvatarSize,
     messageView2RailGap,
     messageViewMarginY,
-    messageViewNotMergedOutlineMinHeight,
+    messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
     messageViewOutlineMarginX,
     messageViewOutlineMarginY,
@@ -167,6 +167,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     centeringMarginRight?: Spacing;
 }) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -477,7 +478,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         color: "grey-60",
                         fontSize: "100",
                     })}
-                    style={{lineHeight: contentStyles.paragraphFontSize.lineHeight}}
+                    style={{
+                        lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
+                    }}
                 >
                     <Trash
                         size={spacing["4"]}
@@ -493,7 +496,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 </div>
             </Tooltip>
         );
-    }, [message.payload, messageNoun]);
+    }, [message.payload, messageNoun, spacingScale]);
 
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
@@ -752,7 +755,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     {!shouldMergeWithPreviousMessage && (
                                         <div
                                             className={sprinkles({position: "relative"})}
-                                            style={{top: messageView2AvatarOffsetY}}
+                                            style={{top: messageView2AvatarOffsetYPx[spacingScale]}}
                                         >
                                             <AccountAvatar
                                                 account={messageAuthor}
@@ -762,7 +765,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     )}
                                 </div>
                             ),
-                            [messageAuthor, shouldMergeWithPreviousMessage],
+                            [messageAuthor, shouldMergeWithPreviousMessage, spacingScale],
                         )}
                         <div
                             className={sprinkles({flexGrow: "1"})}
@@ -932,7 +935,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     // If this is one line of text then the background should extend below
                                     // the avatar.
                                     minHeight: !shouldMergeWithPreviousMessage
-                                        ? messageViewNotMergedOutlineMinHeight
+                                        ? messageViewNotMergedOutlineMinHeightPx[spacingScale]
                                         : undefined,
                                 }}
                             />
@@ -960,6 +963,8 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
     parentMessage: Message;
     onJumpToMessage: Memo<(message: Message) => void>;
 }) {
+    const spacingScale = useSpacingScale();
+
     const truncatedContent = getTruncatedMessageContentForReplyPreview({
         message: parentMessage,
         messageNoun,
@@ -1024,6 +1029,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                         // color.
                         messagingStyles.parentMessageConnectorClassName,
                         sprinkles({
+                            pointerEvents: "none",
                             position: "absolute",
                             borderLeftWidth: "thick",
                             borderTopWidth: "thick",
@@ -1032,9 +1038,9 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     )}
                     style={{
                         top: `calc(${parentAvatarOffsetYRem + parentAvatarSizeRem / 2}rem - 1px)`,
-                        bottom: `calc(-${
-                            contentStyles.paragraphMarginRem + messageView2AvatarOffsetYRem
-                        }rem + 2px)`,
+                        bottom: `calc(-${contentStyles.paragraphMarginRem}rem - ${
+                            messageView2AvatarOffsetYPx[spacingScale] - 2
+                        }px)`,
                         left: `calc(-${avatarSizeRem / 2 + parentOffsetRem}rem - 1px)`,
                         width: `calc(${avatarSizeRem / 2 + parentOffsetRem}rem - 2px)`,
                     }}

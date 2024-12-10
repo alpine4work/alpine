@@ -1,9 +1,7 @@
 import {MessageList} from "~/client/messaging/message_list.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
@@ -63,14 +61,16 @@ export function tryLoadingMessages<Message extends MessageModel>({
 
     const spacingScale = getSpacingScaleWithoutListening();
     const virtualizationWindowHeightPx = getVirtualizationWindowHeight(viewHeight);
-    const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, spacingScale);
 
     // Load enough items to fill the virtualization window once. This gives the
     // user some space to scroll and read before we need to load more messages.
     //
     // If the user did a jump scroll then we load 50% more messages so we have some
     // buffer above and below the virtualization window.
-    const limit = Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx));
+    const limit = Math.max(
+        20,
+        Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx[spacingScale]),
+    );
 
     // Everything rendered is loaded. Yay! Proceed if we need to load some data.
     if (startMessage.type !== "Unloaded" && endMessage.type !== "Unloaded") {
@@ -103,7 +103,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
 
     const jumpLimit = Math.max(
         20,
-        Math.ceil((virtualizationWindowHeightPx * 1.5) / messageViewMinHeightPx),
+        Math.ceil((virtualizationWindowHeightPx * 1.5) / messageViewMinHeightPx[spacingScale]),
     );
 
     if (endMessage.type === "Unloaded" && startMessage.type !== "Unloaded") {

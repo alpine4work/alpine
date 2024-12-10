@@ -916,7 +916,7 @@ function DocumentCommentThreadListView(
                         DocumentCommentRoomKey,
                         DocumentCommentModel
                     >({
-                        platform,
+                        spacingScale,
                         messageNoun: "comment",
                         messages: item.comments,
                         groupKey: item.commentThread.id,
@@ -1185,7 +1185,7 @@ function DocumentCommentThreadListView(
             onCommentThreadSnippetPress,
             previewFileLayoutScreenWidthRem,
             procedures,
-            platform,
+            spacingScale,
             messageEditing,
             highlightComment,
             handleJumpToComment,
@@ -1196,6 +1196,7 @@ function DocumentCommentThreadListView(
             isConnected,
             subscribeToCommentThreadEvents,
             withCommentInputMobileMaxHeight,
+            platform,
         ],
     );
 

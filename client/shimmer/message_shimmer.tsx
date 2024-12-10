@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {Ref, forwardRef} from "react";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
@@ -19,12 +20,7 @@ import {
     pulseAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {
-    Spacing,
-    addRemLengths,
-    parseRemLength,
-    screenPaddingX,
-} from "~/shared/design/core/spacing.js";
+import {Spacing, addRemLengths, screenPaddingX} from "~/shared/design/core/spacing.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -43,6 +39,7 @@ const Box = null;
 const MessageShimmerForwardRef = forwardRef(MessageShimmer);
 export {MessageShimmerForwardRef as MessageShimmer};
 
+// NOCOMMIT: Update shimmer design
 function MessageShimmer(
     {
         width,
@@ -60,6 +57,7 @@ function MessageShimmer(
     ref: Ref<HTMLDivElement>,
 ) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
 
     return (
@@ -164,10 +162,8 @@ function MessageShimmer(
                     >
                         <div
                             style={{
-                                height: `${
-                                    heightLines *
-                                    parseRemLength(contentStyles.paragraphFontSize.lineHeight)
-                                }rem`,
+                                height:
+                                    heightLines * contentStyles.paragraphLineHeightPx[spacingScale],
                             }}
                         />
                     </div>

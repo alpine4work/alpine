@@ -7,6 +7,7 @@ import {Box} from "~/client/design/box.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {taskCardViewMaxWidth, taskCardViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
@@ -16,7 +17,7 @@ import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_ta
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
-import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -55,6 +56,7 @@ function TaskCardViewContent(
     ref: Ref<HTMLDivElement>,
 ) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -252,9 +254,7 @@ function TaskCardViewContent(
                     style={{
                         overflow: "hidden",
                         ...contentStyles.paragraphFontSize,
-                        maxHeight: `${
-                            parseRemLength(contentStyles.paragraphFontSize.lineHeight) * 3
-                        }rem`,
+                        maxHeight: contentStyles.paragraphLineHeightPx[spacingScale] * 3,
                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                         // except IE.
                         // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css

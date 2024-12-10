@@ -78,7 +78,7 @@ import {
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/messaging/get_truncated_message_content_for_reply_preview.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
@@ -654,11 +654,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         )}
                         {replyingToMessage &&
                             (() => {
-                                const height = addRemLengths(
-                                    "1.5",
-                                    contentViewStyles.truncatedHeight,
-                                    "1.5",
-                                );
+                                // NOCOMMIT: Remove
+                                const height = addRemLengths("1.5", "1.3125rem", "1.5");
 
                                 const scaledHeight = `${
                                     Math.round(

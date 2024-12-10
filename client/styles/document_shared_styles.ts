@@ -1,6 +1,6 @@
 import {
     messageInputMinHeight,
-    messageViewMinHeight,
+    messageViewMinHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
 import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -27,7 +27,8 @@ export const documentCommentThreadCountAgainstLimit = mapObjectValues(
     messageInputMinHeight,
     messageInputMinHeight =>
         parseRemLength(addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight)) /
-        parseRemLength(messageViewMinHeight),
+        // NOCOMMIT: Should change when `messageInputMinHeight` changes.
+        parseRemLength("1.3125rem"),
 );
 
 export const documentContentEditorSidebarWidth = "96";

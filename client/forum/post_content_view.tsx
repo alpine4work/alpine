@@ -28,6 +28,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -37,12 +38,12 @@ import {
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
     postContentViewInnerMarginY,
-    postContentViewMinHeightWithClosedCommentSection,
-    postContentViewMinHeightWithOpenCommentSection,
+    postContentViewMinHeightWithClosedCommentSectionPx,
+    postContentViewMinHeightWithOpenCommentSectionPx,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
-    postViewMinHeight,
+    postViewMinHeightPx,
     postViewNavigationBarSpace,
     screenPaddingXWithoutPostContentViewInnerMarginY,
 } from "~/client/styles/forum_shared_styles.js";
@@ -105,6 +106,7 @@ export function PostContentView({
     onScrollToIfNotVisible: () => void;
 }) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
 
@@ -210,10 +212,10 @@ export function PostContentView({
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
-                    ? postViewMinHeight
+                    ? postViewMinHeightPx[spacingScale]
                     : postCommentsState !== "Closed" && !isPostView
-                    ? postContentViewMinHeightWithOpenCommentSection
-                    : postContentViewMinHeightWithClosedCommentSection,
+                    ? postContentViewMinHeightWithOpenCommentSectionPx[spacingScale]
+                    : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
                 paddingBottom:
                     postCommentsState !== "Closed" && !isPostView
                         ? postContentViewOuterOpenCommentSectionMarginBottom

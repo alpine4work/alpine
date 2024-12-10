@@ -3,12 +3,15 @@ import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/sty
 import {
     RemLength,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {SpacingScale, allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const postViewFlex = 6;
@@ -87,33 +90,37 @@ export const postViewNavigationBarSpace = {
     ),
 };
 
-const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
-    postContentViewInnerMarginY,
-    contentStyles.paragraphFontSize.lineHeight,
-    postContentViewInnerMarginY,
-    postContentViewFooterHeight,
+const getPostContentViewMinHeightWithoutHeaderBasePx = (spacingScale: SpacingScale) =>
+    convertRemLengthToPx(postContentViewInnerMarginY, spacingScale) +
+    contentStyles.paragraphLineHeightPx[spacingScale] +
+    convertRemLengthToPx(postContentViewInnerMarginY, spacingScale) +
+    convertRemLengthToPx(postContentViewFooterHeight, spacingScale);
+
+const getPostContentViewMinHeightBasePx = (spacingScale: SpacingScale) =>
+    convertRemLengthToPx(postContentViewOuterMarginY, spacingScale) +
+    convertRemLengthToPx(postContentViewHeaderHeight, spacingScale) +
+    getPostContentViewMinHeightWithoutHeaderBasePx(spacingScale);
+
+export const postContentViewMinHeightWithOpenCommentSectionPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        getPostContentViewMinHeightBasePx(spacingScale) +
+        convertRemLengthToPx(postContentViewOuterOpenCommentSectionMarginBottom, spacingScale),
 );
 
-const postContentViewMinHeightBase = addRemLengths(
-    postContentViewOuterMarginY,
-    postContentViewHeaderHeight,
-    postContentViewMinHeightWithoutHeaderBase,
+export const postContentViewMinHeightWithClosedCommentSectionPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        getPostContentViewMinHeightBasePx(spacingScale) +
+        convertRemLengthToPx(postContentViewOuterMarginBottom, spacingScale),
 );
 
-export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
-    postContentViewMinHeightBase,
-    postContentViewOuterOpenCommentSectionMarginBottom,
-);
-
-export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
-    postContentViewMinHeightBase,
-    postContentViewOuterMarginBottom,
-);
-
-export const postViewMinHeight = addRemLengths(
-    navigationBarStyles.navigationBarHeight,
-    postContentViewMinHeightWithoutHeaderBase,
-    postContentViewOuterMarginBottom,
+export const postViewMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(navigationBarStyles.navigationBarHeight, spacingScale) +
+        getPostContentViewMinHeightWithoutHeaderBasePx(spacingScale) +
+        convertRemLengthToPx(postContentViewOuterMarginBottom, spacingScale),
 );
 
 export const channelViewHeaderMinHeight = addRemLengths(

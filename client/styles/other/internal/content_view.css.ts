@@ -3,6 +3,7 @@ import {colorSchemeVars, fontSizes, fontStyles} from "~/client/styles/core/style
 import {paragraphFontSize} from "~/client/styles/other/internal/content.css.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
 
+// NOCOMMIT: Delete this and `truncatedClassName`?
 export const truncatedHeight = paragraphFontSize.lineHeight;
 
 // TODO(calebmer): We should have a playground for truncated text with all our
