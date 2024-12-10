@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {CSSProperties, Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
@@ -123,6 +123,9 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     /** An extra CSS class to add to the content view. */
     className?: string;
 
+    /** Extra CSS inline styles we'll add to the content view. */
+    style?: CSSProperties;
+
     /** An optional label to expose to assistive technology. */
     "aria-label"?: string;
 
@@ -152,14 +155,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * disable some behaviors we save for `<ContentEditor>`.
      */
     isEditorInitialAppRender?: boolean;
-
-    /**
-     * Is this `<ContentView>` rendered on a `grey-5` background? If true certain
-     * colors may change. For example, the code block button's hover background
-     * color will change from `grey-5` to `grey-10`.
-     */
-    // NOCOMMIT: Delete
-    isBackgroundColorGrey5?: boolean;
 
     /**
      * If the content editor supports files then you must pass in
@@ -234,12 +229,12 @@ export function ContentView<Content extends ContentWithReferences>({
     contentUpdatedTime,
     placeholder,
     className,
+    style,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     isInert = false,
     isTruncated = false,
     isEditorInitialAppRender = false,
-    isBackgroundColorGrey5 = false,
     fileAttachmentTarget,
     shouldHighlightComment,
     withUserSelectNone = false,
@@ -977,7 +972,6 @@ export function ContentView<Content extends ContentWithReferences>({
         spaceContext,
         handleCodeBlockCopyButtonPress,
         reporter,
-        isBackgroundColorGrey5,
         context,
         fileAttachmentTarget,
         isEditorInitialAppRender,
@@ -1325,7 +1319,9 @@ export function ContentView<Content extends ContentWithReferences>({
                     isTruncated && contentViewStyles.truncatedClassName,
                 )}
                 style={
-                    withUserSelectNone ? {userSelect: "none", WebkitUserSelect: "none"} : undefined
+                    withUserSelectNone
+                        ? {userSelect: "none", WebkitUserSelect: "none", ...style}
+                        : style
                 }
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
@@ -1337,7 +1333,15 @@ export function ContentView<Content extends ContentWithReferences>({
             {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (
                 <Tooltip
                     placement="bottom"
-                    content={<PrettyAbsoluteDateTooltipContent date={contentUpdatedTime} />}
+                    content={
+                        <>
+                            Edited{" "}
+                            <PrettyAbsoluteDateTooltipContent
+                                date={contentUpdatedTime}
+                                withoutWeekday={true}
+                            />
+                        </>
+                    }
                     targetElement={contentUpdatedNoteElement}
                 />
             )}

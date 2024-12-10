@@ -342,7 +342,6 @@ export function MessageViewTouchLightbox<
                         <ContentView
                             isInert={true}
                             isTruncated={true}
-                            isBackgroundColorGrey5={true}
                             withUserSelectNone={true}
                             content={emptyMessageContentWithReferences}
                             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
@@ -580,7 +579,6 @@ export function MessageViewTouchLightbox<
                             >
                                 <ContentView
                                     isInert={true}
-                                    isBackgroundColorGrey5={true}
                                     withUserSelectNone={true}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                                     content={

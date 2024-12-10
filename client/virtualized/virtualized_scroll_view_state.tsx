@@ -73,6 +73,7 @@ export type VirtualizedScrollViewStateRenderItemProps = {
     offset: number;
     height: number;
     minHeight: number;
+    zIndex: string | undefined;
 
     /**
      * Get the position of an arbitrary item.
@@ -1410,6 +1411,7 @@ export class VirtualizedScrollViewState {
         getItem: (index: number) => {
             key: Key;
             minHeight: number;
+            zIndex: string | undefined;
             renderAdditionalItemIndexes?: ReadonlyArray<number>;
             render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
         };
@@ -1437,6 +1439,7 @@ export class VirtualizedScrollViewState {
             getItem: (index: number) => {
                 key: Key;
                 minHeight: number;
+                zIndex: string | undefined;
                 renderAdditionalItemIndexes?: ReadonlyArray<number>;
                 render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
             };
@@ -1824,6 +1827,7 @@ export class VirtualizedScrollViewState {
                 offset,
                 height,
                 minHeight: item.minHeight,
+                zIndex: item.zIndex,
                 getPositionByIndex: searchIndex => {
                     // NOTE(calebmer): We do not allow this because we are not done laying out items
                     // after this one. We could implement this by laying out all items first then
@@ -1888,6 +1892,7 @@ export class VirtualizedScrollViewState {
                 offset,
                 height: itemHeight,
                 minHeight: item.minHeight,
+                zIndex: item.zIndex,
                 getPositionByIndex: searchIndex => {
                     // NOTE(calebmer): We do not allow this because we are not done laying out items
                     // after this one. We could implement this by laying out all items first then

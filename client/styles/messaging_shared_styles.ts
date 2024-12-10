@@ -12,7 +12,9 @@ import {
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const messageView2AvatarSize = "6";
@@ -28,7 +30,7 @@ export const messageView2AvatarOffsetYRem =
     parseRemLength(contentStyles.paragraphFontSize.lineHeight) / 2 -
     parseRemLength(messageView2AvatarSize) / 2;
 
-export const messageView2AvatarOffsetY = `${messageView2AvatarOffsetYRem}rem`;
+export const messageView2AvatarOffsetY: RemLength = `${messageView2AvatarOffsetYRem}rem`;
 
 export const messageViewBubbleMinWidth: Spacing = "6"; // NOCOMMIT: Delete
 export const messageViewBubbleBorderRadius = {desktop: "4", mobile: "3.5"} as const; // NOCOMMIT: Delete
@@ -66,6 +68,39 @@ export const messageViewMaxWidth: Spacing = "160";
 export const messageViewMarginY: Spacing = "4";
 // NOCOMMIT: Delete?
 export const messageViewMergedMarginY: Spacing = "0.5";
+
+export const messageViewOutlineBorderRadius = "1";
+export const messageViewOutlineMarginX: Spacing = "1";
+export const messageViewOutlineMarginY: Spacing = "1";
+
+export const messageViewNotMergedOutlineMinHeight = addRemLengths(
+    messageViewOutlineMarginY,
+    messageView2AvatarOffsetY,
+    messageView2AvatarSize,
+    messageViewOutlineMarginY,
+);
+
+export const messageViewEditorOutlineMarginLeft = addRemLengths(
+    messageView2AvatarSize,
+    messageView2RailGap,
+    messageViewOutlineMarginX,
+);
+
+export const messageViewNotMergedEditorOutlineMarginTop = addRemLengths(
+    messageViewOutlineMarginY,
+    fontSizes[messageView2AccountNameFontSize].lineHeight,
+    messageView2AccountNameMarginBottom,
+);
+
+export const messageViewNotMergedEditorOutlineMarginBottom = subtractRemLengths(
+    messageViewNotMergedOutlineMinHeight,
+    addRemLengths(
+        messageViewOutlineMarginY,
+        fontSizes[messageView2AccountNameFontSize].lineHeight,
+        messageView2AccountNameMarginBottom,
+        contentStyles.paragraphFontSize.lineHeight,
+    ),
+);
 
 export const messageViewMinHeight = addRemLengths(
     contentStyles.paragraphFontSize.lineHeight,

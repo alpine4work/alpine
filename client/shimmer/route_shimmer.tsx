@@ -40,7 +40,6 @@ import {
     channelFilesViewMaxWidth,
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
-    channelViewAsideMarginTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
@@ -437,7 +436,6 @@ function ChannelRouteShimmer() {
                     <Box height={navigationBarHeight} />
                     <Box
                         paddingX={screenPaddingX}
-                        paddingTop={channelViewAsideMarginTop}
                         paddingBottom={screenPaddingX}
                         display="flex"
                         flexDirection="column"

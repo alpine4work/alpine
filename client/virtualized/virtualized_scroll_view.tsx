@@ -111,6 +111,11 @@ type VirtualizedScrollViewItemBase = {
     readonly minHeight: RemLength | number;
 
     /**
+     * Set the `z-index` CSS property for this node.
+     */
+    readonly zIndex?: string;
+
+    /**
      * If this item is rendered then we will also render the items at the indexes
      * provided in this array even if they are not in the virtualized window.
      * Useful for implementing sticky section headers.
@@ -127,10 +132,12 @@ export type VirtualizedScrollViewItem =
            * The actual rendered React component for this item.
            */
           readonly node: ReactNode;
+
           readonly withManualLayout?: undefined;
       })
     | (VirtualizedScrollViewItemBase & {
           readonly withManualLayout: true;
+
           /**
            * Manually render the wrapper `<div>` to position the item with a render
            * function.
@@ -142,6 +149,7 @@ export type VirtualizedScrollViewItem =
            *     ref={ref}
            *     style={{
            *         minHeight: item.minHeight,
+           *         zIndex: item.zIndex,
            *         ...(shouldRenderWithRelativePositioning
            *             ? {position: "relative"}
            *             : {
@@ -847,11 +855,13 @@ function VirtualizedScrollView(
             return {
                 key: item.key,
                 minHeight: item.minHeight,
+                zIndex: item.zIndex,
                 renderAdditionalItemIndexes: item.renderAdditionalItemIndexes,
                 render: ({
                     offset,
                     height,
                     minHeight,
+                    zIndex,
                     getPositionByIndex,
                     viewHeight,
                     originalContentHeight,
@@ -962,6 +972,7 @@ function VirtualizedScrollView(
                             offset,
                             height,
                             minHeight,
+                            zIndex,
                             getPositionByIndex,
                             viewHeight,
                             originalContentHeight,
@@ -976,6 +987,7 @@ function VirtualizedScrollView(
                                     // Use the original min-height in case we have the wrong `remPx` value during
                                     // server-side rendering.
                                     minHeight: item.originalMinHeight,
+                                    zIndex,
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {

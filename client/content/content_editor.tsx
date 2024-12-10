@@ -153,7 +153,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
@@ -397,6 +397,17 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     className?: string;
 
     /**
+     * A subset of `React.CSSProperties` we'll apply to the content editable
+     * `<div>`.
+     */
+    style?: {
+        paddingTop?: RemLength;
+        paddingBottom?: RemLength;
+        paddingLeft?: RemLength;
+        paddingRight?: RemLength;
+    };
+
+    /**
      * The class name we'll apply to the `<div>` containing the content editable
      * `<div>`. We need a container `<div>` (unfortunately) to have an element to
      * mount ProseMirror editor within given the ProseMirror editor is not a React
@@ -599,6 +610,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     state,
     placeholder,
     className,
+    style,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
@@ -684,6 +696,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
+                style={style}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -716,6 +729,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         state,
         placeholder,
         className,
+        style,
         containerClassName: customContainerClassName,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
@@ -3014,10 +3028,43 @@ function ContentEditor<Content extends ContentWithReferences>(
         ).split(" ");
         viewElement.classList.add(...classList);
 
+        if (style?.paddingTop !== undefined) {
+            viewElement.style.paddingTop = style.paddingTop;
+        }
+        if (style?.paddingBottom !== undefined) {
+            viewElement.style.paddingBottom = style.paddingBottom;
+        }
+        if (style?.paddingLeft !== undefined) {
+            viewElement.style.paddingLeft = style.paddingLeft;
+        }
+        if (style?.paddingRight !== undefined) {
+            viewElement.style.paddingRight = style.paddingRight;
+        }
+
         return () => {
             viewElement.classList.remove(...classList);
+
+            if (style?.paddingTop !== undefined) {
+                viewElement.style.removeProperty("padding-top");
+            }
+            if (style?.paddingBottom !== undefined) {
+                viewElement.style.removeProperty("padding-bottom");
+            }
+            if (style?.paddingLeft !== undefined) {
+                viewElement.style.removeProperty("padding-left");
+            }
+            if (style?.paddingRight !== undefined) {
+                viewElement.style.removeProperty("padding-right");
+            }
         };
-    }, [className, routeLayout]);
+    }, [
+        className,
+        routeLayout,
+        style?.paddingBottom,
+        style?.paddingLeft,
+        style?.paddingRight,
+        style?.paddingTop,
+    ]);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {

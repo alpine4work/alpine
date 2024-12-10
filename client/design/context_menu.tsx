@@ -124,9 +124,12 @@ export function useContextMenuActionsRef(
                   action: MenuStandardAction,
               ) => ReadonlyArray<ReadonlyArray<MenuAction>>;
               extraOverlayBottom?: ReactNode;
-          },
+          }
+        | null,
 ): RefCallback<HTMLElement> {
     const handleContextMenu = useEvent((event: MouseEvent) => {
+        if (actionsOrOptions === null) return;
+
         const {actions, mergeReadonlyCopyAction, extraOverlayBottom} =
             isReadonlyArray(actionsOrOptions) || typeof actionsOrOptions === "function"
                 ? {
@@ -198,11 +201,13 @@ export function useContextMenuActionsRef(
  * should come after `actions1`.
  */
 export function ContextMenuActions({
+    isDisabled,
     actions,
     mergeReadonlyCopyAction,
     extraOverlayBottom,
     children,
 }: {
+    isDisabled?: boolean;
     actions: MaybeThunk<ReadonlyArray<ReadonlyArray<MenuAction>>, [MouseEvent]>;
     mergeReadonlyCopyAction?: (
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
@@ -214,9 +219,11 @@ export function ContextMenuActions({
     return useElementWithRef(
         children,
         useContextMenuActionsRef(
-            mergeReadonlyCopyAction !== undefined || extraOverlayBottom !== undefined
-                ? {actions, mergeReadonlyCopyAction, extraOverlayBottom}
-                : actions,
+            !isDisabled
+                ? mergeReadonlyCopyAction !== undefined || extraOverlayBottom !== undefined
+                    ? {actions, mergeReadonlyCopyAction, extraOverlayBottom}
+                    : actions
+                : null,
         ),
     );
 }

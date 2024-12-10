@@ -107,6 +107,11 @@ function Button(
         keyboardShortcutHint?: ReactNode;
 
         /**
+         * Tooltip offset for the keyboard shortcut hint.
+         */
+        keyboardShortcutHintTooltipOffset?: Spacing;
+
+        /**
          * Are we waiting for some asynchronous action that was initiated by our button
          * to complete?
          *
@@ -224,6 +229,7 @@ function Button(
         iconPlacement = "start",
         isDisabled,
         keyboardShortcutHint,
+        keyboardShortcutHintTooltipOffset,
         isPending: isPendingFromProps,
         withoutLoadingIndicator = false,
         fullWidth = false,
@@ -713,6 +719,7 @@ function Button(
         node = (
             <Tooltip
                 placement="bottom"
+                offset={keyboardShortcutHintTooltipOffset}
                 content={
                     <Box color="grey-50">
                         <IconContext.Provider

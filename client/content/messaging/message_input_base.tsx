@@ -781,7 +781,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         <ContentView
                                                             isInert={true}
                                                             isTruncated={true}
-                                                            isBackgroundColorGrey5={true}
                                                             content={
                                                                 replyingToMessage.truncatedContent
                                                             }

@@ -163,7 +163,6 @@ export default function TaskCommentsRoute() {
                         />
                     }
                     subtitle="Comments"
-                    replaceActions={null}
                     menuActions={[
                         {
                             label: "Open task",

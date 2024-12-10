@@ -16,17 +16,11 @@ export const postListViewAsideFlex = 4;
 
 export const channelViewAsideSectionGap = "7";
 
-// We've picked `channelViewAsideMarginTop` so that when you edit the channel
-// description the save and cancel buttons aren't covered by the navigation
-// bar. If we change the design for these inline editing save/cancel buttons we
-// can set `channelViewAsideMarginTop` to 0.
-export const channelViewAsideMarginTop = "2";
-
 export const channelViewHeaderNarrowRouteLayoutMarginTop = "1";
-export const channelViewHeaderSectionGap = "6";
+export const channelViewHeaderSectionGap = "5";
 
 export const postFauxInputCreateButtonMarginTop = {
-    wide: channelViewAsideMarginTop,
+    wide: "0",
     narrow: channelViewHeaderSectionGap,
 } as const;
 

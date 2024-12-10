@@ -163,14 +163,26 @@ export function renderMessageListItem<
                         ? `Message:${item.messageIndex}`
                         : `UnloadedMessage:${item.messageIndex}`,
                 minHeight: messageViewMinHeight,
+                zIndex:
+                    messageEditing.state.isEditing &&
+                    messageEditing.state.messageIndex === item.messageIndex
+                        ? "10"
+                        : "0",
                 withManualLayout: true,
-                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
+                render: ({
+                    ref,
+                    shouldRenderWithRelativePositioning,
+                    offset,
+                    isScrolling,
+                    zIndex,
+                }) => {
                     if (!customRender) {
                         return (
                             <div
                                 ref={ref}
                                 style={{
                                     minHeight: messageViewMinHeight,
+                                    zIndex,
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {
@@ -217,7 +229,8 @@ export function renderMessageListItem<
                             ref,
                             style: {
                                 ...node.props.style,
-                                minHeight: messageViewMinHeight[platform],
+                                minHeight: messageViewMinHeight,
+                                zIndex,
                                 ...(shouldRenderWithRelativePositioning
                                     ? {position: "relative"}
                                     : {

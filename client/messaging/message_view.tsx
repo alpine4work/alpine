@@ -37,6 +37,10 @@ import {
     messageView2AvatarSize,
     messageView2RailGap,
     messageViewMarginY,
+    messageViewNotMergedOutlineMinHeight,
+    messageViewOutlineBorderRadius,
+    messageViewOutlineMarginX,
+    messageViewOutlineMarginY,
     messageViewParentAvatarSize,
     messageViewParentFontSize,
     messageViewParentLineHeight,
@@ -54,6 +58,7 @@ import {
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
 import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     RemLength,
     Spacing,
@@ -440,9 +445,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <ContentView
-                isBackgroundColorGrey5={true}
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdatedTime}
+                // NOCOMMIT: Reconsider?
                 withUserSelectNone={!canPrimaryInputHover}
             />
         );
@@ -469,7 +474,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         display: "inline",
                         color: "grey-60",
                         fontSize: "100",
-                        userSelect: "text",
                     })}
                     style={{lineHeight: contentStyles.paragraphFontSize.lineHeight}}
                 >
@@ -612,20 +616,40 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         ]);
 
         if (message.payload.type === "Content") {
-            contextMenuActions.push([
-                {
+            const messagePayload = message.payload;
+
+            const editContextMenuActions: Array<MenuAction> = [];
+            contextMenuActions.push(editContextMenuActions);
+
+            // Don't allow editing if the message payload is empty. The UI shouldn't
+            // normally allow saving an empty message payload. We allow empty message
+            // payloads for messages that have attached files, however. In this special
+            // case we don't want to allow the user to add text alongside the files.
+            if (!isContentEmpty(messagePayload.content.doc)) {
+                editContextMenuActions.push({
                     label: "Edit",
+                    isDisabled: message.isOptimistic,
                     onPress: () => {
-                        // NOCOMMIT
+                        if (message.isOptimistic) return;
+
+                        messageEditing.dispatch({
+                            type: "StartEditing",
+                            messageIndex: message.index,
+                            messageRoomKey: message.getRoomKey(),
+                            messagePayload,
+                            platform,
+                            returnFocusAfterEditing: null,
+                        });
                     },
+                });
+            }
+
+            editContextMenuActions.push({
+                label: "Delete",
+                onPress: () => {
+                    setShowDeleteConfirmationDialog(true);
                 },
-                {
-                    label: "Delete",
-                    onPress: () => {
-                        setShowDeleteConfirmationDialog(true);
-                    },
-                },
-            ]);
+            });
         }
 
         return contextMenuActions;
@@ -642,6 +666,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         <>
             {timestampDividerNode}
             <ContextMenuActions
+                isDisabled={!!messageEditingForThisMessage}
                 actions={getContextMenuActions}
                 // Merge the text copy action into the "Copy link" section.
                 mergeReadonlyCopyAction={(actionSections, copyTextAction) => {
@@ -672,6 +697,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         contentUpdatedTime={
                             !canPrimaryInputHover && message.payload.type === "Content"
                                 ? message.payload.contentUpdatedTime
+                                : null
+                        }
+                        deletedTime={
+                            !canPrimaryInputHover && message.payload.type === "Deleted"
+                                ? message.payload.deletedTime
                                 : null
                         }
                     />
@@ -855,7 +885,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         shouldMergeWithPreviousMessage={
                                             shouldMergeWithPreviousMessage
                                         }
-                                        shouldMergeWithNextMessage={shouldMergeWithNextMessage}
                                         messageEditing={messageEditing}
                                     />
                                 )
@@ -884,25 +913,23 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             <div
                                 className={sprinkles({
                                     position: "absolute",
-                                    top: "-0.5",
+                                    top: `-${messageViewOutlineMarginY}`,
                                     height: "full",
-                                    left: "-1",
-                                    right: "-1",
+                                    left: `-${messageViewOutlineMarginX}`,
+                                    right: `-${messageViewOutlineMarginX}`,
                                     zIndex: "-10",
                                     backgroundColor: "grey-5",
-                                    borderRadius: "1",
+                                    borderRadius: messageViewOutlineBorderRadius,
                                 })}
                                 style={{
-                                    height: `calc(100% + ${spacing["1"]})`,
+                                    height: `calc(100% + ${addRemLengths(
+                                        messageViewOutlineMarginY,
+                                        messageViewOutlineMarginY,
+                                    )})`,
                                     // If this is one line of text then the background should extend below
                                     // the avatar.
                                     minHeight: !shouldMergeWithPreviousMessage
-                                        ? addRemLengths(
-                                              fontSizes[messageView2AccountNameFontSize].lineHeight,
-                                              messageView2AccountNameMarginBottom,
-                                              contentStyles.paragraphFontSize.lineHeight,
-                                              "2",
-                                          )
+                                        ? messageViewNotMergedOutlineMinHeight
                                         : undefined,
                                 }}
                             />
@@ -1055,9 +1082,11 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
 function MessageViewMenuCreatedTime({
     createdTime,
     contentUpdatedTime,
+    deletedTime,
 }: {
     createdTime: Date;
     contentUpdatedTime: Date | null;
+    deletedTime: Date | null;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -1084,6 +1113,18 @@ function MessageViewMenuCreatedTime({
         [contentUpdatedTime, currentTime, locale, timeZone],
     );
 
+    const formattedDeletedTime = useMemo(
+        () =>
+            deletedTime
+                ? formatMessageViewTimestampDividerDate(deletedTime, {
+                      currentTime,
+                      locale,
+                      timeZone,
+                  })
+                : null,
+        [currentTime, deletedTime, locale, timeZone],
+    );
+
     return (
         <>
             <div className={sprinkles({padding: "1"})}>
@@ -1098,14 +1139,18 @@ function MessageViewMenuCreatedTime({
                 })}
             >
                 <div>
-                    {formattedContentUpdatedTime && <>Sent: </>}
+                    {(formattedContentUpdatedTime || formattedDeletedTime) && <>Sent: </>}
                     {formattedCreatedTime}
                 </div>
-                {formattedContentUpdatedTime && (
+                {formattedDeletedTime ? (
+                    <div className={sprinkles({paddingTop: "1"})}>
+                        Deleted: {formattedDeletedTime}
+                    </div>
+                ) : formattedContentUpdatedTime ? (
                     <div className={sprinkles({paddingTop: "1"})}>
                         Edited: {formattedContentUpdatedTime}
                     </div>
-                )}
+                ) : null}
             </div>
         </>
     );

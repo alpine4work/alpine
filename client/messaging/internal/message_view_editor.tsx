@@ -1,24 +1,22 @@
-import {Check, X} from "phosphor-react";
 import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {IconButton} from "~/client/design/icon_button.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
 import {
-    messageViewActionsWidth,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMergedBorderRadius,
-    messageViewBubbleMinWidth,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    messageViewMaxWidth,
+    messageViewEditorOutlineMarginLeft,
+    messageViewNotMergedEditorOutlineMarginBottom,
+    messageViewNotMergedEditorOutlineMarginTop,
+    messageViewOutlineBorderRadius,
+    messageViewOutlineMarginX,
+    messageViewOutlineMarginY,
 } from "~/client/styles/messaging_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -34,13 +32,11 @@ function MessageViewEditor<RoomKey extends string>(
     {
         messageStartOfSentenceNoun,
         shouldMergeWithPreviousMessage,
-        shouldMergeWithNextMessage,
         messageEditing,
     }: {
         ref?: Ref<MessageViewEditorRef>;
         messageStartOfSentenceNoun: string;
         shouldMergeWithPreviousMessage: boolean;
-        shouldMergeWithNextMessage: boolean;
         messageEditing: MessageEditing<RoomKey>;
     },
     ref: Ref<MessageViewEditorRef>,
@@ -49,82 +45,65 @@ function MessageViewEditor<RoomKey extends string>(
     const {state} = messageEditing;
 
     return (
-        <Box
-            flexGrow="1"
-            overflow="hidden"
-            display="flex"
-            position="relative"
-            zIndex="10"
-            // No pointer events so if we are a small message rendering on top of a large
-            // parent message then the part of the parent message that underlaps our
-            // message bubble is clickable.
-            pointerEvents="none"
-            ref={useConfirmSaveAfterLosingFocus({
-                shouldConfirmSave: state.contentEditorState.getDoc() !== state.initialContent,
-                isConfirmingSave:
-                    messageEditing.state.isEditing &&
-                    messageEditing.state.confirmationDialog === "Save",
-                onCancelSave: () => messageEditing?.dispatch({type: "CancelEditing"}),
-                onConfirmSave: () => messageEditing?.dispatch({type: "MaybeCancelEditing"}),
-            })}
-        >
-            <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
-                <Box
-                    pointerEvents="auto"
-                    maxWidth={messageViewMaxWidth}
-                    overflow="hidden"
-                    display="inline-block"
-                    paddingX={messageViewBubblePaddingX}
-                    paddingY={messageViewBubblePaddingY}
-                    backgroundColor="grey-0"
-                    borderTopLeftRadius={
-                        !shouldMergeWithPreviousMessage
-                            ? messageViewBubbleBorderRadius
-                            : messageViewBubbleMergedBorderRadius
-                    }
-                    borderTopRightRadius={messageViewBubbleBorderRadius}
-                    borderBottomLeftRadius={
-                        !shouldMergeWithNextMessage
-                            ? messageViewBubbleBorderRadius
-                            : messageViewBubbleMergedBorderRadius
-                    }
-                    borderBottomRightRadius={messageViewBubbleBorderRadius}
-                    style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
-                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+        <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
+            <Box
+                ref={useConfirmSaveAfterLosingFocus({
+                    shouldConfirmSave: state.contentEditorState.getDoc() !== state.initialContent,
+                    isConfirmingSave:
+                        messageEditing.state.isEditing &&
+                        messageEditing.state.confirmationDialog === "Save",
+                    onCancelSave: () => messageEditing?.dispatch({type: "CancelEditing"}),
+                    onConfirmSave: () => messageEditing?.dispatch({type: "MaybeCancelEditing"}),
+                })}
+                position="relative"
+                zIndex="40"
+                borderRadius={messageViewOutlineBorderRadius}
+                marginRight={`-${messageViewOutlineMarginX}`}
+                marginY={`-${messageViewOutlineMarginY}`}
+                style={{
+                    marginLeft: `-${messageViewEditorOutlineMarginLeft}`,
+                    marginTop: !shouldMergeWithPreviousMessage
+                        ? `-${messageViewNotMergedEditorOutlineMarginTop}`
+                        : undefined,
+                    marginBottom: !shouldMergeWithPreviousMessage
+                        ? `-${messageViewNotMergedEditorOutlineMarginBottom}`
+                        : undefined,
+                    // Use box shadow to draw the border so it doesn't add 1px to layout like
+                    // `border` CSS would.
+                    boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                }}
+            >
+                <MessageContentEditor
+                    parentRef={ref}
+                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                    state={state.contentEditorState}
+                    isSaving={state.isSaving}
+                    onChange={state => {
+                        messageEditing.dispatch({
+                            type: "ContentEditorStateChange",
+                            contentEditorState: state,
+                        });
                     }}
-                >
-                    <MessageContentEditor
-                        parentRef={ref}
-                        messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                        state={state.contentEditorState}
-                        isSaving={state.isSaving}
-                        onChange={state => {
-                            messageEditing.dispatch({
-                                type: "ContentEditorStateChange",
-                                contentEditorState: state,
-                            });
-                        }}
-                        onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
-                        onSave={() => {
-                            messageEditing.dispatch({type: "SaveEditedContent"});
-                        }}
-                    />
-                </Box>
-            </FocusRing>
-            <Box alignSelf="center" paddingLeft="3" pointerEvents="auto">
-                <Box width={messageViewActionsWidth} position="relative" zIndex="20">
-                    <MessageViewEditorActions messageEditing={messageEditing} />
-                </Box>
+                    onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
+                    onSave={() => {
+                        messageEditing.dispatch({type: "SaveEditedContent"});
+                    }}
+                />
+                <InlineEditorToolbar
+                    isSaving={messageEditing.state.isSaving}
+                    onSave={() => messageEditing.dispatch({type: "SaveEditedContent"})}
+                    onCancel={() => messageEditing.dispatch({type: "CancelEditing"})}
+                />
             </Box>
-        </Box>
+        </FocusRing>
     );
 }
 
 function MessageContentEditor({
     parentRef,
     messageStartOfSentenceNoun,
+    shouldMergeWithPreviousMessage,
     state,
     isSaving,
     onChange,
@@ -133,14 +112,13 @@ function MessageContentEditor({
 }: {
     parentRef: Ref<MessageViewEditorRef>;
     messageStartOfSentenceNoun: string;
+    shouldMergeWithPreviousMessage: boolean;
     state: ContentEditorState<MessageContentWithReferences>;
     isSaving: boolean;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onCancel: () => void;
     onSave: () => void;
 }) {
-    const platform = usePlatform();
-
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const hasInitiallyMountedRef = useRef(false);
@@ -149,9 +127,13 @@ function MessageContentEditor({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        const editor = assertExists(editorRef.current);
-        editor.focus();
-        editor.selectAll();
+        // Avoid `flushSync()` in effect warning by running after a microtask.
+        scheduleMicrotask(() => {
+            if (!editorRef.current) return;
+            const editor = editorRef.current;
+            editor.focus();
+            editor.selectAll();
+        });
     }, []);
 
     useImperativeHandle(
@@ -180,7 +162,19 @@ function MessageContentEditor({
             // On mobile, don't allow interactions when unfocused. We're already in an
             // editing modality.
             withoutMobileDualModality={true}
-            className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+            className={sprinkles({
+                paddingRight: messageViewOutlineMarginX,
+                paddingY: messageViewOutlineMarginY,
+            })}
+            style={{
+                paddingLeft: messageViewEditorOutlineMarginLeft,
+                paddingTop: !shouldMergeWithPreviousMessage
+                    ? messageViewNotMergedEditorOutlineMarginTop
+                    : undefined,
+                paddingBottom: !shouldMergeWithPreviousMessage
+                    ? messageViewNotMergedEditorOutlineMarginBottom
+                    : undefined,
+            }}
             onEscape={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -192,40 +186,5 @@ function MessageContentEditor({
                 onSave();
             }}
         />
-    );
-}
-
-function MessageViewEditorActions<RoomKey extends string>({
-    messageEditing,
-}: {
-    messageEditing: MessageEditing<RoomKey>;
-}) {
-    assert(messageEditing.state.isEditing);
-    const isSaving = messageEditing.state.isSaving;
-
-    return (
-        <Box display="flex">
-            <IconButton
-                description="Save"
-                keyboardShortcutHint="Enter"
-                size="sm"
-                onPress={() => {
-                    messageEditing.dispatch({type: "SaveEditedContent"});
-                }}
-                isDisabled={isSaving}
-                isPending={isSaving}
-            >
-                <Check />
-            </IconButton>
-            <IconButton
-                description="Cancel"
-                keyboardShortcutHint="Esc"
-                size="sm"
-                onPress={() => messageEditing.dispatch({type: "CancelEditing"})}
-                isDisabled={isSaving}
-            >
-                <X />
-            </IconButton>
-        </Box>
     );
 }

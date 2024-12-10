@@ -4,7 +4,6 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
-    cloneElement,
     forwardRef,
     useCallback,
     useEffect,
@@ -26,13 +25,9 @@ import {
     PostCommentInput,
     PostRealtimeProcedures,
 } from "~/client/forum/internal/post_comment_input.js";
-import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
+import {usePostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
-import {
-    PostContentView,
-    PostContentViewEditingActions,
-    PostContentViewInitialScroll,
-} from "~/client/forum/post_content_view.js";
+import {PostContentView, PostContentViewInitialScroll} from "~/client/forum/post_content_view.js";
 import {
     PostListChannelHeader,
     PostListInterface,
@@ -69,7 +64,6 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
-    messageViewMarginY,
     messageViewMinHeight,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
@@ -925,6 +919,12 @@ function PostListView(
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
+                        zIndex:
+                            messageEditing.state.isEditing &&
+                            messageEditing.state.messageRoomKey === item.post.id &&
+                            messageEditing.state.messageIndex === item.postCommentIndex
+                                ? "10"
+                                : "0",
                         renderAdditionalItemIndexes: !isPostView
                             ? [item.postCommentInputItemIndex]
                             : [],
@@ -1576,55 +1576,13 @@ function PostListView(
                     extraChildrenContentHeight={asideSize?.height ?? 0}
                     extraChildren={
                         <>
-                            {navigationBar?.navigationBar && isPostView
-                                ? (() => {
-                                      const navigationBarElement = navigationBar.navigationBar;
-                                      if (!navigationBarElement) return null;
-
-                                      // For mobile devices we open `<PostMobileEditorView>` for editing so we don't
-                                      // need to replace the more button.
-                                      if (platform === "mobile") return navigationBarElement;
-
-                                      // NOTE(calebmer): Ok, this is admittedly a bit hacky. Generally we should
-                                      // avoid using `cloneElement()` but this is the cleanest way I could imagine
-                                      // to make this work with minimal effort.
-                                      //
-                                      // When editing a post, we want to render the save/cancel buttons instead of
-                                      // the "more" actions button. Normally the more actions button is rendered in
-                                      // `<PostContentView>`. However, in `<PostView>` we render the post content
-                                      // view header in a navigation bar and put the more actions button in that
-                                      // navigation bar. `<PostView>` does not have access to `postEditing` state
-                                      // though. So what we do is we intercept the `navigationBar` passed to
-                                      // `<PostListView>` by props and inject the `replaceActions` prop.
-                                      //
-                                      // This assertion makes sure `navigationBarElement` is a `ReactElement` that
-                                      // accepts the `replaceActions` prop.
-                                      assert(
-                                          "replaceActions" in navigationBarElement.props &&
-                                              navigationBarElement.props.replaceActions === null,
-                                          "Expected React element with a null `replaceActions` prop",
-                                      );
-
-                                      if (!postEditing.state.isEditing) return navigationBarElement;
-
-                                      return cloneElement(navigationBarElement, {
-                                          replaceActions: (
-                                              <PostContentViewEditingActions
-                                                  idBase={idBase}
-                                                  postEditing={
-                                                      postEditing as PostEditing & {
-                                                          state: {isEditing: true};
-                                                      }
-                                                  }
-                                              />
-                                          ),
-                                      });
-                                  })()
-                                : navigationBar?.navigationBar}
+                            {navigationBar?.navigationBar}
                             {hasAside && (
                                 <>
                                     <div
-                                        style={{height: scrollDirectionState.asideBufferedHeight}}
+                                        style={{
+                                            height: scrollDirectionState.asideBufferedHeight,
+                                        }}
                                     />
                                     <div
                                         className={sprinkles({
@@ -1676,11 +1634,11 @@ function PostListView(
                                                 ref={asideRef}
                                                 className={sprinkles({
                                                     pointerEvents: "auto",
-                                                    paddingTop: hasNavigationBar
-                                                        ? navigationBarHeight
-                                                        : undefined,
+                                                    paddingTop: navigationBarHeight,
                                                 })}
-                                                style={{minHeight: viewSize ? viewSize.height : 0}}
+                                                style={{
+                                                    minHeight: viewSize ? viewSize.height : 0,
+                                                }}
                                             >
                                                 {aside}
                                             </aside>
