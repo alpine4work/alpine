@@ -760,7 +760,9 @@ function PostListView(
                         minHeight: isPostView
                             ? postViewMinHeightPx[spacingScale]
                             : item.postCommentsState !== "Closed" && !isPostView
-                            ? postContentViewMinHeightWithOpenCommentSectionPx[spacingScale]
+                            ? postContentViewMinHeightWithOpenCommentSectionPx[platform][
+                                  spacingScale
+                              ]
                             : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
                         node: (
                             <div
@@ -1225,7 +1227,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: messageInput2MinHeightPx[spacingScale],
+                        minHeight: messageInput2MinHeightPx[platform][spacingScale],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({

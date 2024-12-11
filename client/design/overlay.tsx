@@ -44,6 +44,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 
 /**
  * Where should the overlay content be placed relative to the target element?
@@ -610,9 +611,10 @@ function Overlay(
                 // right position.
                 popper.forceUpdate();
 
-                // Update the overlay placement if the target element resizes.
+                // Update the overlay placement if the target or overlay element resizes.
                 const handleResize = () => popper.forceUpdate();
                 addResizeListenerForElement(targetElement, handleResize);
+                addResizeListenerForElement(overlayElement, handleResize);
 
                 // If we're using `sameWidth` or `sameHeight` then calling
                 // `popper.forceUpdate()` after a resize will cause the overlay element to
@@ -673,6 +675,7 @@ function Overlay(
                     popperRef.current = null;
                     popper.destroy();
                     removeResizeListenerForElement(targetElement, handleResize);
+                    removeResizeListenerForElement(overlayElement, handleResize);
                     if (
                         sameWidth ||
                         sameHeight ||
@@ -806,7 +809,7 @@ type OverlayBlockingCoverRef = {
     setRects(rects: {target: Rect; overlay: Rect}): void;
 };
 
-const shouldDebugOverlayBlockingCover = false;
+const shouldDebugOverlayBlockingCover: CommitBlocker | null = null;
 
 // Only allow `shouldDebugOverlayBlockingCover` to be true in development.
 if (process.env.NODE_ENV !== "development") {

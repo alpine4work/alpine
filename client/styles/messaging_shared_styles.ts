@@ -4,6 +4,7 @@
 
 import {contentStyles, fontSizes} from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {Platform, allPlatforms} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -11,9 +12,12 @@ import {
     assertSpacing,
     convertRemLengthToPx,
     parseRemLength,
+    screenPaddingX,
+    spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
@@ -135,48 +139,86 @@ export const messageViewParentMessageAvatarOffsetYRem =
 // Should be the same size as `messageView2AccountAvatarSize`.
 export const messageInputEditor2IconButtonSize = "md";
 
-export const messageInputEditor2PaddingX = addRemLengths(
-    messageView2AccountAvatarSize,
-    messageView2RailGap,
+// NOCOMMIT: No more "3" naming business
+export const messageInputEditor3IconButtonMargin: Record<Platform, Spacing> = {
+    desktop: "2",
+    mobile: "1",
+};
+
+export const messageInputEditor3IconButtonNegativeMargin = mapObjectValues(
+    messageInputEditor3IconButtonMargin,
+    (spacing): `-${Spacing}` => `-${spacing}`,
 );
 
-export const messageInputEditor2IconButtonMargin: RemLength = `${
-    parseRemLength(subtractRemLengths(messageInputEditor2PaddingX, messageView2AccountAvatarSize)) /
-    2
-}rem`;
+export const messageInputEditor2PaddingX = createObjectFromKeys(allPlatforms, platform =>
+    addRemLengths(
+        messageInputEditor3IconButtonMargin[platform],
+        messageView2AccountAvatarSize,
+        messageView2RailGap,
+    ),
+);
 
-export const messageInputEditor2PaddingYPx = createObjectFromKeys(
-    allSpacingScales,
-    spacingScale =>
-        (convertRemLengthToPx(
-            addRemLengths(
-                messageInputEditor2IconButtonMargin,
-                messageView2AccountAvatarSize,
-                messageInputEditor2IconButtonMargin,
-            ),
-            spacingScale,
-        ) -
-            contentStyles.paragraphLineHeightPx[spacingScale]) /
-        2,
+export const messageInputEditor2PaddingYPx = createObjectFromKeys(allPlatforms, platform =>
+    createObjectFromKeys(
+        allSpacingScales,
+        spacingScale =>
+            (convertRemLengthToPx(
+                addRemLengths(
+                    messageInputEditor3IconButtonMargin[platform],
+                    messageView2AccountAvatarSize,
+                    messageInputEditor3IconButtonMargin[platform],
+                ),
+                spacingScale,
+            ) -
+                contentStyles.paragraphLineHeightPx[spacingScale]) /
+            2,
+    ),
 );
 
 // NOCOMMIT: Rename the "2" bits
-export const messageInputEditor2MinHeightPx = createObjectFromKeys(
-    allSpacingScales,
-    spacingScale =>
-        contentStyles.paragraphLineHeightPx[spacingScale] +
-        messageInputEditor2PaddingYPx[spacingScale] * 2,
+export const messageInputEditor2MinHeightPx = createObjectFromKeys(allPlatforms, platform =>
+    createObjectFromKeys(
+        allSpacingScales,
+        spacingScale =>
+            contentStyles.paragraphLineHeightPx[spacingScale] +
+            messageInputEditor2PaddingYPx[platform][spacingScale] * 2,
+    ),
 );
 
-export const messageInputEditor2BorderRadiusPx = createObjectFromKeys(
-    allSpacingScales,
-    spacingScale => messageInputEditor2MinHeightPx[spacingScale] / 2,
+export const messageInputEditor2BorderRadiusPx = createObjectFromKeys(allPlatforms, platform =>
+    createObjectFromKeys(
+        allSpacingScales,
+        spacingScale => messageInputEditor2MinHeightPx[platform][spacingScale] / 2,
+    ),
 );
 
 // NOCOMMIT: Delete?
 export const getMessageBubbleMarginLeft = (marginX: Spacing) => addRemLengths(marginX, "7", "2");
 
-export const messageInputPaddingY: Spacing = "2";
+export const messageInputPaddingY: Record<Platform, Spacing> = {
+    desktop: "3",
+    mobile: "2",
+};
+
+// Our objective with `messageInputPaddingY` and
+// `messageInputEditor3IconButtonMargin` is for the message input to have the same
+// X and Y margin with the edge of the screen. Y margin is determined by this
+// value and X margin is determined by `screenPaddingX`.
+//
+// Check that `screenPaddingX - messageInputEditor3IconButtonMargin` equals
+// `messageInputPaddingY`.
+if (process.env.NODE_ENV !== "production") {
+    assert(
+        allPlatforms.every(
+            platform =>
+                subtractRemLengths(
+                    screenPaddingX[platform],
+                    messageInputEditor3IconButtonMargin[platform],
+                ) === spacing[messageInputPaddingY[platform]],
+        ),
+    );
+}
+
 // NOCOMMIT: Delete?
 export const messageInputAccountAvatarSize: Spacing = "7";
 export const messageInputAccountAvatarPaddingY = mapObjectValues(
@@ -192,15 +234,21 @@ export const messageInputAccountAvatarPaddingY = mapObjectValues(
 // NOCOMMIT: Delete?
 export const messageInputMinHeight = mapObjectValues(
     messageViewBubbleMinHeight,
-    messageViewBubbleMinHeight =>
-        addRemLengths(messageInputPaddingY, messageViewBubbleMinHeight, messageInputPaddingY),
+    (messageViewBubbleMinHeight, platform) =>
+        addRemLengths(
+            messageInputPaddingY[platform],
+            messageViewBubbleMinHeight,
+            messageInputPaddingY[platform],
+        ),
 );
 
-export const messageInput2MinHeightPx = createObjectFromKeys(
-    allSpacingScales,
-    spacingScale =>
-        messageInputEditor2MinHeightPx[spacingScale] +
-        convertRemLengthToPx(messageInputPaddingY, spacingScale) * 2,
+export const messageInput2MinHeightPx = createObjectFromKeys(allPlatforms, platform =>
+    createObjectFromKeys(
+        allSpacingScales,
+        spacingScale =>
+            messageInputEditor2MinHeightPx[platform][spacingScale] +
+            convertRemLengthToPx(messageInputPaddingY[platform], spacingScale) * 2,
+    ),
 );
 
 export const messagingViewMarginBottomCalcExpression =

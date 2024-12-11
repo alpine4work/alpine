@@ -233,7 +233,6 @@ function DocumentCommentThreadListView(
         unpersistedResolutionStateByCommentThreadId: allUnpersistedResolutionStateByCommentThreadId,
         withoutCommentThreadPreview = false,
         withCommentInputMobileMaxHeight = false,
-        paddingX = screenPaddingX,
         header,
         navigationBar,
         withSafeAreaInsetTop = false,
@@ -278,11 +277,6 @@ function DocumentCommentThreadListView(
          * Whether we should use the mobile max height for comment inputs.
          */
         withCommentInputMobileMaxHeight?: boolean;
-
-        /**
-         * Customize the amount of margin on messages.
-         */
-        paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
 
         /**
          * A header to render as the first item in the virtualized scroll view.
@@ -365,15 +359,8 @@ function DocumentCommentThreadListView(
             (originalPreviewFileLayoutScreenWidth
                 ? parseRemLength(originalPreviewFileLayoutScreenWidth)
                 : clientInfo.screenWidth / remPxBySpacingScale[spacingScale]) -
-            parseRemLength(spacing[typeof paddingX === "string" ? paddingX : paddingX[platform]]) *
-                2,
-        [
-            clientInfo.screenWidth,
-            originalPreviewFileLayoutScreenWidth,
-            paddingX,
-            platform,
-            spacingScale,
-        ],
+            parseRemLength(screenPaddingX[platform]) * 2,
+        [clientInfo.screenWidth, originalPreviewFileLayoutScreenWidth, platform, spacingScale],
     );
 
     const [tree, setTree] = useState(() => {
@@ -833,7 +820,7 @@ function DocumentCommentThreadListView(
                                             width: "full",
                                             height: documentCommentThreadListViewMarginY,
                                             maxWidth: documentCommentThreadListViewMaxWidth,
-                                            paddingX,
+                                            paddingX: screenPaddingX,
                                             display: "flex",
                                             flexDirection: "column",
                                             justifyContent: "center",
@@ -870,7 +857,7 @@ function DocumentCommentThreadListView(
                                         position: "relative",
                                         width: "full",
                                         maxWidth: documentCommentThreadListViewMaxWidth,
-                                        paddingX,
+                                        paddingX: screenPaddingX,
                                         paddingTop: index !== 0 ? "0" : paddingTop,
                                         paddingBottom: documentCommentThreadHeaderPaddingY,
                                         overflow: "hidden",
@@ -958,7 +945,6 @@ function DocumentCommentThreadListView(
                                 window.location.href,
                             );
                         },
-                        paddingX,
                         shouldAddMarginBottom:
                             isSingleCommentThreadWithPinnedCommentInput &&
                             // -2 instead of -1 since when
@@ -1090,14 +1076,13 @@ function DocumentCommentThreadListView(
                             isConnected={isConnected}
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                            paddingX={paddingX}
                             withMobileMaxHeight={withCommentInputMobileMaxHeight}
                         />
                     );
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: messageInput2MinHeightPx[spacingScale],
+                        minHeight: messageInput2MinHeightPx[platform][spacingScale],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
@@ -1178,7 +1163,6 @@ function DocumentCommentThreadListView(
             withoutCommentThreadPreview,
             isSingleCommentThreadWithPinnedCommentInput,
             withSafeAreaInsetTop,
-            paddingX,
             unpersistedIsResolvedByCommentThreadId,
             contentSnippetByCommentThreadId,
             content.references,
@@ -1196,6 +1180,7 @@ function DocumentCommentThreadListView(
             isConnected,
             subscribeToCommentThreadEvents,
             withCommentInputMobileMaxHeight,
+            platform,
         ],
     );
 
@@ -1320,7 +1305,6 @@ function DocumentCommentThreadListView(
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                                paddingX={paddingX}
                                 withMobileMaxHeight={withCommentInputMobileMaxHeight}
                                 onBeforeFocusFromReplyOrEditingChange={
                                     onBeforePinnedCommentInputFocusFromReplyOrEditingChange

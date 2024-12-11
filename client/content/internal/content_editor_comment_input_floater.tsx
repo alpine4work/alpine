@@ -1,4 +1,7 @@
-import {ArrowRight} from "phosphor-react";
+// NOCOMMIT
+import "~/client/helpers/events/register_scroll_event_debugger.js";
+
+import {ArrowRight, Plus} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -9,7 +12,7 @@ import {
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
-import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
+import {trimContentEnd, trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -20,22 +23,22 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
+    messageInputEditor2BorderRadiusPx,
+    messageInputEditor2IconButtonSize,
+    messageInputEditor2MinHeightPx,
+    messageInputEditor2PaddingX,
+    messageInputEditor2PaddingYPx,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
-    sprinkles,
+    pointerEventsNoneNotInheritedClassName,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {RemLength, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -47,22 +50,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-
-const contentEditorCommentInputFloaterPaddingY = "2.5";
-
-const contentEditorCommentInputFloaterPaddingYDifferenceRem =
-    parseRemLength(contentEditorCommentInputFloaterPaddingY) -
-    parseRemLength(messageViewBubblePaddingY.desktop);
-
-const contentEditorCommentInputFloaterMinHeight = `${
-    parseRemLength(messageViewBubbleMinHeight.desktop) +
-    contentEditorCommentInputFloaterPaddingYDifferenceRem * 2
-}rem`;
-
-const contentEditorCommentInputFloaterAccountAvatarPaddingY: RemLength = `${
-    parseRemLength(messageInputAccountAvatarPaddingY.desktop) +
-    contentEditorCommentInputFloaterPaddingYDifferenceRem
-}rem`;
 
 export function ContentEditorCommentInputFloater({
     state,
@@ -182,6 +169,8 @@ function ContentEditorCommentInput({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const {currentAccount} = useSpaceContext();
 
     const [commentState, setCommentState] = useState(() =>
@@ -189,7 +178,10 @@ function ContentEditorCommentInput({
     );
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
-    const isSendButtonDisabled = isContentEmpty(commentState.getDoc());
+    const isSendButtonDisabled = useMemo(
+        () => isContentEmpty(trimContentEnd(commentState.getDoc())),
+        [commentState],
+    );
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
     const sendButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
@@ -265,16 +257,15 @@ function ContentEditorCommentInput({
     return (
         <>
             <Box
+                position="relative"
                 overflow="hidden"
                 width="96"
-                display="flex"
                 color="grey-100"
                 backgroundColor="grey-0"
-                borderRadius={messageViewBubbleBorderRadius}
                 boxShadow="elevation-20"
                 className={greyElevated2ClassName}
                 style={{
-                    paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                    borderRadius: messageInputEditor2BorderRadiusPx[platform][spacingScale],
                 }}
                 onKeyDown={event => {
                     if (event.key === "Escape") {
@@ -311,94 +302,120 @@ function ContentEditorCommentInput({
                     }
                 }}
             >
+                <Box
+                    className={pointerEventsNoneNotInheritedClassName}
+                    position="absolute"
+                    left="0"
+                    bottom="0"
+                    zIndex="20"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    style={{
+                        width: messageInputEditor2MinHeightPx[platform][spacingScale],
+                        height: messageInputEditor2MinHeightPx[platform][spacingScale],
+                    }}
+                >
+                    <IconButton
+                        size={messageInputEditor2IconButtonSize}
+                        description="Add"
+                        withoutTooltip={true}
+                        // The add icon button is not focusable. That's because we don't want to
+                        // remove focus from the message input when the add button is pressed. That
+                        // way on mobile you can keep typing and sending messages because the software
+                        // keyboard doesn't disappear.
+                        //
+                        // On desktop, hitting enter in the message input is sufficient for keyboard
+                        // control of the message input.
+                        isFocusable={false}
+                        // TODO(calebmer, #files): Use to upload files
+                    >
+                        <Plus />
+                    </IconButton>
+                </Box>
                 <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                     <Box
-                        flexGrow="1"
-                        overflow="hidden"
-                        borderLeftRadius={messageViewBubbleBorderRadius}
-                        style={{minHeight: contentEditorCommentInputFloaterMinHeight}}
+                        ref={useScrollbar({
+                            insetTop: messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                            // Don't overlap the send button which is rendered at the bottom of
+                            // the input.
+                            insetBottom: messageInputEditor2MinHeightPx[platform][spacingScale],
+                        })}
+                        maxHeight="96"
+                        position="relative"
+                        overflowX="hidden"
+                        overflowY="auto"
+                        style={{
+                            minHeight: messageInputEditor2MinHeightPx[platform][spacingScale],
+                            borderTopLeftRadius:
+                                messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                            borderBottomLeftRadius:
+                                messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                        }}
                     >
-                        <Box
-                            ref={useScrollbar({
-                                insetTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
-                                insetBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
-                            })}
-                            maxHeight="96"
-                            position="relative"
-                            overflowX="hidden"
-                            overflowY="auto"
-                        >
-                            <ContentEditor
-                                ref={editorRef}
-                                state={commentState}
-                                onChange={setCommentState}
-                                aria-label="New comment"
-                                placeholder="Add a comment"
-                                className={sprinkles({
-                                    paddingX: messageViewBubblePaddingX,
-                                    paddingY: contentEditorCommentInputFloaterPaddingY,
-                                })}
-                                onEnterFromPhysicalKeyboard={event => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    assertExists(sendButtonRef.current).press();
-                                }}
-                                // Don't render the default content editor mobile keyboard toolbar. We render
-                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
-                                withoutMobileKeyboardToolbar={true}
-                                // Message input is always editable, never interactive on mobile. So you can't
-                                // click links among other things.
-                                withoutMobileDualModality={true}
-                            />
-                        </Box>
+                        <ContentEditor
+                            ref={editorRef}
+                            state={commentState}
+                            onChange={setCommentState}
+                            aria-label="New comment"
+                            placeholder="Add a comment"
+                            style={{
+                                paddingLeft: messageInputEditor2PaddingX[platform],
+                                paddingRight: messageInputEditor2PaddingX[platform],
+                                paddingTop: messageInputEditor2PaddingYPx[platform][spacingScale],
+                                paddingBottom:
+                                    messageInputEditor2PaddingYPx[platform][spacingScale],
+                            }}
+                            onEnterFromPhysicalKeyboard={event => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                assertExists(sendButtonRef.current).press();
+                            }}
+                            // Don't render the default content editor mobile keyboard toolbar. We render
+                            // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                            withoutMobileKeyboardToolbar={true}
+                            // Message input is always editable, never interactive on mobile. So you can't
+                            // click links among other things.
+                            withoutMobileDualModality={true}
+                        />
                     </Box>
                 </FocusRing>
                 <Box
-                    // This comment input is designed to resemble `<MessageInputBase>` but without
-                    // an internal border since the floater overlay provides that division. Add a
-                    // vertical border separating the send button from the comment since in
-                    // `<MessageInputBase>` the `grey-10` border around the message content would
-                    // separate the `<ContentEditor>` from the send button. This creates the same
-                    // visual separation.
-                    flexShrink="0"
+                    className={pointerEventsNoneNotInheritedClassName}
+                    position="absolute"
+                    right="0"
+                    bottom="0"
+                    zIndex="20"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
                     style={{
-                        paddingTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
-                        paddingBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
-                        paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                        height: messageInputEditor2MinHeightPx[platform][spacingScale],
+                        width: messageInputEditor2MinHeightPx[platform][spacingScale],
                     }}
                 >
-                    <Box height="full" borderLeft="grey-5" />
-                </Box>
-                <Box flexShrink="0" display="flex" alignItems="flex-end">
-                    <Box
-                        width={messageInputAccountAvatarSize}
-                        style={{
-                            paddingTop: contentEditorCommentInputFloaterAccountAvatarPaddingY,
-                            paddingBottom: contentEditorCommentInputFloaterAccountAvatarPaddingY,
-                        }}
+                    <IconButton
+                        ref={sendButtonRef}
+                        size={messageInputEditor2IconButtonSize}
+                        variant="accent"
+                        description="Save comment"
+                        pressErrorTitle="Can’t save comment"
+                        onPress={sendComment}
+                        isDisabled={isSendButtonDisabled}
+                        // The send icon button is not focusable. That's because we don't want to
+                        // remove focus from the message input when the send button is pressed. That
+                        // way on mobile you can keep typing and sending messages because the software
+                        // keyboard doesn't disappear.
+                        //
+                        // On desktop, hitting enter in the message input is sufficient for keyboard
+                        // control of the message input.
+                        isFocusable={false}
                     >
-                        <IconButton
-                            ref={sendButtonRef}
-                            variant="accent"
-                            description="Save comment"
-                            pressErrorTitle="Can’t save comment"
-                            onPress={sendComment}
-                            isDisabled={isSendButtonDisabled}
-                            // The send icon button is not focusable. That's because we don't want to
-                            // remove focus from the message input when the send button is pressed. That
-                            // way on mobile you can keep typing and sending messages because the software
-                            // keyboard doesn't disappear.
-                            //
-                            // On desktop, hitting enter in the message input is sufficient for keyboard
-                            // control of the message input.
-                            isFocusable={false}
-                        >
-                            <ArrowRight
-                                size={spacing["4"]}
-                                weight={!isSendButtonDisabled ? "bold" : undefined}
-                            />
-                        </IconButton>
-                    </Box>
+                        <ArrowRight
+                            size={spacing["4"]}
+                            weight={!isSendButtonDisabled ? "bold" : undefined}
+                        />
+                    </IconButton>
                 </Box>
             </Box>
             {shouldShowConfirmCloseDialog && (

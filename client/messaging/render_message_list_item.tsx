@@ -14,7 +14,6 @@ import {
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -48,7 +47,6 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
-    paddingX,
     render: customRender,
 }: {
     spacingScale: SpacingScale;
@@ -68,7 +66,6 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
     switch (item.type) {
@@ -118,17 +115,14 @@ export function renderMessageListItem<
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}
-                        paddingX={paddingX}
                     />
                 ) : (
                     <MessageListMessageShimmer
                         randomSeed={randomSeedForShimmer}
                         index={item.messageIndex}
-                        isLastMessage={isLastMessage}
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}
-                        paddingX={paddingX}
                     />
                 );
             };
@@ -254,7 +248,6 @@ export function renderMessageListItem<
             const node = (
                 <MessagingTypingIndicators
                     typingStateByConnectionId={item.typingStateByConnectionId}
-                    paddingX={paddingX}
                     shouldAddMarginTop={shouldAddMarginTop}
                     shouldAddMarginBottom={shouldAddMarginBottom}
                 />

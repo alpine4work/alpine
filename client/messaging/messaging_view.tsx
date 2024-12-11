@@ -29,7 +29,6 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {
@@ -38,7 +37,6 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -202,7 +200,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef,
         extraChildren,
         scrollbarInsetTop,
-        paddingX = screenPaddingX,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -378,15 +375,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
-
-        /**
-         * Customize the amount of margin on messages.
-         */
-        paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     },
     ref: Ref<MessagingViewRef>,
 ) {
-    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -642,7 +633,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
-                        paddingX,
                     });
                 }
             }
@@ -655,7 +645,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
-            paddingX,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             spacingScale,
@@ -731,7 +720,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             );
                     }}
                     restoreStateRef={inputRestoreStateRef}
-                    paddingX={paddingX}
                 />
             </div>
         </>

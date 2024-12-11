@@ -77,13 +77,11 @@ function MessageShimmer(
         heightLines,
         shouldMergeWithNextMessage = false,
         shouldMergeWithPreviousMessage = false,
-        paddingX = screenPaddingX,
     }: {
         width: Spacing;
         heightLines: number;
         shouldMergeWithNextMessage?: boolean;
         shouldMergeWithPreviousMessage?: boolean;
-        paddingX?: Spacing | {mobile: Spacing; desktop: Spacing};
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -112,7 +110,7 @@ function MessageShimmer(
                     width: "full",
                     maxWidth: contentStyles.contentMaxWidth,
                     marginX: "center",
-                    paddingX,
+                    paddingX: screenPaddingX,
                     paddingBottom: marginBottom,
                 }),
             )}

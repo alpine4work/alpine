@@ -1815,7 +1815,9 @@ export function DocumentContentEditor({
                                         display="flex"
                                         gap="2"
                                         style={{
-                                            height: messageInput2MinHeightPx[spacingScale],
+                                            height: messageInput2MinHeightPx[platform][
+                                                spacingScale
+                                            ],
                                         }}
                                     >
                                         <Box
@@ -1910,7 +1912,9 @@ export function DocumentContentEditor({
                                     >
                                         <Box
                                             style={{
-                                                height: messageInput2MinHeightPx[spacingScale],
+                                                height: messageInput2MinHeightPx[platform][
+                                                    spacingScale
+                                                ],
                                             }}
                                         />
                                     </Box>
@@ -2189,7 +2193,7 @@ function DocumentContentEditorSidebar({
                 </>
             )}
             {(!mobileState.isFullScreen || mobileState.animationState === "Contracting") && (
-                <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center">
+                <Box flexShrink="0" paddingX="2" display="flex" alignItems="center">
                     <IconButton
                         ref={previousCommentThreadButtonRef}
                         size={platform === "mobile" ? "md" : "xs"}
@@ -2309,7 +2313,7 @@ function DocumentContentEditorSidebar({
                                 alignItems="center"
                                 style={{
                                     paddingBottom:
-                                        messageInput2MinHeightPx[spacingScale] +
+                                        messageInput2MinHeightPx[platform][spacingScale] +
                                         (platform === "mobile" &&
                                         (!mobileState.isFullScreen ||
                                             mobileState.animationState === "Expanding")
@@ -2354,9 +2358,6 @@ function DocumentContentEditorSidebar({
                                 // comment input to have a smaller max height so it doesn't completely fill the
                                 // bottom sheet.
                                 withCommentInputMobileMaxHeight={routeLayout === "narrow"}
-                                // Slightly reduce the amount of margin on messages in a desktop comment thread
-                                // because we have less space in the sidebar.
-                                paddingX={routeLayout !== "narrow" ? "4" : undefined}
                                 pinnedCommentInputRef={pinnedCommentInputRef}
                                 // We disable the tab bar while a comment thread is open to get more vertical
                                 // space. This changes how our component should handle safe area insets.
@@ -2403,8 +2404,7 @@ function DocumentContentEditorSidebar({
                         initialDataResult.value,
                         isConnected,
                         isNativeMobile,
-                        mobileState.animationState,
-                        mobileState.isFullScreen,
+                        mobileState,
                         onCommentThreadSnippetPress,
                         onSidebarMobileFullScreenExpand,
                         pinnedCommentInputRef,

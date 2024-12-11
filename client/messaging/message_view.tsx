@@ -152,7 +152,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
-    paddingX = screenPaddingX,
     centeringMarginRight,
 }: {
     messageNoun?: string;
@@ -171,7 +170,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     centeringMarginRight?: Spacing;
 }) {
     const platform = usePlatform();
@@ -721,7 +719,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             width: "full",
                             maxWidth: contentStyles.contentMaxWidth,
                             marginX: "auto",
-                            paddingX,
+                            paddingX: screenPaddingX,
                             paddingBottom: marginBottom,
                         }),
                         shouldShowOptimisticLoadingIndicator &&

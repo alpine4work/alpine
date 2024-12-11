@@ -1,3 +1,5 @@
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+
 /**
  * The platforms listed here are environments our app runs in where each
  * platform has dramatically different user interface paradigms from the
@@ -28,6 +30,13 @@
  * layout and everything else uses the `wide` layout.
  */
 export type Platform = "desktop" | "mobile";
+
+/**
+ * All the platforms.
+ */
+export const allPlatforms = ["desktop", "mobile"] as const;
+
+assertEqualTypes<(typeof allPlatforms)[number], Platform>();
 
 /**
  * The maximum window width for our mobile platform in pixels (inclusive).

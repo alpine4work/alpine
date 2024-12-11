@@ -1,6 +1,6 @@
 import {compareAsc as compareDatesAsc} from "date-fns/compareAsc";
 import {Easing, timeline} from "motion";
-import {Memo, useEffect, useMemo, useRef} from "react";
+import {useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
@@ -13,12 +13,7 @@ import {
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
-import {
-    Spacing,
-    addRemLengths,
-    parseRemLength,
-    screenPaddingX,
-} from "~/shared/design/core/spacing.js";
+import {addRemLengths, parseRemLength, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -30,12 +25,10 @@ export const messagingTypingIndicatorsMinHeight = "3.875rem";
 // NOCOMMIT: Redesign these
 export function MessagingTypingIndicators({
     typingStateByConnectionId,
-    paddingX = screenPaddingX,
     shouldAddMarginTop = false,
     shouldAddMarginBottom = false,
 }: {
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
 }) {
@@ -73,20 +66,13 @@ export function MessagingTypingIndicators({
                 <MessagingTypingIndicator
                     key={typingState.account.id}
                     account={typingState.account}
-                    paddingX={paddingX}
                 />
             ))}
         </Box>
     );
 }
 
-function MessagingTypingIndicator({
-    account,
-    paddingX,
-}: {
-    account: AccountModel;
-    paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
-}) {
+function MessagingTypingIndicator({account}: {account: AccountModel}) {
     const platform = usePlatform();
 
     const dot1Ref = useRef<HTMLDivElement>(null);
@@ -134,23 +120,21 @@ function MessagingTypingIndicator({
                 fontStyle="truncate"
                 paddingTop="0.5"
                 paddingBottom="0.5"
-                paddingRight={paddingX}
+                paddingRight={screenPaddingX}
                 color="grey-50"
                 display="flex"
                 alignItems="center"
                 gap="0.5"
                 style={{
                     paddingLeft: addRemLengths(
-                        getMessageBubbleMarginLeft(
-                            typeof paddingX === "string" ? paddingX : paddingX[platform],
-                        ),
+                        getMessageBubbleMarginLeft(screenPaddingX[platform]),
                         "0.5",
                     ),
                 }}
             >
                 <AccountShortName account={account} />
             </Box>
-            <Box display="flex" paddingX={paddingX} paddingBottom={messageViewMarginY}>
+            <Box display="flex" paddingX={screenPaddingX} paddingBottom={messageViewMarginY}>
                 <Box flexShrink="0" paddingRight="2">
                     <Box width="7" height="full" display="flex" alignItems="flex-end">
                         <Box paddingY="0.5">

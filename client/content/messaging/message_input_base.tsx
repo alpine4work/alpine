@@ -55,11 +55,11 @@ import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mo
 import {
     messageInput2MinHeightPx,
     messageInputEditor2BorderRadiusPx,
-    messageInputEditor2IconButtonMargin,
     messageInputEditor2IconButtonSize,
     messageInputEditor2MinHeightPx,
     messageInputEditor2PaddingX,
     messageInputEditor2PaddingYPx,
+    messageInputEditor3IconButtonNegativeMargin,
     messageInputPaddingY,
     messageView2AccountAvatarSize,
     messageView2RailGap,
@@ -70,7 +70,6 @@ import {
     messageViewParentMessageLineHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
-    backgroundColorVar,
     messagingStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
@@ -127,7 +126,6 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onShowTypingIndicator?: () => void;
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
-    paddingX?: Spacing | {desktop: Spacing; mobile: Spacing};
     withMobileMaxHeight?: boolean;
     onFocus?: (event: FocusEvent) => void;
     onFocusCapture?: (event: FocusEvent) => void;
@@ -173,7 +171,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onShowTypingIndicator,
         onHideTypingIndicator,
         "data-testid": dataTestId,
-        paddingX = screenPaddingX,
         withMobileMaxHeight,
         onFocus,
         onFocusCapture,
@@ -519,15 +516,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 backgroundColor="grey-0"
                 style={{
                     minHeight: !isBottomBar
-                        ? messageInput2MinHeightPx[spacingScale]
+                        ? messageInput2MinHeightPx[platform][spacingScale]
                         : `calc(${
                               platform === "mobile"
-                                  ? messageInput2MinHeightPx[spacingScale] +
+                                  ? messageInput2MinHeightPx[platform][spacingScale] +
                                     convertRemLengthToPx(
                                         mobileBottomBarKeyboardToolbarHeight,
                                         spacingScale,
                                     )
-                                  : messageInput2MinHeightPx[spacingScale]
+                                  : messageInput2MinHeightPx[platform][spacingScale]
                           }px + var(--window-safe-area-inset-bottom, 0px))`,
                     paddingBottom: isBottomBar
                         ? clientInfo.isNativeMobile
@@ -602,17 +599,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         {isEditingMessage && (
                             <Box
                                 position="relative"
-                                paddingRight={paddingX}
+                                paddingRight={screenPaddingX}
                                 paddingTop={messageInputPaddingY}
                                 color="grey-80"
                                 style={{
                                     // Align text with message input placeholder.
                                     paddingLeft: subtractRemLengths(
                                         addRemLengths(
-                                            typeof paddingX !== "string"
-                                                ? paddingX[platform]
-                                                : paddingX,
-                                            messageInputEditor2PaddingX,
+                                            screenPaddingX[platform],
+                                            messageInputEditor2PaddingX[platform],
                                         ),
                                         "4",
                                     ),
@@ -654,23 +649,24 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 replyingToMessage={replyingToMessage}
                                 onJumpToMessage={onJumpToMessage}
                                 onClearReplyingToMessage={onClearReplyingToMessage}
-                                paddingX={paddingX}
+                                paddingX={screenPaddingX}
                             />
                         )}
-                        <Box overflow="hidden" paddingX={paddingX} paddingY={messageInputPaddingY}>
+                        <Box
+                            overflow="hidden"
+                            paddingX={screenPaddingX}
+                            paddingY={messageInputPaddingY}
+                            marginX={messageInputEditor3IconButtonNegativeMargin}
+                        >
                             <Box
                                 overflow="hidden"
                                 position="relative"
                                 zIndex="0"
                                 style={{
-                                    minHeight: messageInputEditor2MinHeightPx[spacingScale],
-                                    borderRadius: messageInputEditor2BorderRadiusPx[spacingScale],
-                                    // Covers the connector curve when replying to a message. So we don't have a
-                                    // flat end to the connector curve given it attaches to the message input along
-                                    // the curve.
-                                    boxShadow: replyingToMessage
-                                        ? `0px 0px 0px 2px ${backgroundColorVar}`
-                                        : undefined,
+                                    minHeight:
+                                        messageInputEditor2MinHeightPx[platform][spacingScale],
+                                    borderRadius:
+                                        messageInputEditor2BorderRadiusPx[platform][spacingScale],
                                 }}
                             >
                                 <Box
@@ -681,7 +677,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     border="grey-10"
                                     style={{
                                         borderRadius:
-                                            messageInputEditor2BorderRadiusPx[spacingScale],
+                                            messageInputEditor2BorderRadiusPx[platform][
+                                                spacingScale
+                                            ],
                                         // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to
                                         // render the border on top of `codeBlock` node sticky elements and to render
                                         // the native scrollbar on top of `codeBlock` node sticky elements we need to:
@@ -701,13 +699,19 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 <Box
                                     className={pointerEventsNoneNotInheritedClassName}
                                     position="absolute"
+                                    left="0"
                                     bottom="0"
                                     zIndex="20"
                                     display="flex"
+                                    justifyContent="center"
                                     alignItems="center"
                                     style={{
-                                        height: messageInputEditor2MinHeightPx[spacingScale],
-                                        left: messageInputEditor2IconButtonMargin,
+                                        width: messageInputEditor2MinHeightPx[platform][
+                                            spacingScale
+                                        ],
+                                        height: messageInputEditor2MinHeightPx[platform][
+                                            spacingScale
+                                        ],
                                     }}
                                 >
                                     <IconButton
@@ -731,11 +735,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     <Box
                                         ref={useScrollbar({
                                             insetTop:
-                                                messageInputEditor2BorderRadiusPx[spacingScale],
+                                                messageInputEditor2BorderRadiusPx[platform][
+                                                    spacingScale
+                                                ],
                                             // Don't overlap the send button which is rendered at the bottom of
                                             // the input.
                                             insetBottom:
-                                                messageInputEditor2MinHeightPx[spacingScale],
+                                                messageInputEditor2MinHeightPx[platform][
+                                                    spacingScale
+                                                ],
                                             // An additional pixel of inset right to offset the inset 1px border.
                                             insetRight: 1,
                                         })}
@@ -750,8 +758,13 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         overflowY="auto"
                                         style={{
                                             borderRadius:
-                                                messageInputEditor2BorderRadiusPx[spacingScale],
-                                            minHeight: messageInputEditor2MinHeightPx[spacingScale],
+                                                messageInputEditor2BorderRadiusPx[platform][
+                                                    spacingScale
+                                                ],
+                                            minHeight:
+                                                messageInputEditor2MinHeightPx[platform][
+                                                    spacingScale
+                                                ],
                                         }}
                                     >
                                         <OverlayScopeContextProvider>
@@ -774,13 +787,19 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 placeholder={placeholder}
                                                 style={{
                                                     paddingTop:
-                                                        messageInputEditor2PaddingYPx[spacingScale],
+                                                        messageInputEditor2PaddingYPx[platform][
+                                                            spacingScale
+                                                        ],
                                                     paddingBottom:
-                                                        messageInputEditor2PaddingYPx[spacingScale],
-                                                    paddingLeft: messageInputEditor2PaddingX,
-                                                    paddingRight: messageInputEditor2PaddingX,
+                                                        messageInputEditor2PaddingYPx[platform][
+                                                            spacingScale
+                                                        ],
+                                                    paddingLeft:
+                                                        messageInputEditor2PaddingX[platform],
+                                                    paddingRight:
+                                                        messageInputEditor2PaddingX[platform],
                                                     borderRadius:
-                                                        messageInputEditor2BorderRadiusPx[
+                                                        messageInputEditor2BorderRadiusPx[platform][
                                                             spacingScale
                                                         ],
                                                 }}
@@ -803,13 +822,19 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 <Box
                                     className={pointerEventsNoneNotInheritedClassName}
                                     position="absolute"
+                                    right="0"
                                     bottom="0"
                                     zIndex="20"
                                     display="flex"
+                                    justifyContent="center"
                                     alignItems="center"
                                     style={{
-                                        height: messageInputEditor2MinHeightPx[spacingScale],
-                                        right: messageInputEditor2IconButtonMargin,
+                                        width: messageInputEditor2MinHeightPx[platform][
+                                            spacingScale
+                                        ],
+                                        height: messageInputEditor2MinHeightPx[platform][
+                                            spacingScale
+                                        ],
                                     }}
                                 >
                                     <IconButton
@@ -996,7 +1021,6 @@ function MessageInputReplyingToMessage<
         [messageNoun, replyingToMessage],
     );
 
-    const additionalMarginY = "0.5";
     const accountAvatarSizeRem = parseRemLength(messageView2AccountAvatarSize);
     const parentMessageOffsetRem = parseRemLength(messageView2RailGap) / 2;
     const parentAccountAvatarSizeRem = parseRemLength(messageViewParentMessageAccountAvatarSize);
@@ -1009,10 +1033,9 @@ function MessageInputReplyingToMessage<
 
     return (
         <Box
+            paddingTop={messageInputPaddingY}
             paddingRight={paddingX}
-            paddingBottom={additionalMarginY}
             style={{
-                paddingTop: addRemLengths(messageInputPaddingY, additionalMarginY),
                 // Align text with message input placeholder.
                 paddingLeft: `${
                     parseRemLength(
@@ -1045,7 +1068,7 @@ function MessageInputReplyingToMessage<
                             messageViewParentMessageAvatarOffsetYRem +
                             parentAccountAvatarSizeRem / 2
                         }rem - 1px)`,
-                        bottom: `-${addRemLengths(messageInputPaddingY, additionalMarginY)}`,
+                        bottom: `calc(-${spacing[messageInputPaddingY[platform]]} + 2px)`,
                         left: `calc(-${
                             accountAvatarSizeRem / 2 + parentMessageOffsetRem
                         }rem - 1px)`,
@@ -1120,9 +1143,16 @@ function MessageInputReplyingToMessage<
                         </Box>
                     </Box>
                     <Box
+                        flexShrink="0"
                         display="flex"
+                        justifyContent="center"
                         alignItems="center"
-                        style={{height: messageViewParentMessageLineHeightPx[spacingScale]}}
+                        // Optically center the "x" button with the send button when it's placed all
+                        // the way on the right.
+                        paddingRight="0.5"
+                        style={{
+                            height: messageViewParentMessageLineHeightPx[spacingScale],
+                        }}
                     >
                         <IconButton
                             size="xs"

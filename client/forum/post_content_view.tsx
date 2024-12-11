@@ -214,11 +214,11 @@ export function PostContentView({
                 minHeight: isPostView
                     ? postViewMinHeightPx[spacingScale]
                     : postCommentsState !== "Closed" && !isPostView
-                    ? postContentViewMinHeightWithOpenCommentSectionPx[spacingScale]
+                    ? postContentViewMinHeightWithOpenCommentSectionPx[platform][spacingScale]
                     : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
                 paddingBottom:
                     postCommentsState !== "Closed" && !isPostView
-                        ? postContentViewOuterOpenCommentSectionMarginBottom
+                        ? postContentViewOuterOpenCommentSectionMarginBottom[platform]
                         : postContentViewOuterMarginBottom,
             }}
         >
@@ -316,7 +316,7 @@ export function PostContentView({
                         borderLeftWidth: "thick",
                     })}
                     style={{
-                        height: postCommentSectionGuidelineStartHeight,
+                        height: postCommentSectionGuidelineStartHeight[platform],
                         left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
                     }}
                 />
