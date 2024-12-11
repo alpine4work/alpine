@@ -11,12 +11,13 @@ import {
     assertSpacing,
     convertRemLengthToPx,
     parseRemLength,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {allSpacingScales, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export const messageView2AvatarSize = "6";
+export const messageView2AccountAvatarSize = "6";
 export const messageView2RailGap = "2";
 
 // Ideally, `messageView2AccountNameHeight` is a whole pixel value on all
@@ -32,7 +33,7 @@ export const messageView2AvatarOffsetYPx = createObjectFromKeys(
     spacingScale =>
         convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
         contentStyles.paragraphLineHeightPx[spacingScale] / 2 -
-        convertRemLengthToPx(messageView2AvatarSize, spacingScale) / 2,
+        convertRemLengthToPx(messageView2AccountAvatarSize, spacingScale) / 2,
 );
 
 export const messageViewBubbleMinWidth: Spacing = "6"; // NOCOMMIT: Delete
@@ -73,26 +74,25 @@ export const messageViewMarginY: Spacing = "4";
 export const messageViewMergedMarginY: Spacing = "0.5";
 
 export const messageViewOutlineBorderRadius = "1";
-export const messageViewOutlineMarginX: Spacing = "1";
-export const messageViewOutlineMarginY: Spacing = "1";
+export const messageViewOutlineMargin = "1";
 
 export const messageViewNotMergedOutlineMinHeightPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
-        convertRemLengthToPx(messageViewOutlineMarginY, spacingScale) +
+        convertRemLengthToPx(messageViewOutlineMargin, spacingScale) +
         messageView2AvatarOffsetYPx[spacingScale] +
-        convertRemLengthToPx(messageView2AvatarSize, spacingScale) +
-        convertRemLengthToPx(messageViewOutlineMarginY, spacingScale),
+        convertRemLengthToPx(messageView2AccountAvatarSize, spacingScale) +
+        convertRemLengthToPx(messageViewOutlineMargin, spacingScale),
 );
 
 export const messageViewEditorOutlineMarginLeft = addRemLengths(
-    messageView2AvatarSize,
+    messageView2AccountAvatarSize,
     messageView2RailGap,
-    messageViewOutlineMarginX,
+    messageViewOutlineMargin,
 );
 
 export const messageViewNotMergedEditorOutlineMarginTop = addRemLengths(
-    messageViewOutlineMarginY,
+    messageViewOutlineMargin,
     messageView2AccountNameHeight,
 );
 
@@ -100,7 +100,7 @@ export const messageViewNotMergedEditorOutlineMarginBottomPx = createObjectFromK
     allSpacingScales,
     spacingScale =>
         messageViewNotMergedOutlineMinHeightPx[spacingScale] -
-        (convertRemLengthToPx(messageViewOutlineMarginY, spacingScale) +
+        (convertRemLengthToPx(messageViewOutlineMargin, spacingScale) +
             convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
             contentStyles.paragraphLineHeightPx[spacingScale]),
 );
@@ -116,17 +116,58 @@ export const messageViewMinHeightPx = createObjectFromKeys(
 export const messageViewActionsWidth: Spacing = "10";
 export const messageViewActionsWidthWithoutHoveringPrimaryInput: Spacing = "5";
 
-export const messageViewParentFontSize = "75";
+export const messageViewParentMessageFontSize = "75";
 
-export const messageViewParentScale =
-    fontSizesBySpacingScale[messageViewParentFontSize].small.fontSize /
+export const messageViewParentMessageScale =
+    fontSizesBySpacingScale[messageViewParentMessageFontSize].small.fontSize /
     fontSizesBySpacingScale[contentStyles.paragraphActualFontSize].small.fontSize;
 
 // NOCOMMIT: Delete this
-export const messageViewParentLineHeight = `${1.3125 * messageViewParentScale}rem`;
+export const messageViewParentLineHeight = `${1.3125 * messageViewParentMessageScale}rem`;
 
-export const messageViewParentAvatarSize = assertSpacing(
-    Math.round(parseInt(messageView2AvatarSize, 10) * messageViewParentScale),
+export const messageViewParentMessageAvatarSize = assertSpacing(
+    Math.round(parseInt(messageView2AccountAvatarSize, 10) * messageViewParentMessageScale),
+);
+
+// Should be the same size as `messageView2AccountAvatarSize`.
+export const messageInputEditor2IconButtonSize = "md";
+
+export const messageInputEditor2PaddingX = addRemLengths(
+    messageView2AccountAvatarSize,
+    messageView2RailGap,
+);
+
+export const messageInputEditor2IconButtonMargin: RemLength = `${
+    parseRemLength(subtractRemLengths(messageInputEditor2PaddingX, messageView2AccountAvatarSize)) /
+    2
+}rem`;
+
+export const messageInputEditor2PaddingYPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        (convertRemLengthToPx(
+            addRemLengths(
+                messageInputEditor2IconButtonMargin,
+                messageView2AccountAvatarSize,
+                messageInputEditor2IconButtonMargin,
+            ),
+            spacingScale,
+        ) -
+            contentStyles.paragraphLineHeightPx[spacingScale]) /
+        2,
+);
+
+// NOCOMMIT: Rename the "2" bits
+export const messageInputEditor2MinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        contentStyles.paragraphLineHeightPx[spacingScale] +
+        messageInputEditor2PaddingYPx[spacingScale] * 2,
+);
+
+export const messageInputEditor2BorderRadiusPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale => messageInputEditor2MinHeightPx[spacingScale] / 2,
 );
 
 // NOCOMMIT: Delete these?
@@ -136,7 +177,8 @@ export const messageViewReplyPreviewBubbleOpacity = 0.7;
 // NOCOMMIT: Delete?
 export const getMessageBubbleMarginLeft = (marginX: Spacing) => addRemLengths(marginX, "7", "2");
 
-export const messageInputPaddingY: Spacing = "3";
+export const messageInputPaddingY: Spacing = "2";
+// NOCOMMIT: Delete?
 export const messageInputAccountAvatarSize: Spacing = "7";
 export const messageInputAccountAvatarPaddingY = mapObjectValues(
     messageViewBubbleMinHeight,
@@ -148,10 +190,18 @@ export const messageInputAccountAvatarPaddingY = mapObjectValues(
         }rem`,
 );
 
+// NOCOMMIT: Delete?
 export const messageInputMinHeight = mapObjectValues(
     messageViewBubbleMinHeight,
     messageViewBubbleMinHeight =>
         addRemLengths(messageInputPaddingY, messageViewBubbleMinHeight, messageInputPaddingY),
+);
+
+export const messageInput2MinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        messageInputEditor2MinHeightPx[spacingScale] +
+        convertRemLengthToPx(messageInputPaddingY, spacingScale) * 2,
 );
 
 export const messagingViewMarginBottomCalcExpression =

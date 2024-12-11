@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {AnimationControls, animate, spring, timeline} from "motion";
 import {
     ArrowLeft,
@@ -88,9 +87,9 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
+    messageInput2MinHeightPx,
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
-    messageInputMinHeight,
     messageInputPaddingY,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
@@ -228,6 +227,7 @@ export function DocumentContentEditor({
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
@@ -1820,7 +1820,7 @@ export function DocumentContentEditor({
                                         display="flex"
                                         gap="2"
                                         style={{
-                                            height: messageInputMinHeight[platform],
+                                            height: messageInput2MinHeightPx[spacingScale],
                                         }}
                                     >
                                         <Box
@@ -1881,6 +1881,8 @@ export function DocumentContentEditor({
                                 {isNativeMobile && !isInert && (
                                     // In our native mobile app, include an invisible bottom bar which only serves
                                     // to make sure the vertical scroll indicator insets are correct.
+                                    //
+                                    // NOCOMMIT: Update this comment thread input design?
                                     <Box
                                         id={`nmbb-${editorContainerId}`}
                                         position="absolute"
@@ -1913,7 +1915,7 @@ export function DocumentContentEditor({
                                     >
                                         <Box
                                             style={{
-                                                height: messageInputMinHeight[platform],
+                                                height: messageInput2MinHeightPx[spacingScale],
                                             }}
                                         />
                                     </Box>
@@ -2074,6 +2076,7 @@ function DocumentContentEditorSidebar({
     onClose: Memo<() => void>;
     openCommentThread: Memo<(commentThreadId: DocumentCommentThreadId) => Promise<void>>;
 }) {
+    const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
@@ -2310,14 +2313,16 @@ function DocumentContentEditorSidebar({
                                 justifyContent="center"
                                 alignItems="center"
                                 style={{
-                                    paddingBottom: addRemLengths(
-                                        messageInputMinHeight[platform],
-                                        platform === "mobile" &&
-                                            (!mobileState.isFullScreen ||
-                                                mobileState.animationState === "Expanding")
-                                            ? documentContentEditorMobileSidebarInsetTop
-                                            : "0",
-                                    ),
+                                    paddingBottom:
+                                        messageInput2MinHeightPx[spacingScale] +
+                                        (platform === "mobile" &&
+                                        (!mobileState.isFullScreen ||
+                                            mobileState.animationState === "Expanding")
+                                            ? convertRemLengthToPx(
+                                                  documentContentEditorMobileSidebarInsetTop,
+                                                  spacingScale,
+                                              )
+                                            : 0),
                                 }}
                             >
                                 <SpinnerGap
@@ -2403,13 +2408,15 @@ function DocumentContentEditorSidebar({
                         initialDataResult.value,
                         isConnected,
                         isNativeMobile,
-                        mobileState,
+                        mobileState.animationState,
+                        mobileState.isFullScreen,
                         onCommentThreadSnippetPress,
                         onSidebarMobileFullScreenExpand,
                         pinnedCommentInputRef,
                         platform,
                         procedures,
                         routeLayout,
+                        spacingScale,
                         subscribeToCommentThreadEvents,
                         unpersistedResolutionStateByCommentThreadId,
                     ],

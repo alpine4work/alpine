@@ -405,6 +405,7 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
         paddingBottom?: RemLength | number;
         paddingLeft?: RemLength | number;
         paddingRight?: RemLength | number;
+        borderRadius?: RemLength | number;
     };
 
     /**
@@ -3056,6 +3057,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 viewElement.style.paddingRight = style.paddingRight;
             }
         }
+        if (style?.borderRadius !== undefined) {
+            if (typeof style.borderRadius === "number") {
+                viewElement.style.borderRadius = `${style.borderRadius}px`;
+            } else {
+                viewElement.style.borderRadius = style.borderRadius;
+            }
+        }
 
         return () => {
             viewElement.classList.remove(...classList);
@@ -3072,10 +3080,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             if (style?.paddingRight !== undefined) {
                 viewElement.style.removeProperty("padding-right");
             }
+            if (style?.borderRadius !== undefined) {
+                viewElement.style.removeProperty("border-radius");
+            }
         };
     }, [
         className,
         routeLayout,
+        style?.borderRadius,
         style?.paddingBottom,
         style?.paddingLeft,
         style?.paddingRight,

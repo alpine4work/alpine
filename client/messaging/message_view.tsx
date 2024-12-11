@@ -8,16 +8,19 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
+import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {
     MessageViewEditor,
@@ -30,20 +33,20 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageView2AccountNameFontSize,
     messageView2AccountNameHeight,
     messageView2AvatarOffsetYPx,
-    messageView2AvatarSize,
+    messageView2AccountAvatarSize,
     messageView2RailGap,
     messageViewMarginY,
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
-    messageViewOutlineMarginX,
-    messageViewOutlineMarginY,
-    messageViewParentAvatarSize,
-    messageViewParentFontSize,
+    messageViewParentMessageAvatarSize,
+    messageViewParentMessageFontSize,
     messageViewParentLineHeight,
+    messageViewOutlineMargin,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -53,6 +56,7 @@ import {
     emojiFontFamily,
     fontSizes,
     messagingStyles,
+    pulseAnimationWithReducedOpacityClassName,
     sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
@@ -67,20 +71,16 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {
-    MessageModel,
-    MessageModelBase,
-    OptimisticMessageModel,
-} from "~/shared/messaging/message_model.js";
+import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 
 // NOCOMMIT: Test
 //
-// - Message editing
 // - Mobile
 
 /**
@@ -118,7 +118,14 @@ const Box = null;
 /**
  * Should two messages merge together?
  */
-function shouldMergeMessages(message1: MessageModelBase, message2: MessageModelBase): boolean {
+function shouldMergeMessages<RoomKey extends string>(
+    message1: MessageModel<RoomKey> | OptimisticMessageModel,
+    message2: MessageModel<RoomKey> | OptimisticMessageModel,
+): boolean {
+    // Don't merge optimistic requests with an error.
+    if (message1.isOptimistic && message1.optimisticRequestErrorState.hasError) return false;
+    if (message2.isOptimistic && message2.optimisticRequestErrorState.hasError) return false;
+
     return (
         message1.author.id === message2.author.id &&
         Math.abs(differenceInMinutes(message1.createdTime, message2.createdTime)) <
@@ -152,8 +159,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     message: Message | OptimisticMessageModel;
     isFirstMessage: boolean;
     isLastMessage: boolean;
-    previousMessage: MessageModelBase | null;
-    nextMessage: MessageModelBase | null;
+    previousMessage: Message | OptimisticMessageModel | null;
+    nextMessage: Message | OptimisticMessageModel | null;
     messages: MessageList<Message>;
     messageEditing: MessageEditing<RoomKey>;
     disableExpensiveFeaturesDuringScroll: boolean;
@@ -170,6 +177,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
 
@@ -208,7 +216,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     let marginBottom: Spacing;
 
-    if (!shouldMergeWithNextMessage) {
+    if (!nextMessage) {
+        marginBottom = contentStyles.paragraphMargin;
+    } else if (!shouldMergeWithNextMessage) {
         marginBottom = messageViewMarginY;
     } else {
         if (
@@ -291,29 +301,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
     }, [messageEditing.state, messageEditingForThisMessage]);
 
-    // NOCOMMIT
-    const [shouldShowOptimisticLoadingIndicator, setShouldShowOptimisticLoadingShimmer] =
-        useState(false);
-
-    const shouldShowOptimisticLoadingIndicatorAfterDelay =
-        message.isOptimistic && !message.optimisticRequestErrorState.hasError;
-
-    useEffect(() => {
-        if (!shouldShowOptimisticLoadingIndicatorAfterDelay) {
-            setShouldShowOptimisticLoadingShimmer(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setShouldShowOptimisticLoadingShimmer(true);
-            // Use a longer timeout than `delayLoadingIndicatorLimitMs` since most of the
-            // time the optimistic placement is the correct end state.
-        }, 1000);
-
-        return () => {
-            timeout.clear();
-        };
-    }, [shouldShowOptimisticLoadingIndicatorAfterDelay]);
+    const shouldShowOptimisticLoadingIndicator = useDelayLoadingIndicator(
+        message.isOptimistic === true && !message.optimisticRequestErrorState.hasError,
+        // Use a longer timeout than `delayLoadingIndicatorLimitMs` since most of the
+        // time the optimistic placement is the correct end state.
+        delayLoadingIndicatorLimitMs * 2,
+    );
 
     const [shouldHighlight, setShouldHighlight] = useState(false);
 
@@ -625,7 +618,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             },
         ]);
 
-        if (message.payload.type === "Content") {
+        if (currentAccount.id === message.author.id && message.payload.type === "Content") {
             const messagePayload = message.payload;
 
             const editContextMenuActions: Array<MenuAction> = [];
@@ -719,13 +712,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             >
                 <div
                     ref={containerRef}
-                    className={sprinkles({
-                        width: "full",
-                        maxWidth: contentStyles.contentMaxWidth,
-                        marginX: "auto",
-                        paddingX,
-                        paddingBottom: marginBottom,
-                    })}
+                    className={classNames(
+                        sprinkles({
+                            width: "full",
+                            maxWidth: contentStyles.contentMaxWidth,
+                            marginX: "auto",
+                            paddingX,
+                            paddingBottom: marginBottom,
+                        }),
+                        shouldShowOptimisticLoadingIndicator &&
+                            pulseAnimationWithReducedOpacityClassName,
+                    )}
                     style={{
                         animation: shouldHighlight ? wiggleAnimation : undefined,
                     }}
@@ -754,7 +751,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 <div
                                     className={sprinkles({
                                         flexShrink: "0",
-                                        width: messageView2AvatarSize,
+                                        width: messageView2AccountAvatarSize,
                                     })}
                                 >
                                     {!shouldMergeWithPreviousMessage && (
@@ -764,7 +761,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         >
                                             <AccountAvatar
                                                 account={messageAuthor}
-                                                size={messageView2AvatarSize}
+                                                size={messageView2AccountAvatarSize}
                                             />
                                         </div>
                                     )}
@@ -789,15 +786,53 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             {!shouldMergeWithPreviousMessage && (
                                 <div
                                     className={sprinkles({
-                                        fontSize: messageView2AccountNameFontSize,
-                                        fontStyle: "truncate",
-                                        color: "grey-60",
+                                        maxWidth: "full",
+                                        // Make sure the `z-index` is higher than our content so the `<IconButton>`
+                                        // can but clicked even where it overlaps with content.
+                                        zIndex: "10",
+                                        position: "relative",
+                                        height: messageView2AccountNameHeight,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0",
                                     })}
-                                    style={{
-                                        lineHeight: spacing[messageView2AccountNameHeight],
-                                    }}
                                 >
-                                    {messageAuthor.name}
+                                    <div
+                                        className={sprinkles({
+                                            fontSize: messageView2AccountNameFontSize,
+                                            fontStyle: "truncate",
+                                            color: "grey-60",
+                                        })}
+                                        style={{
+                                            lineHeight: spacing[messageView2AccountNameHeight],
+                                        }}
+                                    >
+                                        {messageAuthor.name}
+                                    </div>
+                                    {message.isOptimistic &&
+                                        message.optimisticRequestErrorState.hasError && (
+                                            <>
+                                                <div className={sprinkles({flexShrink: "0"})}>
+                                                    &nbsp;
+                                                </div>
+                                                <IconButton
+                                                    // NOTE(calebmer): I think we can use "click" in copy here since the
+                                                    // description is part of a tooltip which is fundamentally a mouse/pointer
+                                                    // thing. On mobile we need to pop open a modal or alert or something.
+                                                    description={`Couldn’t ${
+                                                        messageNoun === "message"
+                                                            ? "send"
+                                                            : "create"
+                                                    } ${messageNoun}. Click to try again.`}
+                                                    size="sm"
+                                                    onPress={
+                                                        message.optimisticRequestErrorState.retry
+                                                    }
+                                                >
+                                                    <ErrorIcon />
+                                                </IconButton>
+                                            </>
+                                        )}
                                 </div>
                             )}
                             {message.payload.type === "Content" ? (
@@ -829,68 +864,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 )} */
                                     contentPayloadNode
                                 ) : (
-                                    /* NOCOMMIT: <div
-                                    className={sprinkles({
-                                        alignSelf: "center",
-                                        paddingLeft: "3",
-                                        pointerEvents: "auto",
-                                    })}
-                                >
-                                    <div
-                                        className={sprinkles({
-                                            width: canPrimaryInputHover
-                                                ? messageViewActionsWidth
-                                                : messageViewActionsWidthWithoutHoveringPrimaryInput,
-                                            position: "relative",
-                                            zIndex: "20",
-                                        })}
-                                    >
-                                        {message.isOptimistic &&
-                                        message.optimisticRequestErrorState.hasError ? (
-                                            <div>
-                                                <IconButton
-                                                    // NOTE(calebmer): I think we can use "click" in copy here since the
-                                                    // description is part of a tooltip which is fundamentally a mouse/pointer
-                                                    // thing. On mobile we need to pop open a modal or alert or something.
-                                                    description={`Couldn’t create ${messageNoun}. Click to try again`}
-                                                    size="sm"
-                                                    onPress={
-                                                        message.optimisticRequestErrorState.retry
-                                                    }
-                                                >
-                                                    <ErrorIcon />
-                                                </IconButton>
-                                            </div>
-                                        ) : shouldShowOptimisticLoadingIndicator ? (
-                                            <div>
-                                                <SpinnerGap
-                                                    className={spinAnimationClassName}
-                                                    size={spacing["4"]}
-                                                />
-                                            </div>
-                                        ) : (
-                                            // If the primary input device can't hover, improve performance by not
-                                            // rendering message view actions.
-                                            canPrimaryInputHover &&
-                                            !message.isOptimistic &&
-                                            !disableExpensiveFeaturesDuringScroll &&
-                                            !shouldHighlight && (
-                                                <MessageViewActions
-                                                    messageNoun={messageNoun}
-                                                    message={message}
-                                                    messagePayload={message.payload}
-                                                    messageEditing={messageEditing}
-                                                    isHovered={isHovered}
-                                                    onReplyToMessage={onReplyToMessage}
-                                                    onShowDeleteConfirmationDialog={() =>
-                                                        setShowDeleteConfirmationDialog(true)
-                                                    }
-                                                    getMessageUrl={getMessageUrl}
-                                                />
-                                            )
-                                        )}
-                                    </div>
-                                </div> */
                                     <MessageViewEditor
                                         ref={messageEditorRef}
                                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
@@ -905,39 +878,22 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 deletedPayloadNode
                             )}
                         </div>
-                        {/* NOCOMMIT: {platform !== "mobile" &&
-                        !message.isOptimistic &&
-                        message.payload.type === "Content" &&
-                        !disableExpensiveFeaturesDuringScroll && (
-                            <MessageViewActions
-                                messageNoun={messageNoun}
-                                message={message}
-                                messagePayload={message.payload}
-                                messageEditing={messageEditing}
-                                isHovered={isHovered}
-                                onReplyToMessage={onReplyToMessage}
-                                onShowDeleteConfirmationDialog={() =>
-                                    setShowDeleteConfirmationDialog(true)
-                                }
-                                getMessageUrl={getMessageUrl}
-                            />
-                        )} */}
                         {isContextMenuOpenForThisMessage && (
                             <div
                                 className={sprinkles({
                                     position: "absolute",
-                                    top: `-${messageViewOutlineMarginY}`,
+                                    top: `-${messageViewOutlineMargin}`,
                                     height: "full",
-                                    left: `-${messageViewOutlineMarginX}`,
-                                    right: `-${messageViewOutlineMarginX}`,
+                                    left: `-${messageViewOutlineMargin}`,
+                                    right: `-${messageViewOutlineMargin}`,
                                     zIndex: "-10",
                                     backgroundColor: "grey-5",
                                     borderRadius: messageViewOutlineBorderRadius,
                                 })}
                                 style={{
                                     height: `calc(100% + ${addRemLengths(
-                                        messageViewOutlineMarginY,
-                                        messageViewOutlineMarginY,
+                                        messageViewOutlineMargin,
+                                        messageViewOutlineMargin,
                                     )})`,
                                     // If this is one line of text then the background should extend below
                                     // the avatar.
@@ -977,12 +933,12 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
         messageNoun,
     });
 
-    const avatarSizeRem = parseRemLength(messageView2AvatarSize);
+    const avatarSizeRem = parseRemLength(messageView2AccountAvatarSize);
     const parentOffsetRem = parseRemLength(messageView2RailGap) / 2;
-    const parentAvatarSizeRem = parseRemLength(messageViewParentAvatarSize);
+    const parentAvatarSizeRem = parseRemLength(messageViewParentMessageAvatarSize);
     const parentAvatarOffsetYRem =
-        (parseRemLength(messageViewParentAvatarSize) -
-            parseRemLength(fontSizes[messageViewParentFontSize].lineHeight)) /
+        (parseRemLength(messageViewParentMessageAvatarSize) -
+            parseRemLength(fontSizes[messageViewParentMessageFontSize].lineHeight)) /
         -2;
 
     const {isPressed, pressProps} = usePress({
@@ -1061,7 +1017,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     style={{top: `${parentAvatarOffsetYRem}rem`}}
                 >
                     <AccountAvatar
-                        size={messageViewParentAvatarSize}
+                        size={messageViewParentMessageAvatarSize}
                         account={parentMessage.author}
                     />
                 </div>
@@ -1069,7 +1025,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     className={sprinkles({
                         overflow: "hidden",
                         color: "grey-80",
-                        fontSize: messageViewParentFontSize,
+                        fontSize: messageViewParentMessageFontSize,
                         fontStyle: "normal",
                         opacity: isPressed ? "60" : "100",
                     })}

@@ -13,8 +13,7 @@ import {
     messageViewNotMergedEditorOutlineMarginBottomPx,
     messageViewNotMergedEditorOutlineMarginTop,
     messageViewOutlineBorderRadius,
-    messageViewOutlineMarginX,
-    messageViewOutlineMarginY,
+    messageViewOutlineMargin,
 } from "~/client/styles/messaging_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -63,8 +62,8 @@ function MessageViewEditor<RoomKey extends string>(
                 position="relative"
                 zIndex="40"
                 borderRadius={messageViewOutlineBorderRadius}
-                marginRight={`-${messageViewOutlineMarginX}`}
-                marginY={`-${messageViewOutlineMarginY}`}
+                marginRight={`-${messageViewOutlineMargin}`}
+                marginY={`-${messageViewOutlineMargin}`}
                 style={{
                     marginLeft: `-${messageViewEditorOutlineMarginLeft}`,
                     marginTop: !shouldMergeWithPreviousMessage
@@ -171,8 +170,8 @@ function MessageContentEditor({
             // editing modality.
             withoutMobileDualModality={true}
             className={sprinkles({
-                paddingRight: messageViewOutlineMarginX,
-                paddingY: messageViewOutlineMarginY,
+                paddingRight: messageViewOutlineMargin,
+                paddingY: messageViewOutlineMargin,
             })}
             style={{
                 paddingLeft: messageViewEditorOutlineMarginLeft,

@@ -1,5 +1,5 @@
 import {animate} from "motion";
-import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
+import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, Plus, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -25,7 +25,9 @@ import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
+import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
+import {trimContentEnd} from "~/client/content/trim_content.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -47,44 +49,58 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getMessageBubbleMarginLeft,
+    messageInputEditor2IconButtonSize,
+    messageInputEditor2IconButtonMargin,
+    messageInputEditor2MinHeightPx,
+    messageInputEditor2PaddingX,
+    messageInputEditor2PaddingYPx,
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
-    messageInputMinHeight,
     messageInputPaddingY,
+    messageView2RailGap,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     messageViewMaxWidth,
+    messageViewOutlineBorderRadius,
+    messageViewOutlineMargin,
+    messageViewParentMessageScale,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
-    messageViewParentScale,
+    messageInputEditor2BorderRadiusPx,
+    messageView2AccountAvatarSize,
+    messageInput2MinHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
-import {borderRadius, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    borderRadius,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
     addRemLengths,
+    assertSpacing,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {trimContentEnd} from "~/client/content/trim_content.js";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -180,6 +196,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     ref: Ref<MessageInputRef>,
 ) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
     const {currentAccount} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -527,15 +544,16 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 backgroundColor="grey-0"
                 style={{
                     minHeight: !isBottomBar
-                        ? messageInputMinHeight[platform]
+                        ? messageInput2MinHeightPx[spacingScale]
                         : `calc(${
                               platform === "mobile"
-                                  ? addRemLengths(
-                                        messageInputMinHeight.mobile,
+                                  ? messageInput2MinHeightPx[spacingScale] +
+                                    convertRemLengthToPx(
                                         mobileBottomBarKeyboardToolbarHeight,
+                                        spacingScale,
                                     )
-                                  : messageInputMinHeight.desktop
-                          } + var(--window-safe-area-inset-bottom, 0px))`,
+                                  : messageInput2MinHeightPx[spacingScale]
+                          }px + var(--window-safe-area-inset-bottom, 0px))`,
                     paddingBottom: isBottomBar
                         ? clientInfo.isNativeMobile
                             ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
@@ -659,7 +677,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
                                 const scaledHeight = `${
                                     Math.round(
-                                        parseRemLength(height) * messageViewParentScale * 16,
+                                        parseRemLength(height) * messageViewParentMessageScale * 16,
                                     ) / 16
                                 }rem`;
 
@@ -743,7 +761,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     borderRadius={messageViewBubbleBorderRadius}
                                                     style={{
                                                         opacity: messageViewReplyPreviewOpacity,
-                                                        transform: `scale(${messageViewParentScale})`,
+                                                        transform: `scale(${messageViewParentMessageScale})`,
                                                         transformOrigin: "0% 0% 0",
                                                     }}
                                                     onClick={() =>
@@ -789,65 +807,81 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                     </Box>
                                 );
                             })()}
-                        <Box
-                            overflow="hidden"
-                            display="flex"
-                            paddingX={paddingX}
-                            paddingY={messageInputPaddingY}
-                            gap="2"
-                        >
-                            {platform !== "mobile" && (
-                                <Box display="flex" alignItems="flex-end">
-                                    <Box
-                                        width={messageInputAccountAvatarSize}
-                                        style={{
-                                            paddingTop: avatarPaddingY,
-                                            paddingBottom: avatarPaddingY,
-                                        }}
-                                    >
-                                        <AccountAvatar
-                                            account={currentAccount}
-                                            size={messageInputAccountAvatarSize}
-                                        />
-                                    </Box>
-                                </Box>
-                            )}
-                            <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
+                        <Box overflow="hidden" paddingX={paddingX} paddingY={messageInputPaddingY}>
+                            <Box
+                                overflow="hidden"
+                                position="relative"
+                                zIndex="0"
+                                style={{
+                                    minHeight: messageInputEditor2MinHeightPx[spacingScale],
+                                    borderRadius: messageInputEditor2BorderRadiusPx[spacingScale],
+                                }}
+                            >
                                 <Box
-                                    flexGrow="1"
-                                    overflow="hidden"
-                                    position="relative"
-                                    borderRadius={messageViewBubbleBorderRadius}
+                                    pointerEvents="none"
+                                    position="absolute"
+                                    zIndex="10"
+                                    inset="0"
+                                    border="grey-10"
+                                    style={{
+                                        borderRadius:
+                                            messageInputEditor2BorderRadiusPx[spacingScale],
+                                        // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to
+                                        // render the border on top of `codeBlock` node sticky elements and to render
+                                        // the native scrollbar on top of `codeBlock` node sticky elements we need to:
+                                        //
+                                        // 1. Render border in a `z-index: 10` element with
+                                        //    `-webkit-transform: translateZ(0)`. Using
+                                        //    `box-shadow: inset 0 0 0 1px grey-10` on a parent doesn't work.
+                                        // 2. Set `z-index: 0` on the scroll container (this is important!).
+                                        //
+                                        // WebKit only working in these specific conditions definitely seems to be a
+                                        // bug. Other browsers work without `-webkit-transform: translateZ(0)` for
+                                        // instance.
+                                        transform: "translateZ(0)",
+                                        WebkitTransform: "translateZ(0)",
+                                    }}
+                                />
+                                <Box
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                    position="absolute"
+                                    bottom="0"
+                                    zIndex="20"
+                                    display="flex"
+                                    alignItems="center"
+                                    style={{
+                                        height: messageInputEditor2MinHeightPx[spacingScale],
+                                        left: messageInputEditor2IconButtonMargin,
+                                    }}
                                 >
-                                    <Box
-                                        pointerEvents="none"
-                                        position="absolute"
-                                        zIndex="10"
-                                        inset="0"
-                                        border="grey-10"
-                                        borderRadius={messageViewBubbleBorderRadius}
-                                        style={{
-                                            // NOTE(calebmer, #mobile-webkit-weirdness): In order for mobile WebKit to
-                                            // render the border on top of `codeBlock` node sticky elements and to render
-                                            // the native scrollbar on top of `codeBlock` node sticky elements we need to:
-                                            //
-                                            // 1. Render border in a `z-index: 10` element with
-                                            //    `-webkit-transform: translateZ(0)`. Using
-                                            //    `box-shadow: inset 0 0 0 1px grey-10` on a parent doesn't work.
-                                            // 2. Set `z-index: 0` on the scroll container (this is important!).
-                                            //
-                                            // WebKit only working in these specific conditions definitely seems to be a
-                                            // bug. Other browsers work without `-webkit-transform: translateZ(0)` for
-                                            // instance.
-                                            transform: "translateZ(0)",
-                                            WebkitTransform: "translateZ(0)",
-                                        }}
-                                    />
+                                    <IconButton
+                                        size={messageInputEditor2IconButtonSize}
+                                        description="Add"
+                                        withoutTooltip={true}
+                                        // The add icon button is not focusable. That's because we don't want to
+                                        // remove focus from the message input when the send button is pressed. That
+                                        // way on mobile you can keep typing and sending messages because the software
+                                        // keyboard doesn't disappear.
+                                        //
+                                        // On desktop, hitting enter in the message input is sufficient for keyboard
+                                        // control of the message input.
+                                        isFocusable={false}
+                                        // TODO(calebmer, #files): Use to upload files
+                                    >
+                                        <Plus />
+                                    </IconButton>
+                                </Box>
+                                <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                                     <Box
                                         ref={useScrollbar({
-                                            insetY: borderRadius[
-                                                messageViewBubbleBorderRadius[platform]
-                                            ],
+                                            insetTop:
+                                                messageInputEditor2BorderRadiusPx[spacingScale],
+                                            // Don't overlap the send button which is rendered at the bottom of
+                                            // the input.
+                                            insetBottom:
+                                                messageInputEditor2MinHeightPx[spacingScale],
+                                            // An additional pixel of inset right to offset the inset 1px border.
+                                            insetRight: 1,
                                         })}
                                         maxHeight={
                                             platform === "mobile" || withMobileMaxHeight
@@ -858,56 +892,72 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         zIndex="0"
                                         overflowX="hidden"
                                         overflowY="auto"
-                                        borderRadius={messageViewBubbleBorderRadius}
                                         style={{
-                                            minHeight: messageViewBubbleMinHeight[platform],
+                                            borderRadius:
+                                                messageInputEditor2BorderRadiusPx[spacingScale],
+                                            minHeight: messageInputEditor2MinHeightPx[spacingScale],
                                         }}
                                     >
-                                        <ContentEditor
-                                            ref={editorRef}
-                                            state={state}
-                                            onChange={(state, transaction) => {
-                                                onChange(state);
-                                                if (transaction.docChanged) showTypingIndicator();
-                                            }}
-                                            onFocus={handleFocus}
-                                            onFocusCapture={onFocusCapture}
-                                            onBlur={handleBlur}
-                                            aria-label={
-                                                isEditingMessage
-                                                    ? messageStartOfSentenceNoun
-                                                    : `New ${messageNoun}`
-                                            }
-                                            placeholder={placeholder}
-                                            className={sprinkles({
-                                                paddingX: messageViewBubblePaddingX,
-                                                paddingY: messageViewBubblePaddingY,
-                                            })}
-                                            onEnterFromPhysicalKeyboard={event => {
-                                                event.preventDefault();
-                                                event.stopPropagation();
-                                                onSend();
-                                            }}
-                                            onArrowUp={onArrowUp}
-                                            // Don't render the default content editor mobile keyboard toolbar. We render
-                                            // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
-                                            withoutMobileKeyboardToolbar={true}
-                                            // Message input is always editable, never interactive on mobile. So you can't
-                                            // click links among other things.
-                                            withoutMobileDualModality={true}
-                                        />
+                                        <OverlayScopeContextProvider>
+                                            <ContentEditor
+                                                ref={editorRef}
+                                                state={state}
+                                                onChange={(state, transaction) => {
+                                                    onChange(state);
+                                                    if (transaction.docChanged)
+                                                        showTypingIndicator();
+                                                }}
+                                                onFocus={handleFocus}
+                                                onFocusCapture={onFocusCapture}
+                                                onBlur={handleBlur}
+                                                aria-label={
+                                                    isEditingMessage
+                                                        ? messageStartOfSentenceNoun
+                                                        : `New ${messageNoun}`
+                                                }
+                                                placeholder={placeholder}
+                                                style={{
+                                                    paddingTop:
+                                                        messageInputEditor2PaddingYPx[spacingScale],
+                                                    paddingBottom:
+                                                        messageInputEditor2PaddingYPx[spacingScale],
+                                                    paddingLeft: messageInputEditor2PaddingX,
+                                                    paddingRight: messageInputEditor2PaddingX,
+                                                    borderRadius:
+                                                        messageInputEditor2BorderRadiusPx[
+                                                            spacingScale
+                                                        ],
+                                                }}
+                                                onEnterFromPhysicalKeyboard={event => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    onSend();
+                                                }}
+                                                onArrowUp={onArrowUp}
+                                                // Don't render the default content editor mobile keyboard toolbar. We render
+                                                // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
+                                                withoutMobileKeyboardToolbar={true}
+                                                // Message input is always editable, never interactive on mobile. So you can't
+                                                // click links among other things.
+                                                withoutMobileDualModality={true}
+                                            />
+                                        </OverlayScopeContextProvider>
                                     </Box>
-                                </Box>
-                            </FocusRing>
-                            <Box display="flex" alignItems="flex-end">
+                                </FocusRing>
                                 <Box
-                                    width={messageInputAccountAvatarSize}
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                    position="absolute"
+                                    bottom="0"
+                                    zIndex="20"
+                                    display="flex"
+                                    alignItems="center"
                                     style={{
-                                        paddingTop: avatarPaddingY,
-                                        paddingBottom: avatarPaddingY,
+                                        height: messageInputEditor2MinHeightPx[spacingScale],
+                                        right: messageInputEditor2IconButtonMargin,
                                     }}
                                 >
                                     <IconButton
+                                        size={messageInputEditor2IconButtonSize}
                                         variant="accent"
                                         description={`${sendButtonVerb} ${messageNoun}`}
                                         onPress={onSend}

@@ -592,15 +592,8 @@ export const checkListItemCheckboxIconClassName = style({
     },
 });
 
-const codeBlockToolbarHeightSpacing = "6";
-const codeBlockToolbarHeight = spacing[codeBlockToolbarHeightSpacing];
-export {codeBlockToolbarHeightSpacing as codeBlockToolbarHeight};
-
 const mobileCodeBlockToolbarMaxWidth = spacing["32"];
-const desktopCodeBlockToolbarMaxWidth = addRemLengths(
-    mobileCodeBlockToolbarMaxWidth,
-    codeBlockToolbarHeight,
-);
+const desktopCodeBlockToolbarMaxWidth = addRemLengths(mobileCodeBlockToolbarMaxWidth, "6");
 
 const codeBlockPaddingRightSpacing = "3";
 const codeBlockPaddingRight = spacing[codeBlockPaddingRightSpacing];
@@ -620,20 +613,6 @@ globalStyle(codeBlockWrapperClassName, {
     ...fontStyles.code,
 });
 
-// If the code block toolbar is a little taller than a line of code (it is)
-// then we need to add some padding Y to our code block so the toolbar can be
-// centered relative to the first line of text when the toolbar is positioned
-// with `position: absolute; top: 0`. We can't position the toolbar with a
-// negative `top` since then it would be clipped because `overflowY` is hidden
-// (since `overflowX` is scrollable).
-const getCodeBlockPaddingY = (spacingScale: SpacingScale) =>
-    Math.max(
-        0,
-        (convertRemLengthToPx(codeBlockToolbarHeight, spacingScale) -
-            paragraphLineHeightPx[spacingScale]) /
-            2,
-    );
-
 globalStyle(codeBlockClassName, {
     display: "block",
     position: "relative",
@@ -644,18 +623,6 @@ globalStyle(codeBlockClassName, {
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
-    paddingTop: getCodeBlockPaddingY("small"),
-    paddingBottom: getCodeBlockPaddingY("small"),
-});
-
-globalStyle(`${mediumSpacingScaleSelector} ${codeBlockClassName}`, {
-    paddingTop: getCodeBlockPaddingY("medium"),
-    paddingBottom: getCodeBlockPaddingY("medium"),
-});
-
-globalStyle(`${largeSpacingScaleSelector} ${codeBlockClassName}`, {
-    paddingTop: getCodeBlockPaddingY("large"),
-    paddingBottom: getCodeBlockPaddingY("large"),
 });
 
 // The reason use a triple selector is to beat the CSS set by ProseMirror since
@@ -836,10 +803,11 @@ export const codeBlockToolbarFlexClassName = style({
     position: "absolute",
     top: "0",
     right: "0",
-    height: codeBlockToolbarHeight,
+    height: paragraphLineHeightVar,
     paddingLeft: spacing["1.5"],
     display: "flex",
     alignItems: "center",
+    gap: spacing["0.5"],
     backgroundColor: backgroundColorVar,
     maxWidth: subtractRemLengths(
         desktopCodeBlockToolbarMaxWidth,
@@ -870,9 +838,9 @@ export const codeBlockToolbarOverflowGradientClassName = style({
 });
 
 export const codeBlockLanguagePickerClassName = style({
-    height: codeBlockToolbarHeight,
-    paddingLeft: spacing["1.5"],
-    paddingRight: spacing["1.5"],
+    height: paragraphLineHeightVar,
+    paddingLeft: spacing["1"],
+    paddingRight: spacing["1"],
     display: "flex",
     alignItems: "center",
     borderRadius: borderRadius["1"],
@@ -890,8 +858,8 @@ export const codeBlockLanguagePickerTextClassName = style({
 
 export const codeBlockCopyButtonClassName = style({
     flexShrink: "0",
-    width: codeBlockToolbarHeight,
-    height: codeBlockToolbarHeight,
+    width: paragraphLineHeightVar,
+    height: paragraphLineHeightVar,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
