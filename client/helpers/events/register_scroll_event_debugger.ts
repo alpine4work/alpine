@@ -69,8 +69,7 @@ if (typeof window !== "undefined") {
             set: function (this: Element) {
                 const debugId = getScrollElementDebugId(this);
                 if (debugId !== null) {
-                    // NOCOMMIT
-                    console.trace(
+                    console.log(
                         `[ScrollEventDebugger#${debugId}] set ${setterPropertyName}`,
                         ...arguments,
                     );

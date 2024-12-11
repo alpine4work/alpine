@@ -144,13 +144,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     isInert?: boolean;
 
     /**
-     * Should the content be truncated to a single line with an ellipsis when
-     * text overflows?
-     */
-    // NOCOMMIT: Delete this feature?
-    isTruncated?: boolean;
-
-    /**
      * Are we rendering a `<ContentView>` as a placeholder during initial app
      * render for `<ContentEditor>`? Not much changes when this is true but we
      * disable some behaviors we save for `<ContentEditor>`.
@@ -234,7 +227,6 @@ export function ContentView<Content extends ContentWithReferences>({
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     isInert = false,
-    isTruncated = false,
     isEditorInitialAppRender = false,
     fileAttachmentTarget,
     shouldHighlightComment,
@@ -1317,7 +1309,6 @@ export function ContentView<Content extends ContentWithReferences>({
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,
-                    isTruncated && contentViewStyles.truncatedClassName,
                 )}
                 style={
                     withUserSelectNone
