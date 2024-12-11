@@ -1,5 +1,6 @@
+import classNames from "classnames";
 import {animate} from "motion";
-import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, Plus, X} from "phosphor-react";
+import {ArrowRight, ArrowUp, PencilSimple, Plus, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -16,11 +17,11 @@ import {
     useRef,
     useState,
 } from "react";
+import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentView} from "~/client/content/content_view.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
@@ -51,34 +52,26 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    getMessageBubbleMarginLeft,
-    messageInputEditor2IconButtonSize,
+    messageInput2MinHeightPx,
+    messageInputEditor2BorderRadiusPx,
     messageInputEditor2IconButtonMargin,
+    messageInputEditor2IconButtonSize,
     messageInputEditor2MinHeightPx,
     messageInputEditor2PaddingX,
     messageInputEditor2PaddingYPx,
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
     messageInputPaddingY,
-    messageView2RailGap,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    messageViewMaxWidth,
-    messageViewOutlineBorderRadius,
-    messageViewOutlineMargin,
-    messageViewParentMessageScale,
-    messageViewReplyPreviewBubbleOpacity,
-    messageViewReplyPreviewOpacity,
-    messageInputEditor2BorderRadiusPx,
     messageView2AccountAvatarSize,
-    messageInput2MinHeightPx,
+    messageView2RailGap,
+    messageViewMaxWidth,
+    messageViewParentMessageAccountAvatarSize,
+    messageViewParentMessageAvatarOffsetYRem,
+    messageViewParentMessageFontSize,
+    messageViewParentMessageLineHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
-    borderRadius,
+    backgroundColorVar,
+    messagingStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -86,7 +79,6 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
     addRemLengths,
-    assertSpacing,
     convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
@@ -198,7 +190,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
-    const {currentAccount} = useSpaceContext();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -238,21 +229,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     const isEditingMessage = !!messageEditingForThisInput;
 
-    const replyingToMessage = useMemo(() => {
-        if (isEditingMessage) return null;
-        if (!replyingToMessageProp) return null;
-
-        // NOCOMMIT
-        getTruncatedMessageContentForReplyPreview({
-            message: replyingToMessageProp,
-            messageNoun,
-        });
-
-        return {
-            message: replyingToMessageProp,
-            truncatedContent: emptyMessageContentWithReferences,
-        };
-    }, [isEditingMessage, replyingToMessageProp, messageStartOfSentenceNoun]);
+    const replyingToMessage = !isEditingMessage ? replyingToMessageProp : null;
 
     const onBeforeFocusFromReplyOrEditingChange = useEvent(
         onBeforeFocusFromReplyOrEditingChangeProp,
@@ -261,8 +238,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // Focus the message input whenever the message we're replying to changes. Or
     // if we start editing the message.
     const focusKey =
-        replyingToMessage?.message.index !== undefined
-            ? `Replying:${replyingToMessage?.message.index}`
+        replyingToMessage?.index !== undefined
+            ? `Replying:${replyingToMessage?.index}`
             : isEditingMessage
             ? `Editing:${messageEditingForThisInput.state.messageIndex}`
             : null;
@@ -521,8 +498,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
-    const avatarPaddingY = messageInputAccountAvatarPaddingY[platform];
-
     return (
         <Box
             ref={inputContainerRef}
@@ -627,34 +602,37 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         {isEditingMessage && (
                             <Box
                                 position="relative"
+                                paddingRight={paddingX}
                                 paddingTop={messageInputPaddingY}
                                 color="grey-80"
                                 style={{
-                                    paddingLeft:
-                                        platform === "mobile"
-                                            ? spacing["3"]
-                                            : getMessageBubbleMarginLeft(
-                                                  typeof paddingX === "string"
-                                                      ? paddingX
-                                                      : paddingX.desktop,
-                                              ),
-                                    paddingRight: addRemLengths("2", "7", "5"),
+                                    // Align text with message input placeholder.
+                                    paddingLeft: subtractRemLengths(
+                                        addRemLengths(
+                                            typeof paddingX !== "string"
+                                                ? paddingX[platform]
+                                                : paddingX,
+                                            messageInputEditor2PaddingX,
+                                        ),
+                                        "4",
+                                    ),
                                 }}
                             >
-                                <Box
-                                    paddingLeft="0.5"
-                                    display="flex"
-                                    alignItems="center"
-                                    gap="1"
-                                    fontSize="50"
-                                    fontStyle="truncate"
-                                >
+                                <Box display="flex" alignItems="center" gap="1" height="4">
                                     <PencilSimple size={spacing["3"]} />
-                                    <span>Editing message</span>
-                                    <Box paddingLeft="0.5" style={{transform: "translateY(1px)"}}>
+                                    <span
+                                        className={sprinkles({
+                                            fontSize: "50",
+                                            fontStyle: "truncate",
+                                        })}
+                                    >
+                                        Editing message
+                                    </span>
+                                    <Box paddingLeft="0.5">
                                         <IconButton
                                             size="xs"
                                             description="Cancel editing"
+                                            tooltipPlacement="top"
                                             onPress={() => {
                                                 messageEditingForThisInput.dispatch({
                                                     type: "CancelEditing",
@@ -670,143 +648,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 </Box>
                             </Box>
                         )}
-                        {replyingToMessage &&
-                            (() => {
-                                // NOCOMMIT: Remove
-                                const height = addRemLengths("1.5", "1.3125rem", "1.5");
-
-                                const scaledHeight = `${
-                                    Math.round(
-                                        parseRemLength(height) * messageViewParentMessageScale * 16,
-                                    ) / 16
-                                }rem`;
-
-                                return (
-                                    <Box
-                                        position="relative"
-                                        paddingTop={messageInputPaddingY}
-                                        paddingBottom="1"
-                                        style={{
-                                            paddingLeft:
-                                                platform === "mobile"
-                                                    ? spacing["3"]
-                                                    : getMessageBubbleMarginLeft(
-                                                          typeof paddingX === "string"
-                                                              ? paddingX
-                                                              : paddingX.desktop,
-                                                      ),
-                                            paddingRight: addRemLengths("2", "7", "5"),
-                                        }}
-                                    >
-                                        <Box
-                                            paddingLeft="1.5"
-                                            paddingBottom="1"
-                                            display="flex"
-                                            alignItems="center"
-                                            gap="1"
-                                            fontSize="50"
-                                            fontStyle="truncate"
-                                        >
-                                            <ArrowArcLeft size={spacing["3"]} />
-                                            <span>
-                                                Replying to{" "}
-                                                <span className={sprinkles({fontStyle: "bold"})}>
-                                                    <AccountShortName
-                                                        account={replyingToMessage.message.author}
-                                                    />
-                                                </span>
-                                            </span>
-                                            <Box
-                                                paddingLeft="0.5"
-                                                style={{transform: "translateY(1px)"}}
-                                            >
-                                                <IconButton
-                                                    size="xs"
-                                                    description="Cancel reply"
-                                                    onPress={onClearReplyingToMessage}
-                                                    // Not focusable so clicking on this button doesn't unfocus
-                                                    // the input.
-                                                    isFocusable={false}
-                                                >
-                                                    <X />
-                                                </IconButton>
-                                            </Box>
-                                        </Box>
-                                        <Box style={{height: scaledHeight}}>
-                                            <FocusRing>
-                                                <Box
-                                                    // This is a simulated link. When the user clicks on it our code navigates us
-                                                    // to the right message instead of relying on browser URL navigation.
-                                                    //
-                                                    // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
-                                                    role="link"
-                                                    tabIndex={0}
-                                                    // We don't use a pointer cursor for buttons in our product because buttons
-                                                    // they clearly appear clickable. We call this a strong affordance. A reply
-                                                    // preview is clickable and gives some affordance (different color) but it's a
-                                                    // weak affordance. So we use a pointer to make this element unambiguously
-                                                    // clickable.
-                                                    //
-                                                    // Also, this element is semantically a link which the pointer cursor was
-                                                    // originally designed for.
-                                                    //
-                                                    // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                                                    cursor="pointer"
-                                                    position="relative"
-                                                    zIndex="0"
-                                                    display="inline-block"
-                                                    maxWidth="full"
-                                                    paddingX={messageViewBubblePaddingX}
-                                                    paddingY={messageViewBubblePaddingY}
-                                                    borderRadius={messageViewBubbleBorderRadius}
-                                                    style={{
-                                                        opacity: messageViewReplyPreviewOpacity,
-                                                        transform: `scale(${messageViewParentMessageScale})`,
-                                                        transformOrigin: "0% 0% 0",
-                                                    }}
-                                                    onClick={() =>
-                                                        onJumpToMessage?.(replyingToMessage.message)
-                                                    }
-                                                    onKeyDown={event => {
-                                                        if (
-                                                            event.key === "Enter" ||
-                                                            event.key === " "
-                                                        ) {
-                                                            event.preventDefault();
-                                                            event.stopPropagation();
-                                                            onJumpToMessage?.(
-                                                                replyingToMessage.message,
-                                                            );
-                                                            return;
-                                                        }
-                                                    }}
-                                                >
-                                                    <Box
-                                                        position="absolute"
-                                                        inset="0"
-                                                        zIndex="-10"
-                                                        borderRadius={messageViewBubbleBorderRadius}
-                                                        backgroundColor="grey-5"
-                                                        style={{
-                                                            opacity:
-                                                                messageViewReplyPreviewBubbleOpacity,
-                                                        }}
-                                                    />
-                                                    <Box overflow="hidden" pointerEvents="none">
-                                                        <ContentView
-                                                            isInert={true}
-                                                            isTruncated={true}
-                                                            content={
-                                                                replyingToMessage.truncatedContent
-                                                            }
-                                                        />
-                                                    </Box>
-                                                </Box>
-                                            </FocusRing>
-                                        </Box>
-                                    </Box>
-                                );
-                            })()}
+                        {replyingToMessage && (
+                            <MessageInputReplyingToMessage
+                                messageNoun={messageNoun}
+                                replyingToMessage={replyingToMessage}
+                                onJumpToMessage={onJumpToMessage}
+                                onClearReplyingToMessage={onClearReplyingToMessage}
+                                paddingX={paddingX}
+                            />
+                        )}
                         <Box overflow="hidden" paddingX={paddingX} paddingY={messageInputPaddingY}>
                             <Box
                                 overflow="hidden"
@@ -815,6 +665,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 style={{
                                     minHeight: messageInputEditor2MinHeightPx[spacingScale],
                                     borderRadius: messageInputEditor2BorderRadiusPx[spacingScale],
+                                    // Covers the connector curve when replying to a message. So we don't have a
+                                    // flat end to the connector curve given it attaches to the message input along
+                                    // the curve.
+                                    boxShadow: replyingToMessage
+                                        ? `0px 0px 0px 2px ${backgroundColorVar}`
+                                        : undefined,
                                 }}
                             >
                                 <Box
@@ -1108,6 +964,180 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                     )}
                 </MobileFullScreenModal>
             )}
+        </Box>
+    );
+}
+
+function MessageInputReplyingToMessage<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+>({
+    messageNoun,
+    replyingToMessage,
+    onJumpToMessage,
+    onClearReplyingToMessage,
+    paddingX,
+}: {
+    messageNoun: string;
+    replyingToMessage: Message;
+    onJumpToMessage: ((message: Message) => void) | undefined;
+    onClearReplyingToMessage: (() => void) | undefined;
+    paddingX: Spacing | {desktop: Spacing; mobile: Spacing};
+}) {
+    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
+
+    const truncatedContent = useMemo(
+        () =>
+            getTruncatedMessageContentForReplyPreview({
+                message: replyingToMessage,
+                messageNoun,
+            }),
+        [messageNoun, replyingToMessage],
+    );
+
+    const additionalMarginY = "0.5";
+    const accountAvatarSizeRem = parseRemLength(messageView2AccountAvatarSize);
+    const parentMessageOffsetRem = parseRemLength(messageView2RailGap) / 2;
+    const parentAccountAvatarSizeRem = parseRemLength(messageViewParentMessageAccountAvatarSize);
+
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            onJumpToMessage?.(replyingToMessage);
+        },
+    });
+
+    return (
+        <Box
+            paddingRight={paddingX}
+            paddingBottom={additionalMarginY}
+            style={{
+                paddingTop: addRemLengths(messageInputPaddingY, additionalMarginY),
+                // Align text with message input placeholder.
+                paddingLeft: `${
+                    parseRemLength(
+                        addRemLengths(
+                            typeof paddingX !== "string" ? paddingX[platform] : paddingX,
+                            messageView2AccountAvatarSize,
+                        ),
+                    ) + parentMessageOffsetRem
+                }rem`,
+            }}
+        >
+            <Box position="relative">
+                <div
+                    className={classNames(
+                        // We render the border left/top color as a white with some opacity (which when
+                        // blended results in `grey-5`) so that when we render the context menu (right
+                        // click) `grey-5` background the border is rendered on top of the background
+                        // color.
+                        messagingStyles.parentMessageConnectorClassName,
+                        sprinkles({
+                            pointerEvents: "none",
+                            position: "absolute",
+                            borderLeftWidth: "thick",
+                            borderTopWidth: "thick",
+                            borderTopLeftRadius: "2.5",
+                        }),
+                    )}
+                    style={{
+                        top: `calc(${
+                            messageViewParentMessageAvatarOffsetYRem +
+                            parentAccountAvatarSizeRem / 2
+                        }rem - 1px)`,
+                        bottom: `-${addRemLengths(messageInputPaddingY, additionalMarginY)}`,
+                        left: `calc(-${
+                            accountAvatarSizeRem / 2 + parentMessageOffsetRem
+                        }rem - 1px)`,
+                        width: `calc(${
+                            accountAvatarSizeRem / 2 + parentMessageOffsetRem
+                        }rem - 2px)`,
+                    }}
+                />
+                <Box display="flex" gap="1.5">
+                    <Box
+                        {...pressProps}
+                        // This is a simulated link. When the user clicks on it our code navigates us
+                        // to the right message instead of relying on browser URL navigation.
+                        //
+                        // See: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/link_role
+                        role="link"
+                        // `inline-flex` instead of `flex` so that the clickable area doesn't extend
+                        // full width when we have a short message.
+                        display="inline-flex"
+                        gap="1.5"
+                        // We don't use a pointer cursor for buttons in our product because buttons
+                        // they clearly appear clickable. We call this a strong affordance. A reply
+                        // preview is clickable and gives some affordance (different color) but it's a
+                        // weak affordance. So we use a pointer to make this element unambiguously
+                        // clickable.
+                        //
+                        // Also, this element is semantically a link which the pointer cursor was
+                        // originally designed for.
+                        //
+                        // See: https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                        cursor="pointer"
+                    >
+                        <Box
+                            className={sprinkles({
+                                flexShrink: "0",
+                                position: "relative",
+                                height: "0",
+                                opacity: isPressed ? "60" : "100",
+                            })}
+                            style={{
+                                top: `${messageViewParentMessageAvatarOffsetYRem}rem`,
+                            }}
+                        >
+                            <AccountAvatar
+                                size={messageViewParentMessageAccountAvatarSize}
+                                account={replyingToMessage.author}
+                            />
+                        </Box>
+                        <Box
+                            overflow="hidden"
+                            color="grey-80"
+                            fontSize={messageViewParentMessageFontSize}
+                            fontStyle="normal"
+                            opacity={isPressed ? "60" : "100"}
+                            style={{
+                                minHeight: messageViewParentMessageLineHeightPx[spacingScale],
+                                lineHeight: `${messageViewParentMessageLineHeightPx[spacingScale]}px`,
+                                // Allow contextual alternate glyphs in regular text content.
+                                fontFeatureSettings: '"calt" on',
+                                // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                                // except IE.
+                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                lineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                                textOverflow: "ellipsis",
+                            }}
+                        >
+                            <AccountShortName account={replyingToMessage.author} />:{" "}
+                            {truncatedContent}
+                        </Box>
+                    </Box>
+                    <Box
+                        display="flex"
+                        alignItems="center"
+                        style={{height: messageViewParentMessageLineHeightPx[spacingScale]}}
+                    >
+                        <IconButton
+                            size="xs"
+                            description="Cancel reply"
+                            tooltipPlacement="top"
+                            onPress={onClearReplyingToMessage}
+                            // Not focusable so clicking on this button doesn't unfocus
+                            // the input.
+                            isFocusable={false}
+                        >
+                            <X />
+                        </IconButton>
+                    </Box>
+                </Box>
+            </Box>
         </Box>
     );
 }

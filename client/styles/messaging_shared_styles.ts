@@ -2,7 +2,7 @@
 // `client/messaging` by packages that don't want to take a dependency on
 // `client/messaging`. For example `client/content`.
 
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, fontSizes} from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -13,7 +13,11 @@ import {
     parseRemLength,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {allSpacingScales, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {
+    SpacingScale,
+    allSpacingScales,
+    remPxBySpacingScale,
+} from "~/shared/design/core/spacing_scale.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
@@ -118,16 +122,28 @@ export const messageViewActionsWidthWithoutHoveringPrimaryInput: Spacing = "5";
 
 export const messageViewParentMessageFontSize = "75";
 
+// NOCOMMIT: Delete this
 export const messageViewParentMessageScale =
     fontSizesBySpacingScale[messageViewParentMessageFontSize].small.fontSize /
     fontSizesBySpacingScale[contentStyles.paragraphActualFontSize].small.fontSize;
 
-// NOCOMMIT: Delete this
-export const messageViewParentLineHeight = `${1.3125 * messageViewParentMessageScale}rem`;
+export const messageViewParentMessageLineHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        Math.floor(
+            fontSizesBySpacingScale[messageViewParentMessageFontSize][spacingScale].fontSize *
+                contentStyles.paragraphLineHeightMultiple,
+        ),
+);
 
-export const messageViewParentMessageAvatarSize = assertSpacing(
+export const messageViewParentMessageAccountAvatarSize = assertSpacing(
     Math.round(parseInt(messageView2AccountAvatarSize, 10) * messageViewParentMessageScale),
 );
+
+export const messageViewParentMessageAvatarOffsetYRem =
+    (parseRemLength(messageViewParentMessageAccountAvatarSize) -
+        parseRemLength(fontSizes[messageViewParentMessageFontSize].lineHeight)) /
+    -2;
 
 // Should be the same size as `messageView2AccountAvatarSize`.
 export const messageInputEditor2IconButtonSize = "md";

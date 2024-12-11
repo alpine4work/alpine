@@ -43,10 +43,11 @@ import {
     messageViewMarginY,
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
-    messageViewParentMessageAvatarSize,
+    messageViewParentMessageAccountAvatarSize,
     messageViewParentMessageFontSize,
-    messageViewParentLineHeight,
     messageViewOutlineMargin,
+    messageViewParentMessageAvatarOffsetYRem,
+    messageViewParentMessageLineHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -415,6 +416,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         fontSize: "600",
                         userSelect: canPrimaryInputHover ? "text" : "none",
                     })}
+                    style={{
+                        // Use a line height with a round pixel value on all spacing scales so
+                        // `<MessageView>` elements don't end up needing subpixel rendering.
+                        lineHeight: spacing["8"],
+                    }}
                 >
                     {children}
                     {message.payload.contentUpdatedTime && (
@@ -928,18 +934,22 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
 }) {
     const spacingScale = useSpacingScale();
 
-    const truncatedContent = getTruncatedMessageContentForReplyPreview({
-        message: parentMessage,
-        messageNoun,
-    });
+    const truncatedContent = useMemo(
+        () =>
+            getTruncatedMessageContentForReplyPreview({
+                message: parentMessage,
+                messageNoun,
+            }),
+        [messageNoun, parentMessage],
+    );
 
-    const avatarSizeRem = parseRemLength(messageView2AccountAvatarSize);
-    const parentOffsetRem = parseRemLength(messageView2RailGap) / 2;
-    const parentAvatarSizeRem = parseRemLength(messageViewParentMessageAvatarSize);
-    const parentAvatarOffsetYRem =
-        (parseRemLength(messageViewParentMessageAvatarSize) -
-            parseRemLength(fontSizes[messageViewParentMessageFontSize].lineHeight)) /
-        -2;
+    const marginTop = "2";
+    const marginBottom = "2";
+    const accountAvatarSizeRem = parseRemLength(messageView2AccountAvatarSize);
+    const parentMessageOffsetRem = parseRemLength(messageView2RailGap) / 2;
+    const parentMessageAccountAvatarSizeRem = parseRemLength(
+        messageViewParentMessageAccountAvatarSize,
+    );
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
@@ -964,10 +974,8 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     // full width when we have a short message.
                     display: "inline-flex",
                     gap: "1.5",
-                    marginTop: "1",
-                    // Intentionally using `paragraphMargin` instead of `standaloneBlockMargin`
-                    // since `standaloneBlockMargin` is too much margin for one line responses.
-                    marginBottom: contentStyles.paragraphMargin,
+                    marginTop,
+                    marginBottom,
                     // We don't use a pointer cursor for buttons in our product because buttons
                     // they clearly appear clickable. We call this a strong affordance. A reply
                     // preview is clickable and gives some affordance (different color) but it's a
@@ -981,7 +989,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     cursor: "pointer",
                 })}
                 style={{
-                    marginLeft: `${avatarSizeRem + parentOffsetRem}rem`,
+                    marginLeft: `${accountAvatarSizeRem + parentMessageOffsetRem}rem`,
                 }}
             >
                 <div
@@ -1000,24 +1008,32 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                         }),
                     )}
                     style={{
-                        top: `calc(${parentAvatarOffsetYRem + parentAvatarSizeRem / 2}rem - 1px)`,
-                        bottom: `calc(-${contentStyles.paragraphMarginRem}rem - ${
+                        top: `calc(${
+                            messageViewParentMessageAvatarOffsetYRem +
+                            parentMessageAccountAvatarSizeRem / 2
+                        }rem - 1px)`,
+                        bottom: `calc(-${spacing[marginBottom]} - ${
                             messageView2AvatarOffsetYPx[spacingScale] - 2
                         }px)`,
-                        left: `calc(-${avatarSizeRem / 2 + parentOffsetRem}rem - 1px)`,
-                        width: `calc(${avatarSizeRem / 2 + parentOffsetRem}rem - 2px)`,
+                        left: `calc(-${
+                            accountAvatarSizeRem / 2 + parentMessageOffsetRem
+                        }rem - 1px)`,
+                        width: `calc(${
+                            accountAvatarSizeRem / 2 + parentMessageOffsetRem
+                        }rem - 2px)`,
                     }}
                 />
                 <div
                     className={sprinkles({
                         flexShrink: "0",
                         position: "relative",
+                        height: "0",
                         opacity: isPressed ? "60" : "100",
                     })}
-                    style={{top: `${parentAvatarOffsetYRem}rem`}}
+                    style={{top: `${messageViewParentMessageAvatarOffsetYRem}rem`}}
                 >
                     <AccountAvatar
-                        size={messageViewParentMessageAvatarSize}
+                        size={messageViewParentMessageAccountAvatarSize}
                         account={parentMessage.author}
                     />
                 </div>
@@ -1030,8 +1046,8 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                         opacity: isPressed ? "60" : "100",
                     })}
                     style={{
-                        minHeight: messageViewParentLineHeight,
-                        lineHeight: messageViewParentLineHeight,
+                        minHeight: messageViewParentMessageLineHeightPx[spacingScale],
+                        lineHeight: `${messageViewParentMessageLineHeightPx[spacingScale]}px`,
                         // Allow contextual alternate glyphs in regular text content.
                         fontFeatureSettings: '"calt" on',
                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers

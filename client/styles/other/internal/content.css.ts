@@ -65,6 +65,7 @@ import {
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -190,11 +191,14 @@ const blockStyles = {
 
 export const paragraphActualFontSize = "100";
 
-export const paragraphLineHeightPx: Record<SpacingScale, number> = {
-    small: 21, // 14 * 1.5
-    medium: 24, // 16 * 1.5
-    large: 25, // floor(17 * 1.5)
-};
+export const paragraphLineHeightMultiple = 1.5;
+
+export const paragraphLineHeightPx = createObjectFromKeys(allSpacingScales, spacingScale =>
+    Math.floor(
+        fontSizesBySpacingScale[paragraphActualFontSize][spacingScale].fontSize *
+            paragraphLineHeightMultiple,
+    ),
+);
 
 export const paragraphLineHeightVar = createVar("paragraph-line-height");
 
