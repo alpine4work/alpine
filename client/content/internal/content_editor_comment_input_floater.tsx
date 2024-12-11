@@ -1,6 +1,3 @@
-// NOCOMMIT
-import "~/client/helpers/events/register_scroll_event_debugger.js";
-
 import {ArrowRight, Plus} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
@@ -22,6 +19,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -183,6 +181,7 @@ function ContentEditorCommentInput({
         [commentState],
     );
 
+    const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
     const sendButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
     const shouldFocusNextRenderRef = useRef(true);
@@ -257,6 +256,15 @@ function ContentEditorCommentInput({
     return (
         <>
             <Box
+                ref={useMergedRefs(
+                    containerRef,
+                    useConfirmSaveAfterLosingFocus({
+                        shouldConfirmSave: !isContentEmpty(commentState.getDoc()),
+                        isConfirmingSave: shouldShowConfirmCloseDialog,
+                        onCancelSave: onCloseWithAnimation,
+                        onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
+                    }),
+                )}
                 position="relative"
                 overflow="hidden"
                 width="96"
@@ -279,12 +287,6 @@ function ContentEditorCommentInput({
                         return;
                     }
                 }}
-                ref={useConfirmSaveAfterLosingFocus({
-                    shouldConfirmSave: !isContentEmpty(commentState.getDoc()),
-                    isConfirmingSave: shouldShowConfirmCloseDialog,
-                    onCancelSave: onCloseWithAnimation,
-                    onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
-                })}
                 onPointerDownCapture={event => {
                     const editor = assertExists(editorRef.current);
 
@@ -356,7 +358,52 @@ function ContentEditorCommentInput({
                         <ContentEditor
                             ref={editorRef}
                             state={commentState}
-                            onChange={setCommentState}
+                            onChange={state => {
+                                const containerElement = assertExists(containerRef.current);
+                                const scrollParentElements: Array<{
+                                    element: Element;
+                                    scrollTop: number;
+                                }> = [];
+
+                                {
+                                    let parentElement: Element | null = containerElement;
+                                    while (parentElement) {
+                                        const {overflowY} = getComputedStyle(parentElement);
+
+                                        if (overflowY === "auto" || overflowY === "scroll") {
+                                            scrollParentElements.push({
+                                                element: parentElement,
+                                                scrollTop: parentElement.scrollTop,
+                                            });
+                                        }
+
+                                        parentElement =
+                                            parentElement.parentElement !== document.body
+                                                ? parentElement.parentElement
+                                                : null;
+                                    }
+                                }
+
+                                setCommentState(state);
+
+                                // HACK(calebmer, 2024-12-11): In Chrome if we press shift-enter to add a bunch
+                                // of paragraphs until the comment input needs to scroll, then press delete to
+                                // delete those paragraphs, we observe Chrome (and only Chrome, Safari is fine)
+                                // will scroll the document parent element. Presumably in an attempt to keep
+                                // the text cursor in view.
+                                //
+                                // We've confirmed no JavaScript code is causing these scroll events (by
+                                // checking `register_scroll_event_debugger.ts`). So to fix this bug we record
+                                // scroll positions before updating our editor state.
+                                //
+                                // Video of the bug:
+                                // https://gist.github.com/calebmer/aa365906d8d01a7f4b30a2d5dcbac612
+                                requestAnimationFrame(() => {
+                                    for (const {element, scrollTop} of scrollParentElements) {
+                                        element.scrollTop = scrollTop;
+                                    }
+                                });
+                            }}
                             aria-label="New comment"
                             placeholder="Add a comment"
                             style={{
