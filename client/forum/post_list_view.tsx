@@ -909,6 +909,10 @@ function PostListView(
                             ? nextItem.postComment
                             : null;
 
+                    const isLastComment =
+                        item.postCommentIndex ===
+                        item.postComments.getMessageCountIncludingOptimisticMessages() - 1;
+
                     return {
                         key:
                             item.type === "LoadedPostComment"
@@ -937,11 +941,7 @@ function PostListView(
                                             message={item.postComment}
                                             previousMessage={previousComment}
                                             isFirstMessage={item.postCommentIndex === 0}
-                                            isLastMessage={
-                                                item.postCommentIndex ===
-                                                item.postComments.getMessageCountIncludingOptimisticMessages() -
-                                                    1
-                                            }
+                                            isLastMessage={isLastComment}
                                             nextMessage={nextComment}
                                             messages={item.postComments}
                                             messageEditing={messageEditing}
@@ -1003,6 +1003,7 @@ function PostListView(
                                         <MessageListMessageShimmer
                                             randomSeed={item.post.id}
                                             index={item.postCommentIndex}
+                                            isLastMessage={isLastComment}
                                             previousMessage={previousComment}
                                             nextMessage={nextComment}
                                             messages={item.postComments}

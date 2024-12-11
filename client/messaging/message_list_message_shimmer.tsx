@@ -69,6 +69,7 @@ const Box = null;
 export function MessageListMessageShimmer<Message extends MessageModel>({
     randomSeed,
     index,
+    isLastMessage,
     previousMessage,
     nextMessage,
     messages,
@@ -76,6 +77,7 @@ export function MessageListMessageShimmer<Message extends MessageModel>({
 }: {
     randomSeed: string;
     index: number;
+    isLastMessage: boolean;
     previousMessage: MessageModelBase | null;
     nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
@@ -114,6 +116,7 @@ export function MessageListMessageShimmer<Message extends MessageModel>({
             ref={shimmerRef}
             width={messageSize.width}
             heightLines={messageSize.heightLines}
+            isLastMessage={isLastMessage}
             shouldMergeWithNextMessage={shouldMergeWithNextMessage}
             shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
             paddingX={paddingX}

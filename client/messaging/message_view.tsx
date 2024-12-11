@@ -140,7 +140,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
     isFirstMessage,
-    isLastMessage,
     previousMessage,
     nextMessage,
     messages,
@@ -159,7 +158,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
     isFirstMessage: boolean;
-    isLastMessage: boolean;
     previousMessage: Message | OptimisticMessageModel | null;
     nextMessage: Message | OptimisticMessageModel | null;
     messages: MessageList<Message>;
@@ -217,9 +215,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
     let marginBottom: Spacing;
 
-    if (!nextMessage) {
-        marginBottom = contentStyles.paragraphMargin;
-    } else if (!shouldMergeWithNextMessage) {
+    if (!shouldMergeWithNextMessage) {
         marginBottom = messageViewMarginY;
     } else {
         if (
@@ -745,7 +741,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     {parentMessageNode}
                     <div
                         className={sprinkles({
-                            marginX: "center",
                             position: "relative",
                             zIndex: "0",
                             display: "flex",
@@ -800,7 +795,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         height: messageView2AccountNameHeight,
                                         display: "flex",
                                         alignItems: "center",
-                                        gap: "0",
                                     })}
                                 >
                                     <div

@@ -88,6 +88,9 @@ export function renderMessageListItem<
                     ? nextItem.message
                     : null;
 
+            const isLastMessage =
+                item.messageIndex === messages.getMessageCountIncludingOptimisticMessages() - 1;
+
             const actuallyRender = (
                 disableExpensiveFeaturesDuringScroll: boolean,
             ): ReactElement => {
@@ -97,10 +100,7 @@ export function renderMessageListItem<
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         message={item.message}
                         isFirstMessage={item.messageIndex === 0}
-                        isLastMessage={
-                            item.messageIndex ===
-                            messages.getMessageCountIncludingOptimisticMessages() - 1
-                        }
+                        isLastMessage={isLastMessage}
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}
@@ -124,6 +124,7 @@ export function renderMessageListItem<
                     <MessageListMessageShimmer
                         randomSeed={randomSeedForShimmer}
                         index={item.messageIndex}
+                        isLastMessage={isLastMessage}
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}

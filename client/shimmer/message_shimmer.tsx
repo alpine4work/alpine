@@ -1,26 +1,58 @@
 import classNames from "classnames";
-import {Ref, forwardRef} from "react";
-import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {Ref, forwardRef, useMemo} from "react";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
-    getMessageBubbleMarginLeft,
-    messageViewActionsWidth,
-    messageViewActionsWidthWithoutHoveringPrimaryInput,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMergedBorderRadius,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
+    messageView2AccountAvatarSize,
+    messageView2AccountNameFontSize,
+    messageView2AccountNameHeight,
+    messageView2AvatarOffsetYPx,
+    messageView2RailGap,
     messageViewMarginY,
-    messageViewMaxWidth,
-    messageViewMergedMarginY,
+    messageViewMinHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
-import {
-    contentStyles,
-    fontSizes,
-    pulseAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
-import {Spacing, addRemLengths, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {contentStyles, pulseAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+
+const messageShimmerRagRight: ReadonlyArray<Spacing> = [
+    // 1x frequency
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    // 2x frequency
+    "5",
+    "5",
+    "6",
+    "6",
+    "7",
+    "7",
+    "8",
+    "8",
+    "9",
+    "9",
+    // 3x frequency
+    "10",
+    "10",
+    "10",
+    "12",
+    "12",
+    "12",
+    "14",
+    "14",
+    "14",
+    "16",
+    "16",
+    "16",
+    // 2x frequency
+    "20",
+    "20",
+    "24",
+    "24",
+];
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -39,7 +71,6 @@ const Box = null;
 const MessageShimmerForwardRef = forwardRef(MessageShimmer);
 export {MessageShimmerForwardRef as MessageShimmer};
 
-// NOCOMMIT: Update shimmer design
 function MessageShimmer(
     {
         width,
@@ -56,9 +87,20 @@ function MessageShimmer(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const canPrimaryInputHover = useCanPrimaryInputHover();
+
+    const stableRandom = useMemo(
+        () => (heightLines > 0 ? new StableRandom(`MessageShimmer:${heightLines}:${width}`) : null),
+        [heightLines, width],
+    );
+
+    let marginBottom: Spacing;
+
+    if (!shouldMergeWithNextMessage) {
+        marginBottom = messageViewMarginY;
+    } else {
+        marginBottom = contentStyles.paragraphMargin;
+    }
 
     return (
         <div
@@ -66,107 +108,75 @@ function MessageShimmer(
             className={classNames(
                 pulseAnimationClassName,
                 sprinkles({
+                    flexShrink: "0",
                     width: "full",
-                    maxWidth: messageViewMaxWidth,
+                    maxWidth: contentStyles.contentMaxWidth,
                     marginX: "center",
+                    paddingX,
+                    paddingBottom: marginBottom,
                 }),
             )}
+            style={{
+                minHeight: messageViewMinHeightPx[spacingScale],
+            }}
         >
-            {!shouldMergeWithPreviousMessage && (
-                <div
-                    className={sprinkles({paddingY: "0.5"})}
-                    style={{
-                        paddingLeft: addRemLengths(
-                            getMessageBubbleMarginLeft(
-                                typeof paddingX === "string" ? paddingX : paddingX[platform],
-                            ),
-                            "1.5",
-                        ),
-                    }}
-                >
-                    <div
-                        style={{height: fontSizes["50"].lineHeight}}
-                        className={sprinkles({display: "flex", alignItems: "center"})}
-                    >
-                        <div
-                            className={sprinkles({
-                                height: "2",
-                                width: "16",
-                                backgroundColor: "grey-5",
-                                borderRadius: "full",
-                            })}
-                        />
-                    </div>
-                </div>
-            )}
             <div
                 className={sprinkles({
+                    position: "relative",
+                    zIndex: "0",
                     display: "flex",
-                    paddingX,
-                    paddingBottom: !shouldMergeWithNextMessage
-                        ? messageViewMarginY
-                        : messageViewMergedMarginY,
+                    gap: messageView2RailGap,
                 })}
             >
-                <div className={sprinkles({flexShrink: "0", paddingRight: "2"})}>
-                    <div
-                        className={sprinkles({
-                            width: "7",
-                            height: "full",
-                            display: "flex",
-                            alignItems: "flex-end",
-                        })}
-                    >
-                        {!shouldMergeWithNextMessage && (
-                            <div className={sprinkles({paddingY: "0.5"})}>
-                                <div
-                                    className={sprinkles({
-                                        flexShrink: "0",
-                                        width: "7",
-                                        height: "7",
-                                        backgroundColor: "grey-10",
-                                        borderRadius: "full",
-                                        display: "flex",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                    })}
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
                 <div
                     className={sprinkles({
-                        flexGrow: "1",
-                        paddingRight: canPrimaryInputHover
-                            ? messageViewActionsWidth
-                            : messageViewActionsWidthWithoutHoveringPrimaryInput,
+                        flexShrink: "0",
+                        width: messageView2AccountAvatarSize,
                     })}
                 >
-                    <div
-                        className={sprinkles({
-                            paddingX: messageViewBubblePaddingX,
-                            paddingY: messageViewBubblePaddingY,
-                            backgroundColor: "grey-5",
-                            width: "full",
-                            maxWidth: width,
-                            borderTopLeftRadius: !shouldMergeWithPreviousMessage
-                                ? messageViewBubbleBorderRadius
-                                : messageViewBubbleMergedBorderRadius,
-                            borderTopRightRadius: messageViewBubbleBorderRadius,
-                            borderBottomLeftRadius: !shouldMergeWithNextMessage
-                                ? messageViewBubbleBorderRadius
-                                : messageViewBubbleMergedBorderRadius,
-                            borderBottomRightRadius: messageViewBubbleBorderRadius,
-                        })}
-                    >
+                    {!shouldMergeWithPreviousMessage && (
                         <div
-                            style={{
-                                height:
-                                    heightLines * contentStyles.paragraphLineHeightPx[spacingScale],
-                            }}
+                            className={sprinkles({
+                                position: "relative",
+                                width: messageView2AccountAvatarSize,
+                                height: messageView2AccountAvatarSize,
+                                backgroundColor: "grey-10",
+                                borderRadius: "full",
+                            })}
+                            style={{top: messageView2AvatarOffsetYPx[spacingScale]}}
                         />
-                    </div>
+                    )}
+                </div>
+                <div className={sprinkles({flexGrow: "1"})}>
+                    {!shouldMergeWithPreviousMessage && (
+                        <div
+                            className={sprinkles({
+                                height: messageView2AccountNameHeight,
+                                display: "flex",
+                                alignItems: "center",
+                            })}
+                        >
+                            <TextShimmer fontSize={messageView2AccountNameFontSize} width="16" />
+                        </div>
+                    )}
+                    {createArrayWithLength(Math.max(1, heightLines), (index, length) => (
+                        <TextShimmer
+                            key={index}
+                            fontSize={contentStyles.paragraphFontSize}
+                            width={index === length - 1 ? width : "full"}
+                            ragRight={
+                                index === length - 1 || !stableRandom
+                                    ? undefined
+                                    : messageShimmerRagRight[
+                                          stableRandom.randomInteger(
+                                              "ragRight",
+                                              index,
+                                              messageShimmerRagRight.length,
+                                          )
+                                      ]
+                            }
+                        />
+                    ))}
                 </div>
             </div>
         </div>

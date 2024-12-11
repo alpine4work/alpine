@@ -58,10 +58,13 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
-    messageInputAccountAvatarSize,
-    messageInputMinHeight,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
+    messageInput2MinHeightPx,
+    messageInputEditor2BorderRadiusPx,
+    messageInputEditor2IconButtonMargin,
+    messageInputEditor2MinHeightPx,
+    messageInputPaddingY,
+    messageView2AccountAvatarSize,
+    messageView2RailGap,
     messageViewMarginY,
     messageViewMaxWidth,
 } from "~/client/styles/messaging_shared_styles.js";
@@ -603,7 +606,7 @@ function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
                         flexDirection={platform !== "mobile" ? "row" : "column"}
                         justifyContent={platform !== "mobile" ? "flex-start" : "center"}
                         alignItems="center"
-                        gap={platform !== "mobile" ? "2" : "1"}
+                        gap={platform !== "mobile" ? messageView2RailGap : "1"}
                         width="full"
                         maxWidth={messageViewMaxWidth}
                         height="full"
@@ -618,8 +621,8 @@ function ChatRouteShimmer({withInboxBanner}: {withInboxBanner: boolean}) {
                         <Box
                             className={pulseAnimationClassName}
                             flexShrink="0"
-                            width="7"
-                            height="7"
+                            width={messageView2AccountAvatarSize}
+                            height={messageView2AccountAvatarSize}
                             backgroundColor="grey-10"
                             borderRadius="full"
                         />
@@ -794,50 +797,51 @@ function MessageInputShimmer({
 }: {
     paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
 }) {
-    const platform = usePlatform();
+    const spacingScale = useSpacingScale();
 
     return (
         <Box
             flexShrink="0"
             backgroundColor="grey-0"
-            style={{height: messageInputMinHeight[platform]}}
+            style={{height: messageInput2MinHeightPx[spacingScale]}}
         >
             <Box
-                display="flex"
-                alignItems="center"
                 width="full"
                 maxWidth={messageViewMaxWidth}
                 height="full"
                 marginX="center"
                 paddingX={paddingX}
-                paddingTop={platform === "mobile" ? "2" : "0"}
-                gap="2"
+                paddingY={messageInputPaddingY}
             >
-                {platform !== "mobile" && (
+                <Box position="relative" width="full" height="full">
                     <Box
-                        className={pulseAnimationClassName}
-                        flexShrink="0"
-                        width={messageInputAccountAvatarSize}
-                        height={messageInputAccountAvatarSize}
-                        backgroundColor="grey-10"
-                        borderRadius="full"
+                        width="full"
+                        height="full"
+                        border="grey-10"
+                        style={{
+                            height: messageInputEditor2MinHeightPx[spacingScale],
+                            borderRadius: messageInputEditor2BorderRadiusPx[spacingScale],
+                        }}
                     />
-                )}
-                <Box
-                    className={pulseAnimationClassName}
-                    flexGrow="1"
-                    border="grey-10"
-                    borderRadius={messageViewBubbleBorderRadius}
-                    style={{height: messageViewBubbleMinHeight[platform]}}
-                />
-                <Box
-                    className={pulseAnimationClassName}
-                    flexShrink="0"
-                    width={messageInputAccountAvatarSize}
-                    height={messageInputAccountAvatarSize}
-                    backgroundColor="grey-10"
-                    borderRadius="full"
-                />
+                    <Box
+                        position="absolute"
+                        top="0"
+                        display="flex"
+                        alignItems="center"
+                        style={{
+                            height: messageInputEditor2MinHeightPx[spacingScale],
+                            right: messageInputEditor2IconButtonMargin,
+                        }}
+                    >
+                        <Box
+                            className={pulseAnimationClassName}
+                            width={messageView2AccountAvatarSize}
+                            height={messageView2AccountAvatarSize}
+                            backgroundColor="grey-10"
+                            borderRadius="full"
+                        />
+                    </Box>
+                </Box>
             </Box>
         </Box>
     );
