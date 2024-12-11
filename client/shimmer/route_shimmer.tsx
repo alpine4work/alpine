@@ -61,7 +61,7 @@ import {
     messageInput2MinHeightPx,
     messageInputEditor2BorderRadiusPx,
     messageInputEditor2MinHeightPx,
-    messageInputEditor3IconButtonNegativeMargin,
+    messageInputEditor3IconButtonNegativeMarginX,
     messageInputPaddingY,
     messageView2AccountAvatarSize,
     messageView2RailGap,
@@ -792,7 +792,7 @@ function MessageInputShimmer() {
                     position="relative"
                     width="full"
                     height="full"
-                    marginX={messageInputEditor3IconButtonNegativeMargin}
+                    marginX={messageInputEditor3IconButtonNegativeMarginX}
                 >
                     <Box
                         width="full"

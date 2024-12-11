@@ -140,19 +140,19 @@ export const messageViewParentMessageAvatarOffsetYRem =
 export const messageInputEditor2IconButtonSize = "md";
 
 // NOCOMMIT: No more "3" naming business
-export const messageInputEditor3IconButtonMargin: Record<Platform, Spacing> = {
+export const messageInputEditor3IconButtonMarginX: Record<Platform, Spacing> = {
     desktop: "2",
     mobile: "1",
 };
 
-export const messageInputEditor3IconButtonNegativeMargin = mapObjectValues(
-    messageInputEditor3IconButtonMargin,
+export const messageInputEditor3IconButtonNegativeMarginX = mapObjectValues(
+    messageInputEditor3IconButtonMarginX,
     (spacing): `-${Spacing}` => `-${spacing}`,
 );
 
 export const messageInputEditor2PaddingX = createObjectFromKeys(allPlatforms, platform =>
     addRemLengths(
-        messageInputEditor3IconButtonMargin[platform],
+        messageInputEditor3IconButtonMarginX[platform],
         messageView2AccountAvatarSize,
         messageView2RailGap,
     ),
@@ -164,9 +164,9 @@ export const messageInputEditor2PaddingYPx = createObjectFromKeys(allPlatforms, 
         spacingScale =>
             (convertRemLengthToPx(
                 addRemLengths(
-                    messageInputEditor3IconButtonMargin[platform],
+                    messageInputEditor3IconButtonMarginX[platform],
                     messageView2AccountAvatarSize,
-                    messageInputEditor3IconButtonMargin[platform],
+                    messageInputEditor3IconButtonMarginX[platform],
                 ),
                 spacingScale,
             ) -
@@ -213,7 +213,7 @@ if (process.env.NODE_ENV !== "production") {
             platform =>
                 subtractRemLengths(
                     screenPaddingX[platform],
-                    messageInputEditor3IconButtonMargin[platform],
+                    messageInputEditor3IconButtonMarginX[platform],
                 ) === spacing[messageInputPaddingY[platform]],
         ),
     );

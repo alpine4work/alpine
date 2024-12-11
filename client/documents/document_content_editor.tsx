@@ -6,6 +6,7 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    Plus,
     SpinnerGap,
     X,
 } from "phosphor-react";
@@ -88,13 +89,13 @@ import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mo
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
     messageInput2MinHeightPx,
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
+    messageInputEditor2BorderRadiusPx,
+    messageInputEditor2MinHeightPx,
+    messageInputEditor2PaddingX,
+    messageInputEditor2PaddingYPx,
+    messageInputEditor3IconButtonNegativeMarginX,
     messageInputPaddingY,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
+    messageView2AccountAvatarSize,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
@@ -1812,8 +1813,7 @@ export function DocumentContentEditor({
                                     <Box
                                         paddingX={screenPaddingX}
                                         paddingY={messageInputPaddingY}
-                                        display="flex"
-                                        gap="2"
+                                        marginX={messageInputEditor3IconButtonNegativeMarginX}
                                         style={{
                                             height: messageInput2MinHeightPx[platform][
                                                 spacingScale
@@ -1823,14 +1823,28 @@ export function DocumentContentEditor({
                                         <Box
                                             ref={mobileFakeCommentInputEditorRef}
                                             className={contentStyles.docClassName}
+                                            position="relative"
                                             flexGrow="1"
-                                            borderRadius={messageViewBubbleBorderRadius}
-                                            paddingX={messageViewBubblePaddingX}
-                                            paddingY={messageViewBubblePaddingY}
                                             // If the user has a mouse, make this feel like a text input.
                                             cursor="text"
                                             style={{
-                                                height: messageViewBubbleMinHeight[platform],
+                                                height: messageInputEditor2MinHeightPx[platform][
+                                                    spacingScale
+                                                ],
+                                                paddingLeft: messageInputEditor2PaddingX[platform],
+                                                paddingRight: messageInputEditor2PaddingX[platform],
+                                                paddingTop:
+                                                    messageInputEditor2PaddingYPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                paddingBottom:
+                                                    messageInputEditor2PaddingYPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                borderRadius:
+                                                    messageInputEditor2BorderRadiusPx[platform][
+                                                        spacingScale
+                                                    ],
                                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                             }}
                                             onPointerDown={() => {
@@ -1848,20 +1862,53 @@ export function DocumentContentEditor({
                                             >
                                                 Add a comment
                                             </Box>
-                                        </Box>
-                                        <Box flexShrink="0" display="flex" alignItems="flex-end">
                                             <Box
-                                                width={messageInputAccountAvatarSize}
+                                                position="absolute"
+                                                top="0"
+                                                left="0"
+                                                display="flex"
+                                                justifyContent="center"
+                                                alignItems="center"
                                                 style={{
-                                                    paddingTop:
-                                                        messageInputAccountAvatarPaddingY[platform],
-                                                    paddingBottom:
-                                                        messageInputAccountAvatarPaddingY[platform],
+                                                    height: messageInputEditor2MinHeightPx[
+                                                        platform
+                                                    ][spacingScale],
+                                                    width: messageInputEditor2MinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
                                                 }}
                                             >
                                                 <Box
-                                                    width={messageInputAccountAvatarSize}
-                                                    height={messageInputAccountAvatarSize}
+                                                    width={messageView2AccountAvatarSize}
+                                                    height={messageView2AccountAvatarSize}
+                                                    color="grey-70"
+                                                    borderRadius="full"
+                                                    display="flex"
+                                                    justifyContent="center"
+                                                    alignItems="center"
+                                                >
+                                                    <Plus size={spacing["4"]} />
+                                                </Box>
+                                            </Box>
+                                            <Box
+                                                position="absolute"
+                                                top="0"
+                                                right="0"
+                                                display="flex"
+                                                justifyContent="center"
+                                                alignItems="center"
+                                                style={{
+                                                    height: messageInputEditor2MinHeightPx[
+                                                        platform
+                                                    ][spacingScale],
+                                                    width: messageInputEditor2MinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                }}
+                                            >
+                                                <Box
+                                                    width={messageView2AccountAvatarSize}
+                                                    height={messageView2AccountAvatarSize}
                                                     backgroundColor="grey-5"
                                                     color="grey-30"
                                                     borderRadius="full"
@@ -1878,8 +1925,6 @@ export function DocumentContentEditor({
                                 {isNativeMobile && !isInert && (
                                     // In our native mobile app, include an invisible bottom bar which only serves
                                     // to make sure the vertical scroll indicator insets are correct.
-                                    //
-                                    // NOCOMMIT: Update this comment thread input design?
                                     <Box
                                         id={`nmbb-${editorContainerId}`}
                                         position="absolute"

@@ -47,6 +47,7 @@ import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mo
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -59,7 +60,7 @@ import {
     messageInputEditor2MinHeightPx,
     messageInputEditor2PaddingX,
     messageInputEditor2PaddingYPx,
-    messageInputEditor3IconButtonNegativeMargin,
+    messageInputEditor3IconButtonNegativeMarginX,
     messageInputPaddingY,
     messageView2AccountAvatarSize,
     messageView2RailGap,
@@ -340,7 +341,28 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     if (isKeyboardToolbarCompletelyHidden !== isKeyboardToolbarCompletelyHiddenFromState)
         setIsKeyboardToolbarCompletelyHidden(isKeyboardToolbarCompletelyHidden);
 
+    const hasInitiallyMountedRef = useRef(false);
     const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
+
+    // On initial mount if `isKeyboardToolbarVisible` is true then make sure we set
+    // the Motion Y translation variable to the correct initial value.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const inputElement = assertExists(inputRef.current);
+
+        if (isKeyboardToolbarVisible && !NativeMobileBridge) {
+            animate(
+                inputElement,
+                {
+                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
+                },
+                {duration: 0},
+            );
+        }
+    }, [isKeyboardToolbarVisible]);
+
     useEffect(() => {
         if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
         lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
@@ -656,7 +678,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             overflow="hidden"
                             paddingX={screenPaddingX}
                             paddingY={messageInputPaddingY}
-                            marginX={messageInputEditor3IconButtonNegativeMargin}
+                            marginX={messageInputEditor3IconButtonNegativeMarginX}
                         >
                             <Box
                                 overflow="hidden"
