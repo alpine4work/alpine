@@ -253,6 +253,7 @@ const historyPluginKey = new Lazy((): PluginKey => {
 });
 
 export type ContentEditorRef<Content extends ContentWithReferences> = {
+    getContainer(): HTMLDivElement;
     getState(): ContentEditorState<Content>;
     isFocused(): boolean;
     focus(options?: FocusOptions): void;
