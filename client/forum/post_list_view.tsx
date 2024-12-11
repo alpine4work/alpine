@@ -42,10 +42,7 @@ import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
-import {
-    MessagingTypingIndicators,
-    messagingTypingIndicatorsMinHeight,
-} from "~/client/messaging/messaging_typing_indicators.js";
+import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -68,6 +65,7 @@ import {
 import {
     messageInput2MinHeightPx,
     messageViewMinHeightPx,
+    messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
@@ -1005,7 +1003,6 @@ function PostListView(
                                         <MessageListMessageShimmer
                                             randomSeed={item.post.id}
                                             index={item.postCommentIndex}
-                                            isLastMessage={isLastComment}
                                             previousMessage={previousComment}
                                             nextMessage={nextComment}
                                             messages={item.postComments}
@@ -1080,7 +1077,7 @@ function PostListView(
                 case "PostCommentsTypingIndicator": {
                     return {
                         key: `PostCommentsTypingIndicator:${item.post.id}`,
-                        minHeight: messagingTypingIndicatorsMinHeight,
+                        minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
                         node: (
                             <div
                                 className={sprinkles({

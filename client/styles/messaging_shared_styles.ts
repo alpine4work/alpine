@@ -255,3 +255,10 @@ export const messagingViewMarginBottomCalcExpression =
     "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";
 
 export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcExpression})`;
+
+export const messagingTypingIndicatorsMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
+        contentStyles.paragraphLineHeightPx[spacingScale],
+);

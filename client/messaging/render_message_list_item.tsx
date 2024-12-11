@@ -4,13 +4,11 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
-import {
-    MessagingTypingIndicators,
-    messagingTypingIndicatorsMinHeight,
-} from "~/client/messaging/messaging_typing_indicators.js";
+import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {
     messageViewMarginY,
     messageViewMinHeightPx,
+    messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
@@ -258,7 +256,7 @@ export function renderMessageListItem<
                     typeof groupKey === "string"
                         ? `TypingIndicators:${groupKey}`
                         : "TypingIndicators",
-                minHeight: messagingTypingIndicatorsMinHeight,
+                minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
                 node: customRender ? customRender(node) : node,
             };
         }
