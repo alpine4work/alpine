@@ -40,7 +40,7 @@ import {
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
 import {
-    messageInput2MinHeightPx,
+    messageInputMinHeightPx,
     messagingViewMarginBottom,
     messagingViewMarginBottomCalcExpression,
 } from "~/client/styles/messaging_shared_styles.js";
@@ -1082,7 +1082,7 @@ function DocumentCommentThreadListView(
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: messageInput2MinHeightPx[platform][spacingScale],
+                        minHeight: messageInputMinHeightPx[platform][spacingScale],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({

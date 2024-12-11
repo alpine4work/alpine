@@ -3,11 +3,11 @@ import {Ref, forwardRef, useMemo} from "react";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
-    messageView2AccountAvatarSize,
-    messageView2AccountNameFontSize,
-    messageView2AccountNameHeight,
-    messageView2AvatarOffsetYPx,
-    messageView2RailGap,
+    messageViewAccountAvatarSize,
+    messageViewAccountNameFontSize,
+    messageViewAccountNameHeight,
+    messageViewAvatarOffsetYPx,
+    messageViewRailGap,
     messageViewMarginY,
     messageViewMinHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
@@ -123,25 +123,25 @@ function MessageShimmer(
                     position: "relative",
                     zIndex: "0",
                     display: "flex",
-                    gap: messageView2RailGap,
+                    gap: messageViewRailGap,
                 })}
             >
                 <div
                     className={sprinkles({
                         flexShrink: "0",
-                        width: messageView2AccountAvatarSize,
+                        width: messageViewAccountAvatarSize,
                     })}
                 >
                     {!shouldMergeWithPreviousMessage && (
                         <div
                             className={sprinkles({
                                 position: "relative",
-                                width: messageView2AccountAvatarSize,
-                                height: messageView2AccountAvatarSize,
+                                width: messageViewAccountAvatarSize,
+                                height: messageViewAccountAvatarSize,
                                 backgroundColor: "grey-10",
                                 borderRadius: "full",
                             })}
-                            style={{top: messageView2AvatarOffsetYPx[spacingScale]}}
+                            style={{top: messageViewAvatarOffsetYPx[spacingScale]}}
                         />
                     )}
                 </div>
@@ -149,12 +149,12 @@ function MessageShimmer(
                     {!shouldMergeWithPreviousMessage && (
                         <div
                             className={sprinkles({
-                                height: messageView2AccountNameHeight,
+                                height: messageViewAccountNameHeight,
                                 display: "flex",
                                 alignItems: "center",
                             })}
                         >
-                            <TextShimmer fontSize={messageView2AccountNameFontSize} width="16" />
+                            <TextShimmer fontSize={messageViewAccountNameFontSize} width="16" />
                         </div>
                     )}
                     {createArrayWithLength(Math.max(1, heightLines), (index, length) => (

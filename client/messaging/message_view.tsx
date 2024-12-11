@@ -35,11 +35,11 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    messageView2AccountNameFontSize,
-    messageView2AccountNameHeight,
-    messageView2AvatarOffsetYPx,
-    messageView2AccountAvatarSize,
-    messageView2RailGap,
+    messageViewAccountNameFontSize,
+    messageViewAccountNameHeight,
+    messageViewAvatarOffsetYPx,
+    messageViewAccountAvatarSize,
+    messageViewRailGap,
     messageViewMarginY,
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
@@ -744,7 +744,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             position: "relative",
                             zIndex: "0",
                             display: "flex",
-                            gap: messageView2RailGap,
+                            gap: messageViewRailGap,
                         })}
                     >
                         {useMemo(
@@ -752,17 +752,17 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 <div
                                     className={sprinkles({
                                         flexShrink: "0",
-                                        width: messageView2AccountAvatarSize,
+                                        width: messageViewAccountAvatarSize,
                                     })}
                                 >
                                     {!shouldMergeWithPreviousMessage && (
                                         <div
                                             className={sprinkles({position: "relative"})}
-                                            style={{top: messageView2AvatarOffsetYPx[spacingScale]}}
+                                            style={{top: messageViewAvatarOffsetYPx[spacingScale]}}
                                         >
                                             <AccountAvatar
                                                 account={messageAuthor}
-                                                size={messageView2AccountAvatarSize}
+                                                size={messageViewAccountAvatarSize}
                                             />
                                         </div>
                                     )}
@@ -792,19 +792,19 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         // can but clicked even where it overlaps with content.
                                         zIndex: "10",
                                         position: "relative",
-                                        height: messageView2AccountNameHeight,
+                                        height: messageViewAccountNameHeight,
                                         display: "flex",
                                         alignItems: "center",
                                     })}
                                 >
                                     <div
                                         className={sprinkles({
-                                            fontSize: messageView2AccountNameFontSize,
+                                            fontSize: messageViewAccountNameFontSize,
                                             fontStyle: "truncate",
                                             color: "grey-60",
                                         })}
                                         style={{
-                                            lineHeight: spacing[messageView2AccountNameHeight],
+                                            lineHeight: spacing[messageViewAccountNameHeight],
                                         }}
                                     >
                                         {messageAuthor.name}
@@ -939,8 +939,8 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
 
     const marginTop = "2";
     const marginBottom = "2";
-    const accountAvatarSizeRem = parseRemLength(messageView2AccountAvatarSize);
-    const parentMessageOffsetRem = parseRemLength(messageView2RailGap) / 2;
+    const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
+    const parentMessageOffsetRem = parseRemLength(messageViewRailGap) / 2;
     const parentMessageAccountAvatarSizeRem = parseRemLength(
         messageViewParentMessageAccountAvatarSize,
     );
@@ -1007,7 +1007,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                             parentMessageAccountAvatarSizeRem / 2
                         }rem - 1px)`,
                         bottom: `calc(-${spacing[marginBottom]} - ${
-                            messageView2AvatarOffsetYPx[spacingScale] - 2
+                            messageViewAvatarOffsetYPx[spacingScale] - 2
                         }px)`,
                         left: `calc(-${
                             accountAvatarSizeRem / 2 + parentMessageOffsetRem

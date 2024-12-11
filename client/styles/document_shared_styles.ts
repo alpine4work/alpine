@@ -1,9 +1,11 @@
 import {
-    messageInputMinHeight,
+    messageInputMinHeightPx,
     messageViewMinHeightPx,
 } from "~/client/styles/messaging_shared_styles.js";
-import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {allPlatforms} from "~/shared/design/core/platform.js";
+import {addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 
 export const documentCommentThreadPreviewHeight = "48";
 
@@ -23,12 +25,14 @@ export const documentCommentThreadHeaderMinHeight = addRemLengths(
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
 );
 
-export const documentCommentThreadCountAgainstLimit = mapObjectValues(
-    messageInputMinHeight,
-    messageInputMinHeight =>
-        parseRemLength(addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight)) /
-        // NOCOMMIT: Should change when `messageInputMinHeight` changes.
-        parseRemLength("1.3125rem"),
+export const documentCommentThreadCountAgainstLimit = createObjectFromKeys(allPlatforms, platform =>
+    createObjectFromKeys(
+        allSpacingScales,
+        spacingScale =>
+            (convertRemLengthToPx(documentCommentThreadHeaderMinHeight, spacingScale) +
+                messageInputMinHeightPx[platform][spacingScale]) /
+            messageViewMinHeightPx[spacingScale],
+    ),
 );
 
 export const documentContentEditorSidebarWidth = "96";

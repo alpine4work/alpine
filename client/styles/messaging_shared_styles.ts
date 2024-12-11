@@ -6,7 +6,6 @@ import {contentStyles, fontSizes} from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform, allPlatforms} from "~/shared/design/core/platform.js";
 import {
-    RemLength,
     Spacing,
     addRemLengths,
     assertSpacing,
@@ -21,56 +20,23 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export const messageView2AccountAvatarSize = "6";
-export const messageView2RailGap = "2";
+export const messageViewAccountAvatarSize = "6";
+export const messageViewRailGap = "2";
 
-// Ideally, `messageView2AccountNameHeight` is a whole pixel value on all
+// Ideally, `messageViewAccountNameHeight` is a whole pixel value on all
 // spacing scales so that `<MessageView>` heights will be measured in full
 // pixels.
-//
-// NOCOMMIT: Rename "message view 2" stuff.
-export const messageView2AccountNameFontSize = "50";
-export const messageView2AccountNameHeight = "4";
+export const messageViewAccountNameFontSize = "50";
+export const messageViewAccountNameHeight = "4";
 
-export const messageView2AvatarOffsetYPx = createObjectFromKeys(
+export const messageViewAvatarOffsetYPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
-        convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
+        convertRemLengthToPx(messageViewAccountNameHeight, spacingScale) +
         contentStyles.paragraphLineHeightPx[spacingScale] / 2 -
-        convertRemLengthToPx(messageView2AccountAvatarSize, spacingScale) / 2,
+        convertRemLengthToPx(messageViewAccountAvatarSize, spacingScale) / 2,
 );
 
-export const messageViewBubbleBorderRadius = {desktop: "4", mobile: "3.5"} as const; // NOCOMMIT: Delete
-
-// NOCOMMIT: Delete
-export const messageViewBubblePaddingX: {desktop: Spacing; mobile: Spacing} = {
-    desktop: "0",
-    mobile: "0",
-};
-
-// NOCOMMIT: Delete
-export const messageViewBubblePaddingY: {desktop: Spacing; mobile: Spacing} = {
-    desktop: assertSpacing(parseInt(contentStyles.standaloneBlockMargin, 10) / 2),
-    mobile: assertSpacing(parseInt(contentStyles.standaloneBlockMargin, 10) / 2),
-};
-
-// NOCOMMIT: Delete
-export const messageViewBubbleMinHeight: {desktop: RemLength; mobile: RemLength} = {
-    desktop: addRemLengths(
-        messageViewBubblePaddingY.desktop,
-        "1.3125rem",
-        messageViewBubblePaddingY.desktop,
-    ),
-    mobile: addRemLengths(
-        messageViewBubblePaddingY.mobile,
-        "1.3125rem",
-        messageViewBubblePaddingY.mobile,
-    ),
-};
-
-// NOCOMMIT: Replace with content max width?
-export const messageViewMaxWidth: Spacing = "160";
-// NOCOMMIT: Keep I think?
 export const messageViewMarginY: Spacing = "4";
 
 export const messageViewOutlineBorderRadius = "1";
@@ -80,20 +46,20 @@ export const messageViewNotMergedOutlineMinHeightPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
         convertRemLengthToPx(messageViewOutlineMargin, spacingScale) +
-        messageView2AvatarOffsetYPx[spacingScale] +
-        convertRemLengthToPx(messageView2AccountAvatarSize, spacingScale) +
+        messageViewAvatarOffsetYPx[spacingScale] +
+        convertRemLengthToPx(messageViewAccountAvatarSize, spacingScale) +
         convertRemLengthToPx(messageViewOutlineMargin, spacingScale),
 );
 
 export const messageViewEditorOutlineMarginLeft = addRemLengths(
-    messageView2AccountAvatarSize,
-    messageView2RailGap,
+    messageViewAccountAvatarSize,
+    messageViewRailGap,
     messageViewOutlineMargin,
 );
 
 export const messageViewNotMergedEditorOutlineMarginTop = addRemLengths(
     messageViewOutlineMargin,
-    messageView2AccountNameHeight,
+    messageViewAccountNameHeight,
 );
 
 export const messageViewNotMergedEditorOutlineMarginBottomPx = createObjectFromKeys(
@@ -101,7 +67,7 @@ export const messageViewNotMergedEditorOutlineMarginBottomPx = createObjectFromK
     spacingScale =>
         messageViewNotMergedOutlineMinHeightPx[spacingScale] -
         (convertRemLengthToPx(messageViewOutlineMargin, spacingScale) +
-            convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
+            convertRemLengthToPx(messageViewAccountNameHeight, spacingScale) +
             contentStyles.paragraphLineHeightPx[spacingScale]),
 );
 
@@ -125,7 +91,7 @@ export const messageViewParentMessageLineHeightPx = createObjectFromKeys(
 
 export const messageViewParentMessageAccountAvatarSize = assertSpacing(
     Math.round(
-        parseInt(messageView2AccountAvatarSize, 10) *
+        parseInt(messageViewAccountAvatarSize, 10) *
             (fontSizesBySpacingScale[messageViewParentMessageFontSize].small.fontSize /
                 fontSizesBySpacingScale[contentStyles.paragraphActualFontSize].small.fontSize),
     ),
@@ -136,37 +102,36 @@ export const messageViewParentMessageAvatarOffsetYRem =
         parseRemLength(fontSizes[messageViewParentMessageFontSize].lineHeight)) /
     -2;
 
-// Should be the same size as `messageView2AccountAvatarSize`.
-export const messageInputEditor2IconButtonSize = "md";
+// Should be the same size as `messageViewAccountAvatarSize`.
+export const messageInputEditorIconButtonSize = "md";
 
-// NOCOMMIT: No more "3" naming business
-export const messageInputEditor3IconButtonMarginX: Record<Platform, Spacing> = {
+export const messageInputEditorIconButtonMarginX: Record<Platform, Spacing> = {
     desktop: "2",
     mobile: "1",
 };
 
-export const messageInputEditor3IconButtonNegativeMarginX = mapObjectValues(
-    messageInputEditor3IconButtonMarginX,
+export const messageInputEditorIconButtonNegativeMarginX = mapObjectValues(
+    messageInputEditorIconButtonMarginX,
     (spacing): `-${Spacing}` => `-${spacing}`,
 );
 
-export const messageInputEditor2PaddingX = createObjectFromKeys(allPlatforms, platform =>
+export const messageInputEditorPaddingX = createObjectFromKeys(allPlatforms, platform =>
     addRemLengths(
-        messageInputEditor3IconButtonMarginX[platform],
-        messageView2AccountAvatarSize,
-        messageView2RailGap,
+        messageInputEditorIconButtonMarginX[platform],
+        messageViewAccountAvatarSize,
+        messageViewRailGap,
     ),
 );
 
-export const messageInputEditor2PaddingYPx = createObjectFromKeys(allPlatforms, platform =>
+export const messageInputEditorPaddingYPx = createObjectFromKeys(allPlatforms, platform =>
     createObjectFromKeys(
         allSpacingScales,
         spacingScale =>
             (convertRemLengthToPx(
                 addRemLengths(
-                    messageInputEditor3IconButtonMarginX[platform],
-                    messageView2AccountAvatarSize,
-                    messageInputEditor3IconButtonMarginX[platform],
+                    messageInputEditorIconButtonMarginX[platform],
+                    messageViewAccountAvatarSize,
+                    messageInputEditorIconButtonMarginX[platform],
                 ),
                 spacingScale,
             ) -
@@ -175,25 +140,21 @@ export const messageInputEditor2PaddingYPx = createObjectFromKeys(allPlatforms, 
     ),
 );
 
-// NOCOMMIT: Rename the "2" bits
-export const messageInputEditor2MinHeightPx = createObjectFromKeys(allPlatforms, platform =>
+export const messageInputEditorMinHeightPx = createObjectFromKeys(allPlatforms, platform =>
     createObjectFromKeys(
         allSpacingScales,
         spacingScale =>
             contentStyles.paragraphLineHeightPx[spacingScale] +
-            messageInputEditor2PaddingYPx[platform][spacingScale] * 2,
+            messageInputEditorPaddingYPx[platform][spacingScale] * 2,
     ),
 );
 
-export const messageInputEditor2BorderRadiusPx = createObjectFromKeys(allPlatforms, platform =>
+export const messageInputEditorBorderRadiusPx = createObjectFromKeys(allPlatforms, platform =>
     createObjectFromKeys(
         allSpacingScales,
-        spacingScale => messageInputEditor2MinHeightPx[platform][spacingScale] / 2,
+        spacingScale => messageInputEditorMinHeightPx[platform][spacingScale] / 2,
     ),
 );
-
-// NOCOMMIT: Delete?
-export const getMessageBubbleMarginLeft = (marginX: Spacing) => addRemLengths(marginX, "7", "2");
 
 export const messageInputPaddingY: Record<Platform, Spacing> = {
     desktop: "3",
@@ -213,40 +174,17 @@ if (process.env.NODE_ENV !== "production") {
             platform =>
                 subtractRemLengths(
                     screenPaddingX[platform],
-                    messageInputEditor3IconButtonMarginX[platform],
+                    messageInputEditorIconButtonMarginX[platform],
                 ) === spacing[messageInputPaddingY[platform]],
         ),
     );
 }
 
-// NOCOMMIT: Delete?
-export const messageInputAccountAvatarSize: Spacing = "7";
-export const messageInputAccountAvatarPaddingY = mapObjectValues(
-    messageViewBubbleMinHeight,
-    (messageViewBubbleMinHeight): RemLength =>
-        `${
-            (parseRemLength(messageViewBubbleMinHeight) -
-                parseRemLength(messageInputAccountAvatarSize)) /
-            2
-        }rem`,
-);
-
-// NOCOMMIT: Delete?
-export const messageInputMinHeight = mapObjectValues(
-    messageViewBubbleMinHeight,
-    (messageViewBubbleMinHeight, platform) =>
-        addRemLengths(
-            messageInputPaddingY[platform],
-            messageViewBubbleMinHeight,
-            messageInputPaddingY[platform],
-        ),
-);
-
-export const messageInput2MinHeightPx = createObjectFromKeys(allPlatforms, platform =>
+export const messageInputMinHeightPx = createObjectFromKeys(allPlatforms, platform =>
     createObjectFromKeys(
         allSpacingScales,
         spacingScale =>
-            messageInputEditor2MinHeightPx[platform][spacingScale] +
+            messageInputEditorMinHeightPx[platform][spacingScale] +
             convertRemLengthToPx(messageInputPaddingY[platform], spacingScale) * 2,
     ),
 );
@@ -259,6 +197,6 @@ export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcEx
 export const messagingTypingIndicatorsMinHeightPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
-        convertRemLengthToPx(messageView2AccountNameHeight, spacingScale) +
+        convertRemLengthToPx(messageViewAccountNameHeight, spacingScale) +
         contentStyles.paragraphLineHeightPx[spacingScale],
 );

@@ -22,7 +22,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -241,7 +241,7 @@ export default function NewChatRoute() {
                 )}
                 <Box
                     width="full"
-                    maxWidth={messageViewMaxWidth}
+                    maxWidth={contentStyles.contentMaxWidth}
                     marginX="auto"
                     // For Playwright so we can tell when we're done loading a chat.
                     data-testid={

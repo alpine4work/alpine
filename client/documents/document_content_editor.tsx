@@ -88,14 +88,14 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
-    messageInput2MinHeightPx,
-    messageInputEditor2BorderRadiusPx,
-    messageInputEditor2MinHeightPx,
-    messageInputEditor2PaddingX,
-    messageInputEditor2PaddingYPx,
-    messageInputEditor3IconButtonNegativeMarginX,
+    messageInputMinHeightPx,
+    messageInputEditorBorderRadiusPx,
+    messageInputEditorMinHeightPx,
+    messageInputEditorPaddingX,
+    messageInputEditorPaddingYPx,
+    messageInputEditorIconButtonNegativeMarginX,
     messageInputPaddingY,
-    messageView2AccountAvatarSize,
+    messageViewAccountAvatarSize,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
@@ -1813,11 +1813,9 @@ export function DocumentContentEditor({
                                     <Box
                                         paddingX={screenPaddingX}
                                         paddingY={messageInputPaddingY}
-                                        marginX={messageInputEditor3IconButtonNegativeMarginX}
+                                        marginX={messageInputEditorIconButtonNegativeMarginX}
                                         style={{
-                                            height: messageInput2MinHeightPx[platform][
-                                                spacingScale
-                                            ],
+                                            height: messageInputMinHeightPx[platform][spacingScale],
                                         }}
                                     >
                                         <Box
@@ -1828,21 +1826,21 @@ export function DocumentContentEditor({
                                             // If the user has a mouse, make this feel like a text input.
                                             cursor="text"
                                             style={{
-                                                height: messageInputEditor2MinHeightPx[platform][
+                                                height: messageInputEditorMinHeightPx[platform][
                                                     spacingScale
                                                 ],
-                                                paddingLeft: messageInputEditor2PaddingX[platform],
-                                                paddingRight: messageInputEditor2PaddingX[platform],
+                                                paddingLeft: messageInputEditorPaddingX[platform],
+                                                paddingRight: messageInputEditorPaddingX[platform],
                                                 paddingTop:
-                                                    messageInputEditor2PaddingYPx[platform][
+                                                    messageInputEditorPaddingYPx[platform][
                                                         spacingScale
                                                     ],
                                                 paddingBottom:
-                                                    messageInputEditor2PaddingYPx[platform][
+                                                    messageInputEditorPaddingYPx[platform][
                                                         spacingScale
                                                     ],
                                                 borderRadius:
-                                                    messageInputEditor2BorderRadiusPx[platform][
+                                                    messageInputEditorBorderRadiusPx[platform][
                                                         spacingScale
                                                     ],
                                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
@@ -1870,17 +1868,17 @@ export function DocumentContentEditor({
                                                 justifyContent="center"
                                                 alignItems="center"
                                                 style={{
-                                                    height: messageInputEditor2MinHeightPx[
-                                                        platform
-                                                    ][spacingScale],
-                                                    width: messageInputEditor2MinHeightPx[platform][
+                                                    height: messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                    width: messageInputEditorMinHeightPx[platform][
                                                         spacingScale
                                                     ],
                                                 }}
                                             >
                                                 <Box
-                                                    width={messageView2AccountAvatarSize}
-                                                    height={messageView2AccountAvatarSize}
+                                                    width={messageViewAccountAvatarSize}
+                                                    height={messageViewAccountAvatarSize}
                                                     color="grey-70"
                                                     borderRadius="full"
                                                     display="flex"
@@ -1898,17 +1896,17 @@ export function DocumentContentEditor({
                                                 justifyContent="center"
                                                 alignItems="center"
                                                 style={{
-                                                    height: messageInputEditor2MinHeightPx[
-                                                        platform
-                                                    ][spacingScale],
-                                                    width: messageInputEditor2MinHeightPx[platform][
+                                                    height: messageInputEditorMinHeightPx[platform][
+                                                        spacingScale
+                                                    ],
+                                                    width: messageInputEditorMinHeightPx[platform][
                                                         spacingScale
                                                     ],
                                                 }}
                                             >
                                                 <Box
-                                                    width={messageView2AccountAvatarSize}
-                                                    height={messageView2AccountAvatarSize}
+                                                    width={messageViewAccountAvatarSize}
+                                                    height={messageViewAccountAvatarSize}
                                                     backgroundColor="grey-5"
                                                     color="grey-30"
                                                     borderRadius="full"
@@ -1957,7 +1955,7 @@ export function DocumentContentEditor({
                                     >
                                         <Box
                                             style={{
-                                                height: messageInput2MinHeightPx[platform][
+                                                height: messageInputMinHeightPx[platform][
                                                     spacingScale
                                                 ],
                                             }}
@@ -2358,7 +2356,7 @@ function DocumentContentEditorSidebar({
                                 alignItems="center"
                                 style={{
                                     paddingBottom:
-                                        messageInput2MinHeightPx[platform][spacingScale] +
+                                        messageInputMinHeightPx[platform][spacingScale] +
                                         (platform === "mobile" &&
                                         (!mobileState.isFullScreen ||
                                             mobileState.animationState === "Expanding")

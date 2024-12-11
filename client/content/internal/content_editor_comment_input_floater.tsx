@@ -24,11 +24,11 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    messageInputEditor2BorderRadiusPx,
-    messageInputEditor2IconButtonSize,
-    messageInputEditor2MinHeightPx,
-    messageInputEditor2PaddingX,
-    messageInputEditor2PaddingYPx,
+    messageInputEditorBorderRadiusPx,
+    messageInputEditorIconButtonSize,
+    messageInputEditorMinHeightPx,
+    messageInputEditorPaddingX,
+    messageInputEditorPaddingYPx,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     greyElevated2ClassName,
@@ -273,7 +273,7 @@ function ContentEditorCommentInput({
                 boxShadow="elevation-20"
                 className={greyElevated2ClassName}
                 style={{
-                    borderRadius: messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                    borderRadius: messageInputEditorBorderRadiusPx[platform][spacingScale],
                 }}
                 onKeyDown={event => {
                     if (event.key === "Escape") {
@@ -314,12 +314,12 @@ function ContentEditorCommentInput({
                     justifyContent="center"
                     alignItems="center"
                     style={{
-                        width: messageInputEditor2MinHeightPx[platform][spacingScale],
-                        height: messageInputEditor2MinHeightPx[platform][spacingScale],
+                        width: messageInputEditorMinHeightPx[platform][spacingScale],
+                        height: messageInputEditorMinHeightPx[platform][spacingScale],
                     }}
                 >
                     <IconButton
-                        size={messageInputEditor2IconButtonSize}
+                        size={messageInputEditorIconButtonSize}
                         description="Add"
                         withoutTooltip={true}
                         // The add icon button is not focusable. That's because we don't want to
@@ -338,21 +338,21 @@ function ContentEditorCommentInput({
                 <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                     <Box
                         ref={useScrollbar({
-                            insetTop: messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                            insetTop: messageInputEditorBorderRadiusPx[platform][spacingScale],
                             // Don't overlap the send button which is rendered at the bottom of
                             // the input.
-                            insetBottom: messageInputEditor2MinHeightPx[platform][spacingScale],
+                            insetBottom: messageInputEditorMinHeightPx[platform][spacingScale],
                         })}
                         maxHeight="96"
                         position="relative"
                         overflowX="hidden"
                         overflowY="auto"
                         style={{
-                            minHeight: messageInputEditor2MinHeightPx[platform][spacingScale],
+                            minHeight: messageInputEditorMinHeightPx[platform][spacingScale],
                             borderTopLeftRadius:
-                                messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                                messageInputEditorBorderRadiusPx[platform][spacingScale],
                             borderBottomLeftRadius:
-                                messageInputEditor2BorderRadiusPx[platform][spacingScale],
+                                messageInputEditorBorderRadiusPx[platform][spacingScale],
                         }}
                     >
                         <ContentEditor
@@ -407,11 +407,10 @@ function ContentEditorCommentInput({
                             aria-label="New comment"
                             placeholder="Add a comment"
                             style={{
-                                paddingLeft: messageInputEditor2PaddingX[platform],
-                                paddingRight: messageInputEditor2PaddingX[platform],
-                                paddingTop: messageInputEditor2PaddingYPx[platform][spacingScale],
-                                paddingBottom:
-                                    messageInputEditor2PaddingYPx[platform][spacingScale],
+                                paddingLeft: messageInputEditorPaddingX[platform],
+                                paddingRight: messageInputEditorPaddingX[platform],
+                                paddingTop: messageInputEditorPaddingYPx[platform][spacingScale],
+                                paddingBottom: messageInputEditorPaddingYPx[platform][spacingScale],
                             }}
                             onEnterFromPhysicalKeyboard={event => {
                                 event.preventDefault();
@@ -437,13 +436,13 @@ function ContentEditorCommentInput({
                     justifyContent="center"
                     alignItems="center"
                     style={{
-                        height: messageInputEditor2MinHeightPx[platform][spacingScale],
-                        width: messageInputEditor2MinHeightPx[platform][spacingScale],
+                        height: messageInputEditorMinHeightPx[platform][spacingScale],
+                        width: messageInputEditorMinHeightPx[platform][spacingScale],
                     }}
                 >
                     <IconButton
                         ref={sendButtonRef}
-                        size={messageInputEditor2IconButtonSize}
+                        size={messageInputEditorIconButtonSize}
                         variant="accent"
                         description="Save comment"
                         pressErrorTitle="Can’t save comment"

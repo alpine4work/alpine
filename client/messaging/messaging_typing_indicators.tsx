@@ -3,32 +3,22 @@ import {Easing, timeline} from "motion";
 import {useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
-import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
-    getMessageBubbleMarginLeft,
-    messageView2AccountAvatarSize,
-    messageView2AccountNameFontSize,
-    messageView2AccountNameHeight,
-    messageView2AvatarOffsetYPx,
-    messageView2RailGap,
-    messageViewBubbleBorderRadius,
+    messageViewAccountAvatarSize,
+    messageViewAccountNameFontSize,
+    messageViewAccountNameHeight,
+    messageViewAvatarOffsetYPx,
+    messageViewRailGap,
     messageViewMarginY,
-    messageViewMaxWidth,
     messageViewMinHeightPx,
     messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
-import {
-    addRemLengths,
-    parseRemLength,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -87,7 +77,6 @@ export function MessagingTypingIndicators({
 }
 
 function MessagingTypingIndicator({account}: {account: AccountModel}) {
-    const platform = usePlatform();
     const spacingScale = useSpacingScale();
 
     const dot1Ref = useRef<HTMLDivElement>(null);
@@ -134,22 +123,22 @@ function MessagingTypingIndicator({account}: {account: AccountModel}) {
                 minHeight: messageViewMinHeightPx[spacingScale],
             }}
         >
-            <Box position="relative" zIndex="0" display="flex" gap={messageView2RailGap}>
-                <Box flexShrink="0" width={messageView2AccountAvatarSize}>
+            <Box position="relative" zIndex="0" display="flex" gap={messageViewRailGap}>
+                <Box flexShrink="0" width={messageViewAccountAvatarSize}>
                     <Box
                         position="relative"
-                        style={{top: messageView2AvatarOffsetYPx[spacingScale]}}
+                        style={{top: messageViewAvatarOffsetYPx[spacingScale]}}
                     >
-                        <AccountAvatar account={account} size={messageView2AccountAvatarSize} />
+                        <AccountAvatar account={account} size={messageViewAccountAvatarSize} />
                     </Box>
                 </Box>
                 <Box flexGrow="1">
                     <Box
-                        fontSize={messageView2AccountNameFontSize}
+                        fontSize={messageViewAccountNameFontSize}
                         fontStyle="truncate"
                         color="grey-60"
                         style={{
-                            lineHeight: spacing[messageView2AccountNameHeight],
+                            lineHeight: spacing[messageViewAccountNameHeight],
                         }}
                     >
                         {useAccountModel(account).name}
@@ -181,79 +170,6 @@ function MessagingTypingIndicator({account}: {account: AccountModel}) {
                             height="1"
                             borderRadius="full"
                             backgroundColor="grey-100"
-                        />
-                    </Box>
-                </Box>
-            </Box>
-        </Box>
-    );
-
-    return (
-        <Box
-            width="full"
-            maxWidth={messageViewMaxWidth}
-            marginX="center"
-            position="relative"
-            zIndex="0"
-        >
-            <Box
-                fontSize="50"
-                fontStyle="truncate"
-                paddingTop="0.5"
-                paddingBottom="0.5"
-                paddingRight={screenPaddingX}
-                color="grey-50"
-                display="flex"
-                alignItems="center"
-                gap="0.5"
-                style={{
-                    paddingLeft: addRemLengths(
-                        getMessageBubbleMarginLeft(screenPaddingX[platform]),
-                        "0.5",
-                    ),
-                }}
-            >
-                <AccountShortName account={account} />
-            </Box>
-            <Box
-                display="flex"
-                paddingX={screenPaddingX}
-                paddingBottom={messageViewMarginY}
-                gap={messageView2RailGap}
-            >
-                <Box flexShrink="0" paddingRight="2">
-                    <AccountAvatar account={account} size={messageView2AccountAvatarSize} />
-                </Box>
-                <Box display="flex" position="relative">
-                    <Box
-                        height="8"
-                        backgroundColor="grey-5"
-                        borderRadius={messageViewBubbleBorderRadius}
-                        paddingX="3"
-                        display="flex"
-                        alignItems="center"
-                        gap="1"
-                    >
-                        <Box
-                            ref={dot1Ref}
-                            width="1"
-                            height="1"
-                            borderRadius="full"
-                            backgroundColor="grey-60"
-                        />
-                        <Box
-                            ref={dot2Ref}
-                            width="1"
-                            height="1"
-                            borderRadius="full"
-                            backgroundColor="grey-60"
-                        />
-                        <Box
-                            ref={dot3Ref}
-                            width="1"
-                            height="1"
-                            borderRadius="full"
-                            backgroundColor="grey-60"
                         />
                     </Box>
                 </Box>

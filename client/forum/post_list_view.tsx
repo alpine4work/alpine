@@ -63,7 +63,7 @@ import {
     postViewMinHeightPx,
 } from "~/client/styles/forum_shared_styles.js";
 import {
-    messageInput2MinHeightPx,
+    messageInputMinHeightPx,
     messageViewMinHeightPx,
     messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
@@ -1224,7 +1224,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: messageInput2MinHeightPx[platform][spacingScale],
+                        minHeight: messageInputMinHeightPx[platform][spacingScale],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({
