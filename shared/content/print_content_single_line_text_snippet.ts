@@ -97,7 +97,11 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     const actuallyPrint = (text: string) => {
         const lastSegment = segments[segments.length - 1];
 
-        if (!lastSegment || lastSegment.marks !== preservedMarks) {
+        if (
+            !lastSegment ||
+            !lastSegment.marks.every(mark => mark.isInSet(preservedMarks)) ||
+            !preservedMarks.every(mark => mark.isInSet(lastSegment.marks))
+        ) {
             segments.push({marks: preservedMarks, text});
         } else {
             lastSegment.text += text;

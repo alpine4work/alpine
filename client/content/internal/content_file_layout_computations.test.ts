@@ -482,9 +482,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 205.991,
+        width: 197.052,
         widthFr: 1,
-        height: 147.4,
+        height: 140.7,
     });
 
     expect(
@@ -495,9 +495,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 205.867,
+        width: 196.933,
         widthFr: 1,
-        height: 147.4,
+        height: 140.7,
     });
 
     expect(
@@ -508,9 +508,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 207.068,
+        width: 214.043,
         widthFr: 1,
-        height: 257.4,
+        height: 266.7,
     });
 
     expect(
@@ -521,9 +521,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 216.558,
+        width: 168.643,
         widthFr: 1,
-        height: 433.4,
+        height: 329.7,
     });
 
     expect(
@@ -536,7 +536,7 @@ test("can layout a file float", () => {
     ).toEqual({
         width: 220,
         widthFr: 1,
-        height: 96,
+        height: 92,
     });
 
     expect(
@@ -547,9 +547,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 217.148,
+        width: 155.114,
         widthFr: 1,
-        height: 477.4,
+        height: 329.7,
     });
 
     expect(
@@ -562,7 +562,7 @@ test("can layout a file float", () => {
     ).toEqual({
         width: 100,
         widthFr: 1,
-        height: 96,
+        height: 92,
     });
 
     expect(
@@ -573,9 +573,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 115.508,
+        width: 119.834,
         widthFr: 1,
-        height: 235.4,
+        height: 245.7,
     });
 
     expect(
@@ -588,7 +588,7 @@ test("can layout a file float", () => {
     ).toEqual({
         width: 220,
         widthFr: 1,
-        height: 96,
+        height: 92,
     });
 
     expect(
@@ -599,9 +599,9 @@ test("can layout a file float", () => {
             withoutBlockMaxWidth: false,
         }),
     ).toEqual({
-        width: 217.148,
+        width: 155.114,
         widthFr: 1,
-        height: 477.4,
+        height: 329.7,
     });
 
     expect(
@@ -614,6 +614,6 @@ test("can layout a file float", () => {
     ).toEqual({
         width: 220,
         widthFr: 1,
-        height: 96,
+        height: 92,
     });
 });

@@ -1950,7 +1950,7 @@ exports[`file float (left direction) 1`] = `
 >
   <div
     class="content_fileFloat content_fileFloatLeft"
-    style="width: 203.4px; height: 191.4px;"
+    style="width: 215.7px; height: 203.7px;"
   >
     <div
       class="content_file"
@@ -1973,10 +1973,10 @@ exports[`file float (left direction): clipboard 1`] = `
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="191"
+      height="204"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4sk2v7sxcrpdd9qdxxx78?exp=1727963748&sig=test-image"
       style="display: block;"
-      width="203"
+      width="216"
     />
   </div>
 </div>
@@ -1995,7 +1995,7 @@ exports[`file float (right direction) 1`] = `
 >
   <div
     class="content_fileFloat content_fileFloatRight"
-    style="width: 195.4px; height: 191.4px;"
+    style="width: 207.7px; height: 203.7px;"
   >
     <div
       class="content_file"
@@ -2018,10 +2018,10 @@ exports[`file float (right direction): clipboard 1`] = `
   >
     <img
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-      height="191"
+      height="204"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4v4se8v5pxdk7j5adnecm?exp=1727963751&sig=test-image"
       style="display: block;"
-      width="195"
+      width="208"
     />
   </div>
 </div>
