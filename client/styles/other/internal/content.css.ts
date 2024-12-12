@@ -194,7 +194,7 @@ export const paragraphActualFontSize = "100";
 export const paragraphLineHeightMultiple = 1.5;
 
 export const paragraphLineHeightPx = createObjectFromKeys(allSpacingScales, spacingScale =>
-    Math.floor(
+    Math.ceil(
         fontSizesBySpacingScale[paragraphActualFontSize][spacingScale].fontSize *
             paragraphLineHeightMultiple,
     ),

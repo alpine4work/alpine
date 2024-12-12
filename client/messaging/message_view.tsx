@@ -2,23 +2,37 @@ import {usePress} from "@react-aria/interactions";
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
-import {ArrowArcRight, Trash} from "phosphor-react";
-import {Fragment, Memo, MutableRefObject, useEffect, useId, useMemo, useRef, useState} from "react";
+import {timeline} from "motion";
+import {ArrowArcLeft, ArrowArcRight, Copy, Link as LinkIcon, Trash} from "phosphor-react";
+import {
+    Fragment,
+    Memo,
+    MutableRefObject,
+    RefObject,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu.js";
+import {Menu, MenuAction} from "~/client/design/menu.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
@@ -30,24 +44,25 @@ import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/sh
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
-import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    messageViewAccountAvatarSize,
     messageViewAccountNameFontSize,
     messageViewAccountNameHeight,
     messageViewAvatarOffsetYPx,
-    messageViewAccountAvatarSize,
-    messageViewRailGap,
     messageViewMarginY,
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
-    messageViewParentMessageAccountAvatarSize,
-    messageViewParentMessageFontSize,
     messageViewOutlineMargin,
+    messageViewParentMessageAccountAvatarSize,
     messageViewParentMessageAvatarOffsetYRem,
+    messageViewParentMessageFontSize,
     messageViewParentMessageLineHeightPx,
+    messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
@@ -55,7 +70,6 @@ import {
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
-    fontSizes,
     messagingStyles,
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
@@ -63,7 +77,9 @@ import {
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
 import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {linkClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {
     RemLength,
     Spacing,
@@ -73,16 +89,14 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
-
-// NOCOMMIT: Test
-//
-// - Mobile
 
 /**
  * The buffered height we use for virtualized message views.
@@ -93,14 +107,6 @@ import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notificatio
 export const bufferedMessageViewHeight: RemLength = "4rem";
 
 const mergeMessageMinuteLimit = 5;
-
-const messageViewTouchReplyIconSize = "5";
-const messageViewTouchReplyIconSizeRem = parseRemLength(messageViewTouchReplyIconSize);
-
-const messageViewTouchReplyIconStartOffset = "1.5";
-const messageViewTouchReplyIconStartOffsetRem = parseRemLength(
-    messageViewTouchReplyIconStartOffset,
-);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -145,7 +151,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     nextMessage,
     messages,
     messageEditing,
-    disableExpensiveFeaturesDuringScroll,
     shouldHighlightRef,
     onJumpToMessage,
     onReplyToMessage: onReplyToMessageProp,
@@ -183,8 +188,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const messageAuthor = useAccountModel(message.author);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    // NOCOMMIT: Attach message ref to better place?
-    const messageRef = useRef<HTMLDivElement>(null);
+    const parentMessageRef = useRef<HTMLDivElement>(null);
+    const accountAvatarContainerRef = useRef<HTMLDivElement>(null);
+    const contentContainerRef = useRef<HTMLDivElement>(null);
     const touchReplyIconRef = useRef<HTMLDivElement>(null);
 
     const {
@@ -369,6 +375,398 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return null;
     }, [message.payload]);
 
+    const events = useEvents({
+        onReplyToMessage: () => {
+            // If we're currently editing a message on mobile then cancel editing when
+            // trying to reply to a message. Otherwise `<MessageInput>` will override the
+            // reply state with editing state.
+            if (platform === "mobile" && messageEditing.state.isEditing) {
+                messageEditing.dispatch({type: "CancelEditing"});
+            }
+
+            onReplyToMessageProp();
+        },
+
+        // Some edge cases to test:
+        //
+        // - Select multiple messages (should only show "Copy")
+        // - Select text in one message then right click the parent message of another
+        //   (should show right click actions for the attached message)
+        getContextMenuActions: (event: MouseEvent) => {
+            const containerElement = assertExists(containerRef.current);
+            const selection = window.getSelection();
+
+            // If the `contextmenu` event target is outside of the selection then empty out
+            // the selection. The user is right-clicking this message, not the selection.
+            // This mirrors the behavior of `<ContextMenuContextProvider>` which calls
+            // `selection?.empty()` as well if `event.target` is outside the selection.
+            if (event.target instanceof Node && selection?.containsNode(event.target, true)) {
+                // If the selection spans multiple messages then we don't want to add context
+                // menu actions for a single message. Instead we should only show "Copy".
+                if (
+                    !containerElement.contains(selection.anchorNode) ||
+                    !containerElement.contains(selection.focusNode)
+                ) {
+                    return [];
+                }
+            } else {
+                selection?.empty();
+            }
+
+            const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+            if (message.payload.type === "Content") {
+                contextMenuActions.push([
+                    {
+                        label: "Reply",
+                        icon: <ArrowArcRight />,
+                        iconPlacement: "end",
+                        onPress: events.onReplyToMessage,
+                    },
+                ]);
+            }
+
+            contextMenuActions.push([
+                {
+                    key: id,
+                    label: "Copy link",
+                    isDisabled: message.isOptimistic,
+                    pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+                    onPress: async () => {
+                        if (message.isOptimistic) return;
+                        await writeTextToClipboard(getMessageUrl(message.index).toString());
+                    },
+                },
+            ]);
+
+            if (currentAccount.id === message.author.id && message.payload.type === "Content") {
+                const messagePayload = message.payload;
+
+                const editContextMenuActions: Array<MenuAction> = [];
+                contextMenuActions.push(editContextMenuActions);
+
+                // Don't allow editing if the message payload is empty. The UI shouldn't
+                // normally allow saving an empty message payload. We allow empty message
+                // payloads for messages that have attached files, however. In this special
+                // case we don't want to allow the user to add text alongside the files.
+                if (!isContentEmpty(messagePayload.content.doc)) {
+                    editContextMenuActions.push({
+                        label: "Edit",
+                        isDisabled: message.isOptimistic,
+                        onPress: () => {
+                            if (message.isOptimistic) return;
+
+                            messageEditing.dispatch({
+                                type: "StartEditing",
+                                messageIndex: message.index,
+                                messageRoomKey: message.getRoomKey(),
+                                messagePayload,
+                                platform,
+                                returnFocusAfterEditing: null,
+                            });
+                        },
+                    });
+                }
+
+                editContextMenuActions.push({
+                    label: "Delete",
+                    onPress: () => {
+                        setShowDeleteConfirmationDialog(true);
+                    },
+                });
+            }
+
+            return contextMenuActions;
+        },
+    });
+
+    const hasParentMessage = !!parentMessage;
+
+    const [showTouchReplyIcon, setShowTouchReplyIcon] = useState(false);
+    const [touchMenuState, setTouchMenuState] = useState<{
+        isAnimatingOut: boolean;
+        top: number;
+        left: number;
+    } | null>(null);
+
+    useEffect(() => {
+        if (message.payload.type !== "Content") return;
+
+        // Reattach event listeners if the message payload changes. The `messageRef`
+        // element may switch between deleted, emoji, and regular messages.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        message.payload;
+
+        if (isEditingThisMessage) return;
+
+        const containerElement = assertExists(containerRef.current);
+        const parentMessageElement = parentMessageRef.current;
+        const accountAvatarContainerElement = accountAvatarContainerRef.current;
+        const contentContainerElement = assertExists(contentContainerRef.current);
+
+        type MessageViewTouchState = {
+            gesture: "Reply" | "Other" | null;
+            hasReplyGestureActivated: boolean;
+            isReplyGestureDisabled: boolean;
+            initialClientX: number;
+            initialClientY: number;
+            longTouchTimeout: Timeout | null;
+            finishGesture: (() => Promise<void>) | null;
+        };
+
+        let touchState: MessageViewTouchState | null = null;
+
+        const handleTouchStart = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            void touchState?.finishGesture?.();
+            touchState = null;
+
+            // If the user can hover, let them hover over the message to see message
+            // actions. Instead of opening a lightbox on touch which conflicts with text
+            // selection.
+            if (canPrimaryInputHover) {
+                setShowTouchReplyIcon(false);
+                return;
+            }
+
+            if (event.touches.length > 1) {
+                setShowTouchReplyIcon(false);
+                return;
+            }
+
+            let isReplyGestureDisabled = false;
+
+            if (event.target instanceof HTMLElement) {
+                let element: HTMLElement | null = event.target;
+                while (element && element.contains(element)) {
+                    // If the user is touching a link, then a long press won't open the lightbox.
+                    // Instead it will open the link.
+                    if (element.classList.contains(linkClassName)) {
+                        return;
+                    }
+
+                    const {overflowX} = getComputedStyle(element);
+
+                    // If the user is touching a horizontally scrollable element (e.g. a code
+                    // block) then disable the reply gesture if it's been scrolled since swiping
+                    // horizontally should scroll. Not reply.
+                    if (
+                        (overflowX === "scroll" ||
+                            (overflowX === "auto" && element.scrollWidth > element.clientWidth)) &&
+                        element.scrollLeft > 0
+                    ) {
+                        isReplyGestureDisabled = true;
+                    }
+
+                    element = element.parentElement;
+                }
+            }
+
+            // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
+            // last 0.5 seconds][1] before firing.
+            //
+            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            const longTouchTimeout = createTimeout(() => {
+                ourTouchState.longTouchTimeout = null;
+
+                // Unfocus whatever the focused element is to close the keyboard.
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+
+                NativeMobileBridge?.haptic.playMediumImpact();
+
+                const containerRect = containerElement.getBoundingClientRect();
+
+                setTouchMenuState({
+                    isAnimatingOut: false,
+                    top: ourTouchState.initialClientY - containerRect.top,
+                    left: ourTouchState.initialClientX - containerRect.left,
+                });
+            }, 500);
+
+            // Support the case where we have 0 touches since this happens in integration
+            // tests. Shouldn't happen in a production browser.
+            const touch = event.touches[0] ?? {clientX: 0, clientY: 0};
+
+            const ourTouchState: MessageViewTouchState = {
+                gesture: null,
+                hasReplyGestureActivated: false,
+                isReplyGestureDisabled,
+                initialClientX: touch.clientX,
+                initialClientY: touch.clientY,
+                longTouchTimeout,
+                finishGesture: null,
+            };
+            touchState = ourTouchState;
+            setShowTouchReplyIcon(true);
+        };
+
+        const handleTouchEnd = () => {
+            touchState?.longTouchTimeout?.clear();
+            const gestureFinishedPromise = touchState?.finishGesture?.();
+            const hasReplyGestureActivated = touchState?.hasReplyGestureActivated ?? false;
+            touchState = null;
+
+            if (!gestureFinishedPromise) {
+                setShowTouchReplyIcon(false);
+            } else {
+                void gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
+            }
+
+            if (hasReplyGestureActivated) {
+                events.onReplyToMessage();
+            }
+        };
+
+        const handleTouchMove = (event: TouchEvent) => {
+            touchState?.longTouchTimeout?.clear();
+            if (touchState) touchState.longTouchTimeout = null;
+
+            if (!touchState || event.touches.length !== 1) return;
+            const touch = event.touches[0]!;
+
+            if (touchState.gesture === null) {
+                const clientXDifferenceMagnitude = Math.abs(
+                    touch.clientX - touchState.initialClientX,
+                );
+                const clientYDifferenceMagnitude = Math.abs(
+                    touch.clientY - touchState.initialClientY,
+                );
+
+                if (clientXDifferenceMagnitude > clientYDifferenceMagnitude) {
+                    if (touch.clientX < touchState.initialClientX) {
+                        touchState.gesture = "Other";
+                    } else if (touchState.isReplyGestureDisabled) {
+                        touchState.gesture = "Other";
+                    } else {
+                        touchState.gesture = "Reply";
+
+                        touchState.finishGesture = () => {
+                            const elements = [contentContainerElement];
+                            if (parentMessageElement) elements.push(parentMessageElement);
+                            if (accountAvatarContainerElement)
+                                elements.push(accountAvatarContainerElement);
+
+                            const touchReplyIconElement = touchReplyIconRef.current;
+
+                            const remPx = getRemPxWithoutListening();
+
+                            const animation = timeline(
+                                [
+                                    [
+                                        elements,
+                                        {x: 0},
+                                        {
+                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                            // Make sure we use hardware acceleration for this animation in WebKit. By
+                                            // default `motion` turns it off.
+                                            // https://motion.dev/guides/performance#webkits-exceptions
+                                            allowWebkitAcceleration: true,
+                                        },
+                                    ],
+                                    [
+                                        touchReplyIconElement ?? [],
+                                        {x: -0.75 * remPx, opacity: 0},
+                                        {
+                                            at: 0,
+                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                            // Make sure we use hardware acceleration for this animation in WebKit. By
+                                            // default `motion` turns it off.
+                                            // https://motion.dev/guides/performance#webkits-exceptions
+                                            allowWebkitAcceleration: true,
+                                        },
+                                    ],
+                                ],
+                                {
+                                    duration: 0.5,
+                                },
+                            );
+
+                            return animation.finished;
+                        };
+                    }
+                } else if (clientXDifferenceMagnitude < clientYDifferenceMagnitude) {
+                    touchState.gesture = "Other";
+                }
+            }
+
+            if (touchState.gesture === "Reply") {
+                event.preventDefault();
+
+                const translateX = Math.max(
+                    0,
+                    (touch.clientX - touchState.initialClientX - 10) *
+                        // We slow the drag animation down to make it feel like the user is dragging
+                        // something heavy. But also this ends up smoothing out the animation! We only
+                        // get `touchmove` events every whole pixel. But on devices like iPhone every
+                        // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
+                        // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
+                        // across multiple hardware pixels per move.
+                        (1 / 2),
+                );
+
+                const elements = [contentContainerElement];
+                if (parentMessageElement) elements.push(parentMessageElement);
+                if (accountAvatarContainerElement) elements.push(accountAvatarContainerElement);
+
+                const touchReplyIconElement = touchReplyIconRef.current;
+
+                const remPx = getRemPxWithoutListening();
+
+                const maxTranslateX = 1.25 * remPx;
+                const progress = clamp(0, translateX / maxTranslateX, 1);
+
+                if (progress === 1) {
+                    if (!touchState.hasReplyGestureActivated) {
+                        NativeMobileBridge?.haptic.playHeavyImpact();
+                    }
+
+                    touchState.hasReplyGestureActivated = true;
+                } else {
+                    touchState.hasReplyGestureActivated = false;
+                }
+
+                timeline(
+                    [
+                        [elements, {x: translateX}],
+                        [
+                            touchReplyIconElement ?? [],
+                            {x: -0.75 * remPx * (1 - progress), opacity: progress},
+                            {at: 0},
+                        ],
+                    ],
+                    {duration: 0},
+                );
+            }
+        };
+
+        const handleTouchCancel = () => {
+            touchState?.longTouchTimeout?.clear();
+            const gestureFinishedPromise = touchState?.finishGesture?.();
+            touchState = null;
+
+            if (!gestureFinishedPromise) {
+                setShowTouchReplyIcon(false);
+            } else {
+                void gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
+            }
+        };
+
+        contentContainerElement.addEventListener("touchstart", handleTouchStart);
+        contentContainerElement.addEventListener("touchend", handleTouchEnd);
+        contentContainerElement.addEventListener("touchmove", handleTouchMove, {passive: false});
+        contentContainerElement.addEventListener("touchcancel", handleTouchCancel);
+
+        return () => {
+            contentContainerElement.removeEventListener("touchstart", handleTouchStart);
+            contentContainerElement.removeEventListener("touchend", handleTouchEnd);
+            contentContainerElement.removeEventListener("touchmove", handleTouchMove);
+            contentContainerElement.removeEventListener("touchcancel", handleTouchCancel);
+        };
+    }, [canPrimaryInputHover, events, hasParentMessage, isEditingThisMessage, message.payload]);
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -445,7 +843,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             <ContentView
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdatedTime}
-                // NOCOMMIT: Reconsider?
                 withUserSelectNone={!canPrimaryInputHover}
             />
         );
@@ -498,6 +895,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         return (
             <MessageViewParentMessage
+                parentMessageRef={parentMessageRef}
                 messageNoun={messageNoun}
                 parentMessage={parentMessage}
                 onJumpToMessage={onJumpToMessage}
@@ -517,7 +915,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? "12" : undefined,
+                    paddingTop: !isFirstMessage ? "6" : undefined,
                     paddingBottom: "4",
                     display: "flex",
                     justifyContent: "center",
@@ -551,114 +949,15 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     ]);
 
     const id = useId();
-    const isContextMenuOpenForThisMessage = useMemo(
+
+    const isMessageHighlighted: boolean = useMemo(
         () =>
-            openContextMenuActions?.some(subActions =>
+            !!touchMenuState ||
+            (openContextMenuActions ?? []).some(subActions =>
                 subActions.some(action => !action.withCustomLayout && action.key === id),
             ),
-        [openContextMenuActions, id],
+        [touchMenuState, openContextMenuActions, id],
     );
-
-    // Some edge cases to test:
-    //
-    // - Select multiple messages (should only show "Copy")
-    // - Select text in one message then right click the parent message of another
-    //   (should show right click actions for the attached message)
-    const getContextMenuActions = useEvent((event: MouseEvent) => {
-        const containerElement = assertExists(containerRef.current);
-        const selection = window.getSelection();
-
-        // If the `contextmenu` event target is outside of the selection then empty out
-        // the selection. The user is right-clicking this message, not the selection.
-        // This mirrors the behavior of `<ContextMenuContextProvider>` which calls
-        // `selection?.empty()` as well if `event.target` is outside the selection.
-        if (event.target instanceof Node && selection?.containsNode(event.target, true)) {
-            // If the selection spans multiple messages then we don't want to add context
-            // menu actions for a single message. Instead we should only show "Copy".
-            if (
-                !containerElement.contains(selection.anchorNode) ||
-                !containerElement.contains(selection.focusNode)
-            ) {
-                return [];
-            }
-        } else {
-            selection?.empty();
-        }
-
-        const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
-
-        if (message.payload.type === "Content") {
-            contextMenuActions.push([
-                {
-                    label: "Reply",
-                    icon: <ArrowArcRight />,
-                    iconPlacement: "end",
-                    onPress: () => {
-                        // If we're currently editing a message on mobile then cancel editing when
-                        // trying to reply to a message. Otherwise `<MessageInput>` will override the
-                        // reply state with editing state.
-                        if (platform === "mobile" && messageEditing.state.isEditing) {
-                            messageEditing.dispatch({type: "CancelEditing"});
-                        }
-
-                        onReplyToMessageProp();
-                    },
-                },
-            ]);
-        }
-
-        contextMenuActions.push([
-            {
-                key: id,
-                label: "Copy link",
-                isDisabled: message.isOptimistic,
-                pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
-                onPress: async () => {
-                    if (message.isOptimistic) return;
-                    await writeTextToClipboard(getMessageUrl(message.index).toString());
-                },
-            },
-        ]);
-
-        if (currentAccount.id === message.author.id && message.payload.type === "Content") {
-            const messagePayload = message.payload;
-
-            const editContextMenuActions: Array<MenuAction> = [];
-            contextMenuActions.push(editContextMenuActions);
-
-            // Don't allow editing if the message payload is empty. The UI shouldn't
-            // normally allow saving an empty message payload. We allow empty message
-            // payloads for messages that have attached files, however. In this special
-            // case we don't want to allow the user to add text alongside the files.
-            if (!isContentEmpty(messagePayload.content.doc)) {
-                editContextMenuActions.push({
-                    label: "Edit",
-                    isDisabled: message.isOptimistic,
-                    onPress: () => {
-                        if (message.isOptimistic) return;
-
-                        messageEditing.dispatch({
-                            type: "StartEditing",
-                            messageIndex: message.index,
-                            messageRoomKey: message.getRoomKey(),
-                            messagePayload,
-                            platform,
-                            returnFocusAfterEditing: null,
-                        });
-                    },
-                });
-            }
-
-            editContextMenuActions.push({
-                label: "Delete",
-                onPress: () => {
-                    setShowDeleteConfirmationDialog(true);
-                },
-            });
-        }
-
-        return contextMenuActions;
-    });
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
@@ -672,7 +971,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             {timestampDividerNode}
             <ContextMenuActions
                 isDisabled={!!messageEditingForThisMessage}
-                actions={getContextMenuActions}
+                actions={events.getContextMenuActions}
                 // Merge the text copy action into the "Copy link" section.
                 mergeReadonlyCopyAction={(actionSections, copyTextAction) => {
                     const copyLinkActionSectionIndex = actionSections.findIndex(actionSection =>
@@ -716,6 +1015,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     ref={containerRef}
                     className={classNames(
                         sprinkles({
+                            position: "relative",
                             width: "full",
                             maxWidth: contentStyles.contentMaxWidth,
                             marginX: "auto",
@@ -750,6 +1050,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         {useMemo(
                             () => (
                                 <div
+                                    ref={accountAvatarContainerRef}
                                     className={sprinkles({
                                         flexShrink: "0",
                                         width: messageViewAccountAvatarSize,
@@ -758,7 +1059,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     {!shouldMergeWithPreviousMessage && (
                                         <div
                                             className={sprinkles({position: "relative"})}
-                                            style={{top: messageViewAvatarOffsetYPx[spacingScale]}}
+                                            style={{
+                                                top: messageViewAvatarOffsetYPx[spacingScale],
+                                            }}
                                         >
                                             <AccountAvatar
                                                 account={messageAuthor}
@@ -771,13 +1074,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             [messageAuthor, shouldMergeWithPreviousMessage, spacingScale],
                         )}
                         <div
+                            ref={contentContainerRef}
                             className={sprinkles({flexGrow: "1"})}
                             style={{
                                 // Don't allow item to grow beyond flexbox bounds. By default flexbox items
                                 // have `min-width: auto` which extends with content.
                                 // https://stackoverflow.com/a/66689926/1568890
                                 minWidth: 0,
-                                ...(isContextMenuOpenForThisMessage
+                                ...(isMessageHighlighted
                                     ? assignInlineVars({
                                           [backgroundColorVar]: colorSchemeVars["grey-5"],
                                       })
@@ -837,31 +1141,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             )}
                             {message.payload.type === "Content" ? (
                                 !messageEditingForThisMessage ? (
-                                    /* NOCOMMIT: {showTouchReplyIcon && (
-                                    <div
-                                        ref={touchReplyIconRef}
-                                        className={sprinkles({
-                                            position: "absolute",
-                                            left: `-${messageViewTouchReplyIconStartOffset}`,
-                                            width: messageViewTouchReplyIconSize,
-                                            height: messageViewTouchReplyIconSize,
-                                            display: "flex",
-                                            justifyContent: "center",
-                                            alignItems: "center",
-                                            color: "grey-70",
-                                            backgroundColor: "grey-5",
-                                            borderRadius: "full",
-                                            pointerEvents: "none",
-                                            // Start at opacity 0 and our animation will make it visible.
-                                            opacity: "0",
-                                        })}
-                                        style={{
-                                            top: `calc(50% - ${spacing["2.5"]})`,
-                                        }}
-                                    >
-                                        <ArrowArcLeft size={spacing["3"]} />
-                                    </div>
-                                )} */
                                     contentPayloadNode
                                 ) : (
                                     <MessageViewEditor
@@ -878,7 +1157,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 deletedPayloadNode
                             )}
                         </div>
-                        {isContextMenuOpenForThisMessage && (
+                        {isMessageHighlighted && (
                             <div
                                 className={sprinkles({
                                     position: "absolute",
@@ -903,7 +1182,54 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 }}
                             />
                         )}
+                        {showTouchReplyIcon && (
+                            <div
+                                ref={touchReplyIconRef}
+                                className={sprinkles({
+                                    zIndex: "-10",
+                                    position: "absolute",
+                                    left: "0.5",
+                                    width: "5",
+                                    height: "5",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    color: "grey-70",
+                                    backgroundColor: "grey-5",
+                                    borderRadius: "full",
+                                    pointerEvents: "none",
+                                    // Start at opacity 0 and our animation will make it visible.
+                                    opacity: "0",
+                                })}
+                                style={{
+                                    top: !shouldMergeWithPreviousMessage
+                                        ? `calc(${spacing[messageViewAccountNameHeight]} + (100% - ${spacing[messageViewAccountNameHeight]}) / 2 - ${spacing["2.5"]})`
+                                        : `calc(50% - ${spacing["2.5"]})`,
+                                }}
+                            >
+                                <ArrowArcLeft size={spacing["3"]} />
+                            </div>
+                        )}
                     </div>
+                    {touchMenuState && (
+                        <MessageViewTouchMenu
+                            messageNoun={messageNoun}
+                            message={message}
+                            top={touchMenuState.top}
+                            left={touchMenuState.left}
+                            messageEditing={messageEditing}
+                            getMessageUrl={getMessageUrl}
+                            onReplyToMessage={events.onReplyToMessage}
+                            onShowDeleteConfirmationDialog={() =>
+                                setShowDeleteConfirmationDialog(true)
+                            }
+                            isAnimatingOut={touchMenuState.isAnimatingOut}
+                            onCloseWithoutAnimation={() => setTouchMenuState(null)}
+                            onCloseWithAnimation={() =>
+                                setTouchMenuState({...touchMenuState, isAnimatingOut: true})
+                            }
+                        />
+                    )}
                 </div>
             </ContextMenuActions>
             {showDeleteConfirmationDialog && (
@@ -918,10 +1244,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 }
 
 function MessageViewParentMessage<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+    parentMessageRef,
     messageNoun,
     parentMessage,
     onJumpToMessage,
 }: {
+    parentMessageRef: RefObject<HTMLDivElement>;
     messageNoun: string;
     parentMessage: Message;
     onJumpToMessage: Memo<(message: Message) => void>;
@@ -955,6 +1283,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
         <FocusRing offset="1" insetX="0.5" insetBottom="0.5">
             <div
                 {...pressProps}
+                ref={parentMessageRef}
                 // This is a simulated link. When the user clicks on it our code navigates us
                 // to the right message instead of relying on browser URL navigation.
                 //
@@ -1135,6 +1464,159 @@ function MessageViewMenuCreatedTime({
                 ) : null}
             </div>
         </>
+    );
+}
+
+function MessageViewTouchMenu<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+    messageNoun,
+    message,
+    top,
+    left,
+    messageEditing,
+    getMessageUrl,
+    onReplyToMessage,
+    onShowDeleteConfirmationDialog,
+    isAnimatingOut,
+    onCloseWithoutAnimation,
+    onCloseWithAnimation,
+}: {
+    messageNoun: string;
+    message: Message | OptimisticMessageModel;
+    top: number;
+    left: number;
+    messageEditing: MessageEditing<RoomKey>;
+    getMessageUrl: (messageIndex: number) => URL;
+    onReplyToMessage: () => void;
+    onShowDeleteConfirmationDialog: () => void;
+    isAnimatingOut: boolean;
+    onCloseWithoutAnimation: () => void;
+    onCloseWithAnimation: () => void;
+}) {
+    const platform = usePlatform();
+    const {currentAccount, space} = useSpaceContext();
+
+    const menuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+    if (message.payload.type === "Content") {
+        menuActions.push([
+            {
+                label: "Reply",
+                icon: <ArrowArcRight />,
+                iconPlacement: "end",
+                onPress: onReplyToMessage,
+            },
+        ]);
+    }
+
+    const copyMenuActions: Array<MenuAction> = [];
+    menuActions.push(copyMenuActions);
+
+    if (message.payload.type === "Content") {
+        copyMenuActions.push({
+            label: "Copy text",
+            icon: <Copy />,
+            iconPlacement: "end",
+            pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
+            onPress: async () => {
+                assert(message.payload.type === "Content");
+
+                await writeContentToClipboard(space.id, message.payload.content, null);
+            },
+        });
+    }
+
+    copyMenuActions.push({
+        label: "Copy link",
+        icon: <LinkIcon />,
+        iconPlacement: "end",
+        isDisabled: message.isOptimistic,
+        pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
+        onPress: async () => {
+            if (message.isOptimistic) return;
+            await writeTextToClipboard(getMessageUrl(message.index).toString());
+        },
+    });
+
+    if (currentAccount.id === message.author.id && message.payload.type === "Content") {
+        const messagePayload = message.payload;
+
+        const editContextMenuActions: Array<MenuAction> = [];
+        menuActions.push(editContextMenuActions);
+
+        // Don't allow editing if the message payload is empty. The UI shouldn't
+        // normally allow saving an empty message payload. We allow empty message
+        // payloads for messages that have attached files, however. In this special
+        // case we don't want to allow the user to add text alongside the files.
+        if (!isContentEmpty(messagePayload.content.doc)) {
+            editContextMenuActions.push({
+                label: "Edit",
+                isDisabled: message.isOptimistic,
+                onPress: () => {
+                    if (message.isOptimistic) return;
+
+                    messageEditing.dispatch({
+                        type: "StartEditing",
+                        messageIndex: message.index,
+                        messageRoomKey: message.getRoomKey(),
+                        messagePayload,
+                        platform,
+                        returnFocusAfterEditing: null,
+                    });
+                },
+            });
+        }
+
+        editContextMenuActions.push({
+            label: "Delete",
+            onPress: onShowDeleteConfirmationDialog,
+        });
+    }
+
+    return (
+        <OverlayAnimated
+            placement="bottom"
+            offset="4"
+            isVisible={!isAnimatingOut}
+            disableAnimationIn={true}
+            onActuallyVisibleChange={isActuallyVisible => {
+                if (!isActuallyVisible) onCloseWithoutAnimation();
+            }}
+            isBlocking={true}
+            overlay={
+                <div ref={useOutsideInteraction(onCloseWithAnimation)}>
+                    <Menu
+                        actions={menuActions}
+                        extraBottom={
+                            <MessageViewMenuCreatedTime
+                                createdTime={message.createdTime}
+                                contentUpdatedTime={
+                                    message.payload.type === "Content"
+                                        ? message.payload.contentUpdatedTime
+                                        : null
+                                }
+                                deletedTime={
+                                    message.payload.type === "Deleted"
+                                        ? message.payload.deletedTime
+                                        : null
+                                }
+                            />
+                        }
+                        onCloseWithAnimation={onCloseWithAnimation}
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
+                    />
+                </div>
+            }
+        >
+            <div
+                className={sprinkles({
+                    position: "absolute",
+                    pointerEvents: "none",
+                    width: "0",
+                    height: "0",
+                })}
+                style={{top, left}}
+            ></div>
+        </OverlayAnimated>
     );
 }
 

@@ -54,20 +54,20 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {
-    messageInputMinHeightPx,
     messageInputEditorBorderRadiusPx,
+    messageInputEditorIconButtonNegativeMarginX,
     messageInputEditorIconButtonSize,
     messageInputEditorMinHeightPx,
     messageInputEditorPaddingX,
     messageInputEditorPaddingYPx,
-    messageInputEditorIconButtonNegativeMarginX,
+    messageInputMinHeightPx,
     messageInputPaddingY,
     messageViewAccountAvatarSize,
-    messageViewRailGap,
     messageViewParentMessageAccountAvatarSize,
     messageViewParentMessageAvatarOffsetYRem,
     messageViewParentMessageFontSize,
     messageViewParentMessageLineHeightPx,
+    messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     contentStyles,
@@ -1055,9 +1055,9 @@ function MessageInputReplyingToMessage<
 
     return (
         <Box
-            paddingTop={messageInputPaddingY}
             paddingRight={paddingX}
             style={{
+                paddingTop: addRemLengths(messageInputPaddingY[platform], "1"),
                 // Align text with message input placeholder.
                 paddingLeft: `${
                     parseRemLength(
