@@ -1,6 +1,5 @@
 import {Modality} from "@react-aria/interactions";
 import {
-    Memo,
     MutableRefObject,
     ReactElement,
     Ref,

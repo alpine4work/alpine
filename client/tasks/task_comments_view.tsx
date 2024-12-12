@@ -277,9 +277,6 @@ export function TaskCommentsView({
                     isConnected={isConnected}
                     subscribeToEvents={subscribeToEvents}
                     getMessageUrl={getCommentUrl}
-                    // Slightly reduce the amount of margin on messages in a desktop comment thread
-                    // because we have less space in the sidebar.
-                    paddingX={routeLayout !== "narrow" ? "4" : undefined}
                 />
             </>
         );

@@ -7,9 +7,9 @@ import {
     messageViewAccountNameFontSize,
     messageViewAccountNameHeight,
     messageViewAvatarOffsetYPx,
-    messageViewRailGap,
     messageViewMarginY,
     messageViewMinHeightPx,
+    messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, pulseAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";

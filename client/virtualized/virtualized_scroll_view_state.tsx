@@ -1411,7 +1411,7 @@ export class VirtualizedScrollViewState {
         getItem: (index: number) => {
             key: Key;
             minHeight: number;
-            zIndex: string | undefined;
+            zIndex?: string;
             renderAdditionalItemIndexes?: ReadonlyArray<number>;
             render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
         };
@@ -1439,7 +1439,7 @@ export class VirtualizedScrollViewState {
             getItem: (index: number) => {
                 key: Key;
                 minHeight: number;
-                zIndex: string | undefined;
+                zIndex?: string;
                 renderAdditionalItemIndexes?: ReadonlyArray<number>;
                 render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
             };

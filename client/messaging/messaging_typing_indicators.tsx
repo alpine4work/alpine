@@ -10,9 +10,9 @@ import {
     messageViewAccountNameFontSize,
     messageViewAccountNameHeight,
     messageViewAvatarOffsetYPx,
-    messageViewRailGap,
     messageViewMarginY,
     messageViewMinHeightPx,
+    messageViewRailGap,
     messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";

@@ -88,12 +88,12 @@ import {
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
-    messageInputMinHeightPx,
     messageInputEditorBorderRadiusPx,
+    messageInputEditorIconButtonNegativeMarginX,
     messageInputEditorMinHeightPx,
     messageInputEditorPaddingX,
     messageInputEditorPaddingYPx,
-    messageInputEditorIconButtonNegativeMarginX,
+    messageInputMinHeightPx,
     messageInputPaddingY,
     messageViewAccountAvatarSize,
 } from "~/client/styles/messaging_shared_styles.js";

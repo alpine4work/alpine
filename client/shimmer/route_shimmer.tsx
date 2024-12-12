@@ -58,14 +58,14 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
-    messageInputMinHeightPx,
     messageInputEditorBorderRadiusPx,
-    messageInputEditorMinHeightPx,
     messageInputEditorIconButtonNegativeMarginX,
+    messageInputEditorMinHeightPx,
+    messageInputMinHeightPx,
     messageInputPaddingY,
     messageViewAccountAvatarSize,
-    messageViewRailGap,
     messageViewMarginY,
+    messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     minSearchMobileInputHeight,

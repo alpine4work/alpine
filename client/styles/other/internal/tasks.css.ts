@@ -8,8 +8,8 @@ import {
     mediumSpacingScaleSelector,
 } from "~/client/styles/core/styles_core.js";
 import {
-    paragraphMargin,
     paragraphLineHeightPx,
+    paragraphMargin,
 } from "~/client/styles/other/internal/content.css.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
