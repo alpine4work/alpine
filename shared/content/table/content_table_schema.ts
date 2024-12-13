@@ -80,9 +80,7 @@ export const contentTableCellProsemirrorNodeSpec = {
     },
 };
 
-// TODO(rohitt-gupta, 2024-11-26): simplify the logic once we have a better way to handle table node types
-// Comment by (caleb, 2024-11-26)
-// https://github.com/cyberworlds/cyberworlds/pull/45#discussion_r1858723295
+// A function to get the node types for the table.
 export function contentTableNodeTypes(
     schema: ProsemirrorSchema,
 ): Record<contentTableRole, NodeType> {

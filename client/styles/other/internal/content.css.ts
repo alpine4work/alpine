@@ -2045,7 +2045,7 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
 
 globalStyle(`${tableClassName} .selectedCell`, {
     background: colorSchemeVars["theme-selection"],
-    border: `2px solid ${colorSchemeVars["theme-60"]}`,
+    border: `1px solid ${colorSchemeVars["theme-60"]}`,
     borderCollapse: "collapse",
 });
 

@@ -53,8 +53,6 @@ import {
     ContentTableMapRect,
 } from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
-import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
-import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Area = {width: number; height: number; rows: Array<Fragment>};
@@ -92,7 +90,7 @@ export function contentTablePastedCells(slice: Slice): Area | null {
                 ).content;
             rows.push(cells);
         }
-    } else if (role == "cell" || role == "header_cell") {
+    } else if (role == "cell") {
         rows.push(
             openStart || openEnd
                 ? contentTableFitSlice(
@@ -114,8 +112,9 @@ function ensureRectangular(schema: Schema, rows: Array<Fragment>): Area {
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i]!;
         for (let j = row.childCount - 1; j >= 0; j--) {
-            const {rowspan, colspan} = row.child(j).attrs;
-            for (let r = i; r < i + rowspan; r++) widths[r] = (widths[r] || 0) + colspan;
+            for (let r = i; r < i + 1; r++) {
+                widths[r] = (widths[r] || 0) + 1;
+            }
         }
     }
     let width = 0;
@@ -142,8 +141,7 @@ export function contentTableFitSlice(nodeType: NodeType, slice: Slice): Node {
 
 /**
  * Clip or extend (repeat) the given set of cells to cover the given
- * width and height. Will clip rowspan/colspan cells at the edges when
- * they stick out.
+ * width and height.
  *
  * @internal
  */

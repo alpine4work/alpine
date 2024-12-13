@@ -74,7 +74,7 @@ type Dragging = {startX: number; startWidth: number};
 // width changes.
 export function contentEditorTableColumnResizingPlugin({
     handleWidth = 5,
-    cellMinWidth = 25,
+    cellMinWidth = 100,
     defaultCellMinWidth = 100,
     View = ContentEditorTableNodeView,
     lastColumnResizable = true,

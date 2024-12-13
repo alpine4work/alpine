@@ -12,7 +12,7 @@ import {Node, ResolvedPos} from "prosemirror-model";
 export function contentTableCellWrapping($pos: ResolvedPos): null | Node {
     for (let d = $pos.depth; d > 0; d--) {
         const role = $pos.node(d).type.spec.tableRole;
-        if (role === "cell" || role === "header_cell") return $pos.node(d);
+        if (role === "cell") return $pos.node(d);
     }
     return null;
 }

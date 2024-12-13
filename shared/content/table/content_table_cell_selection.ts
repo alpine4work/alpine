@@ -322,7 +322,7 @@ function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
 
     for (let i = $from.depth; i > 0; i--) {
         const node = $from.node(i);
-        if (node.type.spec.tableRole === "cell" || node.type.spec.tableRole === "header_cell") {
+        if (node.type.spec.tableRole === "cell") {
             fromCellBoundaryNode = node;
             break;
         }
@@ -330,7 +330,7 @@ function isTextSelectionAcrossCells({$from, $to}: TextSelection) {
 
     for (let i = $to.depth; i > 0; i--) {
         const node = $to.node(i);
-        if (node.type.spec.tableRole === "cell" || node.type.spec.tableRole === "header_cell") {
+        if (node.type.spec.tableRole === "cell") {
             toCellBoundaryNode = node;
             break;
         }
@@ -349,7 +349,7 @@ export function contentTableCellNormalizeSelection(
     let normalize: Selection | undefined;
     let role: string | undefined;
     if (sel instanceof NodeSelection && (role = sel.node.type.spec.tableRole)) {
-        if (role == "cell" || role == "header_cell") {
+        if (role == "cell") {
             normalize = ContentTableCellSelection.create(doc, sel.from);
         } else if (role == "row") {
             const $cell = doc.resolve(sel.from + 1);
