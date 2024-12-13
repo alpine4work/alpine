@@ -40,8 +40,7 @@
 // document-relative positions. So code that uses them will typically
 // compute the start position of the table and offset positions passed
 // to or gotten from this structure by that amount.
-import {Attrs, Node} from "prosemirror-model";
-import {contentTableCellDefaultAttrs} from "~/shared/content/table/helpers/content_table_default_attrs.js";
+import {Node} from "prosemirror-model";
 
 export type ContentTableMapColWidths = Array<number>;
 
@@ -236,12 +235,24 @@ export class ContentTableMap {
     }
 }
 
-// Compute a table map.
+// This findWidth function calculates the width (number of columns) of a table.
+// However, there's a bug in its implementation.This findWidth function
+// calculates the width (number of columns) of a table. However, there's a bug in its implementation.
+function findWidth(table: Node): number {
+    let width = 0;
+    for (let row = 0; row < table.childCount; row++) {
+        const rowNode = table.child(row);
+        width = Math.max(width, rowNode.childCount);
+    }
+    return width;
+}
+
 function computeMap(table: Node): ContentTableMap {
     if (table.type.spec.tableRole != "table")
         throw new RangeError("Not a table node: " + table.type.name);
     const width = findWidth(table),
         height = table.childCount;
+
     const map = [];
     let mapPos = 0;
     let problems: Array<ContentTableMapProblem> | null = null;
@@ -255,44 +266,39 @@ function computeMap(table: Node): ContentTableMap {
             while (mapPos < map.length && map[mapPos] != 0) mapPos++;
             if (i == rowNode.childCount) break;
             const cellNode = rowNode.child(i);
-            let {colspan, rowspan, colwidth} = cellNode.attrs;
+            const {columnsWidth} = table.attrs;
 
-            if (!colspan) colspan = contentTableCellDefaultAttrs.colspan;
-            if (!rowspan) rowspan = contentTableCellDefaultAttrs.rowspan;
-            if (!colwidth) colwidth = contentTableCellDefaultAttrs.colwidth;
-            for (let h = 0; h < rowspan; h++) {
-                if (h + row >= height) {
-                    (problems || (problems = [])).push({
-                        type: "overlong_rowspan",
-                        pos,
-                        n: rowspan - h,
-                    });
-                    break;
-                }
-                const start = mapPos + h * width;
-                for (let w = 0; w < colspan; w++) {
-                    if (map[start + w] == 0) map[start + w] = pos;
-                    else
-                        (problems || (problems = [])).push({
-                            type: "collision",
-                            row,
-                            pos,
-                            n: colspan - w,
-                        });
-                    const colW = colwidth && colwidth[w];
-                    if (colW) {
-                        const widthIndex = ((start + w) % width) * 2,
-                            prev = colWidths[widthIndex];
-                        if (prev == null || (prev != colW && colWidths[widthIndex + 1] == 1)) {
-                            colWidths[widthIndex] = colW;
-                            colWidths[widthIndex + 1] = 1;
-                        } else if (prev == colW) {
-                            colWidths[widthIndex + 1]++;
-                        }
-                    }
+            if (row >= height) {
+                (problems || (problems = [])).push({
+                    type: "overlong_rowspan",
+                    pos,
+                    n: 1 - 0,
+                });
+                break;
+            }
+
+            const start = mapPos;
+            const w = 0;
+            if (map[start + w] == 0) map[start + w] = pos;
+            else
+                (problems || (problems = [])).push({
+                    type: "collision",
+                    row,
+                    pos,
+                    n: 1 - w,
+                });
+            const colW = columnsWidth?.[w];
+            if (colW) {
+                const widthIndex = ((start + w) % width) * 2,
+                    prev = colWidths[widthIndex];
+                if (prev == null || (prev != colW && colWidths[widthIndex + 1] == 1)) {
+                    colWidths[widthIndex] = colW;
+                    colWidths[widthIndex + 1] = 1;
+                } else if (prev == colW) {
+                    colWidths[widthIndex + 1]++;
                 }
             }
-            mapPos += colspan;
+            mapPos += 1;
             pos += cellNode.nodeSize;
         }
         const expectedPos = (row + 1) * width;
@@ -314,39 +320,10 @@ function computeMap(table: Node): ContentTableMap {
 
     return tableMap;
 }
-
-function findWidth(table: Node): number {
-    let width = -1;
-    let hasRowSpan = false;
-    for (let row = 0; row < table.childCount; row++) {
-        const rowNode = table.child(row);
-        let rowWidth = 0;
-        if (hasRowSpan)
-            for (let j = 0; j < row; j++) {
-                const prevRow = table.child(j);
-                for (let i = 0; i < prevRow.childCount; i++) {
-                    const cell = prevRow.child(i);
-                    const attrs =
-                        cell.attrs && cell.attrs.colspan
-                            ? cell.attrs
-                            : contentTableCellDefaultAttrs;
-                    if (j + attrs.rowspan > row) rowWidth += attrs.colspan;
-                }
-            }
-        for (let i = 0; i < rowNode.childCount; i++) {
-            const cell = rowNode.child(i);
-            const attrs =
-                cell.attrs && cell.attrs.colspan ? cell.attrs : contentTableCellDefaultAttrs;
-            rowWidth += attrs.colspan;
-            if (attrs.rowspan > 1) hasRowSpan = true;
-        }
-        if (width == -1) width = rowWidth;
-        else if (width != rowWidth) width = Math.max(width, rowWidth);
-    }
-    return width;
-}
 /**
  * Find the cells that have colwidths that don't match the computed colwidths.
+ * THis function just compared it, and returns if there are any problems in map.problems
+ * It does not fix the problems, it just finds them.
  */
 function findBadColWidths(
     map: ContentTableMap,
@@ -355,35 +332,22 @@ function findBadColWidths(
 ): void {
     if (!map.problems) map.problems = [];
     const seen: Record<number, boolean> = {};
+
     for (let i = 0; i < map.map.length; i++) {
         const pos = map.map[i]!;
         if (seen[pos]) continue;
         seen[pos] = true;
-        const node = table.nodeAt(pos);
-        if (!node) {
-            throw new RangeError(`No cell with offset ${pos} found`);
-        }
 
-        let updated = null;
-        const attrs = node.attrs ?? contentTableCellDefaultAttrs;
-        for (let j = 0; j < attrs.colspan; j++) {
-            const col = (i + j) % map.width;
-            const colWidth = colWidths[col * 2];
-            if (colWidth != null && (!attrs.colwidth || attrs.colwidth[j] != colWidth))
-                (updated || (updated = freshColWidth(attrs)))[j] = colWidth;
-        }
-        if (updated)
+        const col = i % map.width;
+        const colWidth = colWidths[col * 2];
+        const tableColWidth = table.attrs.columnsWidth?.[col];
+
+        if (colWidth != null && colWidth !== tableColWidth) {
             map.problems.unshift({
                 type: "colwidth mismatch",
                 pos,
-                colwidth: updated,
+                colwidth: [colWidth], // Single element array since colspan is always 1
             });
+        }
     }
-}
-
-function freshColWidth(attrs: Attrs): ContentTableMapColWidths {
-    if (attrs.colwidth) return attrs.colwidth.slice();
-    const result: ContentTableMapColWidths = [];
-    for (let i = 0; i < attrs.colspan; i++) result.push(0);
-    return result;
 }
