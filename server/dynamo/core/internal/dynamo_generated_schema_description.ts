@@ -976,6 +976,33 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
+                                                                                                "attrs": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Nullable",
+                                                                                                        "schema": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "isHeader": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Boolean"
+                                                                                                                    },
+                                                                                                                    "optional": true
+                                                                                                                },
+                                                                                                                "columnsWidth": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Array",
+                                                                                                                        "itemSchema": {
+                                                                                                                            "type": "Float"
+                                                                                                                        },
+                                                                                                                        "referenceId": "4a5b3e6f"
+                                                                                                                    },
+                                                                                                                    "optional": true
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                },
                                                                                                 "content": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Reference",
@@ -1601,6 +1628,43 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
                                                                                         "reuseReferenceId": "b2c0eadd"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "isHeader": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "isHeader"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Boolean"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "columnsWidth": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "columnsWidth"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "4a5b3e6f"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2263,6 +2327,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                             "value": "table"
                                                                                                                                         },
                                                                                                                                         "optional": false
+                                                                                                                                    },
+                                                                                                                                    "attrs": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Nullable",
+                                                                                                                                            "schema": {
+                                                                                                                                                "type": "Object",
+                                                                                                                                                "propertySchemaByKey": {
+                                                                                                                                                    "isHeader": {
+                                                                                                                                                        "valueSchema": {
+                                                                                                                                                            "type": "Boolean"
+                                                                                                                                                        },
+                                                                                                                                                        "optional": true
+                                                                                                                                                    },
+                                                                                                                                                    "columnsWidth": {
+                                                                                                                                                        "valueSchema": {
+                                                                                                                                                            "type": "Reference",
+                                                                                                                                                            "reuseReferenceId": "4a5b3e6f"
+                                                                                                                                                        },
+                                                                                                                                                        "optional": true
+                                                                                                                                                    }
+                                                                                                                                                }
+                                                                                                                                            }
+                                                                                                                                        },
+                                                                                                                                        "optional": true
                                                                                                                                     },
                                                                                                                                     "content": {
                                                                                                                                         "valueSchema": {
@@ -4831,6 +4919,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "value": "table"
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "isHeader": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "columnsWidth": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "4a5b3e6f"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
@@ -8835,6 +8947,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "value": "table"
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "isHeader": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "columnsWidth": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "4a5b3e6f"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {

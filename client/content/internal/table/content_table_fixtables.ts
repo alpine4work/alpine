@@ -1,17 +1,42 @@
-// This file defines helpers for normalizing tables, making sure no
-// cells overlap (which can happen, if you have the wrong col- and
-// rowspans) and that each row has the same width. Uses the problems
-// reported by `ContentTableMap`.
+/**
+ * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
+ * remove features we don't use and customize the user experience. We intend to
+ * modify this file a lot so each modification may not be documented.
+ *
+ * The MIT License
+ *
+ * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+// this file has been modified to remove features we don't use and customize the
+// user experience. You can find the original file in the `prosemirror-tables`
+// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/fixtables.ts
+//
+// This file defines helpers for normalizing tables, making sure each row has the same width
+// and that the columnsWidth array matches the actual table structure.
 
 import {Node} from "prosemirror-model";
 import {EditorState, PluginKey, Transaction} from "prosemirror-state";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {
-    contentTableNodeTypes,
-    contentTableRole,
-} from "~/shared/content/table/content_table_schema.js";
-import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
-import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
+import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 
 const fixTablesKey = new PluginKey<{contentTableFixTables: boolean}>("fix-tables");
 
@@ -77,69 +102,55 @@ function fixTable(
     if (!map.problems) return tr;
     if (!tr) tr = state.tr;
 
-    // Track which rows we must add cells to, so that we can adjust that
-    // when fixing collisions.
+    // Track which rows need cells added to match the widest row
+    const maxWidth = map.width;
     const mustAdd: Array<number> = [];
-    for (let i = 0; i < map.height; i++) mustAdd.push(0);
-    for (let i = 0; i < map.problems.length; i++) {
-        const prob = map.problems[i]!;
-        if (prob.type == "collision") {
-            const cell = table.nodeAt(prob.pos);
-            if (!cell) continue;
-            const attrs = cell.attrs as ContentTableCellAttrs;
-            for (let j = 0; j < attrs.rowspan; j++) mustAdd[prob.row + j] += prob.n;
-            tr.setNodeMarkup(
-                tr.mapping.map(tablePos + 1 + prob.pos),
-                null,
-                contentTableRemoveColSpan(attrs, attrs.colspan - prob.n, prob.n),
-            );
-        } else if (prob.type == "missing") {
-            mustAdd[prob.row] += prob.n;
-        } else if (prob.type == "overlong_rowspan") {
-            const cell = table.nodeAt(prob.pos);
-            if (!cell) continue;
-            tr.setNodeMarkup(tr.mapping.map(tablePos + 1 + prob.pos), null, {
-                ...cell.attrs,
-                rowspan: cell.attrs.rowspan - prob.n,
-            });
-        } else if (prob.type == "colwidth mismatch") {
-            const cell = table.nodeAt(prob.pos);
-            if (!cell) continue;
-            tr.setNodeMarkup(tr.mapping.map(tablePos + 1 + prob.pos), null, {
-                ...cell.attrs,
-                colwidth: prob.colwidth,
-            });
-        }
+    for (let i = 0; i < map.height; i++) {
+        const rowWidth = table.child(i).childCount;
+        mustAdd.push(maxWidth - rowWidth);
     }
-    let first, last;
-    for (let i = 0; i < mustAdd.length; i++)
-        if (mustAdd[i]) {
-            if (first == null) first = i;
-            last = i;
+
+    // Fix columnsWidth array if needed
+    const currentColumnsWidth = table.attrs.columnsWidth || [];
+    if (currentColumnsWidth.length !== maxWidth) {
+        const newColumnsWidth = [...currentColumnsWidth];
+        const defaultWidth =
+            newColumnsWidth.length > 0
+                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 100
+                : 100;
+
+        // Extend or trim columnsWidth array
+        while (newColumnsWidth.length < maxWidth) {
+            newColumnsWidth.push(defaultWidth);
         }
-    // Add the necessary cells, using a heuristic for whether to add the
-    // cells at the start or end of the rows (if it looks like a 'bite'
-    // was taken out of the table, add cells at the start of the row
-    // after the bite. Otherwise add them at the end).
-    for (let i = 0, pos = tablePos + 1; i < map.height; i++) {
+        if (newColumnsWidth.length > maxWidth) {
+            newColumnsWidth.length = maxWidth;
+        }
+
+        tr.setNodeMarkup(tablePos, null, {
+            ...table.attrs,
+            columnsWidth: newColumnsWidth,
+        });
+    }
+
+    // Add missing cells to rows
+    let pos = tablePos + 1;
+    for (let i = 0; i < map.height; i++) {
         const row = table.child(i);
         const end = pos + row.nodeSize;
         const add = mustAdd[i]!;
+
         if (add > 0) {
-            let role: contentTableRole = "cell";
-            if (row.firstChild) {
-                role = row.firstChild.type.spec.tableRole;
-            }
             const nodes: Array<Node> = [];
             for (let j = 0; j < add; j++) {
-                const node = contentTableNodeTypes(state.schema)[role].createAndFill();
-
-                if (node) nodes.push(node);
+                const cell = contentTableNodeTypes(state.schema).cell.createAndFill();
+                if (cell) nodes.push(cell);
             }
-            const side = (i == 0 || first == i - 1) && last == i ? pos + 1 : end - 1;
-            tr.insert(tr.mapping.map(side), nodes);
+            // Always add cells at the end of the row for consistency
+            tr.insert(tr.mapping.map(end - 1), nodes);
         }
         pos = end;
     }
+
     return tr.setMeta(fixTablesKey, {contentTableFixTables: true});
 }

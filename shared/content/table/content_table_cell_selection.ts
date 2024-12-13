@@ -1,3 +1,35 @@
+/**
+ * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
+ * remove features we don't use and customize the user experience. We intend to
+ * modify this file a lot so each modification may not be documented.
+ *
+ * The MIT License
+ *
+ * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+// this file has been modified to remove features we don't use and customize the
+// user experience. You can find the original file in the `prosemirror-tables`
+// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/cellselection.ts
+//
 // This file defines a ProseMirror selection subclass that models
 // table cell selections. The table plugin needs to be active to wire
 // in the user interaction part of table selections (so that you
@@ -15,10 +47,8 @@ import {
 
 import {Mappable} from "prosemirror-transform";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {ContentTableCellAttrs} from "~/shared/content/table/helpers/content_table_cell_attrs.js";
 import {contentTableInSameTable} from "~/shared/content/table/helpers/content_table_in_same_table.js";
 import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
-import {contentTableRemoveColSpan} from "~/shared/content/table/helpers/content_table_remove_col_span.js";
 
 export type ContentTableCellSelectionJson = {
     readonly type: "cell";
@@ -94,6 +124,7 @@ export class ContentTableCellSelection extends Selection {
         );
         const seen: Record<number, boolean> = {};
         const rows = [];
+
         for (let row = rect.top; row < rect.bottom; row++) {
             const rowContent = [];
             for (
@@ -105,59 +136,33 @@ export class ContentTableCellSelection extends Selection {
                 if (seen[pos]) continue;
                 seen[pos] = true;
 
-                const cellRect = map.findCell(pos);
-                let cell = table.nodeAt(pos);
+                const cell = table.nodeAt(pos);
                 if (!cell) {
                     throw RangeError(`No cell with offset ${pos} found`);
                 }
 
-                const extraLeft = rect.left - cellRect.left;
-                const extraRight = cellRect.right - rect.right;
-
-                if (extraLeft > 0 || extraRight > 0) {
-                    let attrs = cell.attrs as ContentTableCellAttrs;
-                    console.log("attrs", attrs);
-
-                    if (extraLeft > 0) {
-                        attrs = contentTableRemoveColSpan(attrs, 0, extraLeft);
-                    }
-                    if (extraRight > 0) {
-                        attrs = contentTableRemoveColSpan(
-                            attrs,
-                            attrs.colspan - extraRight,
-                            extraRight,
-                        );
-                    }
-                    if (cellRect.left < rect.left) {
-                        cell = cell.type.createAndFill(attrs);
-                        if (!cell) {
-                            throw RangeError(
-                                `Could not create cell with attrs ${JSON.stringify(attrs)}`,
-                            );
-                        }
-                    } else {
-                        cell = cell.type.create(attrs, cell.content);
-                    }
-                }
-                if (cellRect.top < rect.top || cellRect.bottom > rect.bottom) {
-                    const attrs = {
-                        ...cell.attrs,
-                        rowspan:
-                            Math.min(cellRect.bottom, rect.bottom) -
-                            Math.max(cellRect.top, rect.top),
-                    };
-                    if (cellRect.top < rect.top) {
-                        cell = cell.type.createAndFill(attrs)!;
-                    } else {
-                        cell = cell.type.create(attrs, cell.content);
-                    }
-                }
-                rowContent.push(cell);
+                // Simply create new cell without colspan/rowspan logic
+                rowContent.push(cell.type.create({}, cell.content));
             }
             rows.push(table.child(row).copy(Fragment.from(rowContent)));
         }
 
-        const fragment = this.isColSelection() && this.isRowSelection() ? table : rows;
+        // Get the columnsWidth for selected columns
+        const tableAttrs = table.attrs;
+        const selectedColumnsWidth = tableAttrs.columnsWidth.slice(rect.left, rect.right);
+
+        // Create new table fragment with only selected columns width
+        const fragment =
+            this.isColSelection() && this.isRowSelection()
+                ? table.type.create(
+                      {
+                          ...tableAttrs,
+                          columnsWidth: selectedColumnsWidth,
+                      },
+                      Fragment.from(rows),
+                  )
+                : rows;
+
         return new Slice(Fragment.from(fragment), 1, 1);
     }
 
@@ -193,65 +198,41 @@ export class ContentTableCellSelection extends Selection {
             f(cell, tableStart + cells[i]!);
         }
     }
-
-    // True if this selection goes all the way from the top to the
-    // bottom of the table.
     public isColSelection(): boolean {
-        const anchorTop = this.$anchorCell.index(-1);
-        const headTop = this.$headCell.index(-1);
-        if (Math.min(anchorTop, headTop) > 0) return false;
-
-        const anchorBottom = anchorTop + this.$anchorCell.nodeAfter!.attrs.rowspan;
-        const headBottom = headTop + this.$headCell.nodeAfter!.attrs.rowspan;
-
-        return Math.max(anchorBottom, headBottom) == this.$headCell.node(-1).childCount;
-    }
-
-    // Returns the smallest column selection that covers the given anchor
-    // and head cell.
-    public static colSelection(
-        $anchorCell: ResolvedPos,
-        $headCell: ResolvedPos = $anchorCell,
-    ): ContentTableCellSelection {
-        const table = $anchorCell.node(-1);
+        const table = this.$anchorCell.node(-1);
         const map = ContentTableMap.get(table);
-        const tableStart = $anchorCell.start(-1);
-
-        const anchorRect = map.findCell($anchorCell.pos - tableStart);
-        const headRect = map.findCell($headCell.pos - tableStart);
-        const doc = $anchorCell.node(0);
-
-        if (anchorRect.top <= headRect.top) {
-            if (anchorRect.top > 0)
-                $anchorCell = doc.resolve(tableStart + map.map[anchorRect.left]!);
-            if (headRect.bottom < map.height)
-                $headCell = doc.resolve(
-                    tableStart + map.map[map.width * (map.height - 1) + headRect.right - 1]!,
-                );
-        } else {
-            if (headRect.top > 0) $headCell = doc.resolve(tableStart + map.map[headRect.left]!);
-            if (anchorRect.bottom < map.height)
-                $anchorCell = doc.resolve(
-                    tableStart + map.map[map.width * (map.height - 1) + anchorRect.right - 1]!,
-                );
-        }
-        return new ContentTableCellSelection($anchorCell, $headCell);
+        const tableStart = this.$anchorCell.start(-1);
+        const rect = map.rectBetween(
+            this.$anchorCell.pos - tableStart,
+            this.$headCell.pos - tableStart,
+        );
+        return rect.top === 0 && rect.bottom === map.height;
     }
 
-    // True if this selection goes all the way from the left to the
-    // right of the table.
     public isRowSelection(): boolean {
         const table = this.$anchorCell.node(-1);
         const map = ContentTableMap.get(table);
         const tableStart = this.$anchorCell.start(-1);
+        const rect = map.rectBetween(
+            this.$anchorCell.pos - tableStart,
+            this.$headCell.pos - tableStart,
+        );
+        return rect.left === 0 && rect.right === map.width;
+    }
 
-        const anchorLeft = map.colCount(this.$anchorCell.pos - tableStart);
-        const headLeft = map.colCount(this.$headCell.pos - tableStart);
-        if (Math.min(anchorLeft, headLeft) > 0) return false;
+    // Simplify row/col selection methods since we don't need to handle spans
+    public static colSelection(
+        $anchorCell: ResolvedPos,
+        $headCell: ResolvedPos = $anchorCell,
+    ): ContentTableCellSelection {
+        return new ContentTableCellSelection($anchorCell, $headCell);
+    }
 
-        const anchorRight = anchorLeft + this.$anchorCell.nodeAfter!.attrs.colspan;
-        const headRight = headLeft + this.$headCell.nodeAfter!.attrs.colspan;
-        return Math.max(anchorRight, headRight) == map.width;
+    public static rowSelection(
+        $anchorCell: ResolvedPos,
+        $headCell: ResolvedPos = $anchorCell,
+    ): ContentTableCellSelection {
+        return new ContentTableCellSelection($anchorCell, $headCell);
     }
 
     public eq(other: unknown): boolean {
@@ -260,36 +241,6 @@ export class ContentTableCellSelection extends Selection {
             other.$anchorCell.pos == this.$anchorCell.pos &&
             other.$headCell.pos == this.$headCell.pos
         );
-    }
-
-    // Returns the smallest row selection that covers the given anchor
-    // and head cell.
-    public static rowSelection(
-        $anchorCell: ResolvedPos,
-        $headCell: ResolvedPos = $anchorCell,
-    ): ContentTableCellSelection {
-        const table = $anchorCell.node(-1);
-        const map = ContentTableMap.get(table);
-        const tableStart = $anchorCell.start(-1);
-
-        const anchorRect = map.findCell($anchorCell.pos - tableStart);
-        const headRect = map.findCell($headCell.pos - tableStart);
-        const doc = $anchorCell.node(0);
-
-        if (anchorRect.left <= headRect.left) {
-            if (anchorRect.left > 0)
-                $anchorCell = doc.resolve(tableStart + map.map[anchorRect.top * map.width]!);
-            if (headRect.right < map.width)
-                $headCell = doc.resolve(tableStart + map.map[map.width * (headRect.top + 1) - 1]!);
-        } else {
-            if (headRect.left > 0)
-                $headCell = doc.resolve(tableStart + map.map[headRect.top * map.width]!);
-            if (anchorRect.right < map.width)
-                $anchorCell = doc.resolve(
-                    tableStart + map.map[map.width * (anchorRect.top + 1) - 1]!,
-                );
-        }
-        return new ContentTableCellSelection($anchorCell, $headCell);
     }
 
     public toJSON(): ContentTableCellSelectionJson {

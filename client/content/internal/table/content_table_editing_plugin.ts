@@ -25,6 +25,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+// this file has been modified to remove features we don't use and customize the
+// user experience. You can find the original file in the `prosemirror-tables`
+// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/index.ts
 //
 // This file defines a plugin that handles the drawing of cell
 // selections and the basic user interactions for creating and working
@@ -36,7 +40,6 @@ import {Decoration, DecorationSet, DecorationSource} from "prosemirror-view";
 import {contentTableFixTables} from "~/client/content/internal/table/content_table_fixtables.js";
 import {
     contentTableHandleMouseDown,
-    contentTableHandlePaste,
     contentTableHandleTripleClick,
     contentTableKeyDownHandler,
 } from "~/client/content/internal/table/content_table_input.js";
@@ -79,7 +82,6 @@ export function contentTableEditingPlugin({
 }: TableEditingOptions = {}): Plugin {
     return new Plugin({
         key: tableEditingKey,
-
         // This piece of state is used to remember when a mouse-drag
         // cell-selection is happening, so that it can continue even as
         // transactions (which might move its anchor cell) come in.
@@ -98,20 +100,14 @@ export function contentTableEditingPlugin({
 
         props: {
             decorations: drawCellSelection,
-
             handleDOMEvents: {
                 mousedown: contentTableHandleMouseDown,
             },
-
             createSelectionBetween(view) {
                 return tableEditingKey.getState(view.state) != null ? view.state.selection : null;
             },
-
             handleTripleClick: contentTableHandleTripleClick,
-
             handleKeyDown: contentTableKeyDownHandler,
-
-            handlePaste: contentTableHandlePaste,
         },
 
         appendTransaction(_, oldState, state) {

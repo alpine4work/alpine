@@ -2023,6 +2023,11 @@ globalStyle(`${tableClassName} td, ${tableClassName} th`, {
     position: "relative",
 });
 
+// globalStyle(tableHeaderClassName, {
+//     background: colorSchemeVars["grey-10"],
+//     fontWeight: "bold",
+// });
+
 // Add a background color to the cell that is selected.
 globalStyle(`${tableClassName} .selectedCell:after`, {
     zIndex: 2,
@@ -2034,6 +2039,12 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     bottom: 0,
     background: colorSchemeVars["theme-selection"],
     pointerEvents: "none",
+    // border: `2px solid ${colorSchemeVars["theme-60"]}`,
+    borderCollapse: "collapse",
+});
+
+globalStyle(`${tableClassName} .selectedCell`, {
+    background: colorSchemeVars["theme-selection"],
     border: `2px solid ${colorSchemeVars["theme-60"]}`,
     borderCollapse: "collapse",
 });
@@ -2048,14 +2059,6 @@ globalStyle(`${tableClassName} .column-resize-handle`, {
     backgroundColor: colorSchemeVars["theme-60"],
     pointerEvents: "auto",
     cursor: "col-resize",
-    // zIndex: 3,
-});
-
-globalStyle(`${tableClassName} th`, {
-    border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: spacing[20],
-    background: colorSchemeVars["grey-10"],
-    // fontWeight: "bold", this is not working :(
 });
 
 globalStyle(`${tableClassName}.${activeTableClassName}`, {

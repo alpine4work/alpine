@@ -98,6 +98,8 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
 import {ContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {contentTableHandlePaste} from "~/client/content/internal/table/content_table_input.js";
+import {contentTableIsInTable} from "~/client/content/internal/table/helpers/content_table_is_in_table.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
@@ -1828,6 +1830,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         }
 
         viewProps.handlePaste = (view, event, slice) => {
+            // First check if we're in a table - if so, delegate to table paste handler
+            if (contentTableIsInTable(view.state)) {
+                return contentTableHandlePaste(view, event, slice);
+            }
+
             let selection = view.state.selection;
 
             // If the selection starts in our title, then shift the selection out of the

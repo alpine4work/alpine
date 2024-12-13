@@ -1,3 +1,35 @@
+/**
+ * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
+ * remove features we don't use and customize the user experience. We intend to
+ * modify this file a lot so each modification may not be documented.
+ *
+ * The MIT License
+ *
+ * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+// this file has been modified to remove features we don't use and customize the
+// user experience. You can find the original file in the `prosemirror-tables`
+// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/copypaste.ts
+
 // Utilities used for copy/paste handling.
 //
 // This module handles pasting cell content into tables, or pasting
@@ -120,27 +152,17 @@ export function contentTableCopyPasteClipCells(
     newWidth: number,
     newHeight: number,
 ): Area {
+    // Handle width changes
     if (width != newWidth) {
-        const added: Array<number> = [];
         const newRows: Array<Fragment> = [];
         for (let row = 0; row < rows.length; row++) {
-            const frag = rows[row]!,
-                cells = [];
-            for (let col = added[row] || 0, i = 0; col < newWidth; i++) {
-                let cell = frag.child(i % frag.childCount);
-                if (col + cell.attrs.colspan > newWidth)
-                    cell = cell.type.createChecked(
-                        contentTableRemoveColSpan(
-                            cell.attrs as ContentTableCellAttrs,
-                            cell.attrs.colspan,
-                            col + cell.attrs.colspan - newWidth,
-                        ),
-                        cell.content,
-                    );
+            const frag = rows[row]!;
+            const cells = [];
+
+            // Repeat cells to fill the new width
+            for (let col = 0; col < newWidth; col++) {
+                const cell = frag.child(col % frag.childCount);
                 cells.push(cell);
-                col += cell.attrs.colspan;
-                for (let j = 1; j < cell.attrs.rowspan; j++)
-                    added[row + j] = (added[row + j] || 0) + cell.attrs.colspan;
             }
             newRows.push(Fragment.from(cells));
         }
@@ -148,24 +170,13 @@ export function contentTableCopyPasteClipCells(
         width = newWidth;
     }
 
+    // Handle height changes
     if (height != newHeight) {
         const newRows = [];
-        for (let row = 0, i = 0; row < newHeight; row++, i++) {
-            const cells = [],
-                source = rows[i % height]!;
-            for (let j = 0; j < source.childCount; j++) {
-                let cell = source.child(j);
-                if (row + cell.attrs.rowspan > newHeight)
-                    cell = cell.type.create(
-                        {
-                            ...cell.attrs,
-                            rowspan: Math.max(1, newHeight - cell.attrs.rowspan),
-                        },
-                        cell.content,
-                    );
-                cells.push(cell);
-            }
-            newRows.push(Fragment.from(cells));
+        for (let row = 0; row < newHeight; row++) {
+            // Repeat rows to fill the new height
+            const source = rows[row % height]!;
+            newRows.push(source);
         }
         rows = newRows;
         height = newHeight;
@@ -188,127 +199,58 @@ function growTable(
     const schema = tr.doc.type.schema;
     const types = contentTableNodeTypes(schema);
     let empty;
-    let emptyHead;
+    let changed = false;
+
+    // Ensure width and height are valid
+    width = Math.max(map.width, width);
+    height = Math.max(map.height, height);
+
     if (width > map.width) {
+        changed = true;
+        // First update the columnsWidth array
+        const newColumnsWidth = [...(table.attrs.columnsWidth || [])];
+        const defaultWidth =
+            newColumnsWidth.length > 0
+                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 100
+                : 100; // Use 100 as default if no existing widths
+
+        for (let i = map.width; i < width; i++) {
+            newColumnsWidth.push(defaultWidth);
+        }
+        tr.setNodeMarkup(start - 1, null, {
+            ...table.attrs,
+            columnsWidth: newColumnsWidth,
+        });
+
+        // Then add cells to each row
         for (let row = 0, rowEnd = 0; row < map.height; row++) {
             const rowNode = table.child(row);
             rowEnd += rowNode.nodeSize;
             const cells: Array<Node> = [];
-            let add: Node;
-            if (rowNode.lastChild == null || rowNode.lastChild.type == types.cell)
-                add = empty || (empty = types.cell.createAndFill()!);
-            else add = emptyHead || (emptyHead = types.header_cell.createAndFill()!);
-            for (let i = map.width; i < width; i++) cells.push(add);
+            empty = empty || types.cell.createAndFill()!;
+            for (let i = map.width; i < width; i++) {
+                cells.push(empty);
+            }
             tr.insert(tr.mapping.slice(mapFrom).map(rowEnd - 1 + start), cells);
         }
     }
+
     if (height > map.height) {
+        changed = true;
         const cells = [];
-        for (let i = 0, start = (map.height - 1) * map.width; i < Math.max(map.width, width); i++) {
-            const header =
-                i >= map.width
-                    ? false
-                    : table.nodeAt(map.map[start + i]!)!.type == types.header_cell;
-            cells.push(
-                header
-                    ? emptyHead || (emptyHead = types.header_cell.createAndFill()!)
-                    : empty || (empty = types.cell.createAndFill()!),
-            );
+        empty = empty || types.cell.createAndFill()!;
+        // Use the final width after potential width growth
+        for (let i = 0; i < width; i++) {
+            cells.push(empty);
         }
 
-        const emptyRow = types.row.create(null, Fragment.from(cells)),
-            rows = [];
+        const emptyRow = types.row.create(null, Fragment.from(cells));
+        const rows = [];
         for (let i = map.height; i < height; i++) rows.push(emptyRow);
         tr.insert(tr.mapping.slice(mapFrom).map(start + table.nodeSize - 2), rows);
     }
-    return !!(empty || emptyHead);
-}
 
-// Make sure the given line (left, top) to (right, top) doesn't cross
-// any rowspan cells by splitting cells that cross it. Return true if
-// something changed.
-function isolateHorizontal(
-    tr: Transaction,
-    map: ContentTableMap,
-    table: Node,
-    start: number,
-    left: number,
-    right: number,
-    top: number,
-    mapFrom: number,
-): boolean {
-    if (top == 0 || top == map.height) return false;
-    let found = false;
-    for (let col = left; col < right; col++) {
-        const index = top * map.width + col,
-            pos = map.map[index]!;
-        if (map.map[index - map.width]! == pos) {
-            found = true;
-            const cell = table.nodeAt(pos)!;
-            const {top: cellTop, left: cellLeft} = map.findCell(pos);
-            tr.setNodeMarkup(tr.mapping.slice(mapFrom).map(pos + start), null, {
-                ...cell.attrs,
-                rowspan: top - cellTop,
-            });
-            tr.insert(
-                tr.mapping.slice(mapFrom).map(map.positionAt(top, cellLeft, table)),
-                cell.type.createAndFill({
-                    ...cell.attrs,
-                    rowspan: cellTop + cell.attrs.rowspan - top,
-                })!,
-            );
-            col += cell.attrs.colspan - 1;
-        }
-    }
-    return found;
-}
-
-// Make sure the given line (left, top) to (left, bottom) doesn't
-// cross any colspan cells by splitting cells that cross it. Return
-// true if something changed.
-function isolateVertical(
-    tr: Transaction,
-    map: ContentTableMap,
-    table: Node,
-    start: number,
-    top: number,
-    bottom: number,
-    left: number,
-    mapFrom: number,
-): boolean {
-    if (left == 0 || left == map.width) return false;
-    let found = false;
-    for (let row = top; row < bottom; row++) {
-        const index = row * map.width + left,
-            pos = map.map[index]!;
-        if (map.map[index - 1]! == pos) {
-            found = true;
-            const cell = table.nodeAt(pos)!;
-            const cellLeft = map.colCount(pos);
-            const updatePos = tr.mapping.slice(mapFrom).map(pos + start);
-            tr.setNodeMarkup(
-                updatePos,
-                null,
-                contentTableRemoveColSpan(
-                    cell.attrs as ContentTableCellAttrs,
-                    left - cellLeft,
-                    cell.attrs.colspan - (left - cellLeft),
-                ),
-            );
-            tr.insert(
-                updatePos + cell.nodeSize,
-                cell.type.createAndFill(
-                    contentTableRemoveColSpan(
-                        cell.attrs as ContentTableCellAttrs,
-                        0,
-                        left - cellLeft,
-                    ),
-                )!,
-            );
-            row += cell.attrs.rowspan - 1;
-        }
-    }
-    return found;
+    return changed;
 }
 
 /**
@@ -328,8 +270,13 @@ export function contentTableInsertCells(
     assert(table, "No table found");
     let map = ContentTableMap.get(table);
     const {top, left} = rect;
-    const right = left + cells.width,
-        bottom = top + cells.height;
+
+    // Calculate the required dimensions after paste
+    const pasteWidth = cells.width;
+    const pasteHeight = cells.height;
+    const right = Math.min(left + pasteWidth, map.width + pasteWidth);
+    const bottom = Math.min(top + pasteHeight, map.height + pasteHeight);
+
     const tr = state.tr;
     let mapFrom = 0;
 
@@ -340,31 +287,52 @@ export function contentTableInsertCells(
         mapFrom = tr.mapping.maps.length;
     }
 
-    // Prepare the table to be large enough and not have any cells
-    // crossing the boundaries of the rectangle that we want to
-    // insert into. If anything about it changes, recompute the table
-    // map so that subsequent operations can see the current shape.
-    if (growTable(tr, map, table, tableStart, right, bottom, mapFrom)) recomp();
-    if (isolateHorizontal(tr, map, table, tableStart, left, right, top, mapFrom)) recomp();
-    if (isolateHorizontal(tr, map, table, tableStart, left, right, bottom, mapFrom)) recomp();
-    if (isolateVertical(tr, map, table, tableStart, top, bottom, left, mapFrom)) recomp();
-    if (isolateVertical(tr, map, table, tableStart, top, bottom, right, mapFrom)) recomp();
-
-    for (let row = top; row < bottom; row++) {
-        const from = map.positionAt(row, left, table),
-            to = map.positionAt(row, right, table);
-        tr.replace(
-            tr.mapping.slice(mapFrom).map(from + tableStart),
-            tr.mapping.slice(mapFrom).map(to + tableStart),
-            new Slice(cells.rows[row - top]!, 0, 0),
-        );
+    // First grow the table if needed
+    if (growTable(tr, map, table, tableStart, right, bottom, mapFrom)) {
+        recomp();
     }
-    recomp();
-    tr.setSelection(
-        new ContentTableCellSelection(
-            tr.doc.resolve(tableStart + map.positionAt(top, left, table)),
-            tr.doc.resolve(tableStart + map.positionAt(bottom - 1, right - 1, table)),
-        ),
-    );
-    dispatch(tr);
+
+    // Then replace cells
+    try {
+        for (let row = top; row < bottom; row++) {
+            if (row - top >= cells.rows.length) break;
+
+            const from = map.positionAt(row, left, table);
+            const to = map.positionAt(row, Math.min(right, map.width), table);
+
+            if (from === null || to === null) continue;
+
+            tr.replace(
+                tr.mapping.slice(mapFrom).map(from + tableStart),
+                tr.mapping.slice(mapFrom).map(to + tableStart),
+                new Slice(cells.rows[row - top]!, 0, 0),
+            );
+        }
+
+        // Recompute after cell replacement
+        recomp();
+
+        // Try to set selection
+        try {
+            // First try: select the entire pasted area
+            const $anchorCell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
+            const lastRow = Math.min(bottom - 1, map.height - 1);
+            const lastCol = Math.min(right - 1, map.width - 1);
+            const $headCell = tr.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
+            tr.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
+        } catch (e) {
+            // Second try: select just the first cell of the paste
+            try {
+                const $cell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
+                tr.setSelection(new ContentTableCellSelection($cell));
+            } catch (e) {
+                // If all selection attempts fail, just log a warning
+                console.warn("Could not set table selection after paste");
+            }
+        }
+
+        dispatch(tr);
+    } catch (e) {
+        console.warn("Error during table paste operation:", e);
+    }
 }

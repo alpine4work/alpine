@@ -73,6 +73,10 @@ function buildPlugins<Content extends ContentWithReferences>({
             depth: disableUndoKeyboardShortcuts ? Number.MAX_SAFE_INTEGER : undefined,
         }),
         buildContentEditorInputRulesPlugin(schema),
+        contentTableEditingPlugin({
+            allowTableNodeSelection: true,
+        }),
+        contentEditorTableColumnResizingPlugin(),
         buildContentEditorKeymapPlugin(schema, {disableUndoKeyboardShortcuts}),
         contentEditorFloaterStatePlugin(),
         contentEditorReferencesPlugin(references, reduceReferences),
@@ -82,19 +86,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
-        // prosemirror plugin
-        // tableEditing({
-        //     allowTableNodeSelection: true,
-        // }),
-
-        // custom plugin
-        contentTableEditingPlugin({
-            allowTableNodeSelection: true,
-        }),
-        // custom plugin
-        contentEditorTableColumnResizingPlugin(),
     ];
-    // contentTableEditingPlugin();
 
     return plugins;
 }

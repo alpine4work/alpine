@@ -25,6 +25,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+// this file has been modified to remove features we don't use and customize the
+// user experience. You can find the original file in the `prosemirror-tables`
+// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/tablemap.ts
+//
 // Because working with row and column-spanning cells is not quite
 // trivial, this code builds up a descriptive structure for a given
 // table node. The structures are cached with the (persistent) table
@@ -91,9 +96,6 @@ if (typeof WeakMap != "undefined") {
     };
 }
 
-/**
- * @public
- */
 export interface ContentTableMapRect {
     left: number;
     top: number;

@@ -1,4 +1,36 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+/**
+ * NOTE(rohitt-gupta, 2024-11-26): Forked from `prosemirror-tables` so we can
+ * remove features we don't use and customize the user experience. We intend to
+ * modify this file a lot so each modification may not be documented.
+ *
+ * The MIT License
+ *
+ * Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+// this file has been modified to remove features we don't use and customize the
+// user experience. You can find the original file in the `prosemirror-tables`
+// package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/input.ts
+//
 // This file defines a number of helpers for wiring up user input to
 // table-related functionality.
 
@@ -6,6 +38,7 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Fragment, ResolvedPos, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {contentTableColumnResizingPluginKey} from "~/client/content/internal/table/content_table_column_resize_plugin.js";
 import {contentTableCommandDeleteCellSelection} from "~/client/content/internal/table/content_table_commands.js";
 import {
     contentTableCopyPasteClipCells,
@@ -37,6 +70,9 @@ export const contentTableKeyDownHandler = keydownHandler({
     "Shift-ArrowRight": shiftArrow("horiz", 1),
     "Shift-ArrowUp": shiftArrow("vert", -1),
     "Shift-ArrowDown": shiftArrow("vert", 1),
+
+    Tab: arrow("horiz", 1),
+    "Shift-Tab": arrow("horiz", -1),
 
     Backspace: contentTableCommandDeleteCellSelection,
     "Mod-Backspace": contentTableCommandDeleteCellSelection,
@@ -161,8 +197,14 @@ export function contentTableHandlePaste(
     }
 }
 
+// Handle mouse down event for table, responsible for creating a cell selection
+// when the user drags over a cell
 export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseEvent): void {
     if (startEvent.ctrlKey || startEvent.metaKey) return;
+
+    // if the user is resizing a column, don't create a cell selection
+    const resizeState = contentTableColumnResizingPluginKey.getState(view.state);
+    if (resizeState && (resizeState.activeHandle > -1 || resizeState.dragging)) return;
 
     const startDOMCell = domInCell(view, startEvent.target as Node);
     let $anchor;
@@ -212,6 +254,7 @@ export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseE
     }
 
     function move(_event: Event): void {
+        // console.log("move", {_event});
         const event = _event as MouseEvent;
         const anchor = tableEditingKey.getState(view.state);
         let $anchor;
@@ -259,6 +302,7 @@ function domInCell(view: EditorView, dom: Node | null): Node | null {
     return null;
 }
 
+// Find the cell under the mouse
 function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null {
     const mousePos = view.posAtCoords({
         left: event.clientX,
