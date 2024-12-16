@@ -38,7 +38,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const contentTableProsemirrorNodeSpec = {
     name: "table",
-    content: "tableRow+",
+    content: "tableRow{2,}",
     group: "block",
     attrs: {
         isHeader: {default: true, schema: Schema.boolean},

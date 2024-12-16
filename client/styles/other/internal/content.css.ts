@@ -2023,11 +2023,6 @@ globalStyle(`${tableClassName} td, ${tableClassName} th`, {
     position: "relative",
 });
 
-// globalStyle(tableHeaderClassName, {
-//     background: colorSchemeVars["grey-10"],
-//     fontWeight: "bold",
-// });
-
 // Add a background color to the cell that is selected.
 globalStyle(`${tableClassName} .selectedCell:after`, {
     zIndex: 2,
