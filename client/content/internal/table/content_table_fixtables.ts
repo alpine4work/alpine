@@ -116,8 +116,8 @@ function fixTable(
         const newColumnsWidth = [...currentColumnsWidth];
         const defaultWidth =
             newColumnsWidth.length > 0
-                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 100
-                : 100;
+                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 6.25
+                : 6.25;
 
         // Extend or trim columnsWidth array
         while (newColumnsWidth.length < maxWidth) {

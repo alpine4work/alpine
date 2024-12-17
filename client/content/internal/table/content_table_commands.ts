@@ -195,7 +195,7 @@ function addRowAfter(state: EditorState, dispatch?: (tr: Transaction) => void): 
     return true;
 }
 
-function removeRow(tr: Transaction, {map, table, tableStart}: TableRect, row: number): void {
+function removeRow(tr: Transaction, {table, tableStart}: TableRect, row: number): void {
     let rowPos = 0;
     for (let i = 0; i < row; i++) rowPos += table.child(i).nodeSize;
     const nextRow = rowPos + table.child(row).nodeSize;
@@ -224,37 +224,6 @@ function deleteRow(state: EditorState, dispatch?: (tr: Transaction) => void): bo
         dispatch(tr);
     }
     return true;
-}
-
-function isEmpty(cell: Node): boolean {
-    const c = cell.content;
-    return c.childCount == 1 && c.child(0).isTextblock && c.child(0).childCount == 0;
-}
-
-function cellsOverlapRectangle({width, height, map}: ContentTableMap, rect: ContentTableMapRect) {
-    let indexTop = rect.top * width + rect.left,
-        indexLeft = indexTop;
-    let indexBottom = (rect.bottom - 1) * width + rect.left,
-        indexRight = indexTop + (rect.right - rect.left - 1);
-    for (let i = rect.top; i < rect.bottom; i++) {
-        if (
-            (rect.left > 0 && map[indexLeft] == map[indexLeft - 1]) ||
-            (rect.right < width && map[indexRight] == map[indexRight + 1])
-        )
-            return true;
-        indexLeft += width;
-        indexRight += width;
-    }
-    for (let i = rect.left; i < rect.right; i++) {
-        if (
-            (rect.top > 0 && map[indexTop] == map[indexTop - width]) ||
-            (rect.bottom < height && map[indexBottom] == map[indexBottom + width])
-        )
-            return true;
-        indexTop++;
-        indexBottom++;
-    }
-    return false;
 }
 
 function findNextCell($cell: ResolvedPos, dir: ContentTableInputDirection): number | null {

@@ -73,9 +73,9 @@ type Dragging = {startX: number; startWidth: number};
 // the mouse button, the finish function is called, which commits the column
 // width changes.
 export function contentEditorTableColumnResizingPlugin({
-    handleWidth = 5,
-    cellMinWidth = 100,
-    defaultCellMinWidth = 100,
+    handleWidth = 0.3125,
+    cellMinWidth = 6.25,
+    defaultCellMinWidth = 6.25,
     View = ContentEditorTableNodeView,
     lastColumnResizable = true,
 }: ColumnResizingOptions = {}): Plugin {
@@ -211,9 +211,7 @@ function handleMouseDown(
 
     const $cell = view.state.doc.resolve(pluginState.activeHandle);
     const table = $cell.node(-1);
-    // console.log("table.attrs.columnsWidth", table.attrs.columnsWidth);
     const width = currentColWidth(view, pluginState.activeHandle, table.attrs.columnsWidth);
-    // console.log("current width of column in handleMouseDown", width);
     view.dispatch(
         view.state.tr.setMeta(contentTableColumnResizingPluginKey, {
             setDragging: {startX: event.clientX, startWidth: width},
@@ -226,10 +224,6 @@ function handleMouseDown(
         win.removeEventListener("mousemove", move);
         const pluginState = contentTableColumnResizingPluginKey.getState(view.state);
         if (pluginState?.dragging) {
-            // console.log(
-            //     "final width of column in finish",
-            //     draggedWidth(pluginState?.dragging, event, cellMinWidth),
-            // );
             updateColumnWidth(
                 view,
                 pluginState.activeHandle,
@@ -248,23 +242,11 @@ function handleMouseDown(
         if (!pluginState) return;
         if (pluginState.dragging) {
             const dragged = draggedWidth(pluginState.dragging, event, cellMinWidth);
-            displayColumnWidth(
-                view,
-                pluginState.activeHandle,
-                dragged,
-                defaultCellMinWidth,
-                "move",
-            );
+            displayColumnWidth(view, pluginState.activeHandle, dragged, defaultCellMinWidth);
         }
     }
 
-    displayColumnWidth(
-        view,
-        pluginState.activeHandle,
-        width,
-        defaultCellMinWidth,
-        "handleMouseDown",
-    );
+    displayColumnWidth(view, pluginState.activeHandle, width, defaultCellMinWidth);
 
     win.addEventListener("mouseup", finish);
     win.addEventListener("mousemove", move);
@@ -327,8 +309,9 @@ function edgeCell(
 
 // Calculates the new width of the column being dragged
 function draggedWidth(dragging: Dragging, event: MouseEvent, resizeMinWidth: number): number {
-    const offset = event.clientX - dragging.startX;
-    return Math.max(resizeMinWidth, dragging.startWidth + offset);
+    const pixelsPerRem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const offsetInRem = (event.clientX - dragging.startX) / pixelsPerRem;
+    return Math.max(resizeMinWidth, dragging.startWidth + offsetInRem);
 }
 
 // Updates the active handle for resizing
@@ -337,7 +320,6 @@ function updateHandle(view: EditorView, value: number): void {
 }
 
 function updateColumnWidth(view: EditorView, cell: number, width: number): void {
-    // console.log("updateColumnWidth", {cell, width});
     const $cell = view.state.doc.resolve(cell);
     const table = $cell.node(-1),
         map = ContentTableMap.get(table),
@@ -366,7 +348,6 @@ function displayColumnWidth(
     cell: number,
     width: number,
     defaultCellMinWidth: number,
-    invokeFunction?: string,
 ): void {
     const $cell = view.state.doc.resolve(cell);
     const table = $cell.node(-1),
@@ -377,15 +358,6 @@ function displayColumnWidth(
     while (dom && dom.nodeName != "TABLE") {
         dom = dom.parentNode;
     }
-    // console.log("displayColumnWidth", {
-    //     invokeFunction,
-    //     table,
-    //     firstChild: dom?.firstChild,
-    //     dom: dom as HTMLTableElement,
-    //     defaultCellMinWidth,
-    //     col,
-    //     width,
-    // });
     if (!dom) return;
     contentEditorUpdateTableColumnsOnResize(
         table,

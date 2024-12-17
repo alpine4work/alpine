@@ -254,7 +254,6 @@ export function contentTableHandleMouseDown(view: EditorView, startEvent: MouseE
     }
 
     function move(_event: Event): void {
-        // console.log("move", {_event});
         const event = _event as MouseEvent;
         const anchor = tableEditingKey.getState(view.state);
         let $anchor;

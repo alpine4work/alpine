@@ -1145,7 +1145,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 draggingFileRef,
             }),
             table: (node, view) =>
-                new ContentEditorTableNodeView(node, 100, view, listener => {
+                new ContentEditorTableNodeView(node, 6.25, view, listener => {
                     selectionUpdateEmitterRef.current ??= new EventEmitter();
                     return selectionUpdateEmitterRef.current.subscribe(listener);
                 }),
