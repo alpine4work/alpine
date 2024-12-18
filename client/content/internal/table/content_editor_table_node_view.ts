@@ -55,6 +55,8 @@ export class ContentEditorTableNodeView implements NodeView {
         this.table = this.dom.appendChild(document.createElement("table"));
         this.colgroup = this.table.appendChild(document.createElement("colgroup"));
 
+        // console.log("node in table node view", node.attrs.isHeader);
+
         contentEditorUpdateTableColumnsOnResize(
             node,
             this.colgroup,
@@ -63,10 +65,15 @@ export class ContentEditorTableNodeView implements NodeView {
         );
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
         this.addActiveTableClass();
+        // if (subscribeToSelectionUpdate) {
+        //     this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
+        //         requestAnimationFrame(() => this.addActiveTableClass());
+        //     });
+        // }
     }
 
     addActiveTableClass = () => {
-        // we will show the active table class when the table is selected
+        console.log("addActiveTableClass");
     };
     update(node: Node): boolean {
         if (node.type != this.node.type) return false;
@@ -99,6 +106,7 @@ export function contentEditorUpdateTableColumnsOnResize(
     overrideCol?: number,
     overrideValue?: number,
 ): void {
+    // console.log("overrideColumn values", {overrideCol, overrideValue});
     let totalWidth = 0;
     let fixedWidth = true;
     let nextDOM = colgroup.firstChild as HTMLElement;
@@ -109,7 +117,7 @@ export function contentEditorUpdateTableColumnsOnResize(
     // Ensure we have enough cols in colgroup
     for (let col = 0; col < columnCount; col++) {
         const width = overrideCol == col ? overrideValue : columnsWidth[col] || defaultCellMinWidth;
-        const cssWidth = width ? `${width}rem` : "";
+        const cssWidth = width ? `${width}px` : "";
         totalWidth += width;
         if (!width) fixedWidth = false;
         if (!nextDOM) {
@@ -135,10 +143,10 @@ export function contentEditorUpdateTableColumnsOnResize(
 
     // Update table width
     if (fixedWidth) {
-        table.style.width = `${totalWidth}rem`;
+        table.style.width = `${totalWidth}px`;
         table.style.minWidth = "";
     } else {
         table.style.width = "";
-        table.style.minWidth = `${totalWidth}rem`;
+        table.style.minWidth = `${totalWidth}px`;
     }
 }

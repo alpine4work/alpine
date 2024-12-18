@@ -209,8 +209,8 @@ function growTable(
         const newColumnsWidth = [...(table.attrs.columnsWidth || [])];
         const defaultWidth =
             newColumnsWidth.length > 0
-                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 6.25
-                : 6.25; // Use 6.25rem as default if no existing widths
+                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 100
+                : 100; // Use 100 as default if no existing widths
 
         for (let i = map.width; i < width; i++) {
             newColumnsWidth.push(defaultWidth);
@@ -291,37 +291,46 @@ export function contentTableInsertCells(
     }
 
     // Then replace cells
-    for (let row = top; row < bottom; row++) {
-        if (row - top >= cells.rows.length) break;
-
-        const from = map.positionAt(row, left, table);
-        const to = map.positionAt(row, Math.min(right, map.width), table);
-
-        if (from === null || to === null) continue;
-
-        tr.replace(
-            tr.mapping.slice(mapFrom).map(from + tableStart),
-            tr.mapping.slice(mapFrom).map(to + tableStart),
-            new Slice(cells.rows[row - top]!, 0, 0),
-        );
-    }
-
-    // Recompute after cell replacement
-    recomp();
-
-    // Try to set selection
     try {
-        // First try: select the entire pasted area
-        const $anchorCell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
-        const lastRow = Math.min(bottom - 1, map.height - 1);
-        const lastCol = Math.min(right - 1, map.width - 1);
-        const $headCell = tr.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
-        tr.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
-    } catch (e) {
-        // Second try: select just the first cell of the paste
-        const $cell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
-        tr.setSelection(new ContentTableCellSelection($cell));
-    }
+        for (let row = top; row < bottom; row++) {
+            if (row - top >= cells.rows.length) break;
 
-    dispatch(tr);
+            const from = map.positionAt(row, left, table);
+            const to = map.positionAt(row, Math.min(right, map.width), table);
+
+            if (from === null || to === null) continue;
+
+            tr.replace(
+                tr.mapping.slice(mapFrom).map(from + tableStart),
+                tr.mapping.slice(mapFrom).map(to + tableStart),
+                new Slice(cells.rows[row - top]!, 0, 0),
+            );
+        }
+
+        // Recompute after cell replacement
+        recomp();
+
+        // Try to set selection
+        try {
+            // First try: select the entire pasted area
+            const $anchorCell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
+            const lastRow = Math.min(bottom - 1, map.height - 1);
+            const lastCol = Math.min(right - 1, map.width - 1);
+            const $headCell = tr.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
+            tr.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
+        } catch (e) {
+            // Second try: select just the first cell of the paste
+            try {
+                const $cell = tr.doc.resolve(tableStart + map.positionAt(top, left, table));
+                tr.setSelection(new ContentTableCellSelection($cell));
+            } catch (e) {
+                // If all selection attempts fail, just log a warning
+                console.warn("Could not set table selection after paste");
+            }
+        }
+
+        dispatch(tr);
+    } catch (e) {
+        console.warn("Error during table paste operation:", e);
+    }
 }
