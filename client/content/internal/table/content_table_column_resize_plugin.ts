@@ -257,22 +257,24 @@ function handleMouseDown(
 
 // Calculates the current width of the specified column
 function currentColWidth(view: EditorView, cellPos: number, columnsWidth: Array<number>): number {
-    const width = columnsWidth?.[columnsWidth.length - 1]; // last column width in rem
-    if (width) return width;
+    // Get the column index for the current cell
+    const $cell = view.state.doc.resolve(cellPos);
+    const table = $cell.node(-1);
+    const map = ContentTableMap.get(table);
+    const start = $cell.start(-1);
+    const col = map.colCount($cell.pos - start);
+
+    // If we have a width for this column, return it
+    if (columnsWidth?.[col]) {
+        return columnsWidth[col] ?? 0;
+    }
 
     // For brand new table or empty columnsWidth
     const dom = view.domAtPos(cellPos);
     const node = dom.node.childNodes[dom.offset] as HTMLElement;
     const domWidth = node.offsetWidth;
     const remPx = getRemPxWithoutListening();
-    const widthInRem = domWidth / remPx;
-
-    // If first column width exists, subtract it from total width
-    if (columnsWidth?.[0]) {
-        return widthInRem - columnsWidth[0];
-    }
-
-    return widthInRem;
+    return domWidth / remPx;
 }
 
 // Finds the table cell element around the given target
