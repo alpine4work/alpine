@@ -53,6 +53,7 @@ import {
     ContentTableMapRect,
 } from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Area = {width: number; height: number; rows: Array<Fragment>};
@@ -207,10 +208,7 @@ function growTable(
         changed = true;
         // First update the columnsWidth array
         const newColumnsWidth = [...(table.attrs.columnsWidth || [])];
-        const defaultWidth =
-            newColumnsWidth.length > 0
-                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || 100
-                : 100; // Use 100 as default if no existing widths
+        const defaultWidth = 8;
 
         for (let i = map.width; i < width; i++) {
             newColumnsWidth.push(defaultWidth);

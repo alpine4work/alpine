@@ -37,3 +37,9 @@ export const remPxBySpacingScale = {
     medium: 18,
     large: 20,
 } as const satisfies {[Key in SpacingScale]: number};
+
+export const tableUnitPxBySpacingScale = {
+    small: 16, // desktop
+    medium: 18,
+    large: 12, // mobile
+} as const satisfies {[Key in SpacingScale]: number};

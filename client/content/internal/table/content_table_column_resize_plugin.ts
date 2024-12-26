@@ -36,7 +36,7 @@ import {
     contentEditorUpdateTableColumnsOnResize,
 } from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/helpers/content_table_cell_around.js";
-import {getRemPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 import {contentTablePointsAtCell} from "~/shared/content/table/helpers/content_table_points_at_cell.js";
@@ -273,7 +273,7 @@ function currentColWidth(view: EditorView, cellPos: number, columnsWidth: Array<
     const dom = view.domAtPos(cellPos);
     const node = dom.node.childNodes[dom.offset] as HTMLElement;
     const domWidth = node.offsetWidth;
-    const remPx = getRemPxWithoutListening();
+    const remPx = getTableUnitPxWithoutListening();
     return domWidth / remPx;
 }
 
@@ -314,7 +314,7 @@ function edgeCell(
 
 // Calculates the new width of the column being dragged
 function draggedWidth(dragging: Dragging, event: MouseEvent, resizeMinWidth: number): number {
-    const remPx = getRemPxWithoutListening();
+    const remPx = getTableUnitPxWithoutListening();
     const offsetInRem = (event.clientX - dragging.startX) / remPx;
     return Math.max(resizeMinWidth, dragging.startWidth + offsetInRem);
 }

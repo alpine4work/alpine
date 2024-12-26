@@ -31,7 +31,6 @@ import {
 } from "~/client/styles/other/internal/helpers/raw_color.js";
 import {navigationBarHeight} from "~/client/styles/other/internal/navigation_bar.css.js";
 import {
-    activeTableClassName,
     boldClassName,
     checkListItemCheckedClassName,
     codeBlockClassName,
@@ -121,23 +120,31 @@ const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
 export {defaultParagraphMarginSpacing as defaultParagraphMargin};
 export const defaultParagraphMarginRem = parseRemLength(defaultParagraphMargin);
 
-const blockMaxWidthVar = createVar("block-max-width");
+export const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
 export const standaloneBlockMarginVar = createVar("standalone-block-margin");
 export const listItemOffsetVar = createVar("list-item-offset");
-
+export const tableUnitVar = createVar("table-unit");
 globalStyle(":root", {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.desktop,
         [paragraphMarginVar]: defaultParagraphMargin,
         [standaloneBlockMarginVar]: spacing["4"],
         [listItemOffsetVar]: spacing["0"],
+        [tableUnitVar]: "16px",
     },
 });
 
 globalStyle(mobilePlatformSelector, {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.mobile,
+        [tableUnitVar]: "12px",
+    },
+});
+
+globalStyle(largeSpacingScaleSelector, {
+    vars: {
+        [tableUnitVar]: "18px",
     },
 });
 
@@ -1985,27 +1992,20 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
 });
 globalStyle(tableCellClassName, {
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: spacing[20],
+    minWidth: spacing[32],
 });
 
 globalStyle(tableClassName, {
     position: "relative",
-    minWidth: spacing[160],
+    // minWidth: spacing[160],
     margin: `${standaloneBlockMarginVar} auto`,
     width: "fit-content",
     maxWidth: "95%",
     overflowX: "auto",
 });
 
-globalStyle(`${tableClassName}.activeTable`, {
-    background: colorSchemeVars["grey-5"],
-    padding: spacing[5],
-});
-
 globalStyle(`${tableClassName} table`, {
-    minWidth: blockMaxWidthVar,
-    width: spacing[160],
-    maxWidth: spacing[256],
+    maxWidth: `calc(256 * ${tableUnitVar})`,
     textAlign: "left",
     borderCollapse: "collapse",
     tableLayout: "fixed",
@@ -2034,7 +2034,6 @@ globalStyle(`${tableClassName} .selectedCell:after`, {
     bottom: 0,
     background: colorSchemeVars["theme-selection"],
     pointerEvents: "none",
-    // border: `2px solid ${colorSchemeVars["theme-60"]}`,
     borderCollapse: "collapse",
 });
 
@@ -2054,9 +2053,4 @@ globalStyle(`${tableClassName} .column-resize-handle`, {
     backgroundColor: colorSchemeVars["theme-60"],
     pointerEvents: "auto",
     cursor: "col-resize",
-});
-
-globalStyle(`${tableClassName}.${activeTableClassName}`, {
-    background: colorSchemeVars["grey-5"],
-    padding: spacing[5],
 });

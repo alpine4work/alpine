@@ -31,7 +31,10 @@
 // package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/tableview.ts
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
+import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 
 export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
@@ -114,11 +117,14 @@ export function contentEditorUpdateTableColumnsOnResize(
     // Ensure we have enough cols in colgroup
     for (let col = 0; col < columnCount; col++) {
         // Width is always in rem
-        const width = overrideCol == col ? overrideValue : columnsWidth[col] ?? defaultCellMinWidth;
-        const cssWidth = width ? `${width}rem` : "";
+        const width = overrideCol == col ? overrideValue : columnsWidth?.[col];
+
+        const cssWidth = width ? `${width * getTableUnitPxWithoutListening()}px` : "";
         totalWidth += width;
 
-        if (!width) fixedWidth = false;
+        if (!width) {
+            fixedWidth = false;
+        }
         if (!nextDOM) {
             const colElement = document.createElement("col");
             colElement.style.width = cssWidth;
@@ -140,10 +146,9 @@ export function contentEditorUpdateTableColumnsOnResize(
 
     // Update table width - all values are in rem
     if (fixedWidth) {
-        table.style.width = `${totalWidth}rem`;
-        table.style.minWidth = "";
+        table.style.width = `${totalWidth * getTableUnitPxWithoutListening()}px`;
     } else {
         table.style.width = "";
-        table.style.minWidth = `${totalWidth}rem`;
     }
+    table.style.minWidth = contentStyles.blockMaxWidthVar; // maintain a min width
 }
