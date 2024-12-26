@@ -27,7 +27,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentFilePreview} from "~/client/content/content_file_preview_component.js";
-import {ContentView} from "~/client/content/content_view.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
@@ -67,6 +66,8 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageInputEditorBorderRadiusPx,
     messageInputEditorIconButtonNegativeMarginX,
@@ -85,9 +86,7 @@ import {
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
-    borderRadius,
     contentStyles,
-    contentViewStyles,
     messagingStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
@@ -122,8 +121,8 @@ import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
+
+const messageInputFilesOverflowGradientWidth = "2";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -693,10 +692,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
-    // NOCOMMIT: Correct values or remove
-    const editorMarginLeft = "0rem";
-    const editorMarginRight = "0rem";
-
     return (
         <Box
             ref={inputContainerRef}
@@ -1077,7 +1072,18 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             </Box>
                         </Box>
                         {files.length > 0 && (
-                            <Box paddingX={screenPaddingX}>
+                            <Box
+                                style={{
+                                    paddingLeft: subtractRemLengths(
+                                        screenPaddingX[platform],
+                                        messageInputFilesOverflowGradientWidth,
+                                    ),
+                                    paddingRight: subtractRemLengths(
+                                        screenPaddingX[platform],
+                                        messageInputFilesOverflowGradientWidth,
+                                    ),
+                                }}
+                            >
                                 <Box position="relative" zIndex="0" width="full" marginTop="-2">
                                     <Box
                                         position="absolute"
@@ -1085,9 +1091,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         top="0"
                                         bottom="0"
                                         left="0"
-                                        width="3"
+                                        width={messageInputFilesOverflowGradientWidth}
                                         style={{
-                                            background: `linear-gradient(to right, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+                                            background: `linear-gradient(to right, ${backgroundColorVar}, transparent)`,
                                         }}
                                     />
                                     <Box
@@ -1096,9 +1102,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         top="0"
                                         bottom="0"
                                         right="0"
-                                        width="3"
+                                        width={messageInputFilesOverflowGradientWidth}
                                         style={{
-                                            background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar}, transparent)`,
+                                            background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
                                         }}
                                     />
                                     <Box
@@ -1112,18 +1118,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             display="flex"
                                             gap="2"
                                             paddingTop="2"
+                                            paddingX={messageInputFilesOverflowGradientWidth}
                                             paddingBottom={messageInputPaddingY}
-                                            style={{
-                                                width: "fit-content",
-                                                paddingLeft: subtractRemLengths(
-                                                    editorMarginLeft,
-                                                    screenPaddingX[platform],
-                                                ),
-                                                paddingRight: subtractRemLengths(
-                                                    editorMarginRight,
-                                                    screenPaddingX[platform],
-                                                ),
-                                            }}
+                                            style={{width: "fit-content"}}
                                         >
                                             {files.map(file => (
                                                 <MessageInputFilePreview
