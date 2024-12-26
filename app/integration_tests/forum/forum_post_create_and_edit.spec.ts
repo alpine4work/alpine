@@ -117,13 +117,8 @@ test("can edit a post in a channel", async ({
     await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
-    // On mobile, the selection starts at the beginning of the input not the end.
-    // Move selection to the end.
-    if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press("End");
-    }
-
     // Can update with the save button.
+    await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
     await page.getByRole("button", {name: "Save"}).click();
@@ -141,13 +136,8 @@ test("can edit a post in a channel", async ({
     await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
 
-    // On mobile, the selection starts at the beginning of the input not the end.
-    // Move selection to the end.
-    if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press("End");
-    }
-
     // Can update with Cmd-Enter keyboard shortcut.
+    await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
     await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
@@ -182,13 +172,8 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
-    // On mobile, the selection starts at the beginning of the input not the end.
-    // Move selection to the end.
-    if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press("End");
-    }
-
     // Can update with the save button.
+    await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
     if (!isMobile) {
@@ -211,13 +196,8 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
 
-    // On mobile, the selection starts at the beginning of the input not the end.
-    // Move selection to the end.
-    if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press("End");
-    }
-
     // Can update with Cmd-Enter keyboard shortcut.
+    await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
     await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
@@ -262,12 +242,7 @@ test("asks for confirmation to save edited post", async ({
     await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
-    // On mobile, the selection starts at the beginning of the input not the end.
-    // Move selection to the end.
-    if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press("End");
-    }
-
+    await page.getByLabel("Post", {exact: true}).press("End");
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("2");
 
