@@ -31,7 +31,6 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -357,12 +356,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         ? inputState
                         : messageEditingForThisInput.state.contentEditorState
                 }
-                files={
-                    !messageEditingForThisInput
-                        ? inputFiles
-                        : // NOCOMMIT: Message editing
-                          emptyArray
-                }
+                files={!messageEditingForThisInput ? inputFiles : emptyArray}
                 onChange={
                     !messageEditingForThisInput
                         ? setInputState
@@ -373,20 +367,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                               });
                           }
                 }
-                onAddFile={
-                    !messageEditingForThisInput
-                        ? addInputFile
-                        : () => {
-                              throw new UnimplementedError("NOCOMMIT");
-                          }
-                }
-                onRemoveFile={
-                    !messageEditingForThisInput
-                        ? removeInputFile
-                        : () => {
-                              throw new UnimplementedError("NOCOMMIT");
-                          }
-                }
+                onAddFile={!messageEditingForThisInput ? addInputFile : null}
+                onRemoveFile={!messageEditingForThisInput ? removeInputFile : null}
                 onSend={
                     !messageEditingForThisInput
                         ? sendNewMessage

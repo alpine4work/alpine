@@ -149,8 +149,8 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     state: ContentEditorState<MessageContentWithReferences>;
     files: ReadonlyArray<MessageInputFile>;
     onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
-    onAddFile: (file: MessageInputFile) => void;
-    onRemoveFile: (fileKey: Id) => void;
+    onAddFile: ((file: MessageInputFile) => void) | null;
+    onRemoveFile: ((fileKey: Id) => void) | null;
     onSend: () => void;
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     isBottomBar?: boolean;
@@ -273,6 +273,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             onChange(ContentEditorState.create(emptyMessageContentWithReferences));
         },
         pasteOrDrop: (spanName: string, dataTransfer: DataTransfer) => {
+            // Noop if we don't have an add file callback.
+            if (!onAddFile) return;
+
             // NOCOMMIT: Show error to user?
             runPromiseWithoutAwaiting(
                 context.tracer.withSpan(spanName, async context => {
@@ -1128,7 +1131,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     signedUrlSearch={file.signedUrlSearch}
                                                     file={file.file}
                                                     attachmentTarget={file.attachmentTarget}
-                                                    onRemove={() => onRemoveFile(file.key)}
+                                                    onRemove={() => onRemoveFile?.(file.key)}
                                                 />
                                             ))}
                                         </Box>

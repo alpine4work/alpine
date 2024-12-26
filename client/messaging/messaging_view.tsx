@@ -12,7 +12,7 @@ import {
     useState,
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {MessageInputFile, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -351,6 +351,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          */
         inputRestoreStateRef?: MutableRefObject<{
             state: ContentEditorState<MessageContentWithReferences>;
+            files: ReadonlyArray<MessageInputFile>;
             isFocused: boolean;
         } | null>;
 
@@ -736,12 +737,14 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     event.preventDefault();
                     setDragEnterState(null);
 
-                    if (!isDraggingFileWithin) {
+                    if (!isDraggingFileWithin && !messageEditing.state.isEditing) {
                         assertExists(inputRef.current).drop(event.dataTransfer);
                     }
                 }}
             >
-                {!isDraggingFileWithin && dragEnterState && <MessagingViewDragOverlay />}
+                {!isDraggingFileWithin && !messageEditing.state.isEditing && dragEnterState && (
+                    <MessagingViewDragOverlay />
+                )}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}
