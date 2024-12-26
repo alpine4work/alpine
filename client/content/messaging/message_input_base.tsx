@@ -675,13 +675,11 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             />
                         )}
                         <Box
-                            overflow="hidden"
                             paddingX={screenPaddingX}
                             paddingY={messageInputPaddingY}
                             marginX={messageInputEditorIconButtonNegativeMarginX}
                         >
                             <Box
-                                overflow="hidden"
                                 position="relative"
                                 zIndex="0"
                                 style={{

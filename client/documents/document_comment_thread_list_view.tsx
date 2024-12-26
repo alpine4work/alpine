@@ -968,7 +968,6 @@ function DocumentCommentThreadListView(
                                 className={sprinkles({
                                     display: "flex",
                                     justifyContent: "center",
-                                    overflow: "hidden",
                                 })}
                             >
                                 <div

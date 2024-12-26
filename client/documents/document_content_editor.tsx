@@ -1787,6 +1787,7 @@ export function DocumentContentEditor({
                             <>
                                 <Box
                                     ref={mobileFakeCommentInputRef}
+                                    data-testid="DocumentContentEditorMobileFakeCommentInput"
                                     position="absolute"
                                     zIndex="30"
                                     left="0"

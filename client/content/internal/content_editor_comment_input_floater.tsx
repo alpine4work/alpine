@@ -266,7 +266,6 @@ function ContentEditorCommentInput({
                     }),
                 )}
                 position="relative"
-                overflow="hidden"
                 width="96"
                 color="grey-100"
                 backgroundColor="grey-0"
