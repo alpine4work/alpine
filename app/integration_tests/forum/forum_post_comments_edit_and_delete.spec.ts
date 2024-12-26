@@ -137,13 +137,13 @@ test("can't edit or delete a post comment that's not yours", async ({
         } else {
             // Simulate a long press on mobile devices...
 
-            await expect(page.getByTestId("ContextMenu").getByText("Copy link")).toBeHidden();
-            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
-            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
             await message.dispatchEvent("touchstart");
-            await expect(page.getByTestId("ContextMenu").getByText("Copy link")).toBeVisible();
-            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
-            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
+            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
             await message.dispatchEvent("touchend");
         }
     }
