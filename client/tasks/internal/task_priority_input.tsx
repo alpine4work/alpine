@@ -21,6 +21,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
+import {isTaskGridViewApplyingUndoStackEntry} from "~/client/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {
     TaskPriorityInputListBox,
@@ -202,8 +203,10 @@ function TaskPriorityInput(
         },
 
         onFocus: () => {
-            // Open the combobox on focus.
-            comboBoxState.open();
+            // Open the combobox on focus as long as we're not currently applying an undo.
+            if (!isTaskGridViewApplyingUndoStackEntry()) {
+                comboBoxState.open();
+            }
 
             // When focused, switch to a typing state.
             setInputState(inputState => {
@@ -214,7 +217,7 @@ function TaskPriorityInput(
                     value: platform !== "mobile" ? inputValue : "",
                     hasChanged: false,
                     disableAnimationOut: false,
-                    shouldSelectRef: {current: false},
+                    shouldSelectRef: {current: true},
                 };
             });
         },
