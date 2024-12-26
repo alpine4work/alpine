@@ -58,10 +58,10 @@ import {
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
     messageViewOutlineMargin,
-    messageViewParentMessageAccountAvatarSize,
-    messageViewParentMessageAvatarOffsetYRem,
-    messageViewParentMessageFontSize,
-    messageViewParentMessageLineHeightPx,
+    messageViewParentAccountAvatarSize,
+    messageViewParentAvatarOffsetYRem,
+    messageViewParentFontSize,
+    messageViewParentLineHeightPx,
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
@@ -894,7 +894,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         if (!parentMessage) return null;
 
         return (
-            <MessageViewParentMessage
+            <MessageViewParent
                 parentMessageRef={parentMessageRef}
                 messageNoun={messageNoun}
                 parentMessage={parentMessage}
@@ -1075,6 +1075,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         )}
                         <div
                             ref={contentContainerRef}
+                            data-testid={
+                                process.env.NODE_ENV !== "production"
+                                    ? "MessageViewContent"
+                                    : undefined
+                            }
                             className={sprinkles({flexGrow: "1"})}
                             style={{
                                 // Don't allow item to grow beyond flexbox bounds. By default flexbox items
@@ -1243,7 +1248,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     );
 }
 
-function MessageViewParentMessage<RoomKey extends string, Message extends MessageModel<RoomKey>>({
+function MessageViewParent<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     parentMessageRef,
     messageNoun,
     parentMessage,
@@ -1269,9 +1274,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
     const marginBottom = "2";
     const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
     const parentMessageOffsetRem = parseRemLength(messageViewRailGap) / 2;
-    const parentMessageAccountAvatarSizeRem = parseRemLength(
-        messageViewParentMessageAccountAvatarSize,
-    );
+    const parentMessageAccountAvatarSizeRem = parseRemLength(messageViewParentAccountAvatarSize);
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
@@ -1284,6 +1287,9 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
             <div
                 {...pressProps}
                 ref={parentMessageRef}
+                data-testid={
+                    process.env.NODE_ENV !== "production" ? "MessageViewParent" : undefined
+                }
                 // This is a simulated link. When the user clicks on it our code navigates us
                 // to the right message instead of relying on browser URL navigation.
                 //
@@ -1332,7 +1338,7 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     )}
                     style={{
                         top: `calc(${
-                            messageViewParentMessageAvatarOffsetYRem +
+                            messageViewParentAvatarOffsetYRem +
                             parentMessageAccountAvatarSizeRem / 2
                         }rem - 1px)`,
                         bottom: `calc(-${spacing[marginBottom]} - ${
@@ -1353,10 +1359,10 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                         height: "0",
                         opacity: isPressed ? "60" : "100",
                     })}
-                    style={{top: `${messageViewParentMessageAvatarOffsetYRem}rem`}}
+                    style={{top: `${messageViewParentAvatarOffsetYRem}rem`}}
                 >
                     <AccountAvatar
-                        size={messageViewParentMessageAccountAvatarSize}
+                        size={messageViewParentAccountAvatarSize}
                         account={parentMessage.author}
                     />
                 </div>
@@ -1364,13 +1370,13 @@ function MessageViewParentMessage<RoomKey extends string, Message extends Messag
                     className={sprinkles({
                         overflow: "hidden",
                         color: "grey-80",
-                        fontSize: messageViewParentMessageFontSize,
+                        fontSize: messageViewParentFontSize,
                         fontStyle: "normal",
                         opacity: isPressed ? "60" : "100",
                     })}
                     style={{
-                        minHeight: messageViewParentMessageLineHeightPx[spacingScale],
-                        lineHeight: `${messageViewParentMessageLineHeightPx[spacingScale]}px`,
+                        minHeight: messageViewParentLineHeightPx[spacingScale],
+                        lineHeight: `${messageViewParentLineHeightPx[spacingScale]}px`,
                         // Allow contextual alternate glyphs in regular text content.
                         fontFeatureSettings: '"calt" on',
                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers

@@ -78,28 +78,26 @@ export const messageViewMinHeightPx = createObjectFromKeys(
         convertRemLengthToPx(contentStyles.paragraphMargin, spacingScale),
 );
 
-export const messageViewParentMessageFontSize = "75";
+export const messageViewParentFontSize = "75";
 
-export const messageViewParentMessageLineHeightPx = createObjectFromKeys(
-    allSpacingScales,
-    spacingScale =>
-        Math.floor(
-            fontSizesBySpacingScale[messageViewParentMessageFontSize][spacingScale].fontSize *
-                contentStyles.paragraphLineHeightMultiple,
-        ),
+export const messageViewParentLineHeightPx = createObjectFromKeys(allSpacingScales, spacingScale =>
+    Math.floor(
+        fontSizesBySpacingScale[messageViewParentFontSize][spacingScale].fontSize *
+            contentStyles.paragraphLineHeightMultiple,
+    ),
 );
 
-export const messageViewParentMessageAccountAvatarSize = assertSpacing(
+export const messageViewParentAccountAvatarSize = assertSpacing(
     Math.round(
         parseInt(messageViewAccountAvatarSize, 10) *
-            (fontSizesBySpacingScale[messageViewParentMessageFontSize].small.fontSize /
+            (fontSizesBySpacingScale[messageViewParentFontSize].small.fontSize /
                 fontSizesBySpacingScale[contentStyles.paragraphActualFontSize].small.fontSize),
     ),
 );
 
-export const messageViewParentMessageAvatarOffsetYRem =
-    (parseRemLength(messageViewParentMessageAccountAvatarSize) -
-        parseRemLength(fontSizes[messageViewParentMessageFontSize].lineHeight)) /
+export const messageViewParentAvatarOffsetYRem =
+    (parseRemLength(messageViewParentAccountAvatarSize) -
+        parseRemLength(fontSizes[messageViewParentFontSize].lineHeight)) /
     -2;
 
 // Should be the same size as `messageViewAccountAvatarSize`.

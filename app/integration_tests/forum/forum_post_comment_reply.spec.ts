@@ -38,27 +38,31 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     const replyToTestId = async (testId: string) => {
-        if (!isMobile) {
-            await page.getByTestId(testId).getByRole("button", {name: "Reply"}).press("Enter");
-            return;
-        }
-
-        // Simulate a long press on mobile devices...
-
-        const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
         await expect(message).toBeVisible();
 
-        await expect(page.getByRole("menuitem", {name: "Reply"})).toBeHidden();
-        await message.dispatchEvent("touchstart");
-        await expect(page.getByRole("menuitem", {name: "Reply"})).toBeVisible();
-        await message.dispatchEvent("touchend");
+        if (!isMobile) {
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Reply").click();
+        } else {
+            // Simulate a long press on mobile devices...
 
-        await page.getByRole("menuitem", {name: "Reply"}).click();
+            await expect(page.getByRole("menuitem", {name: "Reply"})).toBeHidden();
+            await message.dispatchEvent("touchstart");
+            await expect(page.getByRole("menuitem", {name: "Reply"})).toBeVisible();
+            await message.dispatchEvent("touchend");
+
+            await page.getByRole("menuitem", {name: "Reply"}).click();
+        }
     };
 
     // Existing messages aren't replying to anything.
-    await expect(page.getByTestId(`MessageView:${post.id}:0`).getByText("replied to")).toBeHidden();
-    await expect(page.getByTestId(`MessageView:${post.id}:1`).getByText("replied to")).toBeHidden();
+    await expect(
+        page.getByTestId(`MessageView:${post.id}:0`).getByTestId("MessageViewParent"),
+    ).toBeHidden();
+    await expect(
+        page.getByTestId(`MessageView:${post.id}:1`).getByTestId("MessageViewParent"),
+    ).toBeHidden();
 
     // Reply to the first comment.
     {
@@ -93,7 +97,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         ).toBeHidden();
 
         await expect(
-            page.getByTestId(`MessageView:${post.id}:2`).getByText("replied to"),
+            page.getByTestId(`MessageView:${post.id}:2`).getByTestId("MessageViewParent"),
         ).toBeVisible();
         await expect(
             page.getByTestId(`MessageView:${post.id}:2`).getByText("Test post comment content 3"),
@@ -161,7 +165,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         ).toBeHidden();
 
         await expect(
-            page.getByTestId(`MessageView:${post.id}:3`).getByText("replied to"),
+            page.getByTestId(`MessageView:${post.id}:3`).getByTestId("MessageViewParent"),
         ).toBeVisible();
         await expect(
             page.getByTestId(`MessageView:${post.id}:3`).getByText("Test post comment content 4"),
@@ -172,10 +176,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     }
 });
 
-test("clicking a reply bubble will scroll to the comment", async ({
-    page,
-    context: browserContext,
-}) => {
+test("clicking a reply will scroll to the comment", async ({page, context: browserContext}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",

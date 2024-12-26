@@ -63,10 +63,10 @@ import {
     messageInputMinHeightPx,
     messageInputPaddingY,
     messageViewAccountAvatarSize,
-    messageViewParentMessageAccountAvatarSize,
-    messageViewParentMessageAvatarOffsetYRem,
-    messageViewParentMessageFontSize,
-    messageViewParentMessageLineHeightPx,
+    messageViewParentAccountAvatarSize,
+    messageViewParentAvatarOffsetYRem,
+    messageViewParentFontSize,
+    messageViewParentLineHeightPx,
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
 import {
@@ -1043,7 +1043,7 @@ function MessageInputReplyingToMessage<
 
     const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);
     const parentMessageOffsetRem = parseRemLength(messageViewRailGap) / 2;
-    const parentAccountAvatarSizeRem = parseRemLength(messageViewParentMessageAccountAvatarSize);
+    const parentAccountAvatarSizeRem = parseRemLength(messageViewParentAccountAvatarSize);
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
@@ -1085,8 +1085,7 @@ function MessageInputReplyingToMessage<
                     )}
                     style={{
                         top: `calc(${
-                            messageViewParentMessageAvatarOffsetYRem +
-                            parentAccountAvatarSizeRem / 2
+                            messageViewParentAvatarOffsetYRem + parentAccountAvatarSizeRem / 2
                         }rem - 1px)`,
                         bottom: `calc(-${spacing[messageInputPaddingY[platform]]} + 2px)`,
                         left: `calc(-${
@@ -1129,23 +1128,23 @@ function MessageInputReplyingToMessage<
                                 opacity: isPressed ? "60" : "100",
                             })}
                             style={{
-                                top: `${messageViewParentMessageAvatarOffsetYRem}rem`,
+                                top: `${messageViewParentAvatarOffsetYRem}rem`,
                             }}
                         >
                             <AccountAvatar
-                                size={messageViewParentMessageAccountAvatarSize}
+                                size={messageViewParentAccountAvatarSize}
                                 account={replyingToMessage.author}
                             />
                         </Box>
                         <Box
                             overflow="hidden"
                             color="grey-80"
-                            fontSize={messageViewParentMessageFontSize}
+                            fontSize={messageViewParentFontSize}
                             fontStyle="normal"
                             opacity={isPressed ? "60" : "100"}
                             style={{
-                                minHeight: messageViewParentMessageLineHeightPx[spacingScale],
-                                lineHeight: `${messageViewParentMessageLineHeightPx[spacingScale]}px`,
+                                minHeight: messageViewParentLineHeightPx[spacingScale],
+                                lineHeight: `${messageViewParentLineHeightPx[spacingScale]}px`,
                                 // Allow contextual alternate glyphs in regular text content.
                                 fontFeatureSettings: '"calt" on',
                                 // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
@@ -1171,7 +1170,7 @@ function MessageInputReplyingToMessage<
                         // the way on the right.
                         paddingRight="0.5"
                         style={{
-                            height: messageViewParentMessageLineHeightPx[spacingScale],
+                            height: messageViewParentLineHeightPx[spacingScale],
                         }}
                     >
                         <IconButton

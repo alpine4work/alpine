@@ -867,6 +867,7 @@ const ContextMenu = forwardRef(function ContextMenu(
     return (
         <div
             ref={useMergedRefs<HTMLDivElement>(ref, useOutsidePress(onCloseWithAnimation))}
+            data-testid="ContextMenu"
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
