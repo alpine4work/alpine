@@ -363,7 +363,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         }
     }, [isKeyboardToolbarVisible]);
 
-    useEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
         lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
 
