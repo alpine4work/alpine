@@ -11,6 +11,18 @@ const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
+async function tapSendComment(page: Page) {
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
+
+    // Make sure the keyboard toolbar isn't animating when we tap.
+    await (await page
+        .getByRole("button", {name: "Send comment"})
+        .elementHandle())!.waitForElementState("stable");
+
+    await page.getByRole("button", {name: "Send comment"}).tap();
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
+}
+
 test("can reply to a comment", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
@@ -87,7 +99,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         if (!isMobile) {
             await page.getByRole("textbox", {name: "New comment"}).press("Enter");
         } else {
-            await page.getByRole("button", {name: "Send comment"}).click();
+            await tapSendComment(page);
         }
 
         await expect(
@@ -155,7 +167,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         if (!isMobile) {
             await page.getByRole("textbox", {name: "New comment"}).press("Enter");
         } else {
-            await page.getByRole("button", {name: "Send comment"}).click();
+            await tapSendComment(page);
         }
 
         await expect(

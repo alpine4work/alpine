@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
@@ -15,6 +15,18 @@ createTestSession(context, space, {name: "Kendall Roy"});
 createTestSession(context, space, {name: "Emily 1"});
 createTestSession(context, space, {name: "Emily 2"});
 createTestSession(context, space, {name: "Emily 3"});
+
+async function tapSendComment(page: Page) {
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
+
+    // Make sure the keyboard toolbar isn't animating when we tap.
+    await (await page
+        .getByRole("button", {name: "Send comment"})
+        .elementHandle())!.waitForElementState("stable");
+
+    await page.getByRole("button", {name: "Send comment"}).tap();
+    await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
+}
 
 test("can search for an account in mention menu", async ({
     page,
@@ -68,7 +80,7 @@ test("can search for an account in mention menu", async ({
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page);
     }
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
@@ -167,7 +179,7 @@ test("can undo to get the full mention when a short mention was inferred", async
         await expect(page.getByText("Siobahn Roy", {exact: true})).toBeVisible();
         await expect(page.getByText("Siobahn", {exact: true})).toBeHidden();
         await expect(page.getByRole("button", {name: "Send comment"})).toBeEnabled();
-        await page.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page);
     }
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
@@ -228,7 +240,7 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     if (!isMobile) {
         await page.getByRole("textbox", {name: "New comment"}).press("Enter");
     } else {
-        await page.getByRole("button", {name: "Send comment"}).click();
+        await tapSendComment(page);
     }
     await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
