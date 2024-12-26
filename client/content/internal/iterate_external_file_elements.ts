@@ -23,7 +23,7 @@ export type ExternalFileElementInfo =
 
 export function* iterateExternalFileElements(
     element: Element,
-    spaceId: SpaceId,
+    getSpaceId: () => SpaceId,
 ): IterableIterator<{element: Element; info: ExternalFileElementInfo | null}> {
     let currentUrl: URL | undefined;
 
@@ -80,7 +80,7 @@ export function* iterateExternalFileElements(
                 pathnameMatch &&
                 isId<SpaceId>(pathnameMatch[1]!) &&
                 isId<FileId>(pathnameMatch[2]!) &&
-                pathnameMatch[1] === spaceId
+                pathnameMatch[1] === getSpaceId()
             ) {
                 const spaceId = pathnameMatch[1];
                 const fileId = pathnameMatch[2];

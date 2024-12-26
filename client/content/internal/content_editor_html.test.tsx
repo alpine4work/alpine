@@ -282,16 +282,28 @@ function TestContextProvider({children}: {children: ReactNode}) {
 }
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+const fileAttachmentTarget = markMemoIfNotRendering({
     type: "Document",
     documentId: assertId("ccnhhk3ndrf5n254dwwm9asvx0"),
-});
+} as const satisfies FileAttachmentTarget);
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const otherFileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+const commentFileAttachmentTarget = markMemoIfNotRendering({
+    type: "DocumentComments",
+    documentId: fileAttachmentTarget.documentId,
+} as const satisfies FileAttachmentTarget);
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const otherFileAttachmentTarget = markMemoIfNotRendering({
     type: "Document",
     documentId: assertId("6p2w6asgyqpnetx2k4gnw6rmjw"),
-});
+} as const satisfies FileAttachmentTarget);
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const otherCommentFileAttachmentTarget = markMemoIfNotRendering({
+    type: "DocumentComments",
+    documentId: otherFileAttachmentTarget.documentId,
+} as const satisfies FileAttachmentTarget);
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -325,6 +337,7 @@ for (const blockTestCase of blockTestCases) {
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />,
         );
 
@@ -352,6 +365,7 @@ for (const blockTestCase of blockTestCases) {
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />,
         );
 
@@ -391,6 +405,7 @@ for (const blockTestCase of blockTestCases) {
                     })}
                     onChange={() => {}}
                     fileAttachmentTarget={fileAttachmentTarget}
+                    commentFileAttachmentTarget={commentFileAttachmentTarget}
                 />,
             );
 
@@ -431,6 +446,7 @@ for (const inlineTestCase of inlineTestCases) {
                 })}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />,
         );
 
@@ -476,6 +492,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
                     // Use a different file attachment target to exercise `<ContentEditor>`s ability
                     // to create a new attachment.
                     fileAttachmentTarget={otherFileAttachmentTarget}
+                    commentFileAttachmentTarget={otherCommentFileAttachmentTarget}
                 />
             </TestContextProvider>
         );
@@ -593,6 +610,7 @@ test("divider", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -613,6 +631,7 @@ test("heading cannot have a level lower than 1", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -629,6 +648,7 @@ test("heading cannot have a level lower than 1", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -647,6 +667,7 @@ test("heading cannot have a level greater than 3", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -663,6 +684,7 @@ test("heading cannot have a level greater than 3", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -681,6 +703,7 @@ test("heading cannot be the wrong type", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -697,6 +720,7 @@ test("heading cannot be the wrong type", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -713,6 +737,7 @@ test("heading cannot be the wrong type", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -731,6 +756,7 @@ test("heading is converted into an integer", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -756,6 +782,7 @@ test("link with a non-HTTP scheme is blocked", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -778,6 +805,7 @@ test("link with a non-HTTP scheme is blocked", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -796,6 +824,7 @@ test("link with a non-HTTP scheme is blocked", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -827,6 +856,7 @@ test("bullet list with multiple items", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -848,6 +878,7 @@ test("ordered list with multiple items", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -881,6 +912,7 @@ test("check list with multiple items", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -919,6 +951,7 @@ test("bullet list with sub-list", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -957,6 +990,7 @@ test("ordered list with sub-list", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -995,6 +1029,7 @@ test("check list with sub-list", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1033,6 +1068,7 @@ test("bullet list with sub-list of another type", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1071,6 +1107,7 @@ test("ordered list with sub-list of another type", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1109,6 +1146,7 @@ test("check list with sub-list of another type", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1132,6 +1170,7 @@ test("breaks inside paragraphs", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1157,6 +1196,7 @@ test("breaks inside list items", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1179,6 +1219,7 @@ test("multiple paragraphs inside list items", async () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            commentFileAttachmentTarget={commentFileAttachmentTarget}
         />,
     );
 
@@ -1206,6 +1247,7 @@ test("account long mention", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1234,6 +1276,7 @@ test("account short mention", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1261,6 +1304,7 @@ test("unknown account mention", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1308,6 +1352,7 @@ test("file row (one file)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1331,6 +1376,7 @@ test("file row (one file, null reference)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1378,6 +1424,7 @@ test("file row (one file, image type)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1426,6 +1473,7 @@ test("file row (one file, video type)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1472,6 +1520,7 @@ test("file row (one file, audio type)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1552,6 +1601,7 @@ test("file row (two files)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1653,6 +1703,7 @@ test("file row (three files)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1702,6 +1753,7 @@ test("file float (left direction)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );
@@ -1751,6 +1803,7 @@ test("file float (right direction)", async () => {
                 state={ContentEditorState.create({doc: content, references: contentReferences})}
                 onChange={() => {}}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestContextProvider>,
     );

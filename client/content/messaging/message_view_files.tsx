@@ -1,8 +1,15 @@
 import classNames from "classnames";
+import {Node} from "prosemirror-model";
+import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {Memo, useMemo, useRef} from "react";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
+import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {
     ContentFileLayout,
     computeContentFileRowLayout,
@@ -23,7 +30,8 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageViewMarginLeft} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -38,9 +46,11 @@ import {computeStore} from "~/shared/store/compute_store.js";
 export function MessageViewFiles({
     attachmentTarget,
     files,
+    paddingTop,
 }: {
     attachmentTarget: Memo<FileAttachmentTarget>;
     files: ReadonlyArray<{signedUrlSearch: string; file: FileModel}>;
+    paddingTop?: Spacing;
 }) {
     assert(files.length > 0);
 
@@ -233,6 +243,108 @@ export function MessageViewFiles({
         };
     }, [attachmentTarget, context, fileRows, isInitialAppRender, reporter, rootNavigate, space.id]);
 
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const containerElement = assertExists(containerRef.current);
+
+        return registerClipboardSerializer(containerElement, ({startNode, endNode}) => {
+            let hasStarted = !containerElement.contains(startNode);
+            let hasEnded = false;
+
+            const clipboardSchema = ContentBaseProsemirrorSchemaWithFiles.get();
+            const clipboardFileRows: Array<Node> = [];
+
+            for (let fileRowIndex = 0; fileRowIndex < fileRows.length; fileRowIndex++) {
+                const {files, fileDatas} = fileRows[fileRowIndex]!;
+                const clipboardFileRow: Array<Node> = [];
+
+                for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+                    const file = fileDatas[fileIndex]!;
+
+                    const fileElement = assertExists(
+                        containerElement.childNodes[fileRowIndex]?.childNodes[fileIndex],
+                    );
+                    assert(fileElement instanceof HTMLElement);
+
+                    if (!hasStarted && startNode.contains(fileElement)) {
+                        hasStarted = true;
+                    }
+
+                    if (hasStarted && !hasEnded) {
+                        clipboardFileRow.push(clipboardSchema.node("file", {fileId: file.id}));
+                    }
+
+                    if (hasEnded || endNode.contains(fileElement)) {
+                        hasEnded = true;
+                        break;
+                    }
+                }
+
+                if (clipboardFileRow.length > 0) {
+                    clipboardFileRows.push(clipboardSchema.node("fileRow", {}, clipboardFileRow));
+                }
+
+                if (hasEnded) break;
+            }
+
+            const contentReferences: ContentReferences = {
+                ...emptyContentReferences,
+                fileById: new Map(
+                    fileRows.flatMap(fileRow => fileRow.files).map(file => [file.file.id, file]),
+                ),
+            };
+
+            const state = ContentEditorState.create({
+                doc: clipboardSchema.node("doc", {}, clipboardFileRows),
+                references: contentReferences,
+            })._getInternalState();
+            const {schema} = state.doc.type;
+
+            const view = new EditorView(null, {
+                state,
+                domParser: ContentEditorDomParser.fromSchema(schema),
+                clipboardSerializer:
+                    ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                        schema,
+                        () => space.id,
+                        () => contentReferences,
+                        () => assertExists(attachmentTarget),
+                    ),
+                clipboardTextSerializer: slice =>
+                    contentEditorTextClipboardSerializer(
+                        slice,
+                        () => space.id,
+                        () => contentReferences,
+                    ),
+            });
+
+            const {dom, text} = serializeForClipboard(view, state.doc.slice(0));
+
+            let html: globalThis.Node = dom;
+
+            // If the clipboard content was wrapped in a `<div>` with no identifying
+            // characteristics then let's unwrap the wrapper `<div>` so it won't be
+            // included in the copied output.
+            if (
+                html instanceof Element &&
+                html.tagName === "DIV" &&
+                !html.hasAttribute("class") &&
+                !html.hasAttribute("style")
+            ) {
+                const htmlFragment = document.createDocumentFragment();
+                while (dom.firstChild) {
+                    htmlFragment.appendChild(dom.firstChild);
+                }
+                html = htmlFragment;
+            }
+
+            return {
+                requiredLineBreakAroundCount: 1,
+                text,
+                html,
+            };
+        });
+    }, [attachmentTarget, fileRows, space.id]);
+
     return (
         <div
             ref={containerRef}
@@ -240,6 +352,7 @@ export function MessageViewFiles({
                 display: "flex",
                 flexDirection: "column",
                 gap: spacing[contentStyles.fileRowGapWidth],
+                paddingTop: paddingTop ? spacing[paddingTop] : undefined,
             }}
             dangerouslySetInnerHTML={
                 isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined

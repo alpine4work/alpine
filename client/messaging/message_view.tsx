@@ -16,7 +16,10 @@ import {
     useState,
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {
+    getAccountClientStore,
+    useAccountModel,
+} from "~/client/accounts/account_client_store_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
@@ -99,8 +102,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
-
-// NOCOMMIT: Copy/paste for message including files
 
 /**
  * The buffered height we use for virtualized message views.
@@ -187,7 +188,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const spacingScale = useSpacingScale();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const {timeZone, locale} = useClientInfo();
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
 
@@ -399,6 +400,16 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [message.payload]);
 
     const events = useEvents({
+        getClipboardSerializerPrefix: () => {
+            if (shouldMergeWithPreviousMessage) return null;
+
+            const authorName = getAccountClientStore(space.id)
+                .getAccountStore(message.author)
+                .getSnapshot().name;
+
+            return `${authorName}: `;
+        },
+
         onReplyToMessage: () => {
             // If we're currently editing a message on mobile then cancel editing when
             // trying to reply to a message. Otherwise `<MessageInput>` will override the
@@ -876,9 +887,15 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 content={message.payload.content}
                 contentUpdatedTime={message.payload.contentUpdatedTime}
                 withUserSelectNone={!canPrimaryInputHover}
+                getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
             />
         );
-    }, [canPrimaryInputHover, message.payload, messageTextForBigEmojiMessage]);
+    }, [
+        canPrimaryInputHover,
+        events.getClipboardSerializerPrefix,
+        message.payload,
+        messageTextForBigEmojiMessage,
+    ]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
@@ -1198,6 +1215,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     <MessageViewFiles
                                         attachmentTarget={fileAttachmentTarget}
                                         files={message.payload.files}
+                                        paddingTop={
+                                            contentPayloadNode !== null
+                                                ? contentStyles.standaloneBlockMargin
+                                                : undefined
+                                        }
                                     />
                                 )}
                         </div>

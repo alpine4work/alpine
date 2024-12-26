@@ -1385,7 +1385,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             if (schema.nodes.file) {
                 for (const {element: fileElement, info: fileInfo} of iterateExternalFileElements(
                     element,
-                    assertExists(spaceContextRef.current).space.id,
+                    () => assertExists(spaceContextRef.current).space.id,
                 )) {
                     if (fileInfo === null) {
                         const temporaryFileElement = fileElement.ownerDocument.createElement("div");

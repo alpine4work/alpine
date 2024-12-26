@@ -509,8 +509,62 @@ export function getSelectionClipboardData(selection: {
             continue;
         }
 
+        let currentHtmlLineBreakCount = 0;
+
+        // Implement a subset of the `innerText` algorithm (all documented above) to
+        // find what `innerText` considers the current line break count at the end of
+        // `html`. This value is stored in `currentHtmlLineBreakCount`.
+        //
+        // If `lastRequiredLineBreakCount` is less than or equal to
+        // `currentHtmlLineBreakCount` then we don't need to add any additional line
+        // break elements to our HTML. Which leads to prettier clipboard contents.
+        const computeCurrentHtmlLineBreakCount = (node: Node) => {
+            if (node instanceof Text) {
+                const parentComputedStyle = node.parentElement
+                    ? getComputedStyle(node.parentElement)
+                    : null;
+
+                if (
+                    (parentComputedStyle?.userSelect || parentComputedStyle?.webkitUserSelect) !==
+                    "none"
+                ) {
+                    return true;
+                }
+            }
+
+            if (node instanceof Element) {
+                const computedStyle = getComputedStyle(node);
+
+                if ((computedStyle.userSelect || computedStyle.webkitUserSelect) !== "none") {
+                    if (node.tagName === "P") {
+                        currentHtmlLineBreakCount = Math.max(2, currentHtmlLineBreakCount);
+                    } else if (
+                        isDisplayBlockLevel(
+                            computedStyle.display ||
+                                (htmlBlockTagNames.has(node.tagName.toLowerCase()) ? "block" : ""),
+                        )
+                    ) {
+                        currentHtmlLineBreakCount = Math.max(1, currentHtmlLineBreakCount);
+                    }
+                }
+            }
+
+            if (node.lastChild) if (computeCurrentHtmlLineBreakCount(node.lastChild)) return true;
+            if (node.previousSibling)
+                if (computeCurrentHtmlLineBreakCount(node.previousSibling)) return true;
+            return false;
+        };
+
+        if (html.lastChild) computeCurrentHtmlLineBreakCount(html.lastChild);
+
         for (let i = 0; i < lastRequiredLineBreakCount; i++) {
             text += "\n";
+        }
+        for (
+            let i = 0;
+            i < Math.max(0, lastRequiredLineBreakCount - currentHtmlLineBreakCount);
+            i++
+        ) {
             html.appendChild(document.createElement("br"));
         }
         lastRequiredLineBreakCount = 0;

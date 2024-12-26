@@ -283,7 +283,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
                     for (const {info} of iterateExternalFileElements(
                         parseHtml(dataTransfer.getData("text/html")),
-                        space.id,
+                        () => space.id,
                     )) {
                         if (info) newFileInfos.push(info);
                     }
