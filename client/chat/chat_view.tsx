@@ -15,8 +15,11 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
-import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {
+    messageViewAccountAvatarSize,
+    messageViewRailGap,
+} from "~/client/styles/messaging_shared_styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -82,7 +85,7 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
             <Box
                 height={navigationBarHeight}
                 width="full"
-                maxWidth={messageViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
@@ -111,10 +114,10 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                     display="flex"
                     flexDirection={platform !== "mobile" ? "row" : "column"}
                     alignItems="center"
-                    gap={platform !== "mobile" ? "2" : "1"}
+                    gap={platform !== "mobile" ? messageViewRailGap : "1"}
                 >
                     <AccountAvatarPile
-                        size="7"
+                        size={messageViewAccountAvatarSize}
                         previewAccounts={otherChatAccounts.slice(0, 4)}
                         accountCount={otherChatAccounts.length}
                         getAllAccounts={() => otherChatAccounts}

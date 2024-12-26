@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {CSSProperties, Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
@@ -123,6 +123,9 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     /** An extra CSS class to add to the content view. */
     className?: string;
 
+    /** Extra CSS inline styles we'll add to the content view. */
+    style?: CSSProperties;
+
     /** An optional label to expose to assistive technology. */
     "aria-label"?: string;
 
@@ -141,36 +144,11 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     isInert?: boolean;
 
     /**
-     * Should the content be truncated to a single line with an ellipsis when
-     * text overflows?
-     */
-    isTruncated?: boolean;
-
-    /**
-     * Should this content be rendered with our compact rendering? Compact
-     * rendering reduces some margins so content can be closer together.
-     */
-    isCompact?: boolean;
-
-    /**
-     * Should this content be rendered with our extra compact render? Extra compact
-     * rendering implies `isCompact` and decreases the paragraph font size.
-     */
-    isExtraCompact?: boolean;
-
-    /**
      * Are we rendering a `<ContentView>` as a placeholder during initial app
      * render for `<ContentEditor>`? Not much changes when this is true but we
      * disable some behaviors we save for `<ContentEditor>`.
      */
     isEditorInitialAppRender?: boolean;
-
-    /**
-     * Is this `<ContentView>` rendered on a `grey-5` background? If true certain
-     * colors may change. For example, the code block button's hover background
-     * color will change from `grey-5` to `grey-10`.
-     */
-    isBackgroundColorGrey5?: boolean;
 
     /**
      * If the content editor supports files then you must pass in
@@ -245,14 +223,11 @@ export function ContentView<Content extends ContentWithReferences>({
     contentUpdatedTime,
     placeholder,
     className,
+    style,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     isInert = false,
-    isTruncated = false,
-    isCompact = false,
-    isExtraCompact = false,
     isEditorInitialAppRender = false,
-    isBackgroundColorGrey5 = false,
     fileAttachmentTarget,
     shouldHighlightComment,
     withUserSelectNone = false,
@@ -990,7 +965,6 @@ export function ContentView<Content extends ContentWithReferences>({
         spaceContext,
         handleCodeBlockCopyButtonPress,
         reporter,
-        isBackgroundColorGrey5,
         context,
         fileAttachmentTarget,
         isEditorInitialAppRender,
@@ -1196,9 +1170,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -1214,9 +1188,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -1233,9 +1207,9 @@ export function ContentView<Content extends ContentWithReferences>({
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    element.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -1331,16 +1305,15 @@ export function ContentView<Content extends ContentWithReferences>({
                     routeLayout === "narrow"
                         ? contentStyles.narrowRouteLayoutDocClassName
                         : undefined,
-                    isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
-                    isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
                     withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,
-                    isTruncated && contentViewStyles.truncatedClassName,
                 )}
                 style={
-                    withUserSelectNone ? {userSelect: "none", WebkitUserSelect: "none"} : undefined
+                    withUserSelectNone
+                        ? {userSelect: "none", WebkitUserSelect: "none", ...style}
+                        : style
                 }
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
@@ -1352,7 +1325,15 @@ export function ContentView<Content extends ContentWithReferences>({
             {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (
                 <Tooltip
                     placement="bottom"
-                    content={<PrettyAbsoluteDateTooltipContent date={contentUpdatedTime} />}
+                    content={
+                        <>
+                            Edited{" "}
+                            <PrettyAbsoluteDateTooltipContent
+                                date={contentUpdatedTime}
+                                withoutWeekday={true}
+                            />
+                        </>
+                    }
                     targetElement={contentUpdatedNoteElement}
                 />
             )}

@@ -1,4 +1,4 @@
-import {ChatCircle, ChatCircleDots, Check, DotsThree, Smiley, X} from "phosphor-react";
+import {ChatCircle, ChatCircleDots, DotsThree, Smiley} from "phosphor-react";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -23,10 +23,12 @@ import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
+import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
-import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -36,12 +38,12 @@ import {
     postContentViewFooterButtonIconSize,
     postContentViewFooterHeight,
     postContentViewInnerMarginY,
-    postContentViewMinHeightWithClosedCommentSection,
-    postContentViewMinHeightWithOpenCommentSection,
+    postContentViewMinHeightWithClosedCommentSectionPx,
+    postContentViewMinHeightWithOpenCommentSectionPx,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
-    postViewMinHeight,
+    postViewMinHeightPx,
     postViewNavigationBarSpace,
     screenPaddingXWithoutPostContentViewInnerMarginY,
 } from "~/client/styles/forum_shared_styles.js";
@@ -104,6 +106,7 @@ export function PostContentView({
     onScrollToIfNotVisible: () => void;
 }) {
     const platform = usePlatform();
+    const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
 
@@ -209,13 +212,13 @@ export function PostContentView({
             paddingTop={!isPostView ? postContentViewOuterMarginY : undefined}
             style={{
                 minHeight: isPostView
-                    ? postViewMinHeight
+                    ? postViewMinHeightPx[spacingScale]
                     : postCommentsState !== "Closed" && !isPostView
-                    ? postContentViewMinHeightWithOpenCommentSection
-                    : postContentViewMinHeightWithClosedCommentSection,
+                    ? postContentViewMinHeightWithOpenCommentSectionPx[platform][spacingScale]
+                    : postContentViewMinHeightWithClosedCommentSectionPx[spacingScale],
                 paddingBottom:
                     postCommentsState !== "Closed" && !isPostView
-                        ? postContentViewOuterOpenCommentSectionMarginBottom
+                        ? postContentViewOuterOpenCommentSectionMarginBottom[platform]
                         : postContentViewOuterMarginBottom,
             }}
         >
@@ -229,36 +232,29 @@ export function PostContentView({
                         <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
                     </Box>
                     <Box position="absolute" top={screenPaddingX} right={screenPaddingX}>
-                        {!isEditingPost ? (
-                            <MenuButton
-                                placement="bottom-end"
-                                actions={getPostMoreActions({
-                                    currentAccount,
-                                    post,
-                                    onStartEditingPost: () => {
-                                        postEditing.dispatch({
-                                            type: "StartEditing",
-                                            postId: post.id,
-                                            currentContent: post.content,
-                                            platform,
-                                        });
-                                    },
-                                })}
+                        <MenuButton
+                            placement="bottom-end"
+                            actions={getPostMoreActions({
+                                currentAccount,
+                                post,
+                                onStartEditingPost: () => {
+                                    postEditing.dispatch({
+                                        type: "StartEditing",
+                                        postId: post.id,
+                                        currentContent: post.content,
+                                        platform,
+                                    });
+                                },
+                            })}
+                        >
+                            <IconButton
+                                size={platform === "mobile" ? "base" : "md"}
+                                description="More"
+                                withoutTooltip={true}
                             >
-                                <IconButton
-                                    size={platform === "mobile" ? "base" : "md"}
-                                    description="More"
-                                    withoutTooltip={true}
-                                >
-                                    <DotsThree />
-                                </IconButton>
-                            </MenuButton>
-                        ) : (
-                            <PostContentViewEditingActions
-                                idBase={idBase}
-                                postEditing={postEditingForThisPost}
-                            />
-                        )}
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
                     </Box>
                 </>
             )}
@@ -284,11 +280,18 @@ export function PostContentView({
                             className={sprinkles({padding: postContentViewInnerMarginY})}
                             content={post.content}
                             contentSnippet={postSnippet}
+                            // If we were editing this post then show all content instead of collapsing
+                            // back into the truncated snippet.
+                            initiallyShowAll={
+                                !postEditing.state.isEditing &&
+                                postEditing.state.lastEditedPostId === post.id
+                            }
                         />
                     )
                 ) : (
                     <PostContentViewEditor
                         idBase={idBase}
+                        isPostView={isPostView}
                         postEditingForThisPost={postEditingForThisPost}
                         fileAttachmentTarget={fileAttachmentTarget}
                         initialContent={post.content}
@@ -313,7 +316,7 @@ export function PostContentView({
                         borderLeftWidth: "thick",
                     })}
                     style={{
-                        height: postCommentSectionGuidelineStartHeight,
+                        height: postCommentSectionGuidelineStartHeight[platform],
                         left: `calc(${postCommentSectionGuidelineOffset[platform]} - 1px)`,
                     }}
                 />
@@ -589,6 +592,7 @@ function PostCommentsAccountAvatarPile({
 
 function PostContentViewEditor({
     idBase,
+    isPostView,
     postEditingForThisPost,
     fileAttachmentTarget,
     initialContent,
@@ -596,6 +600,7 @@ function PostContentViewEditor({
     onScrollToIfNotVisible,
 }: {
     idBase: string;
+    isPostView: boolean;
     postEditingForThisPost: PostEditing & {state: {isEditing: true}};
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     initialContent: PostContentWithReferences;
@@ -621,8 +626,8 @@ function PostContentViewEditor({
         // `onScrollToIfNotVisible()` function won't scroll if the editor is already
         // visible.
         editor.focus({preventScroll: true});
-        onScrollToIfNotVisible();
-    }, [onScrollToIfNotVisible]);
+        if (isPostView) onScrollToIfNotVisible();
+    }, [isPostView, onScrollToIfNotVisible]);
 
     // Recreate the "(edited)" update note `<ContentView>` renders when editing a
     // post. This way when we start editing a post that ends with a file layout
@@ -645,7 +650,7 @@ function PostContentViewEditor({
                         // We are assuming here that if `depthToLastParagraphChild` is null that's
                         // because the last element is a block with standalone margin. We may need to
                         // modify this logic depending on what the actual last element is.
-                        marginTop: contentStyles.standaloneBlockMarginVar,
+                        marginTop: spacing[contentStyles.standaloneBlockMargin],
                     }}
                 >
                     <Tooltip
@@ -672,6 +677,8 @@ function PostContentViewEditor({
             >
                 <Box
                     id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
+                    position="relative"
+                    zIndex="40"
                     // We picked this border radius because it looks good with a selected file's
                     // `<FocusRing>` when they line up in the bottom corners.
                     borderRadius="2.5"
@@ -725,56 +732,15 @@ function PostContentViewEditor({
                             postEditingForThisPost.dispatch({type: "CancelEditing"});
                         }}
                     />
+                    <InlineEditorToolbar
+                        isSaving={postEditingForThisPost.state.isSaving}
+                        withModEnterSaveKeyboardShortcut={true}
+                        onSave={() => postEditingForThisPost.dispatch({type: "SaveEditedContent"})}
+                        onCancel={() => postEditingForThisPost.dispatch({type: "CancelEditing"})}
+                    />
                 </Box>
             </FocusRing>
             {initialContentUpdatedNote}
         </>
-    );
-}
-
-export function PostContentViewEditingActions({
-    idBase,
-    postEditing,
-}: {
-    idBase: string;
-    postEditing: PostEditing & {state: {isEditing: true}};
-}) {
-    const platform = usePlatform();
-    const {isAppleDevice} = useClientInfo();
-
-    return (
-        <Box
-            // Mark our buttons as being owned by the editor (according to
-            // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
-            // press on these buttons without asking the user to confirm the save.
-            data-ownedby={`${idBase}-editor-${postEditing.state.postId}`}
-            display="flex"
-        >
-            <IconButton
-                description="Save"
-                tooltipPlacement="bottom-end"
-                keyboardShortcutHint={`${isAppleDevice ? "⌘" : "Ctrl"}+Enter`}
-                size={platform === "mobile" ? "base" : "md"}
-                onPress={() => {
-                    postEditing.dispatch({
-                        type: "SaveEditedContent",
-                    });
-                }}
-                isDisabled={postEditing.state.isSaving}
-                isPending={postEditing.state.isSaving}
-            >
-                <Check />
-            </IconButton>
-            <IconButton
-                description="Cancel"
-                tooltipPlacement="bottom-end"
-                keyboardShortcutHint="Esc"
-                size={platform === "mobile" ? "base" : "md"}
-                onPress={() => postEditing.dispatch({type: "CancelEditing"})}
-                isDisabled={postEditing.state.isSaving}
-            >
-                <X />
-            </IconButton>
-        </Box>
     );
 }

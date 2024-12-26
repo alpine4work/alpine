@@ -9,10 +9,11 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
+import {postContentViewMinHeightWithClosedCommentSectionPx} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
@@ -80,6 +81,8 @@ export async function loader({params, request, context: unauthenticatedContext}:
 
     const url = new URL(request.url);
 
+    const clientInfo = context.loader.getClientInfo();
+
     const [channel, postsResult, inboxEntry] = await runAllPromises([
         getChannel(context, channelId),
         getInboxChannelPostsEntryPosts(context, {
@@ -87,10 +90,12 @@ export async function loader({params, request, context: unauthenticatedContext}:
             channelId,
             bucketGeneration,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                context.loader.getClientInfo(),
-                postContentViewMinHeightWithClosedCommentSection,
+                clientInfo,
+                postContentViewMinHeightWithClosedCommentSectionPx[
+                    getInitialAppRenderSpacingScale(clientInfo)
+                ],
             ),
-            commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+            commentLimit: getInitialLoadMessageCount(clientInfo),
             afterPostId: null,
         }),
         url.searchParams.get("inbox") === "show"

@@ -89,6 +89,9 @@ export interface OptimisticMessageModel extends MessageModelBase {
     readonly optimisticRequestErrorState:
         | {readonly hasError: false}
         | {readonly hasError: true; readonly retry: () => void};
+
+    // Available for TypeScript to access this property on a union.
+    readonly index?: undefined;
 }
 
 export type MessagePayload = SchemaType<typeof MessagePayloadSchema>;

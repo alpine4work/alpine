@@ -28,6 +28,7 @@ import {
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {isTaskGridViewApplyingUndoStackEntry} from "~/client/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {
     TaskAssigneeInputListBox,
     TaskAssigneeInputListBoxOptionItem,
@@ -288,8 +289,10 @@ function TaskAssigneeInput(
         },
 
         onFocus: () => {
-            // Open the combobox on focus.
-            comboBoxState.open();
+            // Open the combobox on focus as long as we're not currently applying an undo.
+            if (!isTaskGridViewApplyingUndoStackEntry()) {
+                comboBoxState.open();
+            }
 
             // When focused, switch to a typing state.
             setInputState(inputState => {
@@ -300,7 +303,7 @@ function TaskAssigneeInput(
                     value: platform !== "mobile" ? inputValue : "",
                     hasChanged: false,
                     disableAnimationOut: false,
-                    shouldSelectRef: {current: false},
+                    shouldSelectRef: {current: true},
                 };
             });
         },

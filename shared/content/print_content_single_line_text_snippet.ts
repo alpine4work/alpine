@@ -3,13 +3,16 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {
     ContentBlockNodeTypeName,
     ContentInlineNodeTypeName,
-} from "~/shared/content/content_type_names.js";
+} from "~/shared/content/content_node_type_name.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 
 /**
  * Match different new-line formats. [Same newline regex that's in
@@ -28,7 +31,7 @@ const newLineRegExp = /(?:(?:\r?\n|\r)+)/g;
  * function can be used for printing that content to a plain text preview.
  */
 export function printContentSingleLineTextSnippet(content: ContentWithReferences): string {
-    const segments = printContentSingleLineTextSnippetWithHighlighting(content, () => false);
+    const segments = printContentSingleLineTextSnippetPreservingMarks(content, () => false);
 
     if (segments.length === 0) return "";
     if (segments.length === 1) return segments[0]!.text;
@@ -45,16 +48,16 @@ export function printContentSingleLineTextSnippet(content: ContentWithReferences
 /**
  * Same as `printContentSingleLineTextSnippet()` (see the documentation on that
  * function) but we preserve the styling for marks where
- * `shouldHighlightMark()` returns true. Used for showing search result content
+ * `shouldPreserveMark()` returns true. Used for showing search result content
  * previews since we need to highlight matched words.
  */
-export function printContentSingleLineTextSnippetWithHighlighting(
+export function printContentSingleLineTextSnippetPreservingMarks(
     content: ContentWithReferences,
-    shouldHighlightMark: (mark: Mark) => boolean,
-): Array<{isHighlighted: boolean; text: string}> {
-    const segments: Array<{isHighlighted: boolean; text: string}> = [];
+    shouldPreserveMark: (mark: Mark) => boolean,
+): Array<{marks: ReadonlyArray<Mark>; text: string}> {
+    const segments: Array<{marks: ReadonlyArray<Mark>; text: string}> = [];
     let breakPunctuation: string | null = null;
-    let isHighlighted = false;
+    let preservedMarks: ReadonlyArray<Mark> = emptyArray;
     const orderListItemNumberByNode = new Map<Node, number>();
 
     const print = (text: string) => {
@@ -65,9 +68,13 @@ export function printContentSingleLineTextSnippetWithHighlighting(
             const lastSegment = segments[segments.length - 1];
 
             if (lastSegment) {
-                const actuallyIsHighlighted = isHighlighted;
+                const actualPreservedMarks = preservedMarks;
 
-                isHighlighted = lastSegment.isHighlighted && isHighlighted;
+                preservedMarks =
+                    lastSegment.marks.length === preservedMarks.length &&
+                    lastSegment.marks.every(mark => mark.isInSet(preservedMarks))
+                        ? actualPreservedMarks
+                        : emptyArray;
 
                 // If a sentence is already ended with punctuation, we don't want to add our
                 // break punctuation. If a sentence is ended with punctuation, then a quote
@@ -78,7 +85,7 @@ export function printContentSingleLineTextSnippetWithHighlighting(
                     actuallyPrint(`${breakPunctuation} `);
                 }
 
-                isHighlighted = actuallyIsHighlighted;
+                preservedMarks = actualPreservedMarks;
             }
 
             breakPunctuation = null;
@@ -90,8 +97,12 @@ export function printContentSingleLineTextSnippetWithHighlighting(
     const actuallyPrint = (text: string) => {
         const lastSegment = segments[segments.length - 1];
 
-        if (!lastSegment || lastSegment.isHighlighted !== isHighlighted) {
-            segments.push({isHighlighted, text});
+        if (
+            !lastSegment ||
+            !lastSegment.marks.every(mark => mark.isInSet(preservedMarks)) ||
+            !preservedMarks.every(mark => mark.isInSet(lastSegment.marks))
+        ) {
+            segments.push({marks: preservedMarks, text});
         } else {
             lastSegment.text += text;
         }
@@ -154,7 +165,11 @@ export function printContentSingleLineTextSnippetWithHighlighting(
             case "codeBlock": {
                 for (const childNode of node.content.content) {
                     for (const grandChildNode of childNode.content.content) {
-                        printInlineNode(grandChildNode);
+                        printInlineNode(
+                            grandChildNode,
+                            // Pretend that children of `codeBlock` have the `code` mark.
+                            [node.type.schema.mark("code")],
+                        );
                     }
                     breakPunctuation = "";
                 }
@@ -175,13 +190,12 @@ export function printContentSingleLineTextSnippetWithHighlighting(
         }
     };
 
-    const printInlineNode = (node: Node) => {
+    const printInlineNode = (node: Node, extraMarks: ReadonlyArray<Mark> = emptyArray) => {
         const typeName = node.type.name as ContentInlineNodeTypeName;
 
-        const hasHighlightMark = node.marks.some(shouldHighlightMark);
-        if (hasHighlightMark) {
-            isHighlighted = true;
-        }
+        preservedMarks = Array.from(
+            filterIterable(concatIterables(node.marks, extraMarks), shouldPreserveMark),
+        );
 
         switch (typeName) {
             case "text": {
@@ -226,9 +240,7 @@ export function printContentSingleLineTextSnippetWithHighlighting(
                 throw exhaustive(typeName);
         }
 
-        if (hasHighlightMark) {
-            isHighlighted = false;
-        }
+        preservedMarks = emptyArray;
     };
 
     for (const node of content.doc.content.content) {

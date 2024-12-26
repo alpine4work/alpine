@@ -33,8 +33,8 @@ export function useResizeObserver({
             element => {
                 const listener = (entry: ResizeObserverEntry) => {
                     const newContentRect = {
-                        width: entry.contentRect.width,
-                        height: entry.contentRect.height,
+                        width: entry.borderBoxSize[0]?.inlineSize ?? 0,
+                        height: entry.borderBoxSize[0]?.blockSize ?? 0,
                     };
 
                     setContentRect(contentRect => {
@@ -88,8 +88,10 @@ function createResizeObserver() {
             // changed before calling any resize listeners.
             if (
                 lastEntry === undefined ||
-                lastEntry.contentRect.width !== entry.contentRect.width ||
-                lastEntry.contentRect.height !== entry.contentRect.height
+                (lastEntry.borderBoxSize[0]?.inlineSize ?? 0) !==
+                    (entry.borderBoxSize[0]?.inlineSize ?? 0) ||
+                (lastEntry.borderBoxSize[0]?.blockSize ?? 0) !==
+                    (entry.borderBoxSize[0]?.blockSize ?? 0)
             ) {
                 lastResizeObserverEntryByElement.set(entry.target, entry);
 

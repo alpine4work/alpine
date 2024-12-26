@@ -14,6 +14,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
 import {generateId} from "~/shared/id/id.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
@@ -39,8 +40,6 @@ type PeekSwitcherState<Extra> = {
         readonly pendingPromiseResolver: PromiseResolver<void>;
     } | null;
 };
-
-type MaybeThunk<T> = T | (() => T);
 
 /**
  * An abstraction for building interfaces where you can switch between visible

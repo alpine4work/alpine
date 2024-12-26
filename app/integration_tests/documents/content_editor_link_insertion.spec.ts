@@ -1,4 +1,4 @@
-import {Locator, Page, ViewportSize, expect, test} from "@playwright/test";
+import {Locator, Page, ViewportSize, expect, test as playwrightTest} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {createDocument} from "~/server/documents/data/documents_table.js";
@@ -14,12 +14,14 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
 
 const testCases: Array<{
+    only?: CommitBlocker;
     name: string;
     setup: (options: {
         page: Page;
@@ -259,6 +261,8 @@ const testCases: Array<{
 ];
 
 for (const testCase of testCases) {
+    const test = testCase.only ? playwrightTest.only : playwrightTest;
+
     test(`can insert a link in ${testCase.name}`, async ({
         page,
         context: browserContext,

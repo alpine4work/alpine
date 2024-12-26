@@ -15,24 +15,34 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
     currentTime: Date,
     time: Date,
     {
-        shouldExcludeTime,
-        shouldIncludeSeconds,
-        shouldIncludeWeekday,
+        withoutDay,
+        withoutTime,
+        withSeconds,
+        withWeekday,
     }: {
-        shouldExcludeTime?: boolean;
-        shouldIncludeSeconds?: boolean;
-        shouldIncludeWeekday?: boolean;
+        withoutDay?: boolean;
+        withoutTime?: boolean;
+        withSeconds?: boolean;
+        withWeekday?: boolean;
     } = {},
 ): string {
     const baseOptions: IntlDateTimeFormatOptions = {
         locale,
         timeZone,
-        day: "numeric",
-        weekday: shouldIncludeWeekday ? "short" : undefined,
-        hour: !shouldExcludeTime ? "numeric" : undefined,
-        minute: !shouldExcludeTime ? "2-digit" : undefined,
-        second: shouldIncludeSeconds ? "2-digit" : undefined,
+        day: !withoutDay ? "numeric" : undefined,
+        weekday: withWeekday ? "short" : undefined,
+        hour: !withoutTime ? "numeric" : undefined,
+        minute: !withoutTime ? "2-digit" : undefined,
+        second: withSeconds ? "2-digit" : undefined,
     };
+
+    if (withoutDay) {
+        const formatterWithoutDay = getIntlDateTimeFormat(baseOptions);
+
+        return formatterWithoutDay
+            .format(time)
+            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+    }
 
     const formatterWithoutYear = getIntlDateTimeFormat({
         ...baseOptions,
@@ -43,7 +53,7 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
         ...baseOptions,
         year: "numeric",
         // If we include a short weekday, always use short months as well.
-        month: !shouldIncludeWeekday ? "long" : "short",
+        month: !withWeekday ? "long" : "short",
     });
 
     const isCurrentYear = currentTime.getFullYear() === time.getFullYear();

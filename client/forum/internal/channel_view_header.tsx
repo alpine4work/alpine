@@ -1,11 +1,9 @@
-import {Check, X} from "phosphor-react";
-import {useId, useMemo, useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
@@ -13,6 +11,7 @@ import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_vi
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
@@ -113,7 +112,6 @@ function ChannelViewHeaderMobileDescription({
     return (
         <Box paddingTop="1">
             <ContentViewWithSeeMoreToggle
-                isCompact={true}
                 content={description}
                 contentSnippet={descriptionSnippet}
             />
@@ -136,7 +134,6 @@ function ChannelViewHeaderMobileDescriptionEditor({
 }) {
     const reporter = useReporter();
 
-    const editorId = useId();
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
@@ -170,43 +167,10 @@ function ChannelViewHeaderMobileDescriptionEditor({
 
     return (
         <Box position="relative">
-            <Box
-                // Mark our buttons as being owned by the editor (according to
-                // `isElementOwnedBy()`) so `useConfirmSaveAfterLosingFocus()` allows us to
-                // press on these buttons without asking the user to confirm the save.
-                data-ownedby={editorId}
-                position="absolute"
-                right="0"
-                top="-7"
-                display="flex"
-                justifyContent="flex-end"
-            >
-                <IconButton
-                    description="Save"
-                    tooltipPlacement="bottom-end"
-                    keyboardShortcutHint="Enter"
-                    size="md"
-                    pressErrorTitle="Couldn’t save description"
-                    onPress={save}
-                    isDisabled={isSaving}
-                    isPending={isSaving}
-                >
-                    <Check />
-                </IconButton>
-                <IconButton
-                    description="Cancel"
-                    tooltipPlacement="bottom-end"
-                    keyboardShortcutHint="Esc"
-                    size="md"
-                    onPress={onCancel}
-                    isDisabled={isSaving}
-                >
-                    <X />
-                </IconButton>
-            </Box>
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
-                    id={editorId}
+                    position="relative"
+                    zIndex="40"
                     paddingX="1.5"
                     paddingY="1"
                     marginX="-1.5"
@@ -227,7 +191,6 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
-                        isCompact={true}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;
@@ -241,7 +204,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
 
                             onCancel();
                         }}
-                        onModEnter={event => {
+                        onEnterFromPhysicalKeyboard={event => {
                             event.preventDefault();
                             event.stopPropagation();
 
@@ -251,6 +214,12 @@ function ChannelViewHeaderMobileDescriptionEditor({
                                 reporter.displayError("Couldn’t save description", error);
                             });
                         }}
+                    />
+                    <InlineEditorToolbar
+                        isSaving={isSaving}
+                        saveErrorTitle="Couldn’t save description"
+                        onSave={save}
+                        onCancel={onCancel}
                     />
                 </Box>
             </FocusRing>

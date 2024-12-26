@@ -7,10 +7,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {
-    messageViewMarginY,
-    messageViewTimestampDividerMarginTop,
-} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMarginY} from "~/client/styles/messaging_shared_styles.js";
 import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -20,7 +17,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 // It's ok to export this since it's a constant string.
 // eslint-disable-next-line react-refresh/only-export-components
 export const chatMessagingViewHeaderMinHeight = addRemLengths(
-    messageViewTimestampDividerMarginTop,
+    messageViewMarginY,
     messageViewMarginY,
 );
 

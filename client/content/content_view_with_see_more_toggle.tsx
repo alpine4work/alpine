@@ -6,16 +6,24 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 export function ContentViewWithSeeMoreToggle<Content extends ContentWithReferences>({
     content,
     contentSnippet,
+    initiallyShowAll,
     ...props
 }: Omit<ContentViewProps<Content>, "onSeeMoreContent" | "onSeeLessContent"> & {
     /**
      * The content to render.
      */
     contentSnippet: Content;
+
+    /**
+     * Are we initially showing all content?
+     */
+    initiallyShowAll?: boolean;
 }) {
     const isContentSnippetTruncated = content.doc.nodeSize !== contentSnippet.doc.nodeSize;
 
-    const [isShowingAllContent, setIsShowingAllContent] = useState(!isContentSnippetTruncated);
+    const [isShowingAllContent, setIsShowingAllContent] = useState(
+        initiallyShowAll || !isContentSnippetTruncated,
+    );
     if (!isShowingAllContent && !isContentSnippetTruncated) setIsShowingAllContent(true);
 
     const fixScrollAfterSeeLessContentRef = useRef<{

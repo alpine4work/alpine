@@ -1,4 +1,4 @@
-import {Memo, Ref, RefObject, useCallback, useRef} from "react";
+import {Ref, RefObject, useCallback, useRef} from "react";
 import {flushSync} from "react-dom";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
@@ -14,7 +14,6 @@ import {getMessageListItemKey} from "~/client/messaging/render_message_list_item
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
@@ -37,7 +36,6 @@ export function DocumentCommentInput({
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
-    paddingX,
     withMobileMaxHeight,
     onFocus,
     onBeforeFocusFromReplyOrEditingChange,
@@ -64,7 +62,6 @@ export function DocumentCommentInput({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
-    paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight: boolean;
     onFocus?: () => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
@@ -222,7 +219,6 @@ export function DocumentCommentInput({
                         ),
                     );
             }}
-            paddingX={paddingX}
             withMobileMaxHeight={withMobileMaxHeight}
             onFocus={onFocus}
             onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}

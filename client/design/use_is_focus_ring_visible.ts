@@ -1,7 +1,7 @@
 import {getInteractionModality} from "@react-aria/interactions";
 import {RefCallback, useCallback, useRef, useState} from "react";
+import {flushSyncIfNotRendering} from "~/client/helpers/flush_sync_if_not_rendering.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 
 let currentActiveElement: HTMLElement | null = null;
 
@@ -24,6 +24,9 @@ export function useIsFocusRingVisible({
 
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
+            // Make sure `currentActiveElement` still exists in the DOM before using it.
+            if (!document.body.contains(currentActiveElement)) currentActiveElement = null;
+
             if (shouldIgnoreFocusEvents) {
                 if (currentActiveElement === targetElement) currentActiveElement = null;
                 setIsActive(false);
@@ -73,6 +76,9 @@ export function useIsFocusRingVisible({
                         (!currentActiveElement || currentActiveElement === targetElement)));
 
             const update = (event?: FocusEvent) => {
+                // Make sure `currentActiveElement` still exists in the DOM before using it.
+                if (!document.body.contains(currentActiveElement)) currentActiveElement = null;
+
                 const focusedElement =
                     event?.type === "focusout"
                         ? (event.relatedTarget as Element | null)
@@ -100,7 +106,7 @@ export function useIsFocusRingVisible({
                     // Immediately re-render the focus ring. That way if we have any state changing
                     // the visuals of an element in `onFocus` or `onBlur` we don't have a tear with
                     // the focus ring in a weird state.
-                    runWithImmediatePriority(() => {
+                    flushSyncIfNotRendering(() => {
                         if (isActive(focusedElement)) {
                             currentActiveElement = targetElement;
                             setIsActive(true);
@@ -158,7 +164,7 @@ export function useIsChildFocusRingVisible(): [
     const targetLifecycleRef = useCallback((targetElement: HTMLElement) => {
         const update = () => {
             // Immediately re-render since focus rings are rendered immediately.
-            runWithImmediatePriority(() => {
+            flushSyncIfNotRendering(() => {
                 setIsChildFocusRingVisible(targetElement.contains(currentActiveElement));
             });
         };

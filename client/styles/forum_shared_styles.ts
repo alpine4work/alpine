@@ -1,14 +1,18 @@
 import {messageInputPaddingY} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
+import {allPlatforms} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     addRemLengths,
+    convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
     screenPaddingXRem,
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {SpacingScale, allSpacingScales} from "~/shared/design/core/spacing_scale.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 export const postViewFlex = 6;
@@ -16,17 +20,11 @@ export const postListViewAsideFlex = 4;
 
 export const channelViewAsideSectionGap = "7";
 
-// We've picked `channelViewAsideMarginTop` so that when you edit the channel
-// description the save and cancel buttons aren't covered by the navigation
-// bar. If we change the design for these inline editing save/cancel buttons we
-// can set `channelViewAsideMarginTop` to 0.
-export const channelViewAsideMarginTop = "2";
-
 export const channelViewHeaderNarrowRouteLayoutMarginTop = "1";
-export const channelViewHeaderSectionGap = "6";
+export const channelViewHeaderSectionGap = "5";
 
 export const postFauxInputCreateButtonMarginTop = {
-    wide: channelViewAsideMarginTop,
+    wide: "0",
     narrow: channelViewHeaderSectionGap,
 } as const;
 
@@ -63,10 +61,16 @@ const postContentViewOuterMarginBottomRem =
 
 export const postContentViewOuterMarginBottom: RemLength = `${postContentViewOuterMarginBottomRem}rem`;
 
-const postContentViewOuterOpenCommentSectionMarginBottomRem =
-    postContentViewOuterMarginBottomRem - parseRemLength(messageInputPaddingY);
-
-export const postContentViewOuterOpenCommentSectionMarginBottom: RemLength = `${postContentViewOuterOpenCommentSectionMarginBottomRem}rem`;
+const postContentViewOuterOpenCommentSectionMarginBottomRem = createObjectFromKeys(
+    allPlatforms,
+    platform =>
+        postContentViewOuterMarginBottomRem - parseRemLength(messageInputPaddingY[platform]),
+);
+export const postContentViewOuterOpenCommentSectionMarginBottom = createObjectFromKeys(
+    allPlatforms,
+    (platform): RemLength =>
+        `${postContentViewOuterOpenCommentSectionMarginBottomRem[platform]}rem`,
+);
 
 export const postContentViewFooterButtonIconSize = "4";
 
@@ -76,11 +80,16 @@ export const postCommentSectionGuidelineOffset = mapObjectValues(
         `${parseRemLength(paddingX) + parseRemLength(postContentViewFooterButtonIconSize) / 2}rem`,
 );
 
-const postCommentSectionGuidelineStartHeightRem =
-    postContentViewOuterOpenCommentSectionMarginBottomRem +
-    (postContentViewFooterHeightRem - postContentViewFooterButtonHeightRem) / 2;
-
-export const postCommentSectionGuidelineStartHeight = `${postCommentSectionGuidelineStartHeightRem}rem`;
+const postCommentSectionGuidelineStartHeightRem = createObjectFromKeys(
+    allPlatforms,
+    platform =>
+        postContentViewOuterOpenCommentSectionMarginBottomRem[platform] +
+        (postContentViewFooterHeightRem - postContentViewFooterButtonHeightRem) / 2,
+);
+export const postCommentSectionGuidelineStartHeight = createObjectFromKeys(
+    allPlatforms,
+    (platform): RemLength => `${postCommentSectionGuidelineStartHeightRem[platform]}rem`,
+);
 
 // On desktop there's a bit of extra margin bottom below the navigation bar and
 // post content so that when the user edits their post the focus ring won't be
@@ -93,33 +102,44 @@ export const postViewNavigationBarSpace = {
     ),
 };
 
-const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
-    postContentViewInnerMarginY,
-    contentStyles.paragraphFontSize.lineHeight,
-    postContentViewInnerMarginY,
-    postContentViewFooterHeight,
+const getPostContentViewMinHeightWithoutHeaderBasePx = (spacingScale: SpacingScale) =>
+    convertRemLengthToPx(postContentViewInnerMarginY, spacingScale) +
+    contentStyles.paragraphLineHeightPx[spacingScale] +
+    convertRemLengthToPx(postContentViewInnerMarginY, spacingScale) +
+    convertRemLengthToPx(postContentViewFooterHeight, spacingScale);
+
+const getPostContentViewMinHeightBasePx = (spacingScale: SpacingScale) =>
+    convertRemLengthToPx(postContentViewOuterMarginY, spacingScale) +
+    convertRemLengthToPx(postContentViewHeaderHeight, spacingScale) +
+    getPostContentViewMinHeightWithoutHeaderBasePx(spacingScale);
+
+export const postContentViewMinHeightWithOpenCommentSectionPx = createObjectFromKeys(
+    allPlatforms,
+    platform =>
+        createObjectFromKeys(
+            allSpacingScales,
+            spacingScale =>
+                getPostContentViewMinHeightBasePx(spacingScale) +
+                convertRemLengthToPx(
+                    postContentViewOuterOpenCommentSectionMarginBottom[platform],
+                    spacingScale,
+                ),
+        ),
 );
 
-const postContentViewMinHeightBase = addRemLengths(
-    postContentViewOuterMarginY,
-    postContentViewHeaderHeight,
-    postContentViewMinHeightWithoutHeaderBase,
+export const postContentViewMinHeightWithClosedCommentSectionPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        getPostContentViewMinHeightBasePx(spacingScale) +
+        convertRemLengthToPx(postContentViewOuterMarginBottom, spacingScale),
 );
 
-export const postContentViewMinHeightWithOpenCommentSection = addRemLengths(
-    postContentViewMinHeightBase,
-    postContentViewOuterOpenCommentSectionMarginBottom,
-);
-
-export const postContentViewMinHeightWithClosedCommentSection = addRemLengths(
-    postContentViewMinHeightBase,
-    postContentViewOuterMarginBottom,
-);
-
-export const postViewMinHeight = addRemLengths(
-    navigationBarStyles.navigationBarHeight,
-    postContentViewMinHeightWithoutHeaderBase,
-    postContentViewOuterMarginBottom,
+export const postViewMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        convertRemLengthToPx(navigationBarStyles.navigationBarHeight, spacingScale) +
+        getPostContentViewMinHeightWithoutHeaderBasePx(spacingScale) +
+        convertRemLengthToPx(postContentViewOuterMarginBottom, spacingScale),
 );
 
 export const channelViewHeaderMinHeight = addRemLengths(

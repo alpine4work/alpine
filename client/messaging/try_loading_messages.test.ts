@@ -159,7 +159,7 @@ test("will load messages when there are messages at the start", () => {
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -175,7 +175,7 @@ test("will load messages when there are messages at the start", () => {
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -191,8 +191,8 @@ test("will load messages when there are messages at the start", () => {
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: null,
         },
     });
@@ -312,7 +312,7 @@ test("will load messages when there are messages at the start from multiple load
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 49,
             beforeMessageIndex: null,
         },
@@ -328,7 +328,7 @@ test("will load messages when there are messages at the start from multiple load
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 49,
             beforeMessageIndex: null,
         },
@@ -344,8 +344,8 @@ test("will load messages when there are messages at the start from multiple load
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: null,
         },
     });
@@ -417,7 +417,7 @@ test("will load messages when there are messages at the end", () => {
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -433,7 +433,7 @@ test("will load messages when there are messages at the end", () => {
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -449,8 +449,8 @@ test("will load messages when there are messages at the end", () => {
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: 446,
         },
     });
@@ -574,7 +574,7 @@ test("will load messages when there are messages at the end from multiple loads"
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 450,
         },
@@ -590,7 +590,7 @@ test("will load messages when there are messages at the end from multiple loads"
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 450,
         },
@@ -606,8 +606,8 @@ test("will load messages when there are messages at the end from multiple loads"
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: 450,
         },
     });
@@ -703,7 +703,7 @@ test("will load messages when there are messages at the start and end", () => {
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -719,7 +719,7 @@ test("will load messages when there are messages at the start and end", () => {
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -753,7 +753,7 @@ test("will load messages when there are messages at the start and end", () => {
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -769,7 +769,7 @@ test("will load messages when there are messages at the start and end", () => {
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -785,8 +785,8 @@ test("will load messages when there are messages at the start and end", () => {
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: 446,
         },
     });
@@ -906,7 +906,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -922,7 +922,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -956,7 +956,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -972,7 +972,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -997,7 +997,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 300,
         },
@@ -1013,7 +1013,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 300,
         },
@@ -1038,7 +1038,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 353,
             beforeMessageIndex: null,
         },
@@ -1054,7 +1054,7 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 353,
             beforeMessageIndex: null,
         },
@@ -1070,8 +1070,8 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 169,
+            limit: 112,
+            afterMessageIndex: 154,
             beforeMessageIndex: 300,
         },
     });
@@ -1086,8 +1086,8 @@ test("will load messages when there are messages at the start, end, and middle",
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 369,
+            limit: 112,
+            afterMessageIndex: 354,
             beforeMessageIndex: 446,
         },
     });
@@ -1196,7 +1196,7 @@ test("will load messages when there are messages at the end when there are some 
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -1212,7 +1212,7 @@ test("will load messages when there are messages at the end when there are some 
         wasJump: false,
         options: {
             type: "loadFromEnd",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: null,
             beforeMessageIndex: 446,
         },
@@ -1228,8 +1228,8 @@ test("will load messages when there are messages at the end when there are some 
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: 420,
         },
     });
@@ -1360,7 +1360,7 @@ test("will load messages when there are messages at the start when there are som
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -1376,7 +1376,7 @@ test("will load messages when there are messages at the start when there are som
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 53,
             beforeMessageIndex: null,
         },
@@ -1392,8 +1392,8 @@ test("will load messages when there are messages at the start when there are som
         wasJump: true,
         options: {
             type: "loadFromStart",
-            limit: 81,
-            afterMessageIndex: 269,
+            limit: 112,
+            afterMessageIndex: 254,
             beforeMessageIndex: null,
         },
     });
@@ -1469,7 +1469,7 @@ test("will load messages in the middle of two loaded ranges", () => {
         wasJump: false,
         options: {
             type: "loadFromStart",
-            limit: 54,
+            limit: 75,
             afterMessageIndex: 99,
             beforeMessageIndex: 110,
         },

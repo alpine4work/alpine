@@ -1,7 +1,7 @@
 import {Box} from "~/client/design/box.js";
 import {Sprinkles, fontSizes, pulseAnimationClassName} from "~/client/styles/styles.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {RemLength, Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
+import {Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 const textShimmerFontSizePercentage =
@@ -19,7 +19,7 @@ export function TextShimmer({
     // Helps create a "ragged edge" for text which may otherwise have the
     // same width.
     ragRight?: Spacing;
-    fontSize: FontSize | {readonly fontSize: string; readonly lineHeight: RemLength};
+    fontSize: FontSize | {readonly fontSize: string; readonly lineHeight: string};
 }) {
     fontSize = typeof fontSize === "string" ? fontSizes[fontSize] : fontSize;
 

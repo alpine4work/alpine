@@ -36,17 +36,15 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     const editTestId = async (testId: string) => {
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
+        await expect(message).toBeVisible();
+
         if (!isMobile) {
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-            await page.getByTestId(testId).getByRole("button", {name: "More"}).press("Enter");
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeVisible();
-            await page.getByRole("menuitem", {name: "Edit"}).click();
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Edit").click();
+            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
         } else {
             // Simulate a long press on mobile devices...
-
-            const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
-            await expect(message).toBeVisible();
 
             await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
             await message.dispatchEvent("touchstart");
@@ -78,7 +76,15 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     if (!isMobile) {
         await page.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
-        await page.getByRole("button", {name: "Save"}).click();
+        await expect(page.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Make sure the keyboard toolbar isn't animating when we tap.
+        await (await page.getByRole("button", {name: "Save"}).elementHandle())!.waitForElementState(
+            "stable",
+        );
+
+        await page.getByRole("button", {name: "Save"}).tap();
+        await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     }
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeHidden();
 
@@ -114,33 +120,32 @@ test("can't edit or delete a post comment that's not yours", async ({
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
 
-    if (!isMobile) {
-        await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
-        await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-        await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-        await page
-            .getByTestId(`MessageView:${post.id}:${comment.index}`)
-            .getByRole("button", {name: "More"})
-            .press("Enter");
-        await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
-        await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-        await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-    } else {
-        // Simulate a long press on mobile devices...
-
+    {
         const message = page
             .getByTestId(`MessageView:${post.id}:${comment.index}`)
-            .getByTestId("MessageViewBubble");
+            .getByTestId("MessageViewContent");
         await expect(message).toBeVisible();
 
-        await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
-        await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-        await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-        await message.dispatchEvent("touchstart");
-        await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
-        await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-        await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-        await message.dispatchEvent("touchend");
+        if (!isMobile) {
+            await expect(page.getByTestId("ContextMenu").getByText("Copy link")).toBeHidden();
+            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
+            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await expect(page.getByTestId("ContextMenu").getByText("Copy link")).toBeVisible();
+            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
+            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
+        } else {
+            // Simulate a long press on mobile devices...
+
+            await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
+            await message.dispatchEvent("touchstart");
+            await expect(page.getByRole("menuitem", {name: "Copy link"})).toBeVisible();
+            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
+            await message.dispatchEvent("touchend");
+        }
     }
 });
 
@@ -170,17 +175,15 @@ test("can see a post comment edited in realtime", async ({
     await page1.goto(`/s/${space.id}/posts/${post.id}`);
 
     const editTestId = async (page: Page, testId: string) => {
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
+        await expect(message).toBeVisible();
+
         if (!isMobile) {
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-            await page.getByTestId(testId).getByRole("button", {name: "More"}).press("Enter");
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeVisible();
-            await page.getByRole("menuitem", {name: "Edit"}).click();
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Edit").click();
+            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
         } else {
             // Simulate a long press on mobile devices...
-
-            const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
-            await expect(message).toBeVisible();
 
             await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
             await message.dispatchEvent("touchstart");
@@ -216,7 +219,15 @@ test("can see a post comment edited in realtime", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
-        await page2.getByRole("button", {name: "Save"}).click();
+        await expect(page2.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Make sure the keyboard toolbar isn't animating when we tap.
+        await (await page2
+            .getByRole("button", {name: "Save"})
+            .elementHandle())!.waitForElementState("stable");
+
+        await page2.getByRole("button", {name: "Save"}).tap();
+        await expect(page2.getByRole("button", {name: "Save"})).toBeHidden();
     }
 
     await expect(page1.getByText("1 comment")).toBeVisible();
@@ -248,21 +259,18 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
     const deleteTestId = async (testId: string) => {
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
+        await expect(message).toBeVisible();
+
         if (!isMobile) {
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-            await page.getByTestId(testId).getByRole("button", {name: "More"}).press("Enter");
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeVisible();
-            await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
-            await page.getByRole("menuitem", {name: "Delete"}).click();
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Delete").click();
+            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
             await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeVisible();
             await page.getByRole("button", {name: "Delete"}).click();
             await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
         } else {
             // Simulate a long press on mobile devices...
-
-            const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
-            await expect(message).toBeVisible();
 
             await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
             await message.dispatchEvent("touchstart");
@@ -277,14 +285,14 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
     };
 
     await expect(page.getByText("Test post comment content 1")).toBeVisible();
-    await expect(page.getByText("Comment deleted")).toBeHidden();
+    await expect(page.getByText("Deleted comment")).toBeHidden();
 
     await deleteTestId(`MessageView:${post.id}:${comment.index}`);
 
     await expect(page.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page, "LR")).toBeVisible();
     await expect(page.getByText("Test post comment content 1")).toBeHidden();
-    await expect(page.getByText("Comment deleted")).toBeVisible();
+    await expect(page.getByText("Deleted comment")).toBeVisible();
 });
 
 test("can see a post comment deleted in realtime", async ({
@@ -313,21 +321,18 @@ test("can see a post comment deleted in realtime", async ({
     await page1.goto(`/s/${space.id}/posts/${post.id}`);
 
     const deleteTestId = async (page: Page, testId: string) => {
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
+        await expect(message).toBeVisible();
+
         if (!isMobile) {
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-            await page.getByTestId(testId).getByRole("button", {name: "More"}).press("Enter");
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeVisible();
-            await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
-            await page.getByRole("menuitem", {name: "Delete"}).click();
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Delete").click();
+            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
             await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeVisible();
             await page.getByRole("button", {name: "Delete"}).click();
             await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
         } else {
             // Simulate a long press on mobile devices...
-
-            const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
-            await expect(message).toBeVisible();
 
             await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
             await message.dispatchEvent("touchstart");
@@ -346,7 +351,7 @@ test("can see a post comment deleted in realtime", async ({
     await expect(page1.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
-    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await expect(page1.getByText("Deleted comment")).toBeHidden();
 
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session2);
@@ -358,12 +363,12 @@ test("can see a post comment deleted in realtime", async ({
     await expect(page2.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page2, "SR")).toBeVisible();
     await expect(page2.getByText("Test post comment content 1")).toBeHidden();
-    await expect(page2.getByText("Comment deleted")).toBeVisible();
+    await expect(page2.getByText("Deleted comment")).toBeVisible();
 
     await expect(page1.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
-    await expect(page1.getByText("Comment deleted")).toBeVisible();
+    await expect(page1.getByText("Deleted comment")).toBeVisible();
 
     await browserContext2.close();
 });
@@ -394,17 +399,15 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     const editTestId = async (page: Page, testId: string) => {
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
+        await expect(message).toBeVisible();
+
         if (!isMobile) {
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
-            await page.getByTestId(testId).getByRole("button", {name: "More"}).press("Enter");
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeVisible();
-            await page.getByRole("menuitem", {name: "Edit"}).click();
-            await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Edit").click();
+            await expect(page.getByTestId("ContextMenu").getByText("Edit")).toBeHidden();
         } else {
             // Simulate a long press on mobile devices...
-
-            const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
-            await expect(message).toBeVisible();
 
             await expect(page.getByRole("menuitem", {name: "Edit"})).toBeHidden();
             await message.dispatchEvent("touchstart");
@@ -446,7 +449,15 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Enter");
     } else {
-        await page2.getByRole("button", {name: "Save"}).click();
+        await expect(page2.getByRole("button", {name: "Save"})).toBeEnabled();
+
+        // Make sure the keyboard toolbar isn't animating when we tap.
+        await (await page2
+            .getByRole("button", {name: "Save"})
+            .elementHandle())!.waitForElementState("stable");
+
+        await page2.getByRole("button", {name: "Save"}).tap();
+        await expect(page2.getByRole("button", {name: "Save"})).toBeHidden();
     }
 
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
@@ -484,21 +495,18 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     await page1.goto(`/s/${space.id}/channels/${channel.id}`);
 
     const deleteTestId = async (page: Page, testId: string) => {
+        const message = page.getByTestId(testId).getByTestId("MessageViewContent");
+        await expect(message).toBeVisible();
+
         if (!isMobile) {
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
-            await page.getByTestId(testId).getByRole("button", {name: "More"}).press("Enter");
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeVisible();
-            await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
-            await page.getByRole("menuitem", {name: "Delete"}).click();
-            await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
+            await message.dispatchEvent("contextmenu");
+            await page.getByTestId("ContextMenu").getByText("Delete").click();
+            await expect(page.getByTestId("ContextMenu").getByText("Delete")).toBeHidden();
             await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeVisible();
             await page.getByRole("button", {name: "Delete"}).click();
             await expect(page.getByRole("alertdialog", {name: "Delete comment"})).toBeHidden();
         } else {
             // Simulate a long press on mobile devices...
-
-            const message = page.getByTestId(testId).getByTestId("MessageViewBubble");
-            await expect(message).toBeVisible();
 
             await expect(page.getByRole("menuitem", {name: "Delete"})).toBeHidden();
             await message.dispatchEvent("touchstart");
@@ -518,24 +526,24 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
-    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await expect(page1.getByText("Deleted comment")).toBeHidden();
     await page1.getByRole("button", {name: "1 comment"}).click();
     await expect(page1.getByText("Test post comment content 1")).toBeVisible();
-    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await expect(page1.getByText("Deleted comment")).toBeHidden();
     if (!isMobile) {
         await page1.getByRole("button", {name: "1 comment"}).click();
     } else {
         await page1.getByRole("button", {name: "Go back"}).click();
     }
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
-    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await expect(page1.getByText("Deleted comment")).toBeHidden();
 
     await deleteTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
-    await expect(page1.getByText("Comment deleted")).toBeHidden();
+    await expect(page1.getByText("Deleted comment")).toBeHidden();
     await page1.getByRole("button", {name: "1 comment"}).click();
-    await expect(page1.getByText("Comment deleted")).toBeVisible();
+    await expect(page1.getByText("Deleted comment")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
 
     await browserContext2.close();

@@ -19,7 +19,7 @@ export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
             color="grey-80-const"
         >
             <Box
-                fontSize="75"
+                fontSize="50"
                 style={{transform: `scale(${parseInt(size, 10) / 8})`}}
                 aria-hidden="true"
             >

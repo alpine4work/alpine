@@ -52,6 +52,17 @@ export const containerClassName = style({
     flexDirection: "column",
 });
 
+globalStyle(`${containerClassName} > ${docClassName}`, {
+    minHeight: "100%",
+    // Always use a text cursor when in an editor. This matters when
+    // `contenteditable="false"`. For instance on initial render or on mobile. On
+    // mobile `contenteditable="false"` but tapping switches the editor to
+    // editable. While typically there's no mouse so no hover state on mobile, in
+    // case the user has made the screen tiny (developers, at least, do this often
+    // while debugging) let's give them the text cursor affordance.
+    cursor: "text",
+});
+
 globalStyle(
     [
         `${containerClassName} > ${docClassName}`,
@@ -61,16 +72,6 @@ globalStyle(
         flexGrow: 1,
     },
 );
-
-globalStyle(`${containerClassName} > ${docClassName}`, {
-    // Always use a text cursor when in an editor. This matters when
-    // `contenteditable="false"`. For instance on initial render or on mobile. On
-    // mobile `contenteditable="false"` but tapping switches the editor to
-    // editable. While typically there's no mouse so no hover state on mobile, in
-    // case the user has made the screen tiny (developers, at least, do this often
-    // while debugging) let's give them the text cursor affordance.
-    cursor: "text",
-});
 
 // We use our `<FocusRing>` class for highlighting a selected node.
 globalStyle(".ProseMirror-selectednode", {

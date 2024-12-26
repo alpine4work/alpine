@@ -4,18 +4,15 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {MessageListMessageShimmer} from "~/client/messaging/message_list_message_shimmer.js";
 import {MessageView} from "~/client/messaging/message_view.js";
-import {
-    MessagingTypingIndicators,
-    messagingTypingIndicatorsMinHeight,
-} from "~/client/messaging/messaging_typing_indicators.js";
+import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {
     messageViewMarginY,
-    messageViewMinHeight,
+    messageViewMinHeightPx,
+    messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {Spacing} from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
@@ -31,7 +28,7 @@ export function renderMessageListItem<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 >({
-    platform,
+    spacingScale,
     messageNoun,
     messageStartOfSentenceNoun,
     messages,
@@ -48,10 +45,9 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
-    paddingX,
     render: customRender,
 }: {
-    platform: Platform;
+    spacingScale: SpacingScale;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     messages: MessageList<Message>;
@@ -68,7 +64,6 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
     switch (item.type) {
@@ -88,6 +83,9 @@ export function renderMessageListItem<
                     ? nextItem.message
                     : null;
 
+            const isLastMessage =
+                item.messageIndex === messages.getMessageCountIncludingOptimisticMessages() - 1;
+
             const actuallyRender = (
                 disableExpensiveFeaturesDuringScroll: boolean,
             ): ReactElement => {
@@ -97,6 +95,7 @@ export function renderMessageListItem<
                         messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                         message={item.message}
                         isFirstMessage={item.messageIndex === 0}
+                        isLastMessage={isLastMessage}
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}
@@ -114,7 +113,6 @@ export function renderMessageListItem<
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}
-                        paddingX={paddingX}
                     />
                 ) : (
                     <MessageListMessageShimmer
@@ -123,7 +121,6 @@ export function renderMessageListItem<
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}
-                        paddingX={paddingX}
                     />
                 );
             };
@@ -162,15 +159,27 @@ export function renderMessageListItem<
                         : item.type === "Loaded" || item.type === "Optimistic"
                         ? `Message:${item.messageIndex}`
                         : `UnloadedMessage:${item.messageIndex}`,
-                minHeight: messageViewMinHeight[platform],
+                minHeight: messageViewMinHeightPx[spacingScale],
+                zIndex:
+                    messageEditing.state.isEditing &&
+                    messageEditing.state.messageIndex === item.messageIndex
+                        ? "10"
+                        : "0",
                 withManualLayout: true,
-                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
+                render: ({
+                    ref,
+                    shouldRenderWithRelativePositioning,
+                    offset,
+                    isScrolling,
+                    zIndex,
+                }) => {
                     if (!customRender) {
                         return (
                             <div
                                 ref={ref}
                                 style={{
-                                    minHeight: messageViewMinHeight[platform],
+                                    minHeight: messageViewMinHeightPx[spacingScale],
+                                    zIndex,
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {
@@ -217,7 +226,8 @@ export function renderMessageListItem<
                             ref,
                             style: {
                                 ...node.props.style,
-                                minHeight: messageViewMinHeight[platform],
+                                minHeight: messageViewMinHeightPx,
+                                zIndex,
                                 ...(shouldRenderWithRelativePositioning
                                     ? {position: "relative"}
                                     : {
@@ -236,7 +246,6 @@ export function renderMessageListItem<
             const node = (
                 <MessagingTypingIndicators
                     typingStateByConnectionId={item.typingStateByConnectionId}
-                    paddingX={paddingX}
                     shouldAddMarginTop={shouldAddMarginTop}
                     shouldAddMarginBottom={shouldAddMarginBottom}
                 />
@@ -247,7 +256,7 @@ export function renderMessageListItem<
                     typeof groupKey === "string"
                         ? `TypingIndicators:${groupKey}`
                         : "TypingIndicators",
-                minHeight: messagingTypingIndicatorsMinHeight,
+                minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
                 node: customRender ? customRender(node) : node,
             };
         }

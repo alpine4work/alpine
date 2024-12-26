@@ -20,11 +20,12 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
-    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightWithClosedCommentSectionPx,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -142,14 +143,19 @@ export function ChannelView({
                 [channelId, context],
             ),
             reloadQuery: useCallback(async () => {
+                const clientInfo = getClientInfo();
+
                 const {postsResult} = await getChannelPosts(context, {
                     channelId,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                        getClientInfo(),
-                        postContentViewMinHeightWithClosedCommentSection,
+                        clientInfo,
+                        postContentViewMinHeightWithClosedCommentSectionPx[
+                            getInitialAppRenderSpacingScale(clientInfo)
+                        ],
                     ),
                     beforeCursor: null,
                 });
+
                 return postsResult;
             }, [channelId, context]),
         },
