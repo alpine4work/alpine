@@ -26,7 +26,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
-import {ContentFilePreview} from "~/client/content/content_file_preview_component.js";
+import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
@@ -446,7 +446,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             (!isEditingMessage &&
                 isContentEmpty(trimContentEnd(state.getDoc())) &&
                 files.length === 0),
-        [isEditingMessage, isSendButtonDisabledProp, state],
+        [files.length, isEditingMessage, isSendButtonDisabledProp, state],
     );
 
     const typingIndicatorStateRef = useRef<
@@ -1459,7 +1459,7 @@ function MessageInputFilePreview({
                     <X />
                 </IconButton>
             </Box>
-            <ContentFilePreview
+            <ContentFileMiniPreview
                 size={convertRemLengthToPx(contentStyles.fileMinSize, spacingScale)}
                 signedUrlSearch={signedUrlSearch}
                 file={file}

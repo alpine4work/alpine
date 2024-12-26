@@ -1,7 +1,12 @@
 import * as kiwi from "@lume/kiwi";
 import {contentStyles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
+import {
+    RemLength,
+    convertRemLengthToPx,
+    screenPaddingXRem,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {
@@ -73,12 +78,16 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         screenWidth,
         platform,
         spacingScale,
-        withoutBlockMaxWidth,
+        withoutBlockMaxWidth = false,
+        maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
+        marginLeft = "0rem",
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth: boolean;
+        withoutBlockMaxWidth?: boolean;
+        maxHeight?: RemLength;
+        marginLeft?: RemLength;
     },
 ): {[Key in keyof Files]: ContentFileLayout} {
     assert(files.length >= 1);
@@ -164,7 +173,11 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         // start to add resize artifacts) and the file row's maximum height.
         {
             const minHeight = contentStyles.fileMinSizeRem * remPx;
-            const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
+            const maxHeight = clamp(
+                minHeight,
+                height,
+                convertRemLengthToPx(rowMaxHeight, spacingScale),
+            );
 
             if (minHeight === maxHeight) {
                 solver.addConstraint(
@@ -212,10 +225,11 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         );
     }
 
-    const fileRowWidth = Math.min(
-        !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
-        screenWidth - screenPaddingXRem[platform] * remPx * 2,
-    );
+    const fileRowWidth =
+        Math.min(
+            !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
+            screenWidth - screenPaddingXRem[platform] * remPx * 2,
+        ) - convertRemLengthToPx(marginLeft, spacingScale);
 
     // When we add up all our widths it must be less than the total `fileRowWidth`.
     // Ideally the width is exactly equal to `fileRowWidth` but that's not possible
@@ -346,12 +360,12 @@ export function computeContentFileFloatLayout(
         screenWidth,
         platform,
         spacingScale,
-        withoutBlockMaxWidth,
+        withoutBlockMaxWidth = false,
     }: {
         screenWidth: number;
         platform: Platform;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth: boolean;
+        withoutBlockMaxWidth?: boolean;
     },
 ): ContentFileLayout {
     const remPx = remPxBySpacingScale[spacingScale];

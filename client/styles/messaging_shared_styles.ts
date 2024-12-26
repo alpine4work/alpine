@@ -23,6 +23,11 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 export const messageViewAccountAvatarSize = "6";
 export const messageViewRailGap = "2";
 
+export const messageViewMarginLeft = addRemLengths(
+    messageViewAccountAvatarSize,
+    messageViewRailGap,
+);
+
 // Ideally, `messageViewAccountNameHeight` is a whole pixel value on all
 // spacing scales so that `<MessageView>` heights will be measured in full
 // pixels.

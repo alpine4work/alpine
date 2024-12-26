@@ -446,7 +446,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         )) {
                             if (
                                 message.author.id === currentAccount.id &&
-                                message.payload.type === "Content"
+                                message.payload.type === "Content" &&
+                                // Don't start editing a message that just has files. Normally we don't allow
+                                // empty message content but we do allow empty message content if the message
+                                // has files.
+                                !isContentEmpty(message.payload.content.doc)
                             ) {
                                 messageEditing.dispatch({
                                     type: "StartEditing",

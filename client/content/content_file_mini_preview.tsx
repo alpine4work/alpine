@@ -7,7 +7,6 @@ import {
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -26,7 +25,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 
-export function ContentFilePreview({
+export function ContentFileMiniPreview({
     size,
     signedUrlSearch,
     file: fileFromProps,
@@ -68,6 +67,9 @@ export function ContentFilePreview({
             // 100% of this width (minus `screenPaddingX * 2`) are rendered with a font
             // size of 75. Set a `screenWidth` that'll scale the code preview down to a
             // font size of 25.
+            //
+            // TODO(calebmer): This feels hacky. Is there a more targeted way to accomplish
+            // this by only targeting code previews?
             screenWidth:
                 size *
                     (fontSizesBySpacingScale["75"].small.fontSize /
@@ -84,7 +86,11 @@ export function ContentFilePreview({
 
         html.setAttribute(
             "class",
-            classNames(html.getAttribute("class"), contentStyles.fileStandalonePreviewClassName),
+            classNames(
+                html.getAttribute("class"),
+                contentStyles.alwaysShowFileBorderClassName,
+                contentStyles.withoutFileSelectionClassName,
+            ),
         );
 
         return html;
@@ -157,11 +163,15 @@ export function ContentFilePreview({
     ]);
 
     return (
-        <Box
+        <div
             ref={containerRef}
-            width="full"
-            height="full"
-            style={{display: "grid", gridTemplateRows: "1fr", gridTemplateColumns: "1fr"}}
+            style={{
+                width: "100%",
+                height: "100%",
+                display: "grid",
+                gridTemplateRows: "1fr",
+                gridTemplateColumns: "1fr",
+            }}
             dangerouslySetInnerHTML={
                 isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
             }

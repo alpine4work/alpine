@@ -75,6 +75,7 @@ import {
     decodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -749,6 +750,14 @@ function DocumentCommentThreadListView(
             : undefined,
     });
 
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({
+            type: "DocumentComments",
+            documentId,
+        }),
+        [documentId],
+    );
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const actualIndex = index;
@@ -909,6 +918,7 @@ function DocumentCommentThreadListView(
                         groupKey: item.commentThread.id,
                         index: item.commentItemIndex,
                         item: item.commentItem,
+                        fileAttachmentTarget,
                         randomSeedForShimmer: item.commentThread.id,
                         messageEditing,
                         shouldHighlightRef:
@@ -1027,6 +1037,7 @@ function DocumentCommentThreadListView(
                             viewRef={viewRef}
                             commentThread={item.commentThread}
                             comments={item.comments}
+                            fileAttachmentTarget={fileAttachmentTarget}
                             onUpdateCommentThread={update =>
                                 setTree(tree =>
                                     tree.updateNode(item.commentThread.id, node => {
@@ -1169,6 +1180,7 @@ function DocumentCommentThreadListView(
             previewFileLayoutScreenWidthRem,
             procedures,
             spacingScale,
+            fileAttachmentTarget,
             messageEditing,
             highlightComment,
             handleJumpToComment,
@@ -1257,6 +1269,7 @@ function DocumentCommentThreadListView(
                                 viewRef={viewRef}
                                 commentThread={item.commentThread}
                                 comments={item.comments}
+                                fileAttachmentTarget={fileAttachmentTarget}
                                 onUpdateCommentThread={update =>
                                     setTree(tree =>
                                         tree.updateNode(item.commentThread.id, node => {

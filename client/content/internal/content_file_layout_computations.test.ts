@@ -232,7 +232,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 449.699, width: 600, widthFr: 1}]);
 
@@ -241,7 +240,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 450, width: 600, widthFr: 1}]);
 
@@ -250,7 +248,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
 
@@ -259,7 +256,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
 
@@ -268,7 +264,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 252, width: 600, widthFr: 1}]);
 
@@ -277,7 +272,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
 
@@ -286,7 +280,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 80, width: 80, widthFr: 0.133333}]);
 
@@ -295,7 +288,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
 
@@ -304,7 +296,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 100, width: 238.095, widthFr: 0.396825}]);
 
@@ -313,7 +304,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
 
@@ -322,7 +312,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([{height: 252, width: 600, widthFr: 1}]);
 
@@ -331,7 +320,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 221.176, width: 295.099, widthFr: 0.500167},
@@ -343,7 +331,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 169.708, width: 226.429, widthFr: 0.390395},
@@ -356,7 +343,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 283.069, width: 377.678, widthFr: 0.640132},
@@ -368,7 +354,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 283.069, width: 212.322, widthFr: 0.359868},
@@ -380,7 +365,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 158.808, width: 211.886, widthFr: 0.359128},
@@ -392,7 +376,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 336.331, width: 448.741, widthFr: 0.760578},
@@ -404,7 +387,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 512, width: 236.571, widthFr: 0.400969},
@@ -416,7 +398,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 418.422, width: 193.333, widthFr: 0.333333},
@@ -429,7 +410,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
@@ -441,7 +421,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 80, width: 80, widthFr: 0.135593},
@@ -453,7 +432,6 @@ test("can layout a file row", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 123.9, width: 295, widthFr: 0.5},
@@ -465,7 +443,6 @@ test("can layout a file row", () => {
             screenWidth: mobileScreenWidth,
             platform: "mobile",
             spacingScale: "large",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual([
         {height: 100, width: 173.75, widthFr: 0.5},
@@ -479,7 +456,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 197.052,
@@ -492,7 +468,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 196.933,
@@ -505,7 +480,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 214.043,
@@ -518,7 +492,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 168.643,
@@ -531,7 +504,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 220,
@@ -544,7 +516,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 155.114,
@@ -557,7 +528,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 100,
@@ -570,7 +540,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 119.834,
@@ -583,7 +552,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 220,
@@ -596,7 +564,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 155.114,
@@ -609,7 +576,6 @@ test("can layout a file float", () => {
             screenWidth,
             platform: "desktop",
             spacingScale: "small",
-            withoutBlockMaxWidth: false,
         }),
     ).toEqual({
         width: 220,

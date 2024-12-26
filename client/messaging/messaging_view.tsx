@@ -39,7 +39,6 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
-import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -628,6 +627,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         messageNoun,
                         messageStartOfSentenceNoun,
                         messages: state.messages,
+                        // `fileAttachmentTarget` must be non-null if we render a message.
+                        // `fileAttachmentTarget` will only be null if we're in the new chat screen
+                        // and accounts haven't been selected yet. In this case no messages should be
+                        // rendered.
+                        fileAttachmentTarget: assertExists(fileAttachmentTarget),
                         groupKey: null,
                         index: state.hasHeader() ? index - 1 : index,
                         item,
@@ -656,6 +660,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         },
         [
             deleteMessage,
+            fileAttachmentTarget,
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,

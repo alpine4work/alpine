@@ -20,6 +20,7 @@ import {useAccountModel} from "~/client/accounts/account_client_store_context.js
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
+import {MessageViewFiles} from "~/client/content/messaging/message_view_files.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {ContextMenuActions, useContextMenuActions} from "~/client/design/context_menu.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
@@ -89,6 +90,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -97,6 +99,8 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+
+// NOCOMMIT: Copy/paste for message including files
 
 /**
  * The buffered height we use for virtualized message views.
@@ -145,6 +149,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
+    fileAttachmentTarget,
     isFirstMessage,
     isLastMessage,
     previousMessage,
@@ -162,6 +167,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
+    fileAttachmentTarget: Memo<FileAttachmentTarget>;
     isFirstMessage: boolean;
     isLastMessage: boolean;
     previousMessage: Message | OptimisticMessageModel | null;
@@ -219,28 +225,45 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [isFirstMessage, message, nextMessage, previousMessage, roomDisplayedCreatedTime]);
 
-    let marginBottom: Spacing;
+    const marginBottom = useMemo(() => {
+        let marginBottom: Spacing;
 
-    if (!shouldMergeWithNextMessage) {
-        marginBottom = messageViewMarginY;
-    } else {
-        if (
-            message.payload.type === "Content" &&
-            message.payload.content.doc.childCount > 0 &&
-            nextMessage?.payload.type === "Content" &&
-            nextMessage.payload.content.doc.childCount > 0 &&
-            (hasStandaloneMarginByContentBlockNodeTypeName[
-                message.payload.content.doc.lastChild!.type.name
-            ] ||
+        if (!shouldMergeWithNextMessage) {
+            marginBottom = messageViewMarginY;
+        } else if (
+            message.payload.type !== "Content" ||
+            message.payload.content.doc.childCount === 0 ||
+            nextMessage?.payload.type !== "Content" ||
+            nextMessage.payload.content.doc.childCount === 0
+        ) {
+            marginBottom = contentStyles.paragraphMargin;
+        } else {
+            const isNextMessageContentEmpty = isContentEmpty(nextMessage.payload.content.doc);
+
+            if (
+                message.payload.files.length > 0 &&
+                isNextMessageContentEmpty &&
+                nextMessage.payload.files.length > 0
+            ) {
+                marginBottom = contentStyles.fileRowGapWidth;
+            } else if (
+                hasStandaloneMarginByContentBlockNodeTypeName[
+                    message.payload.content.doc.lastChild!.type.name
+                ] ||
                 hasStandaloneMarginByContentBlockNodeTypeName[
                     nextMessage.payload.content.doc.firstChild!.type.name
-                ])
-        ) {
-            marginBottom = contentStyles.standaloneBlockMargin;
-        } else {
-            marginBottom = contentStyles.paragraphMargin;
+                ] ||
+                message.payload.files.length > 0 ||
+                (isNextMessageContentEmpty && nextMessage.payload.files.length > 0)
+            ) {
+                marginBottom = contentStyles.standaloneBlockMargin;
+            } else {
+                marginBottom = contentStyles.paragraphMargin;
+            }
         }
-    }
+
+        return marginBottom;
+    }, [message.payload, nextMessage, shouldMergeWithNextMessage]);
 
     const parentMessage =
         message.payload.type === "Content" && message.payload.parentMessageIndex !== null
@@ -415,7 +438,15 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
-            if (message.payload.type === "Content") {
+            // Don't allow replying if the message payload is empty. The UI shouldn't
+            // normally allow saving an empty message payload. We allow empty message
+            // payloads for messages that have attached files, however. In this special
+            // case we don't want to allow the user to reply since the reply message will
+            // include no text.
+            if (
+                message.payload.type === "Content" &&
+                !isContentEmpty(message.payload.content.doc)
+            ) {
                 contextMenuActions.push([
                     {
                         label: "Reply",
@@ -772,6 +803,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // animations it's important to keep it fast.
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
+        if (isContentEmpty(message.payload.content.doc)) return null;
 
         // Render the message as a big emoji message if the content is just emojis.
         if (messageTextForBigEmojiMessage) {
@@ -1161,6 +1193,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             ) : (
                                 deletedPayloadNode
                             )}
+                            {message.payload.type === "Content" &&
+                                message.payload.files.length > 0 && (
+                                    <MessageViewFiles
+                                        attachmentTarget={fileAttachmentTarget}
+                                        files={message.payload.files}
+                                    />
+                                )}
                         </div>
                         {isMessageHighlighted && (
                             <div
@@ -1503,7 +1542,12 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
 
     const menuActions: Array<ReadonlyArray<MenuAction>> = [];
 
-    if (message.payload.type === "Content") {
+    // Don't allow replying if the message payload is empty. The UI shouldn't
+    // normally allow saving an empty message payload. We allow empty message
+    // payloads for messages that have attached files, however. In this special
+    // case we don't want to allow the user to reply since the reply message will
+    // include no text.
+    if (message.payload.type === "Content" && !isContentEmpty(message.payload.content.doc)) {
         menuActions.push([
             {
                 label: "Reply",

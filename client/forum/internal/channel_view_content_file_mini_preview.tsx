@@ -1,11 +1,11 @@
 import {useCallback, useMemo} from "react";
-import {ContentFilePreview} from "~/client/content/content_file_preview_component.js";
+import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 
-export function ChannelViewContentFilePreview({
+export function ChannelViewContentFileMiniPreview({
     postId,
     size,
     signedUrlSearch,
@@ -20,7 +20,7 @@ export function ChannelViewContentFilePreview({
     const {space} = useSpaceContext();
 
     return (
-        <ContentFilePreview
+        <ContentFileMiniPreview
             size={size}
             signedUrlSearch={signedUrlSearch}
             file={file}
