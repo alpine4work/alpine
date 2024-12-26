@@ -18,6 +18,8 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -121,7 +123,10 @@ export async function resizeFile(
         spaceId: SpaceId;
         fileId: FileId;
         temporaryDirectoryPath: string;
-        withFiber: <Value>(action: () => Promise<Value>) => Promise<Value>;
+        withFiber: <Modules extends {tracer: TracerContextModule}, Value>(
+            context: Context<Modules>,
+            action: () => Promise<Value>,
+        ) => Promise<Value>;
     },
 ): Promise<Response> {
     parentSpan.addPropagatedData({context: {fileId}});
@@ -155,7 +160,7 @@ export async function resizeFile(
     // fiber. That way if our CPU is busy processing files from the job queue we
     // wait to resize until that's done. Also if multiple resize requests come in
     // at once we'll throttle processing to a rate our machine can handle.
-    return withFiber(() =>
+    return withFiber(context, () =>
         withTemporaryDirectory(parentTemporaryDirectoryPath, `${fileId}_${width}_`, run),
     );
 

@@ -25,8 +25,8 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {AbortedError, InternalError, UnknownError} from "~/shared/error/error.js";
 import {Queue} from "~/shared/helpers/array/queue.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -99,6 +99,7 @@ export class JobQueueConsumer<
     private readonly _serviceName: ActorServiceName;
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
+    private readonly _sqsQueueName: string;
 
     private readonly _processJob: (
         context: Context<ProcessContextModules & ServerSystemActionContextModules>,
@@ -121,7 +122,7 @@ export class JobQueueConsumer<
     private _fiberCount = 0;
     private _hasPendingMainFiber = false;
     private readonly _pendingExternalFibers = new Queue<() => void>();
-    private readonly _processPromises = new Set<Promise<void>>();
+    private readonly _mainFiberPromiseWaiter = new PromiseWaiter();
 
     /**
      * The maximum number of parallel `_consume()` calls we allow. After receiving
@@ -153,6 +154,14 @@ export class JobQueueConsumer<
      * [1]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html
      */
     private readonly _maxFiberMessageCount: number;
+
+    // Every minute we create an activity span for our `JobQueueConsumer`. All
+    // fiber runs and other background activity run by the `JobQueueConsumer` is
+    // logged to this span. This allows us to conveniently debug the operations of
+    // our `JobQueueConsumer` on a timeline.
+    private _activitySpan!: TracerSpan;
+    private _finishActivitySpan!: () => void;
+    private _activityTimeout!: Timeout;
 
     private constructor(
         context: Context<ProcessContextModules>,
@@ -191,13 +200,21 @@ export class JobQueueConsumer<
         switch (this._queueName) {
             case "Default":
                 this._serviceName = "JobQueueService";
+                this._sqsQueueName = "JobQueue";
                 break;
             case "FileProcessor":
                 this._serviceName = "FileProcessorService";
+                this._sqsQueueName = "FileProcessorJobQueue";
                 break;
             default:
                 throw exhaustive(this._queueName);
         }
+
+        assert(
+            queueUrl.endsWith(`/${this._sqsQueueName}`),
+            quote`Expected queue URL ${queueUrl} to end with ${this._sqsQueueName}`,
+        );
+
         this._queueUrl = queueUrl;
         this._sqsClient = new SQSClient({
             region,
@@ -216,6 +233,39 @@ export class JobQueueConsumer<
                 throw exhaustive(job as never);
             };
         }
+
+        const loopActivitySpan = () => {
+            const {span: activitySpan, finishSpan: actuallyFinishActivitySpan} =
+                this._processContext.tracer
+                    .getRoot()
+                    .startSpan(`JobQueueConsumer activity (${this._queueName})`);
+
+            activitySpan.addData({
+                jobs: {
+                    queueName: this._queueName,
+                    consumer: {
+                        startFiberCount: this._fiberCount,
+                        maxFiberCount: this._maxFiberCount,
+                    },
+                },
+            });
+
+            const finishActivitySpan = () => {
+                activitySpan.addData({jobs: {consumer: {endFiberCount: this._fiberCount}}});
+                actuallyFinishActivitySpan();
+            };
+
+            const activityTimeout = createTimeout(() => {
+                finishActivitySpan();
+                loopActivitySpan();
+            }, 60 * 1000);
+
+            this._activitySpan = activitySpan;
+            this._finishActivitySpan = finishActivitySpan;
+            this._activityTimeout = activityTimeout;
+        };
+
+        loopActivitySpan();
     }
 
     public static start<
@@ -255,7 +305,7 @@ export class JobQueueConsumer<
         assert(!this._isStarted);
         this._isStarted = true;
 
-        this._processContext.process.waitUntil(this._runMainFiber());
+        this._mainFiberPromiseWaiter.waitUntil(this._runMainFiber());
     }
 
     public async stop() {
@@ -263,9 +313,13 @@ export class JobQueueConsumer<
         this._isStopped = true;
         this._abortController.abort(new AbortedError("Job queue consumer stopped"));
 
-        // Wait for all our running jobs to finish.
-        while (this._processPromises.size > 0) {
-            await runAllPromises(this._processPromises);
+        this._activityTimeout.clear();
+
+        try {
+            // Wait for all our running jobs to finish.
+            await this._mainFiberPromiseWaiter.wait();
+        } finally {
+            this._finishActivitySpan();
         }
     }
 
@@ -273,6 +327,9 @@ export class JobQueueConsumer<
         assert(!this._isStopped);
 
         this._fiberCount++;
+        const {span: fiberSpan, finishSpan: finishFiberSpan} = this._activitySpan.startSpan(
+            `JobQueueConsumer fiber main (${this._queueName})`,
+        );
 
         let isReceiveMessageAborted = false;
 
@@ -288,12 +345,16 @@ export class JobQueueConsumer<
             const receiveMessageAbortController = new AbortController();
 
             const handleAbort = () => {
+                this._receiveMessageAbortControllers.delete(receiveMessageAbortController);
+
                 // After aborting, we need to replace this main fiber run. So set to true.
                 this._hasPendingMainFiber = true;
 
                 isReceiveMessageAborted = true;
 
                 this._fiberCount--;
+                fiberSpan.addData({common: {didNothing: true}});
+                finishFiberSpan();
                 this._afterFiberFinish();
             };
 
@@ -302,21 +363,48 @@ export class JobQueueConsumer<
 
             let output;
             try {
-                output = await this._sqsClient.send(
-                    new ReceiveMessageCommand({
-                        QueueUrl: this._queueUrl,
-                        VisibilityTimeout: receiveMessagesVisibilityTimeoutSeconds,
-                        WaitTimeSeconds: receiveMessagesWaitTimeSeconds,
-                        // SQS will not let us receive more than 10 messages at a time.
-                        MaxNumberOfMessages: this._maxFiberMessageCount,
-                    }),
-                    // In tests environments, when `stop()` is called cancel SQS `ReceiveMessage`
-                    // requests instead of waiting out `WaitTimeSeconds`. In non-test environments
-                    // use our safer abort handling that continues waiting (so we don't have issues
-                    // when there's a race where SQS is just about to send us messages).
-                    process.env.NODE_ENV === "test"
-                        ? {abortSignal: this._abortController.signal}
-                        : undefined,
+                output = await fiberSpan.withSpan(
+                    `SQS ReceiveMessage ${this._sqsQueueName}`,
+                    async span => {
+                        span.addData({
+                            jobs: {queueName: this._queueName},
+                            aws: {
+                                sqs: {
+                                    queueName: this._sqsQueueName,
+                                    visibilityTimeout: receiveMessagesVisibilityTimeoutSeconds,
+                                    waitTimeSeconds: receiveMessagesWaitTimeSeconds,
+                                    maxNumberOfMessages: this._maxFiberMessageCount,
+                                },
+                            },
+                        });
+
+                        const output = await this._sqsClient.send(
+                            new ReceiveMessageCommand({
+                                QueueUrl: this._queueUrl,
+                                VisibilityTimeout: receiveMessagesVisibilityTimeoutSeconds,
+                                WaitTimeSeconds: receiveMessagesWaitTimeSeconds,
+                                // SQS will not let us receive more than 10 messages at a time.
+                                MaxNumberOfMessages: this._maxFiberMessageCount,
+                            }),
+                            // In tests environments, when `stop()` is called cancel SQS `ReceiveMessage`
+                            // requests instead of waiting out `WaitTimeSeconds`. In non-test environments
+                            // use our safer abort handling that continues waiting (so we don't have issues
+                            // when there's a race where SQS is just about to send us messages).
+                            process.env.NODE_ENV === "test"
+                                ? {abortSignal: this._abortController.signal}
+                                : undefined,
+                        );
+
+                        span.addData({
+                            aws: {
+                                sqs: {
+                                    messageCount: output.Messages?.length ?? 0,
+                                },
+                            },
+                        });
+
+                        return output;
+                    },
                 );
             } finally {
                 this._abortController.signal.removeEventListener("abort", handleAbort);
@@ -344,15 +432,31 @@ export class JobQueueConsumer<
             // these messages so someone else needs to.
             if (isReceiveMessageAborted) {
                 if (messages.length > 0) {
-                    await this._sqsClient.send(
-                        new ChangeMessageVisibilityBatchCommand({
-                            QueueUrl: this._queueUrl,
-                            Entries: messages.map((message, index) => ({
-                                Id: String(index),
-                                ReceiptHandle: message.ReceiptHandle,
-                                VisibilityTimeout: 0,
-                            })),
-                        }),
+                    await fiberSpan.withSpan(
+                        `SQS ChangeMessageVisibilityBatch ${this._sqsQueueName}`,
+                        span => {
+                            span.addData({
+                                jobs: {queueName: this._queueName},
+                                aws: {
+                                    sqs: {
+                                        queueName: this._sqsQueueName,
+                                        messageCount: messages.length,
+                                        visibilityTimeout: 0,
+                                    },
+                                },
+                            });
+
+                            return this._sqsClient.send(
+                                new ChangeMessageVisibilityBatchCommand({
+                                    QueueUrl: this._queueUrl,
+                                    Entries: messages.map((message, index) => ({
+                                        Id: String(index),
+                                        ReceiptHandle: message.ReceiptHandle,
+                                        VisibilityTimeout: 0,
+                                    })),
+                                }),
+                            );
+                        },
                     );
                 }
                 return;
@@ -367,7 +471,7 @@ export class JobQueueConsumer<
             // main `_afterFiberFinish()` loop.
             if (!this._isStopped && messages.length > 0) {
                 if (this._fiberCount < this._maxFiberCount) {
-                    this._processContext.process.waitUntil(this._runMainFiber());
+                    this._mainFiberPromiseWaiter.waitUntil(this._runMainFiber());
                 } else {
                     // The next fiber to finish will start a new fiber.
                     this._hasPendingMainFiber = true;
@@ -382,25 +486,11 @@ export class JobQueueConsumer<
             }> = messages.map(message => {
                 const receiptHandle = assertExists(message.ReceiptHandle);
 
-                const promise = this._process({
+                const promise = this._process(fiberSpan, {
                     message,
                     currentTime,
                     messageBatchSize: messages.length,
                 });
-
-                const processPromise = promise.then(
-                    () => {
-                        this._processPromises.delete(processPromise);
-                    },
-                    () => {
-                        // Ignore errors in process promise. When `stop()` is called (and we wait for
-                        // process promises to finish) we don't want job errors to cause `stop()` to
-                        // throw.
-
-                        this._processPromises.delete(processPromise);
-                    },
-                );
-                this._processPromises.add(processPromise);
 
                 return {
                     receiptHandle,
@@ -422,14 +512,29 @@ export class JobQueueConsumer<
                     this._processContext.process.waitUntil(async () => {
                         deleteMessageBatchTestCounter.incrementForTest();
 
-                        const output = await this._sqsClient.send(
-                            new DeleteMessageBatchCommand({
-                                QueueUrl: this._queueUrl,
-                                Entries: receiptHandles.map((receiptHandle, index) => ({
-                                    Id: String(index),
-                                    ReceiptHandle: receiptHandle,
-                                })),
-                            }),
+                        const output = await fiberSpan.withSpan(
+                            `SQS DeleteMessageBatch ${this._sqsQueueName}`,
+                            span => {
+                                span.addData({
+                                    jobs: {queueName: this._queueName},
+                                    aws: {
+                                        sqs: {
+                                            queueName: this._sqsQueueName,
+                                            messageCount: receiptHandles.length,
+                                        },
+                                    },
+                                });
+
+                                return this._sqsClient.send(
+                                    new DeleteMessageBatchCommand({
+                                        QueueUrl: this._queueUrl,
+                                        Entries: receiptHandles.map((receiptHandle, index) => ({
+                                            Id: String(index),
+                                            ReceiptHandle: receiptHandle,
+                                        })),
+                                    }),
+                                );
+                            },
                         );
 
                         if (output.Failed && output.Failed.length > 0) {
@@ -465,15 +570,33 @@ export class JobQueueConsumer<
                     this._processContext.process.waitUntil(async () => {
                         changeMessageVisibilityBatchTestCounter.incrementForTest();
 
-                        const output = await this._sqsClient.send(
-                            new ChangeMessageVisibilityBatchCommand({
-                                QueueUrl: this._queueUrl,
-                                Entries: receiptHandles.map((receiptHandle, index) => ({
-                                    Id: String(index),
-                                    ReceiptHandle: receiptHandle,
-                                    VisibilityTimeout: receiveMessagesVisibilityTimeoutSeconds,
-                                })),
-                            }),
+                        const output = await fiberSpan.withSpan(
+                            `SQS ChangeMessageVisibilityBatch ${this._sqsQueueName}`,
+                            span => {
+                                span.addData({
+                                    jobs: {queueName: this._queueName},
+                                    aws: {
+                                        sqs: {
+                                            queueName: this._sqsQueueName,
+                                            messageCount: receiptHandles.length,
+                                            visibilityTimeout:
+                                                receiveMessagesVisibilityTimeoutSeconds,
+                                        },
+                                    },
+                                });
+
+                                return this._sqsClient.send(
+                                    new ChangeMessageVisibilityBatchCommand({
+                                        QueueUrl: this._queueUrl,
+                                        Entries: receiptHandles.map((receiptHandle, index) => ({
+                                            Id: String(index),
+                                            ReceiptHandle: receiptHandle,
+                                            VisibilityTimeout:
+                                                receiveMessagesVisibilityTimeoutSeconds,
+                                        })),
+                                    }),
+                                );
+                            },
                         );
 
                         if (output.Failed && output.Failed.length > 0) {
@@ -546,6 +669,7 @@ export class JobQueueConsumer<
             // decremented the fiber count.
             if (!isReceiveMessageAborted) {
                 this._fiberCount--;
+                finishFiberSpan();
                 this._afterFiberFinish();
             }
         }
@@ -574,24 +698,27 @@ export class JobQueueConsumer<
         // at max fibers then start it now.
         if (this._fiberCount < this._maxFiberCount && this._hasPendingMainFiber) {
             this._hasPendingMainFiber = false;
-            this._processContext.process.waitUntil(this._runMainFiber());
+            this._mainFiberPromiseWaiter.waitUntil(this._runMainFiber());
         }
 
         // Never dip below 0 running fibers.
         if (!(this._fiberCount > 0)) {
-            this._processContext.process.waitUntil(this._runMainFiber());
+            this._mainFiberPromiseWaiter.waitUntil(this._runMainFiber());
         }
     }
 
-    private async _process({
-        message,
-        currentTime,
-        messageBatchSize,
-    }: {
-        message: Message;
-        currentTime: number;
-        messageBatchSize: number;
-    }) {
+    private async _process(
+        fiberSpan: TracerSpan,
+        {
+            message,
+            currentTime,
+            messageBatchSize,
+        }: {
+            message: Message;
+            currentTime: number;
+            messageBatchSize: number;
+        },
+    ) {
         let span: TracerSpan | undefined;
         let finishSpan: (() => void) | undefined;
         let messageBodyForError: JobQueueMessageBody | undefined;
@@ -640,6 +767,8 @@ export class JobQueueConsumer<
                           )
                     : this._processContext.tracer.getRoot().startSpan(spanName));
 
+            fiberSpan.link(span);
+
             // The time at which the job starts to be available for processing. The send
             // time plus delay seconds. This will be a little earlier than when the job is
             // truly available for processing since we don't include the latency of adding
@@ -650,10 +779,9 @@ export class JobQueueConsumer<
                     : new Date(messageBody.sendTime.getTime() + messageBody.delaySeconds * 1000);
 
             span.addData({
-                aws: {sqs: {messageId: message.MessageId}},
+                aws: {sqs: {messageId: message.MessageId, messageCount: messageBatchSize}},
                 jobs: {
                     type: messageBody.job.type,
-                    batchSize: messageBatchSize,
                     delaySeconds: messageBody.delaySeconds,
                     queueDurationMs:
                         currentTime -
@@ -821,8 +949,15 @@ export class JobQueueConsumer<
      * `JobQueueConsumer` gets to schedule new fibers to consume SQS messages. This
      * can lead to starvation issues where we never get to process SQS messages.
      */
-    public readonly withFiber = <Value>(action: () => Promise<Value>): Promise<Value> => {
+    public readonly withFiber = <Modules extends {tracer: TracerContextModule}, Value>(
+        context: Context<Modules>,
+        action: () => Promise<Value>,
+    ): Promise<Value> => {
         assert(!this._isStopped);
+
+        const {span: fiberQueueSpan, finishSpan: finishFiberQueueSpan} = context.tracer.startSpan(
+            `Waiting for JobQueueConsumer fiber (${this._queueName})`,
+        );
 
         const promiseResolver = createPromiseResolver<Value>();
 
@@ -847,10 +982,20 @@ export class JobQueueConsumer<
                 return;
             }
 
+            // End the span which states how long we spent in the fiber queue and start the
+            // span for tracking our external fiber.
+            finishFiberQueueSpan();
+
+            const {span: fiberSpan, finishSpan: finishFiberSpan} = this._activitySpan.startSpan(
+                `JobQueueConsumer fiber external (${this._queueName})`,
+            );
+            fiberSpan.link(fiberQueueSpan);
+
             this._fiberCount++;
 
             const onResolve = (value: Value) => {
                 this._fiberCount--;
+                finishFiberSpan();
                 this._afterFiberFinish();
 
                 promiseResolver.resolve(value);
@@ -858,6 +1003,7 @@ export class JobQueueConsumer<
 
             const onReject = (error: unknown) => {
                 this._fiberCount--;
+                finishFiberSpan();
                 this._afterFiberFinish();
 
                 promiseResolver.reject(error);

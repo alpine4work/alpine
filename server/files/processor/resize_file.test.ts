@@ -97,7 +97,7 @@ beforeAll(async () => {
         shutdownManager,
         tokenAgent: fileProcessorTokenAgent,
         temporaryDirectoryPath: joinPath(context.getTemporaryDirectoryPath(), "files"),
-        withFiber: action => action(),
+        withFiber: (context, action) => action(),
     });
 
     await new Promise<void>(resolve => {

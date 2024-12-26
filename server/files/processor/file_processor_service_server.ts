@@ -8,6 +8,7 @@ import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -111,7 +112,10 @@ export function createFileProcessorServiceServer(
         shutdownManager: ShutdownManager;
         tokenAgent: TokenAgent;
         temporaryDirectoryPath: string;
-        withFiber: <Value>(action: () => Promise<Value>) => Promise<Value>;
+        withFiber: <Modules extends {tracer: TracerContextModule}, Value>(
+            context: Context<Modules>,
+            action: () => Promise<Value>,
+        ) => Promise<Value>;
     },
 ) {
     const tracer = processContext.tracer.getRoot();
