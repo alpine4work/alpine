@@ -81,7 +81,7 @@ export const taskRowViewIndentation = {
 
 export const taskRowViewIndentationRem = mapObjectValues(taskRowViewIndentation, parseRemLength);
 
-export const taskRowTitleInputPaddingY = createObjectFromKeys(
+export const taskRowTitleInputPaddingYPx = createObjectFromKeys(
     allSpacingScales,
     spacingScale =>
         (convertRemLengthToPx(taskRowViewMinHeight, spacingScale) -

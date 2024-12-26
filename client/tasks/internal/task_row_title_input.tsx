@@ -42,7 +42,7 @@ import {
     tasksStyles,
 } from "~/client/styles/styles.js";
 import {
-    taskRowTitleInputPaddingY,
+    taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -105,8 +105,8 @@ const taskRowTitleInputSingleLineStyle = createObjectFromKeys(
     allSpacingScales,
     (spacingScale): CSSProperties => ({
         ...contentStyles.paragraphFontSize,
-        paddingTop: taskRowTitleInputPaddingY[spacingScale],
-        paddingBottom: taskRowTitleInputPaddingY[spacingScale],
+        paddingTop: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
+        paddingBottom: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         // Make sure we have room to render the cursor.
         minWidth: "1ch",
         // Turn off text wrapping. This component emulates a single-line input.
@@ -135,8 +135,8 @@ const taskRowTitleInputMultilineStyle = createObjectFromKeys(
     allSpacingScales,
     (spacingScale): CSSProperties => ({
         ...contentStyles.paragraphFontSize,
-        paddingTop: taskRowTitleInputPaddingY[spacingScale],
-        paddingBottom: taskRowTitleInputPaddingY[spacingScale],
+        paddingTop: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
+        paddingBottom: `${taskRowTitleInputPaddingYPx[spacingScale]}px`,
         // Make sure we have room to render the cursor.
         minWidth: "1ch",
         // `display: inline-block` creates an inline layout which adds extra space
