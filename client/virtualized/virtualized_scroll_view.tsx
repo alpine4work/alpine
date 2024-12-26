@@ -14,6 +14,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {
     CallbackNode,
     unstable_LowPriority,
@@ -110,6 +111,11 @@ type VirtualizedScrollViewItemBase = {
     readonly minHeight: RemLength | number;
 
     /**
+     * Set the `z-index` CSS property for this node.
+     */
+    readonly zIndex?: string;
+
+    /**
      * If this item is rendered then we will also render the items at the indexes
      * provided in this array even if they are not in the virtualized window.
      * Useful for implementing sticky section headers.
@@ -126,10 +132,12 @@ export type VirtualizedScrollViewItem =
            * The actual rendered React component for this item.
            */
           readonly node: ReactNode;
+
           readonly withManualLayout?: undefined;
       })
     | (VirtualizedScrollViewItemBase & {
           readonly withManualLayout: true;
+
           /**
            * Manually render the wrapper `<div>` to position the item with a render
            * function.
@@ -141,6 +149,7 @@ export type VirtualizedScrollViewItem =
            *     ref={ref}
            *     style={{
            *         minHeight: item.minHeight,
+           *         zIndex: item.zIndex,
            *         ...(shouldRenderWithRelativePositioning
            *             ? {position: "relative"}
            *             : {
@@ -846,11 +855,13 @@ function VirtualizedScrollView(
             return {
                 key: item.key,
                 minHeight: item.minHeight,
+                zIndex: item.zIndex,
                 renderAdditionalItemIndexes: item.renderAdditionalItemIndexes,
                 render: ({
                     offset,
                     height,
                     minHeight,
+                    zIndex,
                     getPositionByIndex,
                     viewHeight,
                     originalContentHeight,
@@ -961,6 +972,7 @@ function VirtualizedScrollView(
                             offset,
                             height,
                             minHeight,
+                            zIndex,
                             getPositionByIndex,
                             viewHeight,
                             originalContentHeight,
@@ -975,6 +987,7 @@ function VirtualizedScrollView(
                                     // Use the original min-height in case we have the wrong `remPx` value during
                                     // server-side rendering.
                                     minHeight: item.originalMinHeight,
+                                    zIndex,
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {
@@ -1143,86 +1156,28 @@ function VirtualizedScrollView(
         // state if we've already "seen" this `scrollTop`.
         if (scrollTop === lastScrollTopRef.current) return;
 
-        // If the user is scrolling fast we enter a jump scroll state. We will not
-        // update the rendered range until after the jump scroll has finished
-        // to maintain high performance as the user jumps through the scrollable view.
-        //
-        // The threshold for jump scrolling is the user has moved more than two
-        // scroll view heights in the last render frame. As long as the user maintains
-        // that speed we will continue the jump scroll. If scrolling decelerates (like
-        // in an iOS toss scroll which maintains scrolling momentum a while) the jump
-        // scroll ends.
-        const isJumpScrolling =
-            !isScrollToIndexEvent &&
-            lastScrollTopRef.current !== null &&
-            Math.abs(lastScrollTopRef.current - scrollTop) >
-                (getVirtualizationWindowHeight(state.getViewHeight()) - state.getViewHeight()) * 2;
+        const run = () => {
+            // If the user is scrolling fast we enter a jump scroll state. We will not
+            // update the rendered range until after the jump scroll has finished
+            // to maintain high performance as the user jumps through the scrollable view.
+            //
+            // The threshold for jump scrolling is the user has moved more than two
+            // scroll view heights in the last render frame. As long as the user maintains
+            // that speed we will continue the jump scroll. If scrolling decelerates (like
+            // in an iOS toss scroll which maintains scrolling momentum a while) the jump
+            // scroll ends.
+            const isJumpScrolling =
+                !isScrollToIndexEvent &&
+                lastScrollTopRef.current !== null &&
+                Math.abs(lastScrollTopRef.current - scrollTop) >
+                    (getVirtualizationWindowHeight(state.getViewHeight()) - state.getViewHeight()) *
+                        2;
 
-        setActualState(actualState => {
-            if (actualState.isJumpScrolling || isJumpScrolling) {
-                if (actualState.isJumpScrolling) return actualState;
-                return {...actualState, isJumpScrolling: true};
-            } else {
-                // Sometimes React tries to eagerly compute the next state. Then will rebase
-                // during render.
-                //
-                // If the `itemCount` changed we need to wait for React to render before
-                // calling `updateRenderedRange()` or else it will throw. So if we detect an
-                // incorrect item count then React is probably trying to eagerly evaluate this
-                // state update. Return a new state value to trigger a re-render and React
-                // should properly apply state updates from there.
-                if (itemCount !== actualState.state.getItemCount()) {
-                    return {...actualState};
-                }
-
-                return updateVirtualizedScrollViewActualStateRenderedRange(
-                    !actualState.isScrolling &&
-                        // Optimization: During `scrollToIndex()` we don't mark `isScrolling: true`
-                        // since we want one immediate render instead of engaging continuous scroll
-                        // behavior.
-                        !isScrollToIndexEvent
-                        ? {...actualState, isScrolling: true}
-                        : actualState,
-                    {
-                        itemCount,
-                        getItemWithoutRender,
-                        scrollTop,
-                    },
-                );
-            }
-        });
-
-        scrollDebounceTimeoutRef.current?.clear();
-
-        const runScrollDebounceTimeout = () => {
-            scrollDebounceTimeoutRef.current = null;
-
-            // Transition this render because if it's a jump scroll or if items change
-            // based on `isScrolling` the render may be expensive and it will be useful to
-            // time slice.
-            startTransition(() => {
-                setActualState(actualState => {
-                    // If nothing changed, we don't need to update our state.
-                    if (
-                        !actualState.isJumpScrolling &&
-                        !actualState.isScrolling &&
-                        actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll === null
-                    ) {
-                        return actualState;
-                    }
-
-                    actualState = {
-                        ...actualState,
-                        isScrolling: false,
-                        // Reset the scroll adjustment on mobile WebKit once the user is done
-                        // scrolling. This should update our rendered element's content height.
-                        scrollAnchorAdjustmentDuringMobileWebKitScroll: null,
-                    };
-
-                    // If we were jump scrolling we need to update the rendered range at the end of
-                    // the scroll.
-                    if (!actualState.isJumpScrolling) return actualState;
-
+            setActualState(actualState => {
+                if (actualState.isJumpScrolling || isJumpScrolling) {
+                    if (actualState.isJumpScrolling) return actualState;
+                    return {...actualState, isJumpScrolling: true};
+                } else {
                     // Sometimes React tries to eagerly compute the next state. Then will rebase
                     // during render.
                     //
@@ -1232,53 +1187,123 @@ function VirtualizedScrollView(
                     // state update. Return a new state value to trigger a re-render and React
                     // should properly apply state updates from there.
                     if (itemCount !== actualState.state.getItemCount()) {
-                        return {...actualState, isJumpScrolling: false};
+                        return {...actualState};
                     }
 
-                    return updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
-                        itemCount,
-                        getItemWithoutRender,
-                        scrollTop,
+                    return updateVirtualizedScrollViewActualStateRenderedRange(
+                        !actualState.isScrolling &&
+                            // Optimization: During `scrollToIndex()` we don't mark `isScrolling: true`
+                            // since we want one immediate render instead of engaging continuous scroll
+                            // behavior.
+                            !isScrollToIndexEvent
+                            ? {...actualState, isScrolling: true}
+                            : actualState,
+                        {
+                            itemCount,
+                            getItemWithoutRender,
+                            scrollTop,
+                        },
+                    );
+                }
+            });
+
+            scrollDebounceTimeoutRef.current?.clear();
+
+            const runScrollDebounceTimeout = () => {
+                scrollDebounceTimeoutRef.current = null;
+
+                // Transition this render because if it's a jump scroll or if items change
+                // based on `isScrolling` the render may be expensive and it will be useful to
+                // time slice.
+                startTransition(() => {
+                    setActualState(actualState => {
+                        // If nothing changed, we don't need to update our state.
+                        if (
+                            !actualState.isJumpScrolling &&
+                            !actualState.isScrolling &&
+                            actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll === null
+                        ) {
+                            return actualState;
+                        }
+
+                        actualState = {
+                            ...actualState,
+                            isScrolling: false,
+                            // Reset the scroll adjustment on mobile WebKit once the user is done
+                            // scrolling. This should update our rendered element's content height.
+                            scrollAnchorAdjustmentDuringMobileWebKitScroll: null,
+                        };
+
+                        // If we were jump scrolling we need to update the rendered range at the end of
+                        // the scroll.
+                        if (!actualState.isJumpScrolling) return actualState;
+
+                        // Sometimes React tries to eagerly compute the next state. Then will rebase
+                        // during render.
+                        //
+                        // If the `itemCount` changed we need to wait for React to render before
+                        // calling `updateRenderedRange()` or else it will throw. So if we detect an
+                        // incorrect item count then React is probably trying to eagerly evaluate this
+                        // state update. Return a new state value to trigger a re-render and React
+                        // should properly apply state updates from there.
+                        if (itemCount !== actualState.state.getItemCount()) {
+                            return {...actualState, isJumpScrolling: false};
+                        }
+
+                        return updateVirtualizedScrollViewActualStateRenderedRange(actualState, {
+                            itemCount,
+                            getItemWithoutRender,
+                            scrollTop,
+                        });
                     });
                 });
-            });
+            };
+
+            let timeout2: CallbackNode | null = null;
+
+            const timeout1 = createTimeout(
+                () => {
+                    // Schedule a low priority callback to stop scrolling. That way the React
+                    // scheduler finishes any current work and can interrupt the stop scroll update
+                    // if it gets a higher priority render.
+                    timeout2 = unstable_scheduleCallback(
+                        unstable_LowPriority,
+                        runScrollDebounceTimeout,
+                    );
+                },
+                // This timeout can't be too short that it would interrupt an iOS momentum
+                // scroll. In practice we found 100ms to be too short. As the momentum scroll
+                // slows down and only 1px or so was moving at a time, this timeout would fire
+                // and there would be a jump.
+                //
+                // However, we do want this value to be as short as possible so jump scrolls
+                // can complete in a timely manner or UI disabled by `isScrolling` can be
+                // presented. 250ms was found in practice to be one of the fastest values for
+                // this timeout that doesn't cause jumps.
+                250,
+            );
+
+            scrollDebounceTimeoutRef.current = {
+                clear: () => {
+                    timeout1.clear();
+                    if (timeout2) {
+                        unstable_cancelCallback(timeout2);
+                    }
+                },
+            };
+
+            // Finally, update the scroll top so we know what the last value was.
+            lastScrollTopRef.current = scrollTop;
         };
 
-        let timeout2: CallbackNode | null = null;
-
-        const timeout1 = createTimeout(
-            () => {
-                // Schedule a low priority callback to stop scrolling. That way the React
-                // scheduler finishes any current work and can interrupt the stop scroll update
-                // if it gets a higher priority render.
-                timeout2 = unstable_scheduleCallback(
-                    unstable_LowPriority,
-                    runScrollDebounceTimeout,
-                );
-            },
-            // This timeout can't be too short that it would interrupt an iOS momentum
-            // scroll. In practice we found 100ms to be too short. As the momentum scroll
-            // slows down and only 1px or so was moving at a time, this timeout would fire
-            // and there would be a jump.
-            //
-            // However, we do want this value to be as short as possible so jump scrolls
-            // can complete in a timely manner or UI disabled by `isScrolling` can be
-            // presented. 250ms was found in practice to be one of the fastest values for
-            // this timeout that doesn't cause jumps.
-            250,
-        );
-
-        scrollDebounceTimeoutRef.current = {
-            clear: () => {
-                timeout1.clear();
-                if (timeout2) {
-                    unstable_cancelCallback(timeout2);
-                }
-            },
-        };
-
-        // Finally, update the scroll top so we know what the last value was.
-        lastScrollTopRef.current = scrollTop;
+        // If we're scrolling because of a `scrollToIndex()` call then `flushSync()` so
+        // we synchronously render new items so there isn't a white flash with no
+        // content.
+        if (isScrollToIndexEvent) {
+            flushSync(run);
+        } else {
+            run();
+        }
     };
 
     let scrollbarInsetTop: ScrollbarInsetDynamic | undefined;
@@ -1992,8 +2017,8 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
         // the smallest scroll to make the item fully visible (either scrolling to top
         // or scrolling to bottom).
         if (offset < viewTop + margin) {
-            const scrollOffset1 = offset - margin;
-            const scrollOffset2 = offset + height - viewHeight + margin;
+            const scrollOffset1 = offset - margin - viewInsetTop;
+            const scrollOffset2 = offset + height - viewHeight + margin + viewInsetBottom;
             const scrollDelta1 = Math.abs(scrollOffset - scrollOffset1);
             const scrollDelta2 = Math.abs(scrollOffset - scrollOffset2);
 

@@ -33,6 +33,9 @@ function FocusRing(
         inset,
         insetX,
         insetY,
+        insetLeft,
+        insetRight,
+        insetTop,
         insetBottom,
         isVisible: isAlwaysVisible = false,
         isDisabled = false,
@@ -78,6 +81,30 @@ function FocusRing(
          * `offset - insetY`.
          */
         insetY?: Spacing;
+
+        /**
+         * How far from the left should we inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset on the left is
+         * `offset - insetLeft`.
+         */
+        insetLeft?: Spacing;
+
+        /**
+         * How far from the right should we inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset on the right is
+         * `offset - insetRight`.
+         */
+        insetRight?: Spacing;
+
+        /**
+         * How far from the top should we inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset on the top is
+         * `offset - insetTop`.
+         */
+        insetTop?: Spacing;
 
         /**
          * How far from the bottom should we inset our focus ring?
@@ -190,6 +217,9 @@ function FocusRing(
                         inset={inset}
                         insetX={insetX}
                         insetY={insetY}
+                        insetLeft={insetLeft}
+                        insetRight={insetRight}
+                        insetTop={insetTop}
                         insetBottom={insetBottom}
                         targetRef={targetRef}
                     />

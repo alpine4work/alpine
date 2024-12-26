@@ -86,9 +86,6 @@ export function PostView({
             />
         ),
         desktopMaxWidth: contentStyles.contentMaxWidth,
-        // `<PostListView>` needs this prop to specifically be set to null so we can
-        // replace it when in a post editing state.
-        replaceActions: null,
         titleJustifyContent: "flex-start",
         // eslint-disable-next-line react-compiler/react-compiler
         menuActions: getPostMoreActions({

@@ -15,6 +15,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {randomFloat} from "~/shared/helpers/number/random_float.js";
@@ -162,15 +163,22 @@ test("can't read affinitive items for the wrong space", async () => {
 
     const documentCount = 20;
 
+    // Limit concurrent requests to reduce test flakiness.
+    const mutexes = createArrayWithLength(10, () => new Mutex());
+
     const documents = await runAllPromises(
         createArrayWithLength(documentCount, index =>
-            TestDocument.create(session, {title: `Document ${index + 1}`}),
+            mutexes[index % mutexes.length]!.withLock(() =>
+                TestDocument.create(session, {title: `Document ${index + 1}`}),
+            ),
         ),
     );
 
     const otherDocuments = await runAllPromises(
         createArrayWithLength(documentCount, index =>
-            TestDocument.create(otherSession, {title: `Document ${index + 1}`}),
+            mutexes[index % mutexes.length]!.withLock(() =>
+                TestDocument.create(otherSession, {title: `Document ${index + 1}`}),
+            ),
         ),
     );
 
@@ -180,56 +188,62 @@ test("can't read affinitive items for the wrong space", async () => {
 
     await runAllPromises(
         documents.map(async (document, documentIndex) => {
-            const points = lerp(19, 0.1, documentIndex / (documentCount - 1));
+            await mutexes[documentIndex % mutexes.length]!.withLock(async () => {
+                const points = lerp(19, 0.1, documentIndex / (documentCount - 1));
 
-            await SearchEntityTable.createOrReplaceItem(context, {
-                partitionType: "Account",
-                sortRangeType: "SearchEntityAffinity",
-                spaceId: space.id,
-                accountId: session.account.id,
-                entityId: `Document:${document.id}`,
-                points,
-                pointsBucket: getSearchAffinityPointsBucket(points),
-                lastUpdatedTime: currentTime,
-                lastViewedTime: null,
-                expirationTime: new Date(currentTime + getSearchAffinityExpirationDuration(points)),
+                await SearchEntityTable.createOrReplaceItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: space.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${document.id}`,
+                    points,
+                    pointsBucket: getSearchAffinityPointsBucket(points),
+                    lastUpdatedTime: currentTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime + getSearchAffinityExpirationDuration(points),
+                    ),
+                });
             });
         }),
     );
 
     await runAllPromises(
         otherDocuments.map(async (document, documentIndex) => {
-            const points1 = lerp(19, 0.1, documentIndex / (documentCount - 1));
-            const points2 = lerp(0.1, 19, documentIndex / (documentCount - 1));
+            await mutexes[documentIndex % mutexes.length]!.withLock(async () => {
+                const points1 = lerp(19, 0.1, documentIndex / (documentCount - 1));
+                const points2 = lerp(0.1, 19, documentIndex / (documentCount - 1));
 
-            await SearchEntityTable.createOrReplaceItem(context, {
-                partitionType: "Account",
-                sortRangeType: "SearchEntityAffinity",
-                spaceId: otherSpace.id,
-                accountId: session.account.id,
-                entityId: `Document:${document.id}`,
-                points: points2,
-                pointsBucket: getSearchAffinityPointsBucket(points2),
-                lastUpdatedTime: currentTime,
-                lastViewedTime: null,
-                expirationTime: new Date(
-                    currentTime + getSearchAffinityExpirationDuration(points2),
-                ),
-            });
+                await SearchEntityTable.createOrReplaceItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: otherSpace.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${document.id}`,
+                    points: points2,
+                    pointsBucket: getSearchAffinityPointsBucket(points2),
+                    lastUpdatedTime: currentTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime + getSearchAffinityExpirationDuration(points2),
+                    ),
+                });
 
-            await SearchEntityTable.createOrReplaceItem(context, {
-                partitionType: "Account",
-                sortRangeType: "SearchEntityAffinity",
-                spaceId: otherSpace.id,
-                accountId: otherSession.account.id,
-                entityId: `Document:${document.id}`,
-                points: points1,
-                pointsBucket: getSearchAffinityPointsBucket(points1),
-                lastUpdatedTime: currentTime,
-                lastViewedTime: null,
-                expirationTime: new Date(
-                    currentTime + getSearchAffinityExpirationDuration(points1),
-                ),
+                await SearchEntityTable.createOrReplaceItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: otherSpace.id,
+                    accountId: otherSession.account.id,
+                    entityId: `Document:${document.id}`,
+                    points: points1,
+                    pointsBucket: getSearchAffinityPointsBucket(points1),
+                    lastUpdatedTime: currentTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime + getSearchAffinityExpirationDuration(points1),
+                    ),
+                });
             });
         }),
     );
@@ -280,9 +294,14 @@ test(
 
         const documentCount = Math.floor(searchAffinityQueryPageLimit * 4.5);
 
+        // Limit concurrent requests to reduce test flakiness.
+        const mutexes = createArrayWithLength(10, () => new Mutex());
+
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
-                TestDocument.create(session, {title: `Document ${index + 1}`}),
+                mutexes[index % mutexes.length]!.withLock(() =>
+                    TestDocument.create(session, {title: `Document ${index + 1}`}),
+                ),
             ),
         );
 
@@ -292,34 +311,36 @@ test(
 
         await runAllPromises(
             documents.map(async (document, documentIndex) => {
-                const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
+                await mutexes[documentIndex % mutexes.length]!.withLock(async () => {
+                    const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
 
-                const lastUpdatedMonthsAgo = randomFloat(0, 1 / 2);
-                const actualPoints = expectedPoints * Math.exp(3 * lastUpdatedMonthsAgo);
-                const lastUpdatedTime =
-                    currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
+                    const lastUpdatedMonthsAgo = randomFloat(0, 1 / 2);
+                    const actualPoints = expectedPoints * Math.exp(3 * lastUpdatedMonthsAgo);
+                    const lastUpdatedTime =
+                        currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
 
-                const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
-                    points: actualPoints,
-                    lastUpdatedTime,
-                });
+                    const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
+                        points: actualPoints,
+                        lastUpdatedTime,
+                    });
 
-                expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
-                expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
+                    expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
+                    expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
 
-                await SearchEntityTable.createOrReplaceItem(context, {
-                    partitionType: "Account",
-                    sortRangeType: "SearchEntityAffinity",
-                    spaceId: space.id,
-                    accountId: session.account.id,
-                    entityId: `Document:${document.id}`,
-                    points: actualPoints,
-                    pointsBucket: getSearchAffinityPointsBucket(actualPoints),
-                    lastUpdatedTime,
-                    lastViewedTime: null,
-                    expirationTime: new Date(
-                        currentTime + getSearchAffinityExpirationDuration(actualPoints),
-                    ),
+                    await SearchEntityTable.createOrReplaceItem(context, {
+                        partitionType: "Account",
+                        sortRangeType: "SearchEntityAffinity",
+                        spaceId: space.id,
+                        accountId: session.account.id,
+                        entityId: `Document:${document.id}`,
+                        points: actualPoints,
+                        pointsBucket: getSearchAffinityPointsBucket(actualPoints),
+                        lastUpdatedTime,
+                        lastViewedTime: null,
+                        expirationTime: new Date(
+                            currentTime + getSearchAffinityExpirationDuration(actualPoints),
+                        ),
+                    });
                 });
             }),
         );
@@ -478,9 +499,14 @@ test(
 
         const documentCount = Math.floor(searchAffinityQueryPageLimit * 4.5);
 
+        // Limit concurrent requests to reduce test flakiness.
+        const mutexes = createArrayWithLength(10, () => new Mutex());
+
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
-                TestDocument.create(session, {title: `Document ${index + 1}`}),
+                mutexes[index % mutexes.length]!.withLock(() =>
+                    TestDocument.create(session, {title: `Document ${index + 1}`}),
+                ),
             ),
         );
 
@@ -490,34 +516,36 @@ test(
 
         await runAllPromises(
             documents.map(async (document, documentIndex) => {
-                const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
+                await mutexes[documentIndex % mutexes.length]!.withLock(async () => {
+                    const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
 
-                const lastUpdatedMonthsAgo = randomFloat(0, 1 / 15);
-                const actualPoints = expectedPoints * Math.exp(3 * lastUpdatedMonthsAgo);
-                const lastUpdatedTime =
-                    currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
+                    const lastUpdatedMonthsAgo = randomFloat(0, 1 / 15);
+                    const actualPoints = expectedPoints * Math.exp(3 * lastUpdatedMonthsAgo);
+                    const lastUpdatedTime =
+                        currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
 
-                const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
-                    points: actualPoints,
-                    lastUpdatedTime,
-                });
+                    const actualDecayedPoints = getCurrentSearchAffinityPoints(currentTime, {
+                        points: actualPoints,
+                        lastUpdatedTime,
+                    });
 
-                expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
-                expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
+                    expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
+                    expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
 
-                await SearchEntityTable.createOrReplaceItem(context, {
-                    partitionType: "Account",
-                    sortRangeType: "SearchEntityAffinity",
-                    spaceId: space.id,
-                    accountId: session.account.id,
-                    entityId: `Document:${document.id}`,
-                    points: actualPoints,
-                    pointsBucket: getSearchAffinityPointsBucket(actualPoints),
-                    lastUpdatedTime,
-                    lastViewedTime: null,
-                    expirationTime: new Date(
-                        currentTime + getSearchAffinityExpirationDuration(actualPoints),
-                    ),
+                    await SearchEntityTable.createOrReplaceItem(context, {
+                        partitionType: "Account",
+                        sortRangeType: "SearchEntityAffinity",
+                        spaceId: space.id,
+                        accountId: session.account.id,
+                        entityId: `Document:${document.id}`,
+                        points: actualPoints,
+                        pointsBucket: getSearchAffinityPointsBucket(actualPoints),
+                        lastUpdatedTime,
+                        lastViewedTime: null,
+                        expirationTime: new Date(
+                            currentTime + getSearchAffinityExpirationDuration(actualPoints),
+                        ),
+                    });
                 });
             }),
         );
@@ -676,9 +704,14 @@ test(
 
         const documentCount = Math.floor(searchAffinityQueryPageLimit * 4.5);
 
+        // Limit concurrent requests to reduce test flakiness.
+        const mutexes = createArrayWithLength(10, () => new Mutex());
+
         const documents = await runAllPromises(
             createArrayWithLength(documentCount, index =>
-                TestDocument.create(session, {title: `Document ${index + 1}`}),
+                mutexes[index % mutexes.length]!.withLock(() =>
+                    TestDocument.create(session, {title: `Document ${index + 1}`}),
+                ),
             ),
         );
 
@@ -688,21 +721,23 @@ test(
 
         await runAllPromises(
             documents.map(async (document, documentIndex) => {
-                const points = lerp(19, 0.1, documentIndex / (documentCount - 1));
+                await mutexes[documentIndex % mutexes.length]!.withLock(async () => {
+                    const points = lerp(19, 0.1, documentIndex / (documentCount - 1));
 
-                await SearchEntityTable.createOrReplaceItem(context, {
-                    partitionType: "Account",
-                    sortRangeType: "SearchEntityAffinity",
-                    spaceId: space.id,
-                    accountId: session.account.id,
-                    entityId: `Document:${document.id}`,
-                    points,
-                    pointsBucket: getSearchAffinityPointsBucket(points),
-                    lastUpdatedTime: currentTime,
-                    lastViewedTime: null,
-                    expirationTime: new Date(
-                        currentTime + getSearchAffinityExpirationDuration(points),
-                    ),
+                    await SearchEntityTable.createOrReplaceItem(context, {
+                        partitionType: "Account",
+                        sortRangeType: "SearchEntityAffinity",
+                        spaceId: space.id,
+                        accountId: session.account.id,
+                        entityId: `Document:${document.id}`,
+                        points,
+                        pointsBucket: getSearchAffinityPointsBucket(points),
+                        lastUpdatedTime: currentTime,
+                        lastViewedTime: null,
+                        expirationTime: new Date(
+                            currentTime + getSearchAffinityExpirationDuration(points),
+                        ),
+                    });
                 });
             }),
         );

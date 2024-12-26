@@ -1,43 +1,41 @@
 import {compareAsc as compareDatesAsc} from "date-fns/compareAsc";
 import {Easing, timeline} from "motion";
-import {Memo, useEffect, useMemo, useRef} from "react";
+import {useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
-    getMessageBubbleMarginLeft,
-    messageViewBubbleBorderRadius,
+    messageViewAccountAvatarSize,
+    messageViewAccountNameFontSize,
+    messageViewAccountNameHeight,
+    messageViewAvatarOffsetYPx,
     messageViewMarginY,
-    messageViewMaxWidth,
+    messageViewMinHeightPx,
+    messageViewRailGap,
+    messagingTypingIndicatorsMinHeightPx,
     messagingViewMarginBottom,
 } from "~/client/styles/messaging_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
-import {
-    Spacing,
-    addRemLengths,
-    parseRemLength,
-    screenPaddingX,
-} from "~/shared/design/core/spacing.js";
+import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export const messagingTypingIndicatorsMinHeight = "3.875rem";
-
 export function MessagingTypingIndicators({
     typingStateByConnectionId,
-    paddingX = screenPaddingX,
     shouldAddMarginTop = false,
     shouldAddMarginBottom = false,
 }: {
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
 }) {
+    const spacingScale = useSpacingScale();
+
     // Only select one typing state per account and sort typing states by their
     // start time so they appear in the order users started typing.
     const typingStates = useMemo(() => {
@@ -59,8 +57,8 @@ export function MessagingTypingIndicators({
     return (
         <Box
             style={{
-                minHeight: messagingTypingIndicatorsMinHeight,
-                paddingTop: shouldAddMarginTop ? messageViewMarginY : undefined,
+                minHeight: messagingTypingIndicatorsMinHeightPx[spacingScale],
+                paddingTop: shouldAddMarginTop ? spacing[messageViewMarginY] : undefined,
                 paddingBottom: shouldAddMarginBottom
                     ? typeof shouldAddMarginBottom === "string"
                         ? shouldAddMarginBottom
@@ -72,21 +70,14 @@ export function MessagingTypingIndicators({
                 <MessagingTypingIndicator
                     key={typingState.account.id}
                     account={typingState.account}
-                    paddingX={paddingX}
                 />
             ))}
         </Box>
     );
 }
 
-function MessagingTypingIndicator({
-    account,
-    paddingX,
-}: {
-    account: AccountModel;
-    paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
-}) {
-    const platform = usePlatform();
+function MessagingTypingIndicator({account}: {account: AccountModel}) {
+    const spacingScale = useSpacingScale();
 
     const dot1Ref = useRef<HTMLDivElement>(null);
     const dot2Ref = useRef<HTMLDivElement>(null);
@@ -122,71 +113,63 @@ function MessagingTypingIndicator({
 
     return (
         <Box
+            flexShrink="0"
             width="full"
-            maxWidth={messageViewMaxWidth}
+            maxWidth={contentStyles.contentMaxWidth}
             marginX="center"
-            position="relative"
-            zIndex="0"
+            paddingX={screenPaddingX}
+            paddingBottom={messageViewMarginY}
+            style={{
+                minHeight: messageViewMinHeightPx[spacingScale],
+            }}
         >
-            <Box
-                fontSize="50"
-                fontStyle="truncate"
-                paddingTop="0.5"
-                paddingBottom="0.5"
-                paddingRight={paddingX}
-                color="grey-50"
-                display="flex"
-                alignItems="center"
-                gap="0.5"
-                style={{
-                    paddingLeft: addRemLengths(
-                        getMessageBubbleMarginLeft(
-                            typeof paddingX === "string" ? paddingX : paddingX[platform],
-                        ),
-                        "0.5",
-                    ),
-                }}
-            >
-                <AccountShortName account={account} />
-            </Box>
-            <Box display="flex" paddingX={paddingX} paddingBottom={messageViewMarginY}>
-                <Box flexShrink="0" paddingRight="2">
-                    <Box width="7" height="full" display="flex" alignItems="flex-end">
-                        <Box paddingY="0.5">
-                            <AccountAvatar account={account} size="7" />
-                        </Box>
+            <Box position="relative" zIndex="0" display="flex" gap={messageViewRailGap}>
+                <Box flexShrink="0" width={messageViewAccountAvatarSize}>
+                    <Box
+                        position="relative"
+                        style={{top: messageViewAvatarOffsetYPx[spacingScale]}}
+                    >
+                        <AccountAvatar account={account} size={messageViewAccountAvatarSize} />
                     </Box>
                 </Box>
-                <Box display="flex" position="relative">
+                <Box flexGrow="1">
                     <Box
-                        height="8"
-                        backgroundColor="grey-5"
-                        borderRadius={messageViewBubbleBorderRadius}
-                        paddingX="3"
+                        fontSize={messageViewAccountNameFontSize}
+                        fontStyle="truncate"
+                        color="grey-60"
+                        style={{
+                            lineHeight: spacing[messageViewAccountNameHeight],
+                        }}
+                    >
+                        {useAccountModel(account).name}
+                    </Box>
+                    <Box
+                        paddingLeft="0.5"
                         display="flex"
                         alignItems="center"
                         gap="1"
+                        style={{height: contentStyles.paragraphLineHeightPx[spacingScale]}}
                     >
                         <Box
                             ref={dot1Ref}
                             width="1"
                             height="1"
                             borderRadius="full"
-                            backgroundColor="grey-60"
+                            backgroundColor="grey-100"
                         />
                         <Box
                             ref={dot2Ref}
                             width="1"
                             height="1"
                             borderRadius="full"
-                            backgroundColor="grey-60"
+                            backgroundColor="grey-100"
                         />
                         <Box
                             ref={dot3Ref}
                             width="1"
                             height="1"
                             borderRadius="full"
-                            backgroundColor="grey-60"
+                            backgroundColor="grey-100"
                         />
                     </Box>
                 </Box>

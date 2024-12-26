@@ -95,7 +95,7 @@ export function getContentEditorFileDropTargets(
     }
 
     const defaultDropTargetOffsetY =
-        convertRemLengthToPx(contentStyles.defaultParagraphMargin, spacingScale) / 2;
+        convertRemLengthToPx(contentStyles.paragraphMargin, spacingScale) / 2;
     let previousDropTargetOffsetY = defaultDropTargetOffsetY;
 
     let nextPos = 0;

@@ -152,7 +152,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
@@ -361,18 +361,6 @@ export {ContentEditorForwardRef as ContentEditor};
 
 export type ContentEditorProps<Content extends ContentWithReferences> = {
     /**
-     * Should this content be rendered with our compact rendering? Compact
-     * rendering reduces some margins so content can be closer together.
-     */
-    isCompact?: boolean;
-
-    /**
-     * Should this content be rendered with our extra compact render? Extra compact
-     * rendering implies `isCompact` and decreases the paragraph font size.
-     */
-    isExtraCompact?: boolean;
-
-    /**
      * The current state of our content editor.
      *
      * Mostly the content editor state is a wrapper around ProseMirror's immutable
@@ -403,6 +391,18 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * The class name we'll apply to the content editable `<div>`.
      */
     className?: string;
+
+    /**
+     * A subset of `React.CSSProperties` we'll apply to the content editable
+     * `<div>`.
+     */
+    style?: {
+        paddingTop?: RemLength | number;
+        paddingBottom?: RemLength | number;
+        paddingLeft?: RemLength | number;
+        paddingRight?: RemLength | number;
+        borderRadius?: RemLength | number;
+    };
 
     /**
      * The class name we'll apply to the `<div>` containing the content editable
@@ -611,11 +611,10 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 }
 
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
-    isCompact,
-    isExtraCompact,
     state,
     placeholder,
     className,
+    style,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
@@ -702,11 +701,10 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
         >
             <ContentView
                 isEditorInitialAppRender={true}
-                isCompact={isCompact}
-                isExtraCompact={isExtraCompact}
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
+                style={style}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 fileAttachmentTarget={fileAttachmentTarget}
@@ -739,9 +737,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         state,
         placeholder,
         className,
+        style,
         containerClassName: customContainerClassName,
-        isCompact = false,
-        isExtraCompact = false,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -1058,15 +1055,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // This is the base width of code block line numbers. When scrolling left, to
                     // make sure the selection is visible we should scroll past line numbers which
                     // cover up content.
-                    convertRemLengthToPx(
-                        subtractRemLengths(
-                            contentStyles.listItemIndentation,
-                            propsRef.current.isCompact || propsRef.current.isExtraCompact
-                                ? contentStyles.compactListItemOffset
-                                : "0",
-                        ),
-                        spacingScale,
-                    ),
+                    convertRemLengthToPx(contentStyles.listItemIndentation, spacingScale),
                 right: scrollMarginPx,
                 bottom: scrollMarginPx,
             };
@@ -2960,16 +2949,74 @@ function ContentEditor<Content extends ContentWithReferences>(
         const classList = classNames(
             contentStyles.docClassName,
             routeLayout === "narrow" ? contentStyles.narrowRouteLayoutDocClassName : undefined,
-            isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
-            isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
             className,
         ).split(" ");
         viewElement.classList.add(...classList);
 
+        if (style?.paddingTop !== undefined) {
+            if (typeof style.paddingTop === "number") {
+                viewElement.style.paddingTop = `${style.paddingTop}px`;
+            } else {
+                viewElement.style.paddingTop = style.paddingTop;
+            }
+        }
+        if (style?.paddingBottom !== undefined) {
+            if (typeof style.paddingBottom === "number") {
+                viewElement.style.paddingBottom = `${style.paddingBottom}px`;
+            } else {
+                viewElement.style.paddingBottom = style.paddingBottom;
+            }
+        }
+        if (style?.paddingLeft !== undefined) {
+            if (typeof style.paddingLeft === "number") {
+                viewElement.style.paddingLeft = `${style.paddingLeft}px`;
+            } else {
+                viewElement.style.paddingLeft = style.paddingLeft;
+            }
+        }
+        if (style?.paddingRight !== undefined) {
+            if (typeof style.paddingRight === "number") {
+                viewElement.style.paddingRight = `${style.paddingRight}px`;
+            } else {
+                viewElement.style.paddingRight = style.paddingRight;
+            }
+        }
+        if (style?.borderRadius !== undefined) {
+            if (typeof style.borderRadius === "number") {
+                viewElement.style.borderRadius = `${style.borderRadius}px`;
+            } else {
+                viewElement.style.borderRadius = style.borderRadius;
+            }
+        }
+
         return () => {
             viewElement.classList.remove(...classList);
+
+            if (style?.paddingTop !== undefined) {
+                viewElement.style.removeProperty("padding-top");
+            }
+            if (style?.paddingBottom !== undefined) {
+                viewElement.style.removeProperty("padding-bottom");
+            }
+            if (style?.paddingLeft !== undefined) {
+                viewElement.style.removeProperty("padding-left");
+            }
+            if (style?.paddingRight !== undefined) {
+                viewElement.style.removeProperty("padding-right");
+            }
+            if (style?.borderRadius !== undefined) {
+                viewElement.style.removeProperty("border-radius");
+            }
         };
-    }, [className, isCompact, isExtraCompact, routeLayout]);
+    }, [
+        className,
+        routeLayout,
+        style?.borderRadius,
+        style?.paddingBottom,
+        style?.paddingLeft,
+        style?.paddingRight,
+        style?.paddingTop,
+    ]);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
@@ -3165,9 +3212,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3183,9 +3230,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3202,9 +3249,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isPointerDownFromSelectableElementAndMoved
             ) {
                 if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.add(contentStyles.isDraggingSelectionDocClassName);
                 } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                    view.dom.classList.remove(contentStyles.isDraggingSelectionDocClassName);
                 }
             }
         };
@@ -3818,6 +3865,17 @@ function ContentEditor<Content extends ContentWithReferences>(
         const insertOtherMenuActions: Array<MenuAction> = [];
         insertMenuActions.push(insertOtherMenuActions);
 
+        if (process.env.NODE_ENV !== "production") {
+            insertOtherMenuActions.push({
+                label: "Table",
+                iconSize: "4",
+                icon: <Table />,
+                onPress: () => {
+                    insertContentTable(assertExists(viewRef.current));
+                },
+            });
+        }
+
         if (schema.nodes.divider) {
             insertOtherMenuActions.push({
                 label: "Divider",
@@ -3847,15 +3905,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             },
         );
-        process.env.NODE_ENV !== "production" &&
-            insertOtherMenuActions.push({
-                label: "Table",
-                iconSize: "4",
-                icon: <Table />,
-                onPress: () => {
-                    insertContentTable(assertExists(viewRef.current));
-                },
-            });
 
         return [
             [
@@ -4102,6 +4151,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         position="absolute"
                         left="0"
                         right="0"
+                        height="border-thick"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"
                         borderRadius="full"
@@ -4109,7 +4159,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                             left: fileDropTarget.rect.left,
                             right: `calc(100% - ${fileDropTarget.rect.right}px)`,
                             top: fileDropTarget.rect.top - 1,
-                            height: 2,
                         }}
                     />
                 ) : (
@@ -4120,6 +4169,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 : undefined
                         }
                         position="absolute"
+                        width="border-thick"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"
                         borderRadius="full"
@@ -4130,7 +4180,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 fileDropTarget.action.indicator === "Left"
                                     ? fileDropTarget.rect.left - 1
                                     : fileDropTarget.rect.right - 1,
-                            width: 2,
                         }}
                     />
                 ))}

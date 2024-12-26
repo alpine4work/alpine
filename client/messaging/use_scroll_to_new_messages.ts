@@ -4,11 +4,9 @@ import {flushNavigationBarScrollEventEmitter} from "~/client/design/navigation_b
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -124,7 +122,6 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 scrollDelta = -0.1;
             }
 
-            const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
             const newScrollOffset = view.getScrollOffset() + scrollDelta;
@@ -132,11 +129,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             // Only scroll if we're near the bottom. If we'd have to scroll more than ~4
             // message views then don't do it since messages would jump unexpectedly and
             // the user might be disturbed while reading.
-            if (
-                scrollDelta <=
-                newItemsHeight +
-                    convertRemLengthToPx(messageViewMinHeight[platform], spacingScale) * 4
-            ) {
+            if (scrollDelta <= newItemsHeight + messageViewMinHeightPx[spacingScale] * 4) {
                 view.setScrollOffset(newScrollOffset);
                 flushNavigationBarScrollEventEmitter.emit(view.getElement());
             }

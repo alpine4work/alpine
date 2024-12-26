@@ -69,10 +69,10 @@ function ContentEditorPhantomTextSelectionCursor({
                 className={sprinkles({
                     position: "absolute",
                     height: "full",
+                    width: "border-thick",
                     backgroundColor,
                 })}
                 style={{
-                    width: 2,
                     top: 0,
                     left: 0,
                     transform: `translateX(-50%)`,

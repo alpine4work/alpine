@@ -143,7 +143,7 @@ async function main(): Promise<{exitCode: number}> {
                                 getCurrentTimeZone(),
                                 currentTime,
                                 nextDeployableTime,
-                                {shouldIncludeWeekday: true},
+                                {withWeekday: true},
                             )}.`,
                         ) +
                         "\n",

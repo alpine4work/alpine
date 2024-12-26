@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 CORE_SRCS = [
     "array/create_array_with_length.ts",
+    "control/assert_equal_types.ts",
     "control/assert_exists.ts",
     "control/assert.ts",
     "control/cast.ts",

@@ -128,7 +128,9 @@ test("expanding task from peek opens task detail view", async ({page, context: b
 
     await expect(page.getByTestId("PeekStackOverlay").getByLabel("Open comments")).toBeHidden();
     await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
-    await expect(page.getByTestId("MessageViewBubble")).toHaveText("1st task comment");
+    await expect(
+        page.getByTestId("MessageViewContent").getByText("1st task comment"),
+    ).toBeVisible();
     await expect(page.getByTestId("TaskDetailViewMain").getByText("unique task 1")).toBeVisible();
     await expect(page.getByTestId("TaskDetailViewMain").getByText("new task")).toBeHidden();
 });

@@ -77,6 +77,8 @@ export function trimContentFragmentEnd(fragment: Fragment): Fragment {
     const trimmedText = oldLastChildNode.text!.trimEnd();
     if (trimmedText.length === oldLastChildNode.text!.length) return fragment;
 
+    if (trimmedText.length === 0) return Fragment.from(fragment.content.slice(0, -1));
+
     return Fragment.from([
         ...fragment.content.slice(0, -1),
         oldLastChildNode.type.schema.text(trimmedText),
@@ -114,6 +116,8 @@ export function trimContentFragmentStart(fragment: Fragment): Fragment {
 
     const trimmedText = oldFirstChildNode.text!.trimStart();
     if (trimmedText.length === oldFirstChildNode.text!.length) return fragment;
+
+    if (trimmedText.length === 0) return Fragment.from(fragment.content.slice(1));
 
     return Fragment.from([
         oldFirstChildNode.type.schema.text(trimmedText),

@@ -105,19 +105,15 @@ export function AccountAvatarPile({
                                 : 1 + index,
                     }}
                 >
-                    <Box
-                        height={avatarSize}
-                        width={avatarSize}
-                        borderRadius="full"
-                        style={{
-                            boxShadow:
-                                previewAccounts.length > 1 || accountCount > previewAccounts.length
-                                    ? `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`
-                                    : undefined,
-                        }}
-                    >
-                        <AccountAvatar account={account} size={avatarSize} />
-                    </Box>
+                    <AccountAvatar
+                        account={account}
+                        size={avatarSize}
+                        backgroundBorderWidth={
+                            previewAccounts.length > 1 || accountCount > previewAccounts.length
+                                ? borderWidth
+                                : undefined
+                        }
+                    />
                 </Box>
             ))}
             {accountCount > previewAccounts.length && (

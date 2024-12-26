@@ -420,8 +420,12 @@ export function computeContentFileFloatLayout(
     // than both the file's original height (since making a small file larger will
     // start to add resize artifacts) and the file row's maximum height.
     {
-        const minHeight = contentStyles.fileFloatMinHeightRem * remPx;
-        const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
+        const minHeight = contentStyles.fileFloatMinHeightPx[spacingScale];
+        const maxHeight = clamp(
+            minHeight,
+            height,
+            contentStyles.fileFloatMaxHeightPx[spacingScale],
+        );
 
         if (minHeight === maxHeight) {
             solver.addConstraint(
@@ -483,7 +487,7 @@ export function computeContentFileFloatLayout(
     {
         let lineCount =
             (heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2) /
-            (contentStyles.paragraphLineHeightRem * remPx);
+            contentStyles.paragraphLineHeightPx[spacingScale];
 
         // We actually are rounding to the nearest `n + 0.7` line count (where `n` is
         // an integer) that's smaller than the original file height. We have to strike
@@ -505,7 +509,7 @@ export function computeContentFileFloatLayout(
             new kiwi.Constraint(
                 heightVariable,
                 kiwi.Operator.Eq,
-                lineCount * (contentStyles.paragraphLineHeightRem * remPx) -
+                lineCount * contentStyles.paragraphLineHeightPx[spacingScale] -
                     contentStyles.fileFloatMarginYRem * remPx * 2,
                 kiwi.Strength.medium,
             ),

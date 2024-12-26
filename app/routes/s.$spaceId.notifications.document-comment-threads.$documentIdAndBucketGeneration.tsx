@@ -18,7 +18,10 @@ import {
     getPlatformWithoutListening,
     usePlatform,
 } from "~/client/remix/platform_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {
+    getInitialAppRenderSpacingScale,
+    getSpacingScaleWithoutListening,
+} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -26,7 +29,7 @@ import {
     documentCommentThreadCountAgainstLimit,
     documentCommentThreadListViewMaxWidth,
 } from "~/client/styles/document_shared_styles.js";
-import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     getInboxDocumentNewCommentThreadsEntryCommentThreads,
@@ -34,7 +37,7 @@ import {
 } from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {
     DocumentCommentModel,
@@ -91,6 +94,8 @@ export async function loader({params, request, context: unauthenticatedContext}:
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
     const clientInfo = context.loader.getClientInfo();
+    const platform = getInitialAppRenderPlatform(clientInfo);
+    const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
         await runAllPromises([
@@ -100,7 +105,7 @@ export async function loader({params, request, context: unauthenticatedContext}:
                 bucketGeneration,
                 commentLimit: getInitialLoadMessageCount(clientInfo),
                 commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[getInitialAppRenderPlatform(clientInfo)],
+                    documentCommentThreadCountAgainstLimit[platform][spacingScale],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
@@ -222,6 +227,7 @@ function DocumentNewCommentThreadsRouteInner() {
     // and after that mobile will need to fill in the blanks when the user switches
     // comment threads.
     const switchMobileCommentThreadIndex = async (commentThreadIndex: number) => {
+        const platform = getPlatformWithoutListening();
         if (platform !== "mobile") return;
 
         switchMobileCommentThreadIndexAbortControllerRef.current?.abort();
@@ -238,14 +244,12 @@ function DocumentNewCommentThreadsRouteInner() {
 
         const spacingScale = getSpacingScaleWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
-        const messageViewMinHeightPx = convertRemLengthToPx(
-            messageViewMinHeight[platform],
-            spacingScale,
-        );
 
         const loadCommentCount =
-            Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
-            Math.floor(documentCommentThreadCountAgainstLimit[getPlatformWithoutListening()]);
+            Math.max(
+                20,
+                Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx[spacingScale]),
+            ) - Math.floor(documentCommentThreadCountAgainstLimit[platform][spacingScale]);
 
         if (
             initialCommentThreadResult.comments.length <

@@ -9,6 +9,7 @@ import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_out
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -55,6 +56,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const url = new URL(request.url);
 
     const clientInfo = context.loader.getClientInfo();
+    const platform = getInitialAppRenderPlatform(clientInfo);
+    const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
         await runAllPromises([
@@ -63,7 +66,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 commentThreadIds: [commentThreadId],
                 commentLimit: getInitialLoadMessageCount(clientInfo),
                 commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[getInitialAppRenderPlatform(clientInfo)],
+                    documentCommentThreadCountAgainstLimit[platform][spacingScale],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {

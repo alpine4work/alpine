@@ -93,7 +93,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -427,10 +427,7 @@ export function TaskDetailView({
             const coords = editor.coordsAtPos(editorState.getSelection().from);
 
             const spacingScale = getSpacingScaleWithoutListening();
-            const paragraphLineHeight = convertRemLengthToPx(
-                contentStyles.paragraphFontSize.lineHeight,
-                spacingScale,
-            );
+            const paragraphLineHeight = contentStyles.paragraphLineHeightPx[spacingScale];
 
             // Add a paragraph line height in either direction as slop. We consider the
             // selection offscreen if there's less than a line of space between it and the

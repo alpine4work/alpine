@@ -31,7 +31,6 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Spacing, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -75,7 +74,6 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
         files: ReadonlyArray<MessageInputFile>;
         isFocused: boolean;
     } | null>;
-    paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight?: boolean;
     onFocus?: () => void;
     onBlur?: () => void;
@@ -110,7 +108,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         onHideTypingIndicator,
         "data-testid": dataTestId,
         restoreStateRef,
-        paddingX = screenPaddingX,
         withMobileMaxHeight,
         onFocus,
         onBlur,
@@ -413,7 +410,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 onHideTypingIndicator={onHideTypingIndicator}
                 isBottomBar={!isNotBottomBar}
                 data-testid={dataTestId}
-                paddingX={paddingX}
                 withMobileMaxHeight={withMobileMaxHeight}
                 onFocus={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;

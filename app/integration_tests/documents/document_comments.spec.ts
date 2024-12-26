@@ -189,11 +189,18 @@ test("can comment on a document and use the comment thread sidebar", async ({
     }
 
     if (isMobile) {
+        await expect(
+            page1.getByTestId("DocumentContentEditorMobileFakeCommentInput"),
+        ).toBeVisible();
         await page1.getByText("Add a comment").tap();
+        await expect(
+            page1.getByTestId("DocumentContentEditorMobileFakeCommentInput"),
+        ).not.toBeAttached();
     }
 
     await page1.getByRole("textbox", {name: "New comment"}).fill("Test comment content 2");
     await page1.getByRole("button", {name: "Send comment"}).click();
+    await expect(page1.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(
         page1.getByTestId("DocumentContentEditorMain").locator("[data-comment]"),
@@ -278,11 +285,19 @@ test("can comment on a document and use the comment thread sidebar", async ({
     }
 
     if (isMobile) {
+        await expect(
+            page2.getByTestId("DocumentContentEditorMobileFakeCommentInput"),
+        ).toBeVisible();
         await page2.getByText("Add a comment").tap();
+        await expect(
+            page2.getByTestId("DocumentContentEditorMobileFakeCommentInput"),
+        ).not.toBeAttached();
     }
 
     await page2.getByRole("textbox", {name: "New comment"}).fill("Test comment content 3");
+    await expect(page2.getByRole("button", {name: "Send comment"})).toBeEnabled();
     await page2.getByRole("button", {name: "Send comment"}).click();
+    await expect(page2.getByRole("button", {name: "Send comment"})).toBeDisabled();
 
     await expect(
         page1.getByTestId("DocumentContentEditorMain").locator("[data-comment]"),
