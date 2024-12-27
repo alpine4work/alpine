@@ -69,8 +69,7 @@ if (typeof window !== "undefined") {
             set: function (this: Element) {
                 const debugId = getScrollElementDebugId(this);
                 if (debugId !== null) {
-                    // NOCOMMIT
-                    console.trace(
+                    console.log(
                         `[ScrollEventDebugger#${debugId}] set ${setterPropertyName}`,
                         ...arguments,
                     );
@@ -95,8 +94,7 @@ if (typeof window !== "undefined") {
         (Element.prototype as any)[methodName] = function () {
             const debugId = getScrollElementDebugId(this);
             if (debugId !== null) {
-                // NOCOMMIT
-                console.trace(`[ScrollEventDebugger#${debugId}] ${methodName}()`, ...arguments);
+                console.log(`[ScrollEventDebugger#${debugId}] ${methodName}()`, ...arguments);
             }
             return originalMethod.apply(this, arguments as any);
         };

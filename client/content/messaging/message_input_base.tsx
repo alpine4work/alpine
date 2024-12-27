@@ -1,6 +1,3 @@
-// NOCOMMIT
-import "~/client/helpers/events/register_scroll_event_debugger.js";
-
 import classNames from "classnames";
 import {animate} from "motion";
 import {ArrowRight, ArrowUp, PencilSimple, Plus, X} from "phosphor-react";
