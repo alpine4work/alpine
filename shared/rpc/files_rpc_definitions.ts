@@ -110,7 +110,10 @@ export const attachFileAsUploader = defineRpc({
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
-    output: {},
+    output: {
+        signedUrlSearch: Schema.string,
+        file: FileModel.schema,
+    },
 });
 
 export const attachFileFromAttachment = defineRpc({

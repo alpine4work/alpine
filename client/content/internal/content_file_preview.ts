@@ -157,7 +157,7 @@ export function renderContentFilePreview({
     assert(html instanceof HtmlElementGenerator);
 
     if (process.env.NODE_ENV !== "production" && file) {
-        html.setAttribute("data-testid", `ContentFile:${file.contentType}`);
+        html.setAttribute("data-testid", `ContentFilePreview:${file.contentType}`);
     }
 
     if (!file) {
@@ -1469,8 +1469,6 @@ export function addContentFilePreviewBehavior(
     };
 
     const openViewer = () => {
-        console.log("openViewer", file);
-
         if (onOpenViewer) {
             const result = onOpenViewer();
             if (result?.preventDefault) return;
@@ -1491,8 +1489,6 @@ export function addContentFilePreviewBehavior(
                 "file",
                 // Space separator was chosen since it's encoded as a `+` which looks nice in
                 // the URL.
-                //
-                // NOCOMMIT: Test this code path. Does the modal actually work?
                 attachmentTarget === "Uploader"
                     ? file.id
                     : `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,

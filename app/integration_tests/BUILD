@@ -34,6 +34,8 @@ ts_playwright_tests(
         "//server/apns:apns_development_certificates",
         "//server/edge",
         "//server/files/processor",
+        "//server/files/processor:test_fixtures/py_pdf_sample_google_doc_document.pdf",
+        "//server/files/processor:test_fixtures/undraw_landscape_photographer.svg",
         "//server/files/processor:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
         "//server/files/processor:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
         "//server/files/processor:test_fixtures/wikimedia_png_transparency_demonstration.png",
@@ -43,6 +45,7 @@ ts_playwright_tests(
     ],
     skip_projects_by_src = {
         # Explicitly desktop only tests.
+        "chat/chat_files_desktop.spec.ts": ["webkit_mobile"],
         "documents/document_files_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.

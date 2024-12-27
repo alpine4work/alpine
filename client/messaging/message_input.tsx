@@ -20,6 +20,7 @@ import {
     MessageInputRef,
 } from "~/client/content/messaging/message_input_base.js";
 import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -34,8 +35,10 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -45,6 +48,10 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {
+    attachFileAsUploader,
+    attachFileFromAttachment,
+} from "~/shared/rpc/files_rpc_definitions.js";
 
 export type MessageInputProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
@@ -60,6 +67,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
         fileIds: ReadonlyArray<FileId>;
     }) => Promise<void>;
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
+    withAttachFileBeforeCreateMessage?: boolean;
     messageEditing: MessageEditing<RoomKey>;
     replyingToMessage: Message | null;
     onClearReplyingToMessage: () => void;
@@ -98,6 +106,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         onUpdateMessages,
         createMessage,
         fileAttachmentTarget,
+        withAttachFileBeforeCreateMessage = false,
         messageEditing,
         replyingToMessage,
         onClearReplyingToMessage,
@@ -121,9 +130,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         };
     }, []);
 
+    const context = useAppContext();
     const platform = usePlatform();
     const reporter = useReporter();
-    const {currentAccount} = useSpaceContext();
+    const {currentAccount, space} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
     const fileStore = useFileClientStore();
 
@@ -278,14 +288,45 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         const tryCreatingMessage = () => {
             runPromiseWithoutAwaiting(async () => {
                 try {
-                    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                    // close the page if we haven't finished sending their message. It will
-                    // look ok on their machine but might not be on the server.
-                    const promise = createMessage({
-                        parentMessageIndex: replyingToMessage?.index ?? null,
-                        content: inputContent.doc,
-                        fileIds: inputFiles.map(inputFile => inputFile.file.id),
-                    });
+                    const promise = (async () => {
+                        // If we were configured to attach files right before creating a message
+                        // (instead of when the file was added to the message input) then run our
+                        // attach calls now.
+                        if (withAttachFileBeforeCreateMessage && fileAttachmentTarget !== null) {
+                            await runAllPromises(
+                                inputFiles.map(async inputFile => {
+                                    if (inputFile.attachmentTarget === "Uploader") {
+                                        await attachFileAsUploader(context, {
+                                            spaceId: space.id,
+                                            fileId: inputFile.file.id,
+                                            target: fileAttachmentTarget,
+                                        });
+                                    } else if (
+                                        !isDeepEqual(
+                                            fileAttachmentTarget,
+                                            inputFile.attachmentTarget,
+                                        )
+                                    ) {
+                                        await attachFileFromAttachment(context, {
+                                            spaceId: space.id,
+                                            fileId: inputFile.file.id,
+                                            fromTarget: inputFile.attachmentTarget,
+                                            toTarget: fileAttachmentTarget,
+                                        });
+                                    }
+                                }),
+                            );
+                        }
+
+                        // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
+                        // close the page if we haven't finished sending their message. It will
+                        // look ok on their machine but might not be on the server.
+                        await createMessage({
+                            parentMessageIndex: replyingToMessage?.index ?? null,
+                            content: inputContent.doc,
+                            fileIds: inputFiles.map(inputFile => inputFile.file.id),
+                        });
+                    })();
 
                     // Sending a message dismisses post comment entries and chat entries.
                     // Optimistically archive these entries so we don't need to wait for
@@ -383,7 +424,12 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                             messageEditingForThisInput.state.initialContent)
                 }
                 isSendButtonPending={messageEditingForThisInput?.state.isSaving}
-                fileAttachmentTarget={fileAttachmentTarget}
+                // Always treat `fileAttachmentTarget` as null if we want to attach files
+                // before creating the message instead of when they're dropped on the message
+                // input.
+                fileAttachmentTarget={
+                    withAttachFileBeforeCreateMessage ? null : fileAttachmentTarget
+                }
                 messageEditingForThisInput={messageEditingForThisInput}
                 replyingToMessage={replyingToMessage}
                 onClearReplyingToMessage={onClearReplyingToMessage}

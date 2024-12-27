@@ -1,4 +1,4 @@
-import {Ref, forwardRef, useCallback, useRef} from "react";
+import {Ref, forwardRef, useCallback, useMemo, useRef} from "react";
 import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -7,6 +7,7 @@ import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
@@ -40,6 +41,11 @@ function NewChatMessagingView(
     // its state from the ref on remount.
     const inputRestoreStateRef = useRef(null);
 
+    const fileAttachmentTarget = useMemo((): FileAttachmentTarget | null => {
+        if (!selectedChat) return null;
+        return {type: "ChatMessages", chatId: selectedChat.chat.id};
+    }, [selectedChat]);
+
     return (
         <MessagingView
             ref={ref}
@@ -63,11 +69,10 @@ function NewChatMessagingView(
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
             isMessageCreationDisabled={!selectedChat}
-            // `fileAttachmentTarget` is null since we want to attach files when the
-            // message is sent. Not when the message is added to the message input. Since
-            // the user could add a file to the message input, then add a new account to
-            // message.
-            fileAttachmentTarget={null}
+            fileAttachmentTarget={fileAttachmentTarget}
+            // Since `selectedChat` may change we want to attach files right before the
+            // message is created instead of when files are added to the message input.
+            withAttachFileBeforeCreateMessage={true}
             getMessagesFromStart={useEvent(input => {
                 if (!selectedChat) {
                     throw new InternalError("Can not load messages when we don't know the chat");

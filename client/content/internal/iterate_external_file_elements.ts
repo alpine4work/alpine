@@ -18,7 +18,7 @@ export type ExternalFileElementInfo =
           type: "AttachFile";
           spaceId: SpaceId;
           fileId: FileId;
-          target: FileAttachmentTarget;
+          target: FileAttachmentTarget | "Uploader";
       };
 
 export function* iterateExternalFileElements(
@@ -86,11 +86,14 @@ export function* iterateExternalFileElements(
                 const fileId = pathnameMatch[2];
 
                 const targetString = fileElement.getAttribute("data-cy-attached");
-                let target: FileAttachmentTarget | undefined;
+                let target: FileAttachmentTarget | "Uploader" | undefined;
 
                 try {
                     if (targetString) {
-                        target = deserializeFileAttachmentTargetString(targetString);
+                        target =
+                            targetString === "uploader"
+                                ? "Uploader"
+                                : deserializeFileAttachmentTargetString(targetString);
                     }
                 } catch (error) {
                     // This error is almost imperceivable to the user since we'll try

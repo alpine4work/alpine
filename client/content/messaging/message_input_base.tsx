@@ -55,6 +55,7 @@ import {
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -115,7 +116,9 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
+    attachFileAsUploader,
     attachFileFromAttachment,
+    getFileAsUploader,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
 
@@ -303,23 +306,36 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             case "AttachFile": {
                                 const fromTarget = fileInfo.target;
 
-                                let promise;
+                                let promise: Promise<{
+                                    readonly signedUrlSearch: string;
+                                    readonly file: FileModel;
+                                }>;
 
                                 // If we're trying to attach the file to the same attachment target it's from
                                 // then we don't need to perform another attach mutation. Instead, all we need
                                 // to do is load the file (since it's not in our references).
-                                //
-                                // NOCOMMIT: Integration test for this path specifically (`toTarget` is null in
-                                // a new chat)
                                 if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
-                                    promise = getFileFromAttachment(context, {
-                                        spaceId: fileInfo.spaceId,
-                                        fileId: fileInfo.fileId,
-                                        target: fromTarget,
-                                    });
+                                    if (fromTarget === "Uploader") {
+                                        promise = getFileAsUploader(context, {
+                                            spaceId: fileInfo.spaceId,
+                                            fileId: fileInfo.fileId,
+                                        });
+                                    } else {
+                                        promise = getFileFromAttachment(context, {
+                                            spaceId: fileInfo.spaceId,
+                                            fileId: fileInfo.fileId,
+                                            target: fromTarget,
+                                        });
+                                    }
                                 }
                                 // Otherwise, let's attach the file to its new attachment target.
-                                else {
+                                else if (fromTarget === "Uploader") {
+                                    promise = attachFileAsUploader(context, {
+                                        spaceId: fileInfo.spaceId,
+                                        fileId: fileInfo.fileId,
+                                        target: toTarget,
+                                    });
+                                } else {
                                     promise = attachFileFromAttachment(context, {
                                         spaceId: fileInfo.spaceId,
                                         fileId: fileInfo.fileId,
@@ -337,7 +353,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
                                     onAddFile({
                                         key: generateId(),
-                                        attachmentTarget: toTarget ?? "Uploader",
+                                        attachmentTarget: markMemoIfNotRendering(fromTarget),
                                         signedUrlSearch,
                                         file,
                                     });

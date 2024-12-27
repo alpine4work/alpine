@@ -188,6 +188,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         randomSeedForShimmer,
         isMessageCreationDisabled,
         fileAttachmentTarget,
+        withAttachFileBeforeCreateMessage = false,
         getMessagesFromStart,
         getMessagesFromEnd,
         backfillMessages,
@@ -265,6 +266,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * Target which files in this messaging room are attached to.
          */
         fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
+
+        /**
+         * By default, we attach files to `fileAttachmentTarget` when the user drops
+         * the file onto the message input. However, for cases when
+         * `fileAttachmentTarget` may change while editing a message we want to instead
+         * attach files before the message is created on the server. To attach files
+         * when the message is created on the server set
+         * `withAttachFileBeforeCreateMessage` to true. Otherwise files will be
+         * attached when they're dropped on the message input.
+         */
+        withAttachFileBeforeCreateMessage?: boolean;
 
         /**
          * Load messages from the start of the list. We expect the implementation of
@@ -682,6 +694,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         <>
             {modals}
             <div
+                data-testid="MessagingView"
                 className={sprinkles({
                     position: "relative",
                     flexGrow: "1",
@@ -758,6 +771,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 />
                 <MessageInput
                     ref={inputRef}
+                    data-testid="MessageInput"
                     messageNoun={messageNoun}
                     messages={state.messages}
                     isMessageCreationDisabled={isMessageCreationDisabled}
@@ -766,6 +780,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         await createMessage(input);
                     }}
                     fileAttachmentTarget={fileAttachmentTarget}
+                    withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
                     messageEditing={messageEditing}
                     replyingToMessage={
                         replyingToMessageIndex !== null
@@ -821,6 +836,7 @@ function MessagingViewDragOverlay() {
 
     return (
         <div
+            data-testid="MessagingViewDragOverlay"
             className={sprinkles({
                 zIndex: "60",
                 position: "absolute",

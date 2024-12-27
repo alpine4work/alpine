@@ -196,6 +196,7 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
+    attachFileAsUploader,
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
@@ -1634,7 +1635,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 });
                             }
                             // Otherwise, let's attach the file to its new attachment target.
-                            else {
+                            else if (fromTarget === "Uploader") {
+                                return attachFileAsUploader(context, {
+                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                    fileId: temporaryPastedFileInfo.fileId,
+                                    target: toTarget,
+                                });
+                            } else {
                                 return attachFileFromAttachment(context, {
                                     spaceId: temporaryPastedFileInfo.spaceId,
                                     fileId: temporaryPastedFileInfo.fileId,

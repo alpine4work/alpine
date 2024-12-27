@@ -185,14 +185,24 @@ export default implementRpcs(definitions, {
     attachFileAsUploader: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await attachFileAsUploader(
+            const file = await attachFileAsUploader(
                 context,
                 input.spaceId,
                 input.fileId,
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
-            return {};
+            // It's ok to generate a signed URL here since `attachFileFromAttachment()`
+            // authorizes that the actor has access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {
+                signedUrlSearch: signedUrl.search,
+                file,
+            };
         },
     },
 

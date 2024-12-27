@@ -256,7 +256,6 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
-                // NOCOMMIT: Test this code path
                 const fileAttachmentTarget = this._getFileAttachmentTarget();
                 if (fileAttachmentTarget === "Uploader") {
                     fileDom.setAttribute("data-cy-attached", "uploader");
@@ -297,7 +296,6 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
-                // NOCOMMIT: Test this code path
                 const fileAttachmentTarget = this._getFileAttachmentTarget();
                 if (fileAttachmentTarget === "Uploader") {
                     fileDom.setAttribute("data-cy-attached", "uploader");
@@ -335,7 +333,6 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
-                // NOCOMMIT: Test this code path
                 const fileAttachmentTarget = this._getFileAttachmentTarget();
                 if (fileAttachmentTarget === "Uploader") {
                     fileDom.setAttribute("data-cy-attached", "uploader");
@@ -371,7 +368,6 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                         ).toString(),
                     );
 
-                    // NOCOMMIT: Test this code path
                     const fileAttachmentTarget = this._getFileAttachmentTarget();
                     if (fileAttachmentTarget === "Uploader") {
                         fileDom.setAttribute("data-cy-attached", "uploader");
