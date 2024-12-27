@@ -46,6 +46,7 @@ import {
 } from "~/client/design/mobile_bottom_bar.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {
     useRegisterBottomBarFrame,
@@ -102,7 +103,6 @@ import {
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -232,6 +232,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     ref: Ref<MessageInputRef>,
 ) {
     const context = useAppContext();
+    const reporter = useReporter();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
@@ -273,65 +274,81 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             // Noop if we don't have an add file callback.
             if (!onAddFile) return;
 
-            // NOCOMMIT: Show error to user?
-            runPromiseWithoutAwaiting(
-                context.tracer.withSpan(spanName, async context => {
-                    const newFileInfos: Array<ExternalFileElementInfo> = [];
+            const promise = context.tracer.withSpan(spanName, async context => {
+                const newFileInfos: Array<ExternalFileElementInfo> = [];
 
-                    for (const {info} of iterateExternalFileElements(
-                        parseHtml(dataTransfer.getData("text/html")),
-                        () => space.id,
-                    )) {
-                        if (info) newFileInfos.push(info);
-                    }
+                for (const {info} of iterateExternalFileElements(
+                    parseHtml(dataTransfer.getData("text/html")),
+                    () => space.id,
+                )) {
+                    if (info) newFileInfos.push(info);
+                }
 
-                    for (const item of dataTransfer.items) {
-                        // NOCOMMIT: Make sure if we copy an image we only paste from the `image/html`
-                        // not the `image/png`.
-                        if (item.kind !== "file") continue;
+                for (const item of dataTransfer.items) {
+                    // NOCOMMIT: Make sure if we copy an image we only paste from the `image/html`
+                    // not the `image/png`.
+                    if (item.kind !== "file") continue;
 
-                        newFileInfos.push({
-                            type: "UploadFile",
-                            input: {type: "File", file: assertExists(item.getAsFile())},
-                        });
-                    }
+                    newFileInfos.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
 
-                    await runAllPromises(
-                        newFileInfos.map((fileInfo): Promise<void> => {
-                            const toTarget = fileAttachmentTarget;
+                await runAllPromises(
+                    newFileInfos.map((fileInfo): Promise<void> => {
+                        const toTarget = fileAttachmentTarget;
 
-                            switch (fileInfo.type) {
-                                case "AttachFile": {
-                                    const fromTarget = fileInfo.target;
+                        switch (fileInfo.type) {
+                            case "AttachFile": {
+                                const fromTarget = fileInfo.target;
 
-                                    let promise;
+                                let promise;
 
-                                    // If we're trying to attach the file to the same attachment target it's from
-                                    // then we don't need to perform another attach mutation. Instead, all we need
-                                    // to do is load the file (since it's not in our references).
-                                    //
-                                    // NOCOMMIT: Integration test for this path specifically (`toTarget` is null in
-                                    // a new chat)
-                                    if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
-                                        promise = getFileFromAttachment(context, {
-                                            spaceId: fileInfo.spaceId,
-                                            fileId: fileInfo.fileId,
-                                            target: fromTarget,
-                                        });
-                                    }
-                                    // Otherwise, let's attach the file to its new attachment target.
-                                    else {
-                                        promise = attachFileFromAttachment(context, {
-                                            spaceId: fileInfo.spaceId,
-                                            fileId: fileInfo.fileId,
-                                            fromTarget,
-                                            toTarget,
-                                        });
-                                    }
+                                // If we're trying to attach the file to the same attachment target it's from
+                                // then we don't need to perform another attach mutation. Instead, all we need
+                                // to do is load the file (since it's not in our references).
+                                //
+                                // NOCOMMIT: Integration test for this path specifically (`toTarget` is null in
+                                // a new chat)
+                                if (!toTarget || isDeepEqual(fromTarget, toTarget)) {
+                                    promise = getFileFromAttachment(context, {
+                                        spaceId: fileInfo.spaceId,
+                                        fileId: fileInfo.fileId,
+                                        target: fromTarget,
+                                    });
+                                }
+                                // Otherwise, let's attach the file to its new attachment target.
+                                else {
+                                    promise = attachFileFromAttachment(context, {
+                                        spaceId: fileInfo.spaceId,
+                                        fileId: fileInfo.fileId,
+                                        fromTarget,
+                                        toTarget,
+                                    });
+                                }
 
-                                    addGlobalLoadingIndicator(promise, {type: "Uploading"});
+                                addGlobalLoadingIndicator(promise, {type: "Uploading"});
 
-                                    return promise.then(({signedUrlSearch, file}) => {
+                                return promise.then(({signedUrlSearch, file}) => {
+                                    // Noop if our input was unmounted (e.g. after the message is sent we remount
+                                    // this component).
+                                    if (!isMounted()) return;
+
+                                    onAddFile({
+                                        key: generateId(),
+                                        attachmentTarget: toTarget ?? "Uploader",
+                                        signedUrlSearch,
+                                        file,
+                                    });
+                                });
+                            }
+                            case "UploadFile": {
+                                const promise = uploadFile(context, {
+                                    spaceId: space.id,
+                                    attachmentTarget: toTarget,
+                                    input: fileInfo.input,
+                                    onAttach: ({signedUrlSearch, file}) => {
                                         // Noop if our input was unmounted (e.g. after the message is sent we remount
                                         // this component).
                                         if (!isMounted()) return;
@@ -342,45 +359,30 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             signedUrlSearch,
                                             file,
                                         });
-                                    });
-                                }
-                                case "UploadFile": {
-                                    const promise = uploadFile(context, {
-                                        spaceId: space.id,
-                                        attachmentTarget: toTarget,
-                                        input: fileInfo.input,
-                                        onAttach: ({signedUrlSearch, file}) => {
-                                            // Noop if our input was unmounted (e.g. after the message is sent we remount
-                                            // this component).
-                                            if (!isMounted()) return;
+                                    },
+                                });
 
-                                            onAddFile({
-                                                key: generateId(),
-                                                attachmentTarget: toTarget ?? "Uploader",
-                                                signedUrlSearch,
-                                                file,
-                                            });
-                                        },
-                                    });
+                                // While a file is uploading show an "Uploading" loading indicator with the
+                                // progress percentage. If multiple files are uploading at once then the
+                                // global loading indicator implementation is responsible for putting together
+                                // an aggregated summary.
+                                addGlobalLoadingIndicator(promise, {
+                                    type: "Uploading",
+                                    progressStore: promise.progressStore,
+                                });
 
-                                    // While a file is uploading show an "Uploading" loading indicator with the
-                                    // progress percentage. If multiple files are uploading at once then the
-                                    // global loading indicator implementation is responsible for putting together
-                                    // an aggregated summary.
-                                    addGlobalLoadingIndicator(promise, {
-                                        type: "Uploading",
-                                        progressStore: promise.progressStore,
-                                    });
-
-                                    return promise;
-                                }
-                                default:
-                                    throw exhaustive(fileInfo);
+                                return promise;
                             }
-                        }),
-                    );
-                }),
-            );
+                            default:
+                                throw exhaustive(fileInfo);
+                        }
+                    }),
+                );
+            });
+
+            promise.catch(error => {
+                reporter.displayError("Couldn’t upload file", error);
+            });
         },
     });
 
