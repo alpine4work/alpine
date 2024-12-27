@@ -73,6 +73,7 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
+import {tableUnitPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
@@ -131,20 +132,14 @@ globalStyle(":root", {
         [paragraphMarginVar]: defaultParagraphMargin,
         [standaloneBlockMarginVar]: spacing["4"],
         [listItemOffsetVar]: spacing["0"],
-        [tableUnitVar]: "16px",
+        [tableUnitVar]: `${tableUnitPxBySpacingScale.small}px`, // desktop default
     },
 });
 
 globalStyle(mobilePlatformSelector, {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.mobile,
-        [tableUnitVar]: "12px",
-    },
-});
-
-globalStyle(largeSpacingScaleSelector, {
-    vars: {
-        [tableUnitVar]: "18px",
+        [tableUnitVar]: `${tableUnitPxBySpacingScale.large}px`, // mobile
     },
 });
 
@@ -1990,9 +1985,10 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
 });
+
 globalStyle(tableCellClassName, {
     border: `1px solid ${colorSchemeVars["grey-20"]}`,
-    minWidth: spacing[32],
+    minWidth: `calc(6.25 * ${tableUnitVar})`,
 });
 
 globalStyle(tableClassName, {

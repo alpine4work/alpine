@@ -31,10 +31,15 @@
 // package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/tableview.ts
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
-import {getTableUnitPxWithoutListening} from "~/client/remix/spacing_scale_context.js";
+import {
+    getRemPxWithoutListening,
+    getTableUnitPxWithoutListening,
+    subscribeToSpacingScaleChange,
+} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {tableUnitPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
@@ -43,6 +48,7 @@ export class ContentEditorTableNodeView implements NodeView {
     public contentDOM: HTMLTableSectionElement;
 
     private unsubscribeFromSelectionUpdate: (() => void) | null = null;
+    private unsubscribeFromSpacingScale: (() => void) | null = null;
 
     constructor(
         public node: Node,
@@ -66,11 +72,22 @@ export class ContentEditorTableNodeView implements NodeView {
         );
         this.contentDOM = this.table.appendChild(document.createElement("tbody"));
         this.addActiveTableClass();
-        // if (subscribeToSelectionUpdate) {
-        //     this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
-        //         requestAnimationFrame(() => this.addActiveTableClass());
-        //     });
-        // }
+
+        // Subscribe to spacing scale changes
+        this.unsubscribeFromSpacingScale = subscribeToSpacingScaleChange(() => {
+            contentEditorUpdateTableColumnsOnResize(
+                this.node,
+                this.colgroup,
+                this.table,
+                this.defaultCellMinWidth,
+            );
+        });
+
+        if (subscribeToSelectionUpdate) {
+            this.unsubscribeFromSelectionUpdate = subscribeToSelectionUpdate(() => {
+                requestAnimationFrame(() => this.addActiveTableClass());
+            });
+        }
     }
 
     addActiveTableClass = () => {
@@ -97,6 +114,7 @@ export class ContentEditorTableNodeView implements NodeView {
 
     destroy() {
         this.unsubscribeFromSelectionUpdate?.();
+        this.unsubscribeFromSpacingScale?.();
     }
 }
 export function contentEditorUpdateTableColumnsOnResize(
@@ -122,12 +140,14 @@ export function contentEditorUpdateTableColumnsOnResize(
         const cssWidth = width ? `${width * getTableUnitPxWithoutListening()}px` : "";
         totalWidth += width;
 
+        console.log({width, cssWidth});
+
         if (!width) {
             fixedWidth = false;
         }
         if (!nextDOM) {
             const colElement = document.createElement("col");
-            colElement.style.width = cssWidth;
+            colElement.style.width = cssWidth === "" ? "auto" : cssWidth;
             colgroup.appendChild(colElement);
         } else {
             if (nextDOM.style.width !== cssWidth) {
@@ -144,11 +164,17 @@ export function contentEditorUpdateTableColumnsOnResize(
         nextDOM = after as HTMLElement;
     }
 
+    console.log({
+        totalWidth,
+        spacingContextInPx: getTableUnitPxWithoutListening(),
+    });
+
     // Update table width - all values are in rem
     if (fixedWidth) {
         table.style.width = `${totalWidth * getTableUnitPxWithoutListening()}px`;
     } else {
         table.style.width = "";
     }
-    table.style.minWidth = contentStyles.blockMaxWidthVar; // maintain a min width
+    // table.style.minWidth = contentStyles.blockMaxWidthVar;
+    table.style.minWidth = ""; // maintain a min width
 }
