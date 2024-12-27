@@ -1001,35 +1001,39 @@ function fetchWithXhr(
 
     const responsePromise = new Promise<Response>((resolve, reject) => {
         xhr.addEventListener("load", () => {
-            // Make sure progress is updated to 1 after we're done loading.
-            onProgress(1);
+            try {
+                // Make sure progress is updated to 1 after we're done loading.
+                onProgress(1);
 
-            const responseHeaders = new Headers();
-            const responseHeadersString = xhr.getAllResponseHeaders();
+                const responseHeaders = new Headers();
+                const responseHeadersString = xhr.getAllResponseHeaders();
 
-            for (const responseHeadersStringLine of responseHeadersString
-                .trim()
-                .split(/[\r\n]+/g)) {
-                const [headerName, headerValue] = responseHeadersStringLine.split(": ", 2);
+                for (const responseHeadersStringLine of responseHeadersString
+                    .trim()
+                    .split(/[\r\n]+/g)) {
+                    const [headerName, headerValue] = responseHeadersStringLine.split(": ", 2);
 
-                responseHeaders.set(headerName!, headerValue ?? "");
+                    responseHeaders.set(headerName!, headerValue ?? "");
+                }
+
+                resolve(
+                    new Response(xhr.response, {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        headers: responseHeaders,
+                    }),
+                );
+            } catch (error) {
+                reject(error);
             }
-
-            resolve(
-                new Response(xhr.response, {
-                    status: xhr.status,
-                    statusText: xhr.statusText,
-                    headers: responseHeaders,
-                }),
-            );
         });
 
         xhr.addEventListener("abort", () => {
-            reject(new AbortedError("Multipart upload part HTTP request aborted"));
+            reject(new AbortedError("Upload HTTP request aborted"));
         });
 
         xhr.addEventListener("error", () => {
-            reject(new UnknownError("Multipart upload part HTTP request failed"));
+            reject(new UnknownError("Upload HTTP request failed"));
         });
     });
 
