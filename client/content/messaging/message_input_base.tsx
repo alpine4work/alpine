@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {animate} from "motion";
-import {ArrowRight, ArrowUp, PencilSimple, Plus, X} from "phosphor-react";
+import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -35,11 +35,13 @@ import {
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/message_input_mobile_keyboard_toolbar.js";
+import {selectFiles} from "~/client/content/select_files.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {
     mobileBottomBarKeyboardToolbarHeight,
     mobileBottomBarKeyboardToolbarHeightRem,
@@ -60,6 +62,8 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {parseHtml} from "~/client/helpers/parse_html.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -102,9 +106,15 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    getFileAudioContentTypes,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -273,33 +283,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             messageEditingForThisInput?.dispatch({type: "CancelEditing"});
             onChange(ContentEditorState.create(emptyMessageContentWithReferences));
         },
-        pasteOrDrop: (spanName: string, dataTransfer: DataTransfer) => {
+        addFiles: (spanName: string, fileInfos: Array<ExternalFileElementInfo>) => {
             // Noop if we don't have an add file callback.
             if (!onAddFile) return;
 
+            if (fileInfos.length === 0) return;
+
             const promise = context.tracer.withSpan(spanName, async context => {
-                const newFileInfos: Array<ExternalFileElementInfo> = [];
-
-                for (const {info} of iterateExternalFileElements(
-                    parseHtml(dataTransfer.getData("text/html")),
-                    () => space.id,
-                )) {
-                    if (info) newFileInfos.push(info);
-                }
-
-                for (const item of dataTransfer.items) {
-                    // NOCOMMIT: Make sure if we copy an image we only paste from the `image/html`
-                    // not the `image/png`.
-                    if (item.kind !== "file") continue;
-
-                    newFileInfos.push({
-                        type: "UploadFile",
-                        input: {type: "File", file: assertExists(item.getAsFile())},
-                    });
-                }
-
                 await runAllPromises(
-                    newFileInfos.map((fileInfo): Promise<void> => {
+                    fileInfos.map((fileInfo): Promise<void> => {
                         const toTarget = fileAttachmentTarget;
 
                         switch (fileInfo.type) {
@@ -400,6 +392,29 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 reporter.displayError("Couldn’t upload file", error);
             });
         },
+        drop: (dataTransfer: DataTransfer) => {
+            const fileInfos: Array<ExternalFileElementInfo> = [];
+
+            for (const {info} of iterateExternalFileElements(
+                parseHtml(dataTransfer.getData("text/html")),
+                () => space.id,
+            )) {
+                if (info) fileInfos.push(info);
+            }
+
+            for (const item of dataTransfer.items) {
+                // NOCOMMIT: Make sure if we copy an image we only paste from the `image/html`
+                // not the `image/png`.
+                if (item.kind !== "file") continue;
+
+                fileInfos.push({
+                    type: "UploadFile",
+                    input: {type: "File", file: assertExists(item.getAsFile())},
+                });
+            }
+
+            events.addFiles("Message input drop files", fileInfos);
+        },
     });
 
     useImperativeHandle(
@@ -411,7 +426,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             isEmpty: () => isContentEmpty(assertExists(editorRef.current).getState().getDoc()),
             clear: events.clear,
             getBoundingClientRect: () => assertExists(inputRef.current).getBoundingClientRect(),
-            drop: dataTransfer => events.pasteOrDrop("Message input drop", dataTransfer),
+            drop: events.drop,
         }),
         [events],
     );
@@ -930,22 +945,131 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                         ],
                                     }}
                                 >
-                                    <IconButton
-                                        size={messageInputEditorIconButtonSize}
-                                        description="Add"
-                                        withoutTooltip={true}
-                                        // The add icon button is not focusable. That's because we don't want to
-                                        // remove focus from the message input when the send button is pressed. That
-                                        // way on mobile you can keep typing and sending messages because the software
-                                        // keyboard doesn't disappear.
-                                        //
-                                        // On desktop, hitting enter in the message input is sufficient for keyboard
-                                        // control of the message input.
-                                        isFocusable={false}
-                                        // TODO(calebmer, #files): Use to upload files
+                                    <MenuButton
+                                        withoutButtonElementRequirement={true}
+                                        actions={[
+                                            {
+                                                label: "Image",
+                                                iconSize: "4",
+                                                icon: <Image />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {
+                                                            multiple: true,
+                                                            acceptContentTypes:
+                                                                getFileImageContentTypes(),
+                                                        },
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                            {
+                                                label: "Video",
+                                                iconSize: "4",
+                                                icon: <VideoIcon />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {
+                                                            multiple: true,
+                                                            acceptContentTypes:
+                                                                getFileVideoContentTypes(),
+                                                        },
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                            {
+                                                label: "Audio",
+                                                iconSize: "4",
+                                                icon: <WaveformIcon />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {
+                                                            multiple: true,
+                                                            acceptContentTypes:
+                                                                getFileAudioContentTypes(),
+                                                        },
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                            {
+                                                label: "File",
+                                                iconSize: "4",
+                                                icon: <File />,
+                                                onPress: () => {
+                                                    selectFiles(
+                                                        assertExists(inputContainerRef.current),
+                                                        {multiple: true},
+                                                    )
+                                                        .then(files => {
+                                                            if (files.length === 0) return;
+
+                                                            events.addFiles(
+                                                                "Message input insert files",
+                                                                files.map(file => ({
+                                                                    type: "UploadFile",
+                                                                    input: {type: "File", file},
+                                                                })),
+                                                            );
+                                                        })
+                                                        .catch(scheduleUncaughtError);
+                                                },
+                                            },
+                                        ]}
                                     >
-                                        <Plus />
-                                    </IconButton>
+                                        <IconButton
+                                            size={messageInputEditorIconButtonSize}
+                                            description="Add"
+                                            withoutTooltip={true}
+                                            // The add icon button is not focusable. That's because we don't want to
+                                            // remove focus from the message input when the add button is pressed. That
+                                            // way on mobile you can keep typing and sending messages because the software
+                                            // keyboard doesn't disappear.
+                                            //
+                                            // On desktop, hitting enter in the message input is sufficient for keyboard
+                                            // control of the message input.
+                                            isFocusable={false}
+                                        >
+                                            <Plus />
+                                        </IconButton>
+                                    </MenuButton>
                                 </Box>
                                 <FocusRing offset="border" isVisibleWhenFocusWithin={true}>
                                     <Box
