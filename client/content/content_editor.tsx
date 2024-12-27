@@ -557,6 +557,16 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * keyboard shortcuts you'll need to push to our own stack when this is called.
      */
     onRedoStackEntryPushed?: () => void;
+
+    /**
+     * If the content schema used by this `<ContentEditor>` doesn't support files
+     * then we'll call this callback on a paste or drop that includes files to let
+     * the parent component handle files however it wants.
+     *
+     * For example `MessageContent` doesn't support files but `<MessageInput>` does
+     * allow attaching files to a message.
+     */
+    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<ExternalFileElementInfo>) => void;
 } & (
     | {
           /**
@@ -1273,6 +1283,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         let temporaryPastedFileInfoById: Map<FileId, ExternalFileElementInfo> | undefined;
+        let temporaryPastedFileInfosForParent: Array<ExternalFileElementInfo> | undefined;
 
         viewProps.clipboardSerializer =
             ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
@@ -1439,6 +1450,54 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
                 }
             }
+            // If this `<ContentEditor>` doesn't support files then we completely remove
+            // file elements from pasted content. We don't want to leave whitespace where
+            // there used to be files.
+            //
+            // We'll call `onPasteOrDropFiles` later in `handlePaste` or `handleDrop` to
+            // let our parent choose to handle files separately. (e.g. `<MessageInput>`
+            // will attach the files to the message.)
+            else {
+                for (const {element: fileElement, info: fileInfo} of iterateExternalFileElements(
+                    element,
+                    () => assertExists(spaceContextRef.current).space.id,
+                )) {
+                    if (fileInfo !== null) {
+                        // Cleanup `temporaryPastedFileInfosForParent` after a microtask. `handlePaste`
+                        // will use this array synchronously after `transformPastedDOM`.
+                        if (temporaryPastedFileInfosForParent === undefined) {
+                            temporaryPastedFileInfosForParent = [];
+                            scheduleMicrotask(() => {
+                                temporaryPastedFileInfosForParent = undefined;
+                            });
+                        }
+
+                        temporaryPastedFileInfosForParent.push(fileInfo);
+                    }
+
+                    // Remove the file element and if that empties the file's parent then remove the
+                    // file's parent as well (recursively).
+                    let element: Element | null = fileElement;
+                    while (element !== null) {
+                        const parentElement: Element | null = element.parentElement;
+                        element.remove();
+
+                        if (
+                            parentElement !== null &&
+                            !iterableSome(
+                                parentElement.childNodes,
+                                childNode =>
+                                    childNode.nodeType === globalThis.Node.ELEMENT_NODE ||
+                                    childNode.nodeType === globalThis.Node.TEXT_NODE,
+                            )
+                        ) {
+                            element = parentElement;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
         };
 
         /**
@@ -1476,10 +1535,52 @@ function ContentEditor<Content extends ContentWithReferences>(
             // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
             // use `FileProcessorService` to attach the file to our content.
             if (
+                !schema.nodes.file &&
+                dataTransfer?.items &&
+                // If `transformPastedDOM` already parsed some files from HTML then ignore any
+                // files in `dataTransfer`. We assume all files were included as `<img>` or
+                // other supported tags in the HTML so any additional files in `dataTransfer`
+                // must be redundant.
+                //
+                // This case happens if you right-click to copy an image in Alpine. The
+                // resulting `dataTransfer` will have an `image/png` file and `text/html`. We
+                // should prefer the `text/html` data since it includes a link to the full
+                // resolution image whereas `image/png` will have reduced resolution.
+                (!temporaryPastedFileInfosForParent ||
+                    temporaryPastedFileInfosForParent.length === 0)
+            ) {
+                for (const item of dataTransfer.items) {
+                    if (item.kind !== "file") continue;
+
+                    // Cleanup `temporaryPastedFileInfosForParent` after a microtask. `handlePaste`
+                    // will use this map synchronously.
+                    if (temporaryPastedFileInfosForParent === undefined) {
+                        temporaryPastedFileInfosForParent = [];
+                        scheduleMicrotask(() => {
+                            temporaryPastedFileInfosForParent = undefined;
+                        });
+                    }
+
+                    temporaryPastedFileInfosForParent.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
+            } else if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
                 slice.size === 0 &&
-                dataTransfer?.items
+                dataTransfer?.items &&
+                // If `transformPastedDOM` already parsed some files from HTML then ignore any
+                // files in `dataTransfer`. We assume all files were included as `<img>` or
+                // other supported tags in the HTML so any additional files in `dataTransfer`
+                // must be redundant.
+                //
+                // NOTE(calebmer): This is to match the above behavior when there is no file in
+                // the schema. I believe checking `slice.size === 0` also has a similar effect:
+                // if there was a file in the parsed DOM then it should now be in the inserted
+                // `slice`. This may be unnecessary but including it anyway for consistency.
+                (!temporaryPastedFileInfoById || temporaryPastedFileInfoById.size === 0)
             ) {
                 const fileIds: Array<FileId> = [];
 
@@ -1855,6 +1956,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             isSync = false;
 
+            // Pass any files from this paste or drop we didn't handle to our parent
+            // component.
+            if (temporaryPastedFileInfosForParent && temporaryPastedFileInfosForParent.length > 0) {
+                propsRef.current.onPasteOrDropFiles?.(temporaryPastedFileInfosForParent);
+            }
+
             // We completely override ProseMirror's paste logic and implement our own. Our
             // paste logic is derived from ProseMirror's paste logic.
             return true;
@@ -2138,6 +2245,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     view.dispatch(transaction.setMeta("uiEvent", "drop"));
                 },
             });
+
+            // Pass any files from this paste or drop we didn't handle to our parent
+            // component.
+            if (temporaryPastedFileInfosForParent && temporaryPastedFileInfosForParent.length > 0) {
+                propsRef.current.onPasteOrDropFiles?.(temporaryPastedFileInfosForParent);
+            }
 
             // We completely override ProseMirror's drop logic and implement our own. Our
             // paste logic is derived from ProseMirror's drop logic.

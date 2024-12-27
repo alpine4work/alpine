@@ -1,3 +1,6 @@
+// NOCOMMIT
+import "~/client/helpers/events/register_scroll_event_debugger.js";
+
 import classNames from "classnames";
 import {animate} from "motion";
 import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
@@ -283,7 +286,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             messageEditingForThisInput?.dispatch({type: "CancelEditing"});
             onChange(ContentEditorState.create(emptyMessageContentWithReferences));
         },
-        addFiles: (spanName: string, fileInfos: Array<ExternalFileElementInfo>) => {
+        addFiles: (spanName: string, fileInfos: ReadonlyArray<ExternalFileElementInfo>) => {
             // Noop if we don't have an add file callback.
             if (!onAddFile) return;
 
@@ -393,24 +396,30 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             });
         },
         drop: (dataTransfer: DataTransfer) => {
+            let hasHtmlFileInfos = false;
             const fileInfos: Array<ExternalFileElementInfo> = [];
 
             for (const {info} of iterateExternalFileElements(
                 parseHtml(dataTransfer.getData("text/html")),
                 () => space.id,
             )) {
-                if (info) fileInfos.push(info);
+                if (!info) continue;
+
+                hasHtmlFileInfos = true;
+                fileInfos.push(info);
             }
 
-            for (const item of dataTransfer.items) {
-                // NOCOMMIT: Make sure if we copy an image we only paste from the `image/html`
-                // not the `image/png`.
-                if (item.kind !== "file") continue;
+            // Ignore files from `dataTransfer` if we had `text/html`. Since we assume
+            // `text/html` will contain links to any files included in `dataTransfer`.
+            if (!hasHtmlFileInfos) {
+                for (const item of dataTransfer.items) {
+                    if (item.kind !== "file") continue;
 
-                fileInfos.push({
-                    type: "UploadFile",
-                    input: {type: "File", file: assertExists(item.getAsFile())},
-                });
+                    fileInfos.push({
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+                }
             }
 
             events.addFiles("Message input drop files", fileInfos);
@@ -1145,6 +1154,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 onSend();
                                             }}
                                             onArrowUp={onArrowUp}
+                                            onPasteOrDropFiles={fileInfos => {
+                                                events.addFiles(
+                                                    "Message input paste files",
+                                                    fileInfos,
+                                                );
+                                            }}
                                             // Don't render the default content editor mobile keyboard toolbar. We render
                                             // our own `<MessageInputMobileKeyboardToolbar>` outside of the content editor.
                                             withoutMobileKeyboardToolbar={true}

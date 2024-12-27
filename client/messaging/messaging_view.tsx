@@ -41,6 +41,10 @@ import {
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    canonicalizeFileContentTypeIfExists,
+    normalizeContentType,
+} from "~/shared/files/file_content_type.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -687,7 +691,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ],
     );
 
-    const [dragEnterState, setDragEnterState] = useState<{count: number} | null>(null);
+    const [dragEnterState, setDragEnterState] = useState<{
+        count: number;
+        hasNonTextType: boolean;
+    } | null>(null);
     const [isDraggingFileWithin, setIsDraggingFileWithin] = useState(false);
 
     return (
@@ -716,10 +723,20 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 onDragEndCapture={() => {
                     setIsDraggingFileWithin(false);
                 }}
-                onDragEnter={() => {
+                onDragEnter={event => {
+                    // If this drag only has `text/plain` and `text/html` it's probably because the
+                    // user is dragging some content from either their browser or another app. If
+                    // the user is dragging text, we want to let the message input's
+                    // `<ContentEditor>` handle dropped text.
+                    const hasNonTextType = event.dataTransfer.types.some(type => {
+                        if (type === "Files") return true;
+                        const canonicalType = canonicalizeFileContentTypeIfExists(type);
+                        return canonicalType !== "text/plain" && canonicalType !== "text/html";
+                    });
+
                     setDragEnterState(dragState => {
-                        if (!dragState) return {count: 1};
-                        return {...dragState, count: dragState.count + 1};
+                        if (dragState) return {...dragState, count: dragState.count + 1};
+                        return {count: 1, hasNonTextType};
                     });
                 }}
                 onDragLeave={() => {
@@ -750,14 +767,20 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     event.preventDefault();
                     setDragEnterState(null);
 
-                    if (!isDraggingFileWithin && !messageEditing.state.isEditing) {
+                    // NOCOMMIT: Wait a bit to hide message view drag overlay? So it only hides once
+                    // the message has been successfully attached if attaching a message is fast.
+                    if (
+                        !isDraggingFileWithin &&
+                        !messageEditing.state.isEditing &&
+                        dragEnterState?.hasNonTextType
+                    ) {
                         assertExists(inputRef.current).drop(event.dataTransfer);
                     }
                 }}
             >
-                {!isDraggingFileWithin && !messageEditing.state.isEditing && dragEnterState && (
-                    <MessagingViewDragOverlay />
-                )}
+                {!isDraggingFileWithin &&
+                    !messageEditing.state.isEditing &&
+                    dragEnterState?.hasNonTextType && <MessagingViewDragOverlay />}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}
@@ -848,7 +871,6 @@ function MessagingViewDragOverlay() {
                 flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
-                pointerEvents: "none",
                 opacity: isInitialRender ? "0" : "100",
             })}
             style={{transition: "opacity 200ms ease-out"}}
