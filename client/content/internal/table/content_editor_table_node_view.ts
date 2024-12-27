@@ -175,6 +175,6 @@ export function contentEditorUpdateTableColumnsOnResize(
     } else {
         table.style.width = "";
     }
-    // table.style.minWidth = contentStyles.blockMaxWidthVar;
-    table.style.minWidth = ""; // maintain a min width
+    table.style.minWidth = contentStyles.blockMaxWidthVar;
+    // table.style.minWidth = ""; // m÷aintain a min width
 }
