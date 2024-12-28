@@ -6,6 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
@@ -13,8 +14,12 @@ import {
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {
     DocumentContentReferences,
     UncheckedDocumentContentWithReferences,
@@ -36,7 +41,7 @@ export function DocumentCommentThreadPreview({
     contentReferences,
     onCommentThreadSnippetPress,
     isResolveButtonPending,
-    fileLayoutScreenWidthRem,
+    fileLayoutScreenWidth,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -44,8 +49,9 @@ export function DocumentCommentThreadPreview({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
     isResolveButtonPending: boolean;
-    fileLayoutScreenWidthRem: number;
+    fileLayoutScreenWidth: number;
 }) {
+    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const previewRef = useRef<HTMLDivElement>(null);
     const previewContentRef = useRef<HTMLDivElement>(null);
@@ -138,6 +144,13 @@ export function DocumentCommentThreadPreview({
         [commentThread.documentId],
     );
 
+    const previewFileLayoutScreenWidth = useMemo(
+        () =>
+            fileLayoutScreenWidth -
+            convertRemLengthToPx(screenPaddingX[platform], spacingScale) * 2,
+        [fileLayoutScreenWidth, platform, spacingScale],
+    );
+
     return (
         <FocusRing offset="border">
             <Box
@@ -206,8 +219,7 @@ export function DocumentCommentThreadPreview({
                                 isInert={true}
                                 shouldHighlightComment={shouldHighlightComment}
                                 fileLayoutScreenWidth={
-                                    (fileLayoutScreenWidthRem / documentCommentThreadPreviewScale) *
-                                    remPxBySpacingScale[spacingScale]
+                                    previewFileLayoutScreenWidth / documentCommentThreadPreviewScale
                                 }
                                 fileAttachmentTarget={fileAttachmentTarget}
                             />

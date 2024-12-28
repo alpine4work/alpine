@@ -15,11 +15,9 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputFile, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
-import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
-import {TwoCardsWithSummitOnTopCardIllustration} from "~/client/icons/illustrations/two_cards_with_summit_on_top_card_illustration.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
@@ -30,6 +28,7 @@ import {
 } from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
+import {useMessagingViewDropTarget} from "~/client/messaging/use_messaging_view_drop_target.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
@@ -39,10 +38,8 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {fileClassName} from "~/shared/content/content_styles.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -682,26 +679,16 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ],
     );
 
-    const [dragEnterState, setDragEnterState] = useState<{
-        count: number;
-        hasNonTextType: boolean;
-    } | null>(null);
-
-    const [isDraggingFileWithin, setIsDraggingFileWithin] = useState(false);
-
-    const [waitingForDrop, setWaitingForDrop] = useState<symbol | null>(null);
-    if (dragEnterState && waitingForDrop) setWaitingForDrop(null);
-
-    // Continue showing the drag overlay for the loading indicator delay (currently
-    // 500ms). That way if the drop is fast the UI doesn't flash the drop indicator
-    // off before adding files.
-    const withDelayedDragOverlay =
-        !useDelayLoadingIndicator(waitingForDrop !== null) && waitingForDrop !== null;
+    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
+        messageEditing,
+        getInputRef: () => assertExists(inputRef.current),
+    });
 
     return (
         <>
             {modals}
             <div
+                {...dropTargetProps}
                 data-testid="MessagingView"
                 className={sprinkles({
                     position: "relative",
@@ -711,89 +698,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     display: "flex",
                     flexDirection: "column",
                 })}
-                onDragStartCapture={event => {
-                    // We don't want dragging a file inside our messaging view to count as the user
-                    // trying to drop the file back in the messaging view.
-                    if (
-                        event.target instanceof HTMLElement &&
-                        event.target.closest(`.${fileClassName}`)
-                    ) {
-                        setIsDraggingFileWithin(true);
-                    }
-                }}
-                onDragEndCapture={() => {
-                    setIsDraggingFileWithin(false);
-                }}
-                onDragEnter={event => {
-                    // If this drag only has `text/plain` and `text/html` it's probably because the
-                    // user is dragging some content from either their browser or another app. If
-                    // the user is dragging text, we want to let the message input's
-                    // `<ContentEditor>` handle dropped text.
-                    const hasNonTextType = event.dataTransfer.types.some(type => {
-                        if (type === "Files") return true;
-                        const canonicalType = canonicalizeFileContentTypeIfExists(type);
-                        return canonicalType !== "text/plain" && canonicalType !== "text/html";
-                    });
-
-                    setDragEnterState(dragState => {
-                        if (dragState) return {...dragState, count: dragState.count + 1};
-                        return {count: 1, hasNonTextType};
-                    });
-                }}
-                onDragLeave={() => {
-                    // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
-                    // reliably had access to `event.relatedTarget` we'd check:
-                    // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
-                    // to reset our drag state.
-                    //
-                    // Instead we look at `dragenter` event counts. Once we reach 0 that means the
-                    // user has fully dragged out of the container. We got the idea for this fix
-                    // from [this Gist][2].
-                    //
-                    // We use this method in Chrome as well (even though we could use
-                    // `event.relatedTarget`) to have consistent behavior across all browsers.
-                    //
-                    // [1]: https://bugs.webkit.org/show_bug.cgi?id=66547
-                    // [2]: https://gist.github.com/alexreardon/10c595cbb840608a2828db56df99fa79
-                    setDragEnterState(dragState => {
-                        if (!dragState) return dragState;
-                        if (dragState.count <= 1) return null;
-                        return {...dragState, count: dragState.count - 1};
-                    });
-                }}
-                onDragOver={event => {
-                    event.preventDefault();
-                }}
-                onDrop={event => {
-                    event.preventDefault();
-                    setDragEnterState(null);
-
-                    if (
-                        !isDraggingFileWithin &&
-                        !messageEditing.state.isEditing &&
-                        dragEnterState?.hasNonTextType
-                    ) {
-                        const waitingForDrop = Symbol();
-                        setWaitingForDrop(waitingForDrop);
-
-                        assertExists(inputRef.current)
-                            .drop(event.dataTransfer)
-                            .finally(() => {
-                                // Handle race conditions by only resetting to null if the symbol from this
-                                // callback is present in state.
-                                setWaitingForDrop(lastWaitingForDrop => {
-                                    if (lastWaitingForDrop !== waitingForDrop)
-                                        return lastWaitingForDrop;
-                                    return null;
-                                });
-                            });
-                    }
-                }}
             >
-                {((!isDraggingFileWithin &&
-                    !messageEditing.state.isEditing &&
-                    dragEnterState?.hasNonTextType) ||
-                    withDelayedDragOverlay) && <MessagingViewDragOverlay />}
+                {dragOverlay}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}
@@ -856,57 +762,5 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 />
             </div>
         </>
-    );
-}
-
-function MessagingViewDragOverlay() {
-    const [isInitialRender, setIsInitialRender] = useState(true);
-
-    useEffect(() => {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setIsInitialRender(false);
-            });
-        });
-    }, []);
-
-    return (
-        <div
-            data-testid="MessagingViewDragOverlay"
-            className={sprinkles({
-                zIndex: "60",
-                position: "absolute",
-                inset: "0",
-                width: "full",
-                height: "full",
-                backgroundColor: "grey-0-opacity-90",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                opacity: isInitialRender ? "0" : "100",
-            })}
-            style={{transition: "opacity 200ms ease-out"}}
-        >
-            <div
-                className={sprinkles({width: "64", color: "grey-90"})}
-                style={{
-                    transform: isInitialRender ? "rotate(4deg) translateX(0.5rem)" : undefined,
-                    transformOrigin: "bottom right",
-                    transition: "transform 200ms ease-out",
-                }}
-            >
-                <TwoCardsWithSummitOnTopCardIllustration strokeWidth={3} />
-            </div>
-            <div
-                className={sprinkles({
-                    fontSize: "400",
-                    fontStyle: "light",
-                    paddingBottom: "16",
-                })}
-            >
-                Drop files to share
-            </div>
-        </div>
     );
 }

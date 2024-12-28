@@ -2423,7 +2423,7 @@ function DocumentContentEditorSidebar({
                                         : undefined
                                 }
                                 // Provide the sidebar width for better layout results when previewing files.
-                                previewFileLayoutScreenWidth={
+                                fileLayoutScreenWidth={
                                     routeLayout !== "narrow"
                                         ? spacing[documentContentEditorSidebarWidth]
                                         : undefined

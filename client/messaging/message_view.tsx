@@ -164,6 +164,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     getMessageUrl,
     roomDisplayedCreatedTime,
     centeringMarginRight,
+    fileLayoutScreenWidth,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -183,6 +184,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
     centeringMarginRight?: Spacing;
+    fileLayoutScreenWidth?: number;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -1220,6 +1222,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 ? contentStyles.standaloneBlockMargin
                                                 : undefined
                                         }
+                                        screenWidth={fileLayoutScreenWidth}
                                     />
                                 )}
                         </div>

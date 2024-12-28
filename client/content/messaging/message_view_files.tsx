@@ -47,10 +47,12 @@ export function MessageViewFiles({
     attachmentTarget,
     files,
     paddingTop,
+    screenWidth,
 }: {
     attachmentTarget: Memo<FileAttachmentTarget>;
     files: ReadonlyArray<{signedUrlSearch: string; file: FileModel}>;
     paddingTop?: Spacing;
+    screenWidth?: number;
 }) {
     assert(files.length > 0);
 
@@ -95,7 +97,7 @@ export function MessageViewFiles({
                     const fileDatas = files.map(file => get(fileStore.getFileStore(file)));
 
                     const fileLayouts = computeContentFileRowLayout(fileDatas, {
-                        screenWidth: clientInfo.screenWidth,
+                        screenWidth: screenWidth ?? clientInfo.screenWidth,
                         platform,
                         spacingScale,
                         // Smaller max height than we have for content file row nodes so tall images
@@ -145,7 +147,7 @@ export function MessageViewFiles({
                             }),
                             file,
                             layout,
-                            screenWidth: clientInfo.screenWidth,
+                            screenWidth: screenWidth ?? clientInfo.screenWidth,
                             screenScale: 1,
                             platform,
                             spacingScale,
@@ -173,6 +175,7 @@ export function MessageViewFiles({
             files,
             isInitialAppRender,
             platform,
+            screenWidth,
             space.id,
             spacingScale,
         ]),

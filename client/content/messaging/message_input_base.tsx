@@ -282,6 +282,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
             if (fileInfos.length === 0) return Promise.resolve();
 
+            // Make sure the input is focused when we add files. So the user can hit
+            // "Enter" after dropping a file to send the message. This also has the effect
+            // of making sure `useRegisterBottomBarFrame()` isn't disabled so when the
+            // message input size changes we scroll.
+            assertExists(editorRef.current).focus({preventScroll: true});
+
             const promise = context.tracer.withSpan(spanName, async context => {
                 await runAllPromises(
                     fileInfos.map((fileInfo): Promise<void> => {
