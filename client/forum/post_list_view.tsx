@@ -5,6 +5,7 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
+    RefObject,
     forwardRef,
     useCallback,
     useEffect,
@@ -14,6 +15,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -35,6 +37,7 @@ import {
     PostListPostContentItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
@@ -46,6 +49,7 @@ import {MessageListMessageShimmer} from "~/client/messaging/message_list_message
 import {MessageView} from "~/client/messaging/message_view.js";
 import {MessagingTypingIndicators} from "~/client/messaging/messaging_typing_indicators.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {useMessagingViewDropTarget} from "~/client/messaging/use_messaging_view_drop_target.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -761,6 +765,62 @@ function PostListView(
         [],
     );
 
+    const inputRefByPostId = useConstant(
+        () =>
+            new LazyMap<PostId, RefObject<MessageInputRef>>(() => ({
+                current: null,
+            })),
+    );
+
+    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
+        isDisabled: postEditing.state.isEditing || messageEditing.state.isEditing,
+        getInputRef: coords => {
+            const view = assertExists(viewRef.current);
+            const renderedRange = view.getRenderedRange();
+            if (!renderedRange) return null;
+
+            const offset =
+                coords.y - view.getElement().getBoundingClientRect().top + view.getScrollOffset();
+
+            // Find the item that contains `offset`. Written so that if `offset` is above
+            // the virtualized scroll view we'll return the first index and if it's below
+            // the virtualized scroll view we'll return the last index.
+            let aboveIndex: number | null = null;
+            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
+                const position = view.getPositionByIndex(index);
+                aboveIndex = index;
+                if (offset < position.offset + position.height) break;
+            }
+
+            if (aboveIndex === null) return null;
+
+            let item = posts.getItem(aboveIndex);
+
+            while (item.type === "ChannelHeader" || item.type === "MoreUnloadedPosts") {
+                aboveIndex++;
+                if (aboveIndex < posts.getItemCount()) {
+                    item = posts.getItem(aboveIndex);
+                    continue;
+                }
+                return null;
+            }
+
+            const postId = item.post.id;
+
+            // Allow the input ref for this `postId` to be null. Which will happen if the
+            // post's comments are closed.
+            //
+            // TODO(calebmer): Admittedly it's not great UI design that we show the
+            // fullscreen drop indicator when the user drags an image into a channel we
+            // show the "upload" drop target then do nothing if the post they're dropping
+            // on is closed. We should figure out a better UI design here. We can either
+            // open the post's comments on drop or create a new post with the file on drop.
+            // We should also consider just showing a drop overlay on top of the post
+            // instead of the fullscreen which might confuse the user.
+            return inputRefByPostId.get(postId).current;
+        },
+    });
+
     const idBase = useId();
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -1200,6 +1260,7 @@ function PostListView(
                     const inputNode = (
                         <PostCommentInput
                             isStickyPositioned={true}
+                            inputRef={inputRefByPostId.get(item.post.id)}
                             post={item.post}
                             viewRef={viewRef}
                             proceduresRef={procedures => {
@@ -1439,7 +1500,6 @@ function PostListView(
             hasAside,
             isPostView,
             spacingScale,
-            platform,
             withSafeAreaInsetTop,
             hasChannelHeader,
             postEditing,
@@ -1452,7 +1512,9 @@ function PostListView(
             fileAttachmentTargetByPostId,
             highlightPostComment,
             handleJumpToPostComment,
+            platform,
             replyingToPostCommentIndexByPostId,
+            inputRefByPostId,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
             onUpdatePostComments,
@@ -1492,6 +1554,7 @@ function PostListView(
                 </MobileFullScreenModal>
             )}
             <div
+                {...dropTargetProps}
                 ref={viewContainerRef}
                 className={sprinkles({
                     flexGrow: "1",
@@ -1504,6 +1567,7 @@ function PostListView(
                     flexDirection: "column",
                 })}
             >
+                {dragOverlay}
                 {withSafeAreaInsetTop && !navigationBar?.navigationBar && (
                     // Only render a safe area cover if we don't have a navigation bar. Otherwise
                     // the navigation bar acts as our safe area cover.
@@ -1707,6 +1771,7 @@ function PostListView(
                         return (
                             <PostCommentInput
                                 isStickyPositioned={false}
+                                inputRef={inputRefByPostId.get(lastPostContentItem.post.id)}
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}
                                 proceduresRef={procedures => {

@@ -688,6 +688,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         // Register as a bottom bar when focused even in a `position: sticky` context.
         // That's because we want typing in the input to scroll the messages above the
         // input when the input is sticking to the bottom of the view.
+        //
+        // TODO(calebmer): Ideally we'd only register the bottom bar frame when the
+        // input is "stuck" to the bottom of the viewport and not before that.
         isDisabled: !isBottomBar && !isFocused,
         withMobileKeyboardToolbar: true,
         isReplacingOtherBottomBar,
@@ -1610,6 +1613,9 @@ function MessageInputFilePreview({
                     variant="quiet-elevation-10"
                     description="Remove"
                     onPress={onRemove}
+                    // Not focusable so clicking on this button doesn't unfocus
+                    // the input.
+                    isFocusable={false}
                 >
                     <X />
                 </IconButton>

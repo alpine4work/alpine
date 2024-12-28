@@ -229,7 +229,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const marginBottom = useMemo(() => {
         let marginBottom: Spacing;
 
-        if (!shouldMergeWithNextMessage) {
+        if (isLastMessage) {
+            marginBottom = contentStyles.paragraphMargin;
+        } else if (!shouldMergeWithNextMessage) {
             marginBottom = messageViewMarginY;
         } else if (
             message.payload.type !== "Content" ||
@@ -264,7 +266,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         }
 
         return marginBottom;
-    }, [message.payload, nextMessage, shouldMergeWithNextMessage]);
+    }, [isLastMessage, message.payload, nextMessage, shouldMergeWithNextMessage]);
 
     const parentMessage =
         message.payload.type === "Content" && message.payload.parentMessageIndex !== null
@@ -964,8 +966,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return (
             <div
                 className={sprinkles({
-                    paddingTop: !isFirstMessage ? "6" : undefined,
-                    paddingBottom: "4",
+                    paddingTop: !isFirstMessage ? "2" : undefined,
+                    paddingBottom: "2",
                     display: "flex",
                     justifyContent: "center",
                     fontSize: "50",

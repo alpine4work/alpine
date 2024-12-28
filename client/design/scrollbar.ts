@@ -612,8 +612,6 @@ export function initializeScrollbar(
             }
         }
 
-        console.log("scrollbar resize", scrollHeight);
-
         // Make sure the element's `paddingTop`/`paddingBottom` is included in the
         // computed height.
         //

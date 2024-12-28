@@ -680,7 +680,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     );
 
     const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
-        messageEditing,
+        isDisabled: messageEditing.state.isEditing,
         getInputRef: () => assertExists(inputRef.current),
     });
 

@@ -12,19 +12,21 @@ import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_t
  * `dragOverlay` as a child of that element (the element should also have
  * `position: relative` for `dragOverlay` to be positioned properly).
  */
-export function useMessagingViewDropTarget<RoomKey extends string>({
-    messageEditing,
+export function useMessagingViewDropTarget({
+    isDisabled,
     getInputRef,
 }: {
-    messageEditing: MessageEditing<RoomKey>;
+    isDisabled: boolean;
     getInputRef: (coords: {x: number; y: number}) => MessageInputRef | null;
 }) {
     const [dragEnterState, setDragEnterState] = useState<{
         count: number;
         hasNonTextType: boolean;
     } | null>(null);
+    if (isDisabled && dragEnterState) setDragEnterState(null);
 
     const [isDraggingFileWithin, setIsDraggingFileWithin] = useState(false);
+    if (isDisabled && isDraggingFileWithin) setIsDraggingFileWithin(false);
 
     const [waitingForDrop, setWaitingForDrop] = useState<symbol | null>(null);
     if (dragEnterState && waitingForDrop) setWaitingForDrop(null);
@@ -35,13 +37,16 @@ export function useMessagingViewDropTarget<RoomKey extends string>({
     const withDelayedDragOverlay =
         !useDelayLoadingIndicator(waitingForDrop !== null) && waitingForDrop !== null;
 
-    const dragOverlay = ((!isDraggingFileWithin &&
-        !messageEditing.state.isEditing &&
-        dragEnterState?.hasNonTextType) ||
-        withDelayedDragOverlay) && <MessagingViewDragOverlay />;
+    const dragOverlay =
+        !isDisabled &&
+        ((!isDraggingFileWithin && dragEnterState?.hasNonTextType) || withDelayedDragOverlay) ? (
+            <MessagingViewDragOverlay />
+        ) : null;
 
     const dropTargetProps: HTMLAttributes<HTMLElement> = {
         onDragStartCapture: event => {
+            if (isDisabled) return;
+
             // We don't want dragging a file inside our messaging view to count as the user
             // trying to drop the file back in the messaging view.
             if (event.target instanceof HTMLElement && event.target.closest(`.${fileClassName}`)) {
@@ -49,9 +54,12 @@ export function useMessagingViewDropTarget<RoomKey extends string>({
             }
         },
         onDragEndCapture: () => {
+            if (isDisabled) return;
             setIsDraggingFileWithin(false);
         },
         onDragEnter: event => {
+            if (isDisabled) return;
+
             // If this drag only has `text/plain` and `text/html` it's probably because the
             // user is dragging some content from either their browser or another app. If
             // the user is dragging text, we want to let the message input's
@@ -68,6 +76,8 @@ export function useMessagingViewDropTarget<RoomKey extends string>({
             });
         },
         onDragLeave: () => {
+            if (isDisabled) return;
+
             // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
             // reliably had access to `event.relatedTarget` we'd check:
             // `event.currentTarget.contains(event.relatedTarget)` to know whether we need
@@ -89,17 +99,16 @@ export function useMessagingViewDropTarget<RoomKey extends string>({
             });
         },
         onDragOver: event => {
+            if (isDisabled) return;
             event.preventDefault();
         },
         onDrop: event => {
+            if (isDisabled) return;
+
             event.preventDefault();
             setDragEnterState(null);
 
-            if (
-                !isDraggingFileWithin &&
-                !messageEditing.state.isEditing &&
-                dragEnterState?.hasNonTextType
-            ) {
+            if (!isDraggingFileWithin && dragEnterState?.hasNonTextType) {
                 const inputRef = getInputRef({x: event.clientX, y: event.clientY});
 
                 if (inputRef !== null) {

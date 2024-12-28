@@ -64,11 +64,9 @@ import {
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
-    parseRemLength,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -774,6 +772,46 @@ function DocumentCommentThreadListView(
         isSingleCommentThreadWithPinnedCommentInput ? pinnedCommentInputRef ?? null : null,
     );
 
+    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
+        isDisabled: messageEditing.state.isEditing,
+        getInputRef: coords => {
+            const view = assertExists(viewRef.current);
+            const renderedRange = view.getRenderedRange();
+            if (!renderedRange) return null;
+
+            const offset =
+                coords.y - view.getElement().getBoundingClientRect().top + view.getScrollOffset();
+
+            // Find the item that contains `offset`. Written so that if `offset` is above
+            // the virtualized scroll view we'll return the first index and if it's below
+            // the virtualized scroll view we'll return the last index.
+            let aboveIndex: number | null = null;
+            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
+                const position = view.getPositionByIndex(index);
+                aboveIndex = index;
+                if (offset < position.offset + position.height) break;
+            }
+
+            if (aboveIndex === null) return null;
+
+            if (header) {
+                if (aboveIndex === 0) {
+                    // If we're above the header then we want to call `tree.getItem(0)`. However,
+                    // first check if the tree is empty. If it's empty then return null.
+                    if (tree.getItemCount() === 0) return null;
+                } else {
+                    // Adjust index so it's relative to `tree` data structure for the rest of
+                    // this function.
+                    aboveIndex -= 1;
+                }
+            }
+
+            const item = tree.getItem(aboveIndex);
+
+            return assertExists(inputRefByCommentThreadId.get(item.commentThread.id).current);
+        },
+    });
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const actualIndex = index;
@@ -1211,46 +1249,6 @@ function DocumentCommentThreadListView(
             platform,
         ],
     );
-
-    const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
-        messageEditing,
-        getInputRef: coords => {
-            const view = assertExists(viewRef.current);
-            const renderedRange = view.getRenderedRange();
-            if (!renderedRange) return null;
-
-            const offset =
-                coords.y - view.getElement().getBoundingClientRect().top + view.getScrollOffset();
-
-            // Find the item that contains `offset`. Written so that if `offset` is above
-            // the virtualized scroll view we'll return the first index and if it's below
-            // the virtualized scroll view we'll return the last index.
-            let aboveIndex: number | null = null;
-            for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
-                const position = view.getPositionByIndex(index);
-                aboveIndex = index;
-                if (offset < position.offset + position.height) break;
-            }
-
-            if (aboveIndex === null) return null;
-
-            if (header) {
-                if (aboveIndex === 0) {
-                    // If we're above the header then we want to call `tree.getItem(0)`. However,
-                    // first check if the tree is empty. If it's empty then return null.
-                    if (tree.getItemCount() === 0) return null;
-                } else {
-                    // Adjust index so it's relative to `tree` data structure for the rest of
-                    // this function.
-                    aboveIndex -= 1;
-                }
-            }
-
-            const item = tree.getItem(aboveIndex);
-
-            return assertExists(inputRefByCommentThreadId.get(item.commentThread.id).current);
-        },
-    });
 
     return (
         <>

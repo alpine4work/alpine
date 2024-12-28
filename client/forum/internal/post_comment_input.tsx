@@ -2,6 +2,7 @@ import {Memo, Ref, RefObject, useCallback, useEffect, useImperativeHandle, useRe
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
@@ -27,6 +28,7 @@ export type PostRealtimeProcedures = {
 
 export function PostCommentInput({
     isStickyPositioned,
+    inputRef: inputRefProp,
     post,
     viewRef,
     proceduresRef,
@@ -42,6 +44,7 @@ export function PostCommentInput({
     onPostRealtimeEventTransaction,
 }: {
     isStickyPositioned: boolean;
+    inputRef?: Ref<MessageInputRef>;
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
     proceduresRef: Ref<PostRealtimeProcedures>;
@@ -223,7 +226,7 @@ export function PostCommentInput({
 
     return (
         <MessageInput
-            ref={inputRef}
+            ref={useMergedRefs(inputRef, inputRefProp ?? null)}
             data-testid={`PostCommentInput:${post.id}`}
             messageNoun="comment"
             isNotBottomBar={isStickyPositioned}
