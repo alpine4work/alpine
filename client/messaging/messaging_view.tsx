@@ -15,6 +15,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputFile, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
@@ -695,7 +696,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         count: number;
         hasNonTextType: boolean;
     } | null>(null);
+
     const [isDraggingFileWithin, setIsDraggingFileWithin] = useState(false);
+
+    const [waitingForDrop, setWaitingForDrop] = useState<symbol | null>(null);
+    if (dragEnterState && waitingForDrop) setWaitingForDrop(null);
+
+    // Continue showing the drag overlay for the loading indicator delay (currently
+    // 500ms). That way if the drop is fast the UI doesn't flash the drop indicator
+    // off before adding files.
+    const withDelayedDragOverlay =
+        !useDelayLoadingIndicator(waitingForDrop !== null) && waitingForDrop !== null;
 
     return (
         <>
@@ -767,20 +778,32 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     event.preventDefault();
                     setDragEnterState(null);
 
-                    // NOCOMMIT: Wait a bit to hide message view drag overlay? So it only hides once
-                    // the message has been successfully attached if attaching a message is fast.
                     if (
                         !isDraggingFileWithin &&
                         !messageEditing.state.isEditing &&
                         dragEnterState?.hasNonTextType
                     ) {
-                        assertExists(inputRef.current).drop(event.dataTransfer);
+                        const waitingForDrop = Symbol();
+                        setWaitingForDrop(waitingForDrop);
+
+                        assertExists(inputRef.current)
+                            .drop(event.dataTransfer)
+                            .finally(() => {
+                                // Handle race conditions by only resetting to null if the symbol from this
+                                // callback is present in state.
+                                setWaitingForDrop(lastWaitingForDrop => {
+                                    if (lastWaitingForDrop !== waitingForDrop)
+                                        return lastWaitingForDrop;
+                                    return null;
+                                });
+                            });
                     }
                 }}
             >
-                {!isDraggingFileWithin &&
+                {((!isDraggingFileWithin &&
                     !messageEditing.state.isEditing &&
-                    dragEnterState?.hasNonTextType && <MessagingViewDragOverlay />}
+                    dragEnterState?.hasNonTextType) ||
+                    withDelayedDragOverlay) && <MessagingViewDragOverlay />}
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={elementRef}

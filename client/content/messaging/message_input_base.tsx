@@ -1,6 +1,3 @@
-// NOCOMMIT
-import "~/client/helpers/events/register_scroll_event_debugger.js";
-
 import classNames from "classnames";
 import {animate} from "motion";
 import {ArrowRight, ArrowUp, File, Image, PencilSimple, Plus, X} from "phosphor-react";
@@ -144,7 +141,7 @@ export type MessageInputRef = {
     isEmpty(): boolean;
     clear(): void;
     getBoundingClientRect(): DOMRect;
-    drop(dataTransfer: DataTransfer): void;
+    drop(dataTransfer: DataTransfer): {finally(listener: () => void): void};
 };
 
 export type MessageInputFile = {
@@ -286,11 +283,14 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             messageEditingForThisInput?.dispatch({type: "CancelEditing"});
             onChange(ContentEditorState.create(emptyMessageContentWithReferences));
         },
-        addFiles: (spanName: string, fileInfos: ReadonlyArray<ExternalFileElementInfo>) => {
+        addFiles: (
+            spanName: string,
+            fileInfos: ReadonlyArray<ExternalFileElementInfo>,
+        ): {finally(listener: () => void): void} => {
             // Noop if we don't have an add file callback.
-            if (!onAddFile) return;
+            if (!onAddFile) return Promise.resolve();
 
-            if (fileInfos.length === 0) return;
+            if (fileInfos.length === 0) return Promise.resolve();
 
             const promise = context.tracer.withSpan(spanName, async context => {
                 await runAllPromises(
@@ -394,8 +394,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
             promise.catch(error => {
                 reporter.displayError("Couldn’t upload file", error);
             });
+
+            return promise;
         },
-        drop: (dataTransfer: DataTransfer) => {
+        drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
             let hasHtmlFileInfos = false;
             const fileInfos: Array<ExternalFileElementInfo> = [];
 
@@ -422,7 +424,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 }
             }
 
-            events.addFiles("Message input drop files", fileInfos);
+            return events.addFiles("Message input drop files", fileInfos);
         },
     });
 
