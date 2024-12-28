@@ -31,10 +31,12 @@
 // package at https://github.com/ProseMirror/prosemirror-tables/blob/master/src/tableview.ts
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {
     getTableUnitPxWithoutListening,
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
 
 export class ContentEditorTableNodeView implements NodeView {
@@ -45,19 +47,12 @@ export class ContentEditorTableNodeView implements NodeView {
 
     private readonly unsubscribeFromSelectionUpdate: (() => void) | null = null;
     private readonly unsubscribeFromSpacingScale: (() => void) | null = null;
-
     constructor(
         public node: Node,
         public defaultCellMinWidth: number, // in rem
         public view: EditorView,
         public subscribeToSelectionUpdate?: (listener: () => void) => () => void,
     ) {
-        console.log({
-            node,
-            defaultCellMinWidth,
-            view,
-            subscribeToSelectionUpdate,
-        });
         this.dom = document.createElement("div");
         this.dom.className = tableClassName;
         this.dom.style.display = "flex";
@@ -123,33 +118,27 @@ export function contentEditorUpdateTableColumnsOnResize(
     node: Node,
     colgroup: HTMLTableColElement,
     table: HTMLTableElement,
-    defaultCellMinWidth: number, // in rem
-    overrideCol?: number, // column number in 0-indexed format to override
-    overrideValue?: number, // value to override in rem
+    defaultCellMinWidth: number,
+    overrideCol?: number,
+    overrideValue?: number,
 ): void {
-    // console.trace("contentEditorUpdateTableColumnsOnResize", {
-    //     overrideCol,
-    //     overrideValue,
-    //     columnsWidth: node.attrs.columnsWidth,
-    // });
-    let totalWidth = 0; // in rem
-    let fixedWidth = true;
+    let totalWidth = 0;
     let nextDOM = colgroup.firstChild as HTMLElement;
 
     const columnsWidth = node.attrs.columnsWidth;
     const columnCount = node.firstChild?.childCount ?? 0;
+    const defaultWidth =
+        contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
 
     // Ensure we have enough cols in colgroup
-    for (let col = 0; col < columnCount; col++) {
-        // Width is always in rem
-        const width = overrideCol == col ? overrideValue : columnsWidth?.[col];
+    for (let colIndex = 0; colIndex < columnCount; colIndex++) {
+        const width = overrideCol == colIndex ? overrideValue : columnsWidth?.[colIndex];
 
-        const cssWidth = width ? `${width * getTableUnitPxWithoutListening()}px` : "";
-        totalWidth += width;
+        const cssWidth = width
+            ? `${width * getTableUnitPxWithoutListening()}px`
+            : `${defaultWidth * getTableUnitPxWithoutListening()}px`;
+        totalWidth += width || defaultWidth;
 
-        if (!width) {
-            fixedWidth = false;
-        }
         if (!nextDOM) {
             const colElement = document.createElement("col");
             colElement.style.width = cssWidth;
@@ -169,15 +158,11 @@ export function contentEditorUpdateTableColumnsOnResize(
         nextDOM = after as HTMLElement;
     }
 
-    // console.log({
-    //     totalWidth,
-    //     spacingContextInPx: getTableUnitPxWithoutListening(),
-    // });
+    // Always set fixed width
 
-    // Update table width - all values are in rem
-    if (fixedWidth) {
-        table.style.width = `${totalWidth * getTableUnitPxWithoutListening()}px`;
-    } else {
-        table.style.width = "";
-    }
+    const finalWidth = Math.max(
+        totalWidth,
+        contentStyles.blockMaxWidthRem[getPlatformWithoutListening()],
+    );
+    table.style.width = `${finalWidth * getTableUnitPxWithoutListening()}px`;
 }

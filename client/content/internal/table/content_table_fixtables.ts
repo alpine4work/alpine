@@ -35,6 +35,8 @@
 
 import {Node} from "prosemirror-model";
 import {EditorState, PluginKey, Transaction} from "prosemirror-state";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {contentTableNodeTypes} from "~/shared/content/table/content_table_schema.js";
 
@@ -113,8 +115,18 @@ function fixTable(
     // Fix columnsWidth array if needed
     const currentColumnsWidth = table.attrs.columnsWidth || [];
     if (currentColumnsWidth.length !== maxWidth) {
+        const columnCount = table.firstChild?.childCount ?? 2;
+
+        let defaultWidthVar =
+            contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
+
+        defaultWidthVar = Math.max(defaultWidthVar, 6.25);
+
         const newColumnsWidth = [...currentColumnsWidth];
-        const defaultWidth = 6.25;
+        const defaultWidth =
+            newColumnsWidth.length > 0
+                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || defaultWidthVar
+                : defaultWidthVar;
 
         // Extend or trim columnsWidth array
         while (newColumnsWidth.length < maxWidth) {

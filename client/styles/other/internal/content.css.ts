@@ -2012,6 +2012,10 @@ globalStyle(tableClassName, {
     overflowX: "auto",
 });
 
+globalStyle(`${tableClassName} col`, {
+    minWidth: `calc(6.25 * ${tableUnitVar})`,
+});
+
 globalStyle(`${tableClassName} table`, {
     minWidth: blockMaxWidthVar,
     maxWidth: `calc(256 * ${tableUnitVar})`,

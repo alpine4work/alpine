@@ -46,6 +46,8 @@ import {Fragment, Node, NodeType, Schema, Slice} from "prosemirror-model";
 
 import {EditorState, Transaction} from "prosemirror-state";
 import {Transform} from "prosemirror-transform";
+import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {
     ContentTableMap,
@@ -207,7 +209,18 @@ function growTable(
         changed = true;
         // First update the columnsWidth array
         const newColumnsWidth = [...(table.attrs.columnsWidth || [])];
-        const defaultWidth = 6.25;
+
+        const columnCount = table.firstChild?.childCount ?? 2;
+
+        let defaultWidthVar =
+            contentStyles.blockMaxWidthRem[getPlatformWithoutListening()] / columnCount;
+
+        defaultWidthVar = Math.max(defaultWidthVar, 6.25);
+
+        const defaultWidth =
+            newColumnsWidth.length > 0
+                ? Math.max(...newColumnsWidth.filter(w => w > 0)) || defaultWidthVar
+                : defaultWidthVar;
 
         for (let i = map.width; i < width; i++) {
             newColumnsWidth.push(defaultWidth);
