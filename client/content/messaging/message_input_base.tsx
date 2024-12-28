@@ -195,9 +195,6 @@ const MessageInputBaseForwardRef = forwardRef(MessageInputBase) as <
 ) => ReactElement;
 export {MessageInputBaseForwardRef as MessageInputBase};
 
-// TODO(calebmer, #files): Paste files into message input
-// TODO(calebmer, #files): Button for adding files to message input
-
 /**
  * Presentational `<MessageInput>` component without any state associated with
  * the actual `<MessageInput>` component.
