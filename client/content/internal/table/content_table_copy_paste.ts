@@ -269,6 +269,7 @@ export function contentTableInsertCells(
     // Calculate the required dimensions after paste
     const pasteWidth = cells.width;
     const pasteHeight = cells.height;
+
     const right = Math.min(left + pasteWidth, map.width + pasteWidth);
     const bottom = Math.min(top + pasteHeight, map.height + pasteHeight);
 

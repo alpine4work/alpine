@@ -15,6 +15,7 @@ import {
     inputPlaceholderStyles,
     largeSpacingScaleSelector,
     lightColorSchemeSelector,
+    mediumSpacingScaleSelector,
     mobilePlatformSelector,
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
@@ -139,7 +140,18 @@ globalStyle(":root", {
 globalStyle(mobilePlatformSelector, {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.mobile,
+    },
+});
+
+globalStyle(largeSpacingScaleSelector, {
+    vars: {
         [tableUnitVar]: `${tableUnitPxBySpacingScale.large}px`, // mobile
+    },
+});
+
+globalStyle(mediumSpacingScaleSelector, {
+    vars: {
+        [tableUnitVar]: `${tableUnitPxBySpacingScale.medium}px`, // extra large desktop
     },
 });
 
@@ -2001,6 +2013,7 @@ globalStyle(tableClassName, {
 });
 
 globalStyle(`${tableClassName} table`, {
+    minWidth: blockMaxWidthVar,
     maxWidth: `calc(256 * ${tableUnitVar})`,
     textAlign: "left",
     borderCollapse: "collapse",

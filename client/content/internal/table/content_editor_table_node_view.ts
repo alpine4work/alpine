@@ -32,14 +32,10 @@
 import {Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
 import {
-    getRemPxWithoutListening,
     getTableUnitPxWithoutListening,
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
 import {tableClassName} from "~/shared/content/content_styles.js";
-import {spacing} from "~/shared/design/core/spacing.js";
-import {tableUnitPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 export class ContentEditorTableNodeView implements NodeView {
     public dom: HTMLDivElement;
@@ -47,8 +43,8 @@ export class ContentEditorTableNodeView implements NodeView {
     public colgroup: HTMLTableColElement;
     public contentDOM: HTMLTableSectionElement;
 
-    private unsubscribeFromSelectionUpdate: (() => void) | null = null;
-    private unsubscribeFromSpacingScale: (() => void) | null = null;
+    private readonly unsubscribeFromSelectionUpdate: (() => void) | null = null;
+    private readonly unsubscribeFromSpacingScale: (() => void) | null = null;
 
     constructor(
         public node: Node,
@@ -56,6 +52,12 @@ export class ContentEditorTableNodeView implements NodeView {
         public view: EditorView,
         public subscribeToSelectionUpdate?: (listener: () => void) => () => void,
     ) {
+        console.log({
+            node,
+            defaultCellMinWidth,
+            view,
+            subscribeToSelectionUpdate,
+        });
         this.dom = document.createElement("div");
         this.dom.className = tableClassName;
         this.dom.style.display = "flex";
@@ -125,6 +127,11 @@ export function contentEditorUpdateTableColumnsOnResize(
     overrideCol?: number, // column number in 0-indexed format to override
     overrideValue?: number, // value to override in rem
 ): void {
+    // console.trace("contentEditorUpdateTableColumnsOnResize", {
+    //     overrideCol,
+    //     overrideValue,
+    //     columnsWidth: node.attrs.columnsWidth,
+    // });
     let totalWidth = 0; // in rem
     let fixedWidth = true;
     let nextDOM = colgroup.firstChild as HTMLElement;
@@ -140,14 +147,12 @@ export function contentEditorUpdateTableColumnsOnResize(
         const cssWidth = width ? `${width * getTableUnitPxWithoutListening()}px` : "";
         totalWidth += width;
 
-        console.log({width, cssWidth});
-
         if (!width) {
             fixedWidth = false;
         }
         if (!nextDOM) {
             const colElement = document.createElement("col");
-            colElement.style.width = cssWidth === "" ? "auto" : cssWidth;
+            colElement.style.width = cssWidth;
             colgroup.appendChild(colElement);
         } else {
             if (nextDOM.style.width !== cssWidth) {
@@ -164,10 +169,10 @@ export function contentEditorUpdateTableColumnsOnResize(
         nextDOM = after as HTMLElement;
     }
 
-    console.log({
-        totalWidth,
-        spacingContextInPx: getTableUnitPxWithoutListening(),
-    });
+    // console.log({
+    //     totalWidth,
+    //     spacingContextInPx: getTableUnitPxWithoutListening(),
+    // });
 
     // Update table width - all values are in rem
     if (fixedWidth) {
@@ -175,6 +180,4 @@ export function contentEditorUpdateTableColumnsOnResize(
     } else {
         table.style.width = "";
     }
-    table.style.minWidth = contentStyles.blockMaxWidthVar;
-    // table.style.minWidth = ""; // m÷aintain a min width
 }
