@@ -4861,7 +4861,9 @@ class ContentEditorFileDragState {
         return this._dropTarget;
     }
 
-    private readonly _onDragEnter = () => {
+    private readonly _onDragEnter = (event: DragEvent) => {
+        if (!(event.target instanceof Element) || !this._view.dom.contains(event.target)) return;
+
         // We don't need to increment on our static `onDragEnter` function that
         // constructs this class because that function is called in response to a
         // `dragenter` event on our EditorView's DOM whereas this `dragenter` event is
@@ -4870,7 +4872,9 @@ class ContentEditorFileDragState {
         this._dragEnterCount++;
     };
 
-    private readonly _onDragLeave = () => {
+    private readonly _onDragLeave = (event: DragEvent) => {
+        if (!(event.target instanceof Element) || !this._view.dom.contains(event.target)) return;
+
         this._dragEnterCount--;
 
         // [Safari doesn't set `event.relatedTarget`][1] whereas Chrome does. If we
