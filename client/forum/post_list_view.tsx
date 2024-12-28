@@ -18,7 +18,10 @@ import {
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {
+    flushNavigationBarScrollEventEmitter,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar_types.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -706,6 +709,54 @@ function PostListView(
     // pinning the comment input to the bottom of the view.
     const itemCount = posts.getItemCount() - (isPostView ? 1 : 0);
 
+    const handleScroll = useEvent((scrollOffset: number) => {
+        const view = assertExists(viewRef.current);
+
+        scrollOffset = clamp(
+            0,
+            scrollOffset,
+            Math.max(0, view.getContentHeight() - view.getHeight()),
+        );
+
+        const viewHeight = viewSize?.height ?? 0;
+        const asideHeight = Math.max(viewHeight, asideSize?.height ?? 0);
+
+        const lastScrollOffset = lastScrollOffsetRef.current;
+        lastScrollOffsetRef.current = scrollOffset;
+
+        setScrollDirectionState(scrollDirectionState => {
+            const newScrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
+
+            if (scrollDirectionState.scrollDirection === newScrollDirection)
+                return scrollDirectionState;
+
+            const asideScrollOffset = clamp(
+                0,
+                scrollOffset - scrollDirectionState.asideBufferedHeight,
+                asideHeight - viewHeight,
+            );
+
+            const asideBufferedHeight = scrollOffset - asideScrollOffset;
+
+            return {
+                scrollDirection: newScrollDirection,
+                asideBufferedHeight,
+            };
+        });
+    });
+
+    // We need to subscribe to synchronous scroll flushes for the same reason
+    // `navigation_bar.tsx` does. We use a similar `position: sticky` pattern
+    // that flips depending on the scroll direction. So if the scroll direction is
+    // changing synchronously it's good to know so we can handle that.
+    useEffect(() => {
+        return flushNavigationBarScrollEventEmitter.subscribe(element => {
+            const view = assertExists(viewRef.current);
+            if (element !== view.getElement()) return;
+            handleScroll(view.getScrollOffset());
+        });
+    }, [handleScroll]);
+
     // NOTE(calebmer): This is a bit of a paranoid protection. Whenever the number
     // of items in our view changes (especially when the number of items decreases)
     // make sure `asideBufferedHeight` is clamped to the correct range. We've
@@ -773,7 +824,11 @@ function PostListView(
     );
 
     const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
-        isDisabled: postEditing.state.isEditing || messageEditing.state.isEditing,
+        isDisabled:
+            postEditing.state.isEditing ||
+            messageEditing.state.isEditing ||
+            // Comments aren't expandable on mobile so don't allow file dropping.
+            platform === "mobile",
         getInputRef: coords => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();
@@ -1601,42 +1656,7 @@ function PostListView(
                         [isPostView],
                     )}
                     onRenderedRangeChange={tryLoadingMoreData}
-                    onScroll={scrollOffset => {
-                        const view = assertExists(viewRef.current);
-
-                        scrollOffset = clamp(
-                            0,
-                            scrollOffset,
-                            Math.max(0, view.getContentHeight() - view.getHeight()),
-                        );
-
-                        const viewHeight = viewSize?.height ?? 0;
-                        const asideHeight = Math.max(viewHeight, asideSize?.height ?? 0);
-
-                        const lastScrollOffset = lastScrollOffsetRef.current;
-                        lastScrollOffsetRef.current = scrollOffset;
-
-                        setScrollDirectionState(scrollDirectionState => {
-                            const newScrollDirection =
-                                scrollOffset > lastScrollOffset ? "Down" : "Up";
-
-                            if (scrollDirectionState.scrollDirection === newScrollDirection)
-                                return scrollDirectionState;
-
-                            const asideScrollOffset = clamp(
-                                0,
-                                scrollOffset - scrollDirectionState.asideBufferedHeight,
-                                asideHeight - viewHeight,
-                            );
-
-                            const asideBufferedHeight = scrollOffset - asideScrollOffset;
-
-                            return {
-                                scrollDirection: newScrollDirection,
-                                asideBufferedHeight,
-                            };
-                        });
-                    }}
+                    onScroll={handleScroll}
                     // If the aside is larger than our virtualized list's content then we need to
                     // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
                     // some measurements. Otherwise the navigation bar among other things start to
