@@ -34,10 +34,16 @@ window.scrollBy = () => {};
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
+const fileAttachmentTarget = markMemoIfNotRendering({
     type: "Document",
     documentId: generateId(),
-});
+} as const satisfies FileAttachmentTarget);
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const commentFileAttachmentTarget = markMemoIfNotRendering({
+    type: "DocumentComments",
+    documentId: fileAttachmentTarget.documentId,
+} as const satisfies FileAttachmentTarget);
 
 const createdTime = new Date();
 
@@ -77,6 +83,7 @@ function TestContentEditor({
                 state={state}
                 onChange={setState}
                 fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
         </TestSpaceContextProvider>
     );
